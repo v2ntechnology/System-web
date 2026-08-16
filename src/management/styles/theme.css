@@ -1,0 +1,264 @@
+/**
+ * Tokens do painel de gestão — portados do monorepo `System-mobile`.
+ *
+ * ÂNCORAS IMUTÁVEIS
+ *   #212121  Graphite  — fundo do painel de gestão
+ *   #6366F1  Indigo    — marca primária
+ *   #06B6D4  Cyan      — marca secundária
+ *
+ * ⚠️ CONVIVÊNCIA COM O TEMA DO SYSTEM-WEB
+ *
+ * O produto tem dois sistemas visuais: o operacional (`/app`, OKLCH + shadcn) e
+ * este (`/gestao`, glassmorphism sobre grafite). Os dois nomeiam tokens iguais
+ * com valores diferentes, então a divisão aqui é deliberada:
+ *
+ *   1. `@theme` recebe **apenas os tokens que não existem** no System-web
+ *      (`surface-*`, `on-surface-*`, `light-*`, escala tipográfica…). Eles geram
+ *      utilitários novos e não alteram nenhuma tela existente.
+ *   2. `.management-theme` redefine os tokens **em conflito**. Como os
+ *      utilitários do System-web resolvem `var(--token)` em tempo de uso, trocar
+ *      a variável num ancestral vale para toda a subárvore do painel — e para
+ *      nada fora dela.
+ *
+ * Por isso o painel é montado dentro de um elemento com `.management-theme`
+ * (ver `ManagementLayout`). Fora dele, tudo continua com o tema do System-web.
+ */
+
+@theme {
+  /* ----------------------------------------------------------------------
+   * Superfícies — rampa neutra ancorada em #212121
+   * -------------------------------------------------------------------- */
+  --color-surface: #212121;
+  --color-surface-lowest: #171717; /* poços: campos de entrada, áreas recuadas */
+  --color-surface-low: #262626; /* vidro sobre o fundo */
+  --color-surface-container: #2e2e2e; /* card padrão (base do glass 0.04) */
+  --color-surface-high: #383838; /* card elevado */
+  --color-surface-highest: #434343; /* modais (base do glass 0.08) */
+
+  /* ----------------------------------------------------------------------
+   * Texto e traço — contraste medido sobre #212121
+   * -------------------------------------------------------------------- */
+  --color-on-surface: #f0f0f2; /* 14.1:1 — AAA */
+  --color-on-surface-variant: #b4b4bc; /*  7.8:1 — AAA */
+  --color-on-surface-muted: #9a9aa4; /* calibrado para o card #2E2E2E */
+  --color-outline: #6e6e76; /*  3.2:1 — traço de componente */
+  --color-outline-variant: #3a3a3e; /* divisórias sutis */
+
+  /* ----------------------------------------------------------------------
+   * Marca — variações que o System-web não tem
+   * -------------------------------------------------------------------- */
+  --color-primary-strong: #5457ee; /* 5.3:1 com branco — AA em botão e chip */
+  --color-primary-container: #3730a3;
+  --color-on-primary: #ffffff;
+  --color-secondary-container: #0e7490;
+  --color-on-secondary: #00212b;
+  --color-tertiary: #212121;
+
+  /* Vermelho claro da faixa do painel: #DC2626 reprova AA sobre vidro. */
+  --color-error: #fb7185;
+
+  /* ----------------------------------------------------------------------
+   * Superfície clara — botão primário das telas de autenticação (Figma)
+   * -------------------------------------------------------------------- */
+  --color-bright: #f8fafc;
+  --color-on-bright: #171717;
+
+  /* ----------------------------------------------------------------------
+   * SUPERFÍCIE CLARA — cards claros sobre o grafite (`LightCard`).
+   * Contrastes medidos sobre #E8EAEC.
+   * -------------------------------------------------------------------- */
+  --color-light: #e8eaec;
+  --color-light-container: #f4f5f6;
+  --color-on-light: #16161a; /* 15.2:1 — AAA */
+  --color-on-light-variant: #4a4a54; /*  7.3:1 — AAA */
+  --color-on-light-muted: #62626c; /*  5.0:1 — AA  */
+  --color-light-outline: #c7c9ce;
+  --color-primary-on-light: #4338ca;
+  --color-error-on-light: #9f1239;
+  --color-warning-on-light: #6b3f0a;
+  --color-success-on-light: #065f46;
+
+  /* ----------------------------------------------------------------------
+   * Paleta categórica de gráficos sobre superfície clara.
+   * Validada: deutan ΔE 15.5 · tritan 11.6 · visão normal 22.0 · contraste ≥3:1.
+   * A ordem é FIXA — série nunca troca de cor quando um filtro muda a contagem.
+   * -------------------------------------------------------------------- */
+  --color-chart-1: #4f46e5;
+  --color-chart-2: #0e8fa8;
+  --color-chart-3: #e11d48;
+
+  /* ----------------------------------------------------------------------
+   * Raio de cantos.
+   *
+   * ⚠️ `--radius-pill` precisa ficar **aqui**, não em `.management-theme`: o
+   * Tailwind gera os utilitários a partir do `@theme`, e uma variável declarada
+   * numa classe comum não cria `rounded-pill` — ela só existiria se algum
+   * utilitário já a lesse. Fora do `@theme`, `rounded-pill` vira classe morta e
+   * o sino, o avatar e o item ativo da navegação viram quadrados, sem erro
+   * nenhum no console. Os demais `--radius-*` são conflito e ficam no escopo.
+   * -------------------------------------------------------------------- */
+  --radius-pill: 9999px;
+
+  /* ----------------------------------------------------------------------
+   * Tipografia do painel — Sora no display.
+   *
+   * ⚠️ O token se chama `--font-sora`, não `--font-display`: o `font-display`
+   * do System-web é Space Grotesk e foi declarado em `@theme inline`, que grava
+   * o valor literal no utilitário e não pode ser trocado por escopo.
+   * -------------------------------------------------------------------- */
+  --font-sora: 'Sora', ui-sans-serif, system-ui, sans-serif;
+
+  --text-display-lg: 48px;
+  --text-display-lg--line-height: 56px;
+  --text-display-lg--font-weight: 700;
+  --text-display-lg--letter-spacing: -0.02em;
+
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--font-weight: 600;
+
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--font-weight: 600;
+
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 28px;
+
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+
+  --text-label-md: 14px;
+  --text-label-md--line-height: 20px;
+  --text-label-md--font-weight: 500;
+  --text-label-md--letter-spacing: 0.05em;
+
+  --text-label-sm: 12px;
+  --text-label-sm--line-height: 16px;
+  --text-label-sm--font-weight: 500;
+  --text-label-sm--letter-spacing: 0.04em;
+}
+
+/* --------------------------------------------------------------------------
+ * Escopo do painel — tokens em conflito com o tema do System-web.
+ * ----------------------------------------------------------------------- */
+.management-theme {
+  /* Cores: variáveis-fonte do `@theme inline` do System-web. */
+  --background: #212121;
+  --foreground: #f0f0f2;
+  --card: #2e2e2e;
+  --card-foreground: #f0f0f2;
+  --popover: #262626;
+  --popover-foreground: #f0f0f2;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --secondary: #06b6d4; /* cyan da marca — no System-web é um cinza de apoio */
+  --secondary-foreground: #00212b;
+  --muted: #262626;
+  --muted-foreground: #9a9aa4;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #38bdf8;
+  --destructive: #fb7185;
+  --border: #3a3a3e;
+  --input: #3a3a3e;
+  --ring: #06b6d4;
+
+  /*
+   * Raio (FE-02): container 16px, elemento interno 12px. `--radius` alimenta
+   * `rounded-lg` do System-web; `--radius-md` e `--radius-lg` são lidos direto
+   * pelo `glass.css`; `--radius-xl` vem do tema padrão do Tailwind e aceita a
+   * troca por escopo.
+   */
+  --radius: 16px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Spectrum Gradient — variação magenta (aprovada). Uso PARCIMONIOSO. */
+  --spectrum-gradient: linear-gradient(
+    135deg,
+    #e879f9 0%,
+    #a855f7 17%,
+    #6366f1 33%,
+    #4f7df3 50%,
+    #3b9ef5 67%,
+    #06b6d4 83%,
+    #22d3ee 100%
+  );
+
+  --glow-indigo: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  --glow-cyan: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+
+  /* Profundidade do fundo — tom mais escuro que a âncora, para vinheta e topo. */
+  --backdrop-deep: #141414;
+
+  /* Camadas de vidro — opacidade travada para contraste determinístico (FE-07) */
+  --glass-surface: rgba(255, 255, 255, 0.05);
+  --glass-surface-elevated: rgba(255, 255, 255, 0.09);
+  --glass-blur: 16px;
+  --glass-blur-elevated: 24px;
+  --glass-border-from: rgba(255, 255, 255, 0.16);
+  --glass-border-to: rgba(255, 255, 255, 0.05);
+
+  /*
+   * O painel é escuro mesmo quando o System-web está no tema claro: a rampa de
+   * superfícies, o vidro e todos os contrastes foram medidos sobre o grafite.
+   */
+  color-scheme: dark;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font-size: var(--text-body-md);
+  line-height: var(--text-body-md--line-height);
+}
+
+/*
+ * `rounded-sm` e `rounded-md` são a outra metade da armadilha do `rounded-pill`.
+ * O System-web os declara em `@theme inline` como `calc(var(--radius) - 4px)` e
+ * `- 2px`: o `inline` grava a expressão dentro do próprio utilitário, então
+ * trocar `--radius` no escopo não devolve os 8px/12px do FE-02 — devolve 12px e
+ * 14px, e o painel inteiro fica com o canto mais mole que na origem. Repor aqui
+ * é o único ponto que alcança os dois sem mexer no tema do painel operacional.
+ *
+ * Regra sem `@layer`: CSS fora de camada vence utilitário em camada, então a
+ * especificidade não depende da ordem dos arquivos.
+ */
+.management-theme .rounded-sm {
+  border-radius: var(--radius-sm);
+}
+
+.management-theme .rounded-md {
+  border-radius: var(--radius-md);
+}
+
+/*
+ * ⚠️ Estas três regras ficam em `@layer base`, como no `global.css` de origem —
+ * e não fora de camada como as de raio acima. A diferença importa: o outline de
+ * foco é um **piso** de acessibilidade, não uma ordem. Fora de camada ele vence
+ * o `focus:outline-none` dos componentes que desenham o próprio foco, e o
+ * `GlassInput` ganhava dois traços verticais dentro do campo — o outline do
+ * `<input>`, cujas bordas de cima e de baixo somem atrás do poço.
+ *
+ * ⚠️ E a cor sai de `--secondary`, não de `--color-secondary`. O System-web
+ * declara `--color-secondary: var(--secondary)` em `@theme inline`: a
+ * substituição acontece **no `:root`**, onde a regra foi escrita, então o valor
+ * herdado já vem resolvido e ignora o `--secondary` do escopo. O foco saía no
+ * cinza-azulado do painel operacional em vez do cyan da marca.
+ */
+@layer base {
+  /* RNF-027 — números alinhados em tabelas e métricas. */
+  .management-theme table,
+  .management-theme .tabular {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  .management-theme ::selection {
+    background-color: color-mix(in oklab, var(--primary) 45%, transparent);
+    color: var(--color-on-surface);
+  }
+
+  .management-theme :focus-visible {
+    outline: 2px solid var(--secondary);
+    outline-offset: 2px;
+  }
+}

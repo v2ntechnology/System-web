@@ -1,0 +1,1287 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/*
+ * Painel de gestão (`/gestao`), portado do monorepo System-mobile. Os tokens
+ * próprios dele ficam escopados em `.management-theme` — ver o cabeçalho do
+ * arquivo. Importado aqui para o Tailwind processar os dois `@theme` juntos.
+ */
+@import '../management/styles/theme.css';
+@import '../management/styles/glass.css';
+
+/* Tema escuro é o padrão do produto, aplicado pela classe `.dark` no <html>. */
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tema claro (preparado para o futuro). Os valores estão em OKLCH e são
+ * equivalentes visuais exatos da paleta HSL original da marca.
+ */
+:root {
+  --background: oklch(0.9838 0.0035 247.86);
+  --foreground: oklch(0.2179 0.0421 263.17);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2179 0.0421 263.17);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2179 0.0421 263.17);
+
+  --primary: oklch(0.5875 0.2039 277.36);
+  --primary-foreground: oklch(0.9838 0.0035 247.86);
+
+  --secondary: oklch(0.9679 0.0027 264.54);
+  --secondary-foreground: oklch(0.2959 0.0532 263.29);
+
+  --muted: oklch(0.9518 0.0041 264.54);
+  --muted-foreground: oklch(0.5121 0.0292 264.27);
+
+  --accent: oklch(0.7207 0.1254 213.25);
+  --accent-foreground: oklch(0.1788 0.0296 263.41);
+
+  --destructive: oklch(0.5786 0.2137 27.17);
+  --destructive-foreground: oklch(0.9838 0.0035 247.86);
+
+  --success: oklch(0.6179 0.1338 157.54);
+  --success-foreground: oklch(0.9838 0.0035 247.86);
+
+  --warning: oklch(0.6688 0.1588 57.96);
+  --warning-foreground: oklch(0.9838 0.0035 247.86);
+
+  --info: oklch(0.6776 0.1481 238.1);
+  --info-foreground: oklch(0.9838 0.0035 247.86);
+
+  --border: oklch(0.9023 0.0096 264.52);
+  --input: oklch(0.9023 0.0096 264.52);
+  --ring: oklch(0.5875 0.2039 277.36);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.2959 0.0532 263.29);
+  --sidebar-accent: oklch(0.9599 0.0034 264.54);
+  --sidebar-border: oklch(0.9188 0.0079 264.52);
+
+  --radius: 0.75rem;
+}
+
+/* Tema escuro — fundo principal #0B1220, primária #6366F1, destaque #06B6D4. */
+.dark {
+  --background: oklch(0.1788 0.0296 263.41);
+  --foreground: oklch(0.9838 0.0035 247.86);
+
+  --card: oklch(0.2089 0.033 265.91);
+  --card-foreground: oklch(0.9838 0.0035 247.86);
+
+  --popover: oklch(0.1978 0.0334 265.78);
+  --popover-foreground: oklch(0.9838 0.0035 247.86);
+
+  --primary: oklch(0.5875 0.2039 277.36);
+  --primary-foreground: oklch(0.9838 0.0035 247.86);
+
+  --secondary: oklch(0.2667 0.0314 259.74);
+  --secondary-foreground: oklch(0.9676 0.007 247.9);
+
+  --muted: oklch(0.2784 0.0275 259.8);
+  --muted-foreground: oklch(0.7357 0.0315 256.78);
+
+  --accent: oklch(0.7207 0.1254 213.25);
+  --accent-foreground: oklch(0.1788 0.0296 263.41);
+
+  --destructive: oklch(0.5786 0.2137 27.17);
+  --destructive-foreground: oklch(0.9838 0.0035 247.86);
+
+  --success: oklch(0.6885 0.1457 157.94);
+  --success-foreground: oklch(0.1788 0.0296 263.41);
+
+  --warning: oklch(0.789 0.1592 74.08);
+  --warning-foreground: oklch(0.1788 0.0296 263.41);
+
+  --info: oklch(0.7364 0.1389 233.96);
+  --info-foreground: oklch(0.1788 0.0296 263.41);
+
+  --border: oklch(0.2881 0.0289 259.8);
+  --input: oklch(0.3073 0.0316 259.79);
+  --ring: oklch(0.5875 0.2039 277.36);
+
+  --sidebar: oklch(0.1871 0.0326 265.72);
+  --sidebar-foreground: oklch(0.9676 0.007 247.9);
+  --sidebar-accent: oklch(0.2569 0.0297 259.75);
+  --sidebar-border: oklch(0.2675 0.0293 259.77);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+
+  /*
+   * Azul-noite da marca (#0B1220), constante nos dois temas. Usado nos véus
+   * sobre a fotografia noturna do login, que precisam escurecer a imagem
+   * mesmo no tema claro — com `background` a foto ficava lavada de branco.
+   */
+  --color-brand-night: oklch(0.1788 0.0296 263.41);
+
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', Inter, system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-fade-in-up: fade-in-up 0.35s ease-out;
+  --animate-pulse-marker: pulse-marker 2s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse-marker {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.55;
+      transform: scale(1.35);
+    }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display tracking-tight;
+  }
+
+  /* Barras de rolagem discretas e coerentes com o tema */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--color-muted-foreground) 50%, transparent);
+  }
+
+  /*
+   * Trocar de tema muda dezenas de cores de uma vez. Quem tem `transition-colors`
+   * — menu ativo, cards, badges, botões — animaria até a cor nova enquanto o
+   * resto troca na hora, e a diferença é percebida como uma piscada. O
+   * `theme-store` põe e tira esta classe dentro da própria troca.
+   */
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition: none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+}
+
+/*
+ * 404 "caça-níquel": os dígitos giram dentro de janelas inclinadas até travar
+ * em 404. O recorte vem de `skew(-45deg)` no clip com `skew(45deg)` no dígito,
+ * que desfaz a inclinação do número e deixa só a janela torta.
+ */
+@layer components {
+  .error-404 {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    gap: clamp(0.5rem, 2vw, 1.25rem);
+  }
+
+  .error-404-clip {
+    display: inline-block;
+    transform: skew(-45deg);
+  }
+
+  .error-404-shadow {
+    display: block;
+    overflow: hidden;
+    width: clamp(5rem, 16vw, 9rem);
+    height: clamp(6.5rem, 20vw, 11rem);
+  }
+
+  /* Só o dígito do meio ganha a sombra interna que sugere profundidade. */
+  .error-404-clip:nth-child(2) .error-404-shadow {
+    width: clamp(4rem, 12vw, 7rem);
+    box-shadow:
+      inset 20px 0 20px -15px color-mix(in oklch, var(--color-foreground) 22%, transparent),
+      20px 0 20px -15px color-mix(in oklch, var(--color-foreground) 22%, transparent);
+  }
+
+  .error-404-digit {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: clamp(4.5rem, 14vw, 8rem);
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    transform: skew(45deg);
+    color: var(--color-primary-foreground);
+    background-image: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .error-404-clip:nth-child(1) .error-404-digit {
+    right: -20%;
+  }
+  .error-404-clip:nth-child(2) .error-404-digit {
+    left: -10%;
+  }
+  .error-404-clip:nth-child(3) .error-404-digit {
+    left: -20%;
+  }
+
+  /* Balão "OH!" pendurado sobre os dígitos. */
+  .error-404-msg {
+    position: absolute;
+    left: 8%;
+    top: -1.5rem;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    width: clamp(2.75rem, 8vw, 5rem);
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    background: var(--color-muted);
+    color: var(--color-muted-foreground);
+    font-size: clamp(1rem, 3vw, 2rem);
+    font-style: italic;
+    font-weight: 600;
+  }
+
+  .error-404-triangle {
+    position: absolute;
+    right: 0;
+    top: 70%;
+    width: 0;
+    height: 0;
+    transform: rotate(45deg);
+    border-top: 0.9rem solid transparent;
+    border-bottom: 0.9rem solid transparent;
+    border-left: 1.1rem solid var(--color-muted);
+  }
+}
+
+/* Entrada pública e experiência de voz. */
+@layer components {
+  .voice-core {
+    position: relative;
+    /* Maior que o diâmetro em repouso: a câmera enquadra a esfera já expandida,
+       então a esfera parada ocupa só o miolo do canvas. */
+    width: clamp(17rem, 39vw, 26rem);
+    aspect-ratio: 1;
+  }
+
+  /* A esfera WebGL preenche o núcleo — sem anéis nem satélites em volta. */
+  .voice-core-sphere {
+    position: absolute;
+    inset: 0;
+  }
+
+  /*
+   * Equalizador orbital inspirado nos vídeos de referência. Ele fica discreto
+   * nos demais estados e ganha amplitude real apenas enquanto a IA fala.
+   */
+  .voice-orbit {
+    --voice-orbit-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-accent));
+    --voice-orbit-radius: clamp(6.4rem, 15vw, 10.2rem);
+    position: absolute;
+    inset: 4%;
+    color: var(--voice-orbit-color);
+    opacity: 0.12;
+    pointer-events: none;
+    transition:
+      color 320ms ease,
+      opacity 320ms ease;
+  }
+
+  .voice-orbit-bar {
+    --voice-scale: 0.32;
+    position: absolute;
+    top: 50%;
+    left: calc(50% - 1px);
+    width: clamp(1px, 0.16vw, 2px);
+    height: clamp(0.55rem, 1.3vw, 0.95rem);
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.18;
+    transform: rotate(var(--orbit-angle)) translateY(calc(var(--voice-orbit-radius) * -1))
+      scaleY(var(--voice-scale));
+    transform-origin: center center;
+    transition:
+      opacity 240ms ease,
+      transform 72ms linear;
+  }
+
+  .voice-orbit-arc {
+    position: absolute;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    opacity: 0;
+    transition: opacity 320ms ease;
+  }
+
+  .voice-orbit-arc--outer {
+    inset: 0;
+    border-top-color: color-mix(in oklch, currentColor 82%, transparent);
+    border-right-color: color-mix(in oklch, currentColor 35%, transparent);
+    animation: voice-orbit-spin 8s linear infinite;
+  }
+
+  .voice-orbit-arc--inner {
+    inset: 10%;
+    border-bottom-color: color-mix(in oklch, currentColor 68%, transparent);
+    border-left-color: color-mix(in oklch, currentColor 24%, transparent);
+    animation: voice-orbit-spin-reverse 5.8s linear infinite;
+  }
+
+  .voice-orbit--listening {
+    opacity: 0.26;
+    color: var(--color-accent);
+  }
+
+  .voice-orbit--processing {
+    opacity: 0.34;
+    color: var(--color-primary);
+  }
+
+  .voice-orbit--processing .voice-orbit-arc {
+    opacity: 0.38;
+  }
+
+  .voice-orbit--speaking {
+    opacity: 0.94;
+    color: var(--color-warning);
+  }
+
+  .voice-orbit--speaking .voice-orbit-bar {
+    opacity: 0.86;
+    box-shadow: 0 0 8px color-mix(in oklch, currentColor 45%, transparent);
+  }
+
+  .voice-orbit--speaking .voice-orbit-arc {
+    opacity: 0.72;
+  }
+
+  .voice-orbit--error {
+    color: var(--color-destructive);
+    opacity: 0.2;
+  }
+}
+
+@layer components {
+  .voice-waveform {
+    display: flex;
+    height: 3.25rem;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2px, 0.45vw, 5px);
+  }
+
+  .voice-wave-bar {
+    width: clamp(2px, 0.32vw, 4px);
+    flex: 0 0 auto;
+    transform: scaleY(0.22);
+    transform-origin: center;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--color-primary) 72%, var(--color-accent));
+    opacity: 0.52;
+    transition:
+      transform 70ms linear,
+      opacity 200ms ease,
+      background-color 200ms ease;
+  }
+
+  .voice-waveform--idle .voice-wave-bar {
+    animation: voice-wave-idle 2.4s ease-in-out infinite;
+  }
+
+  .voice-waveform--listening .voice-wave-bar {
+    background: var(--color-accent);
+    opacity: 0.9;
+  }
+
+  .voice-waveform--processing .voice-wave-bar {
+    animation: voice-wave-process 1.15s ease-in-out infinite;
+    background: var(--color-primary);
+    opacity: 0.78;
+  }
+
+  /* Acompanha o laranja da esfera enquanto a IA responde. */
+  .voice-waveform--speaking .voice-wave-bar {
+    animation: voice-wave-speaking 0.72s ease-in-out infinite alternate;
+    background: var(--color-warning);
+    opacity: 0.9;
+  }
+
+  .voice-waveform--error .voice-wave-bar {
+    background: var(--color-destructive);
+    opacity: 0.35;
+  }
+}
+
+@keyframes voice-wave-idle {
+  0%,
+  100% {
+    transform: scaleY(0.2);
+  }
+  50% {
+    transform: scaleY(0.42);
+  }
+}
+
+@keyframes voice-wave-process {
+  0%,
+  100% {
+    transform: scaleY(0.2);
+  }
+  50% {
+    transform: scaleY(0.78);
+  }
+}
+
+@keyframes voice-wave-speaking {
+  from {
+    transform: scaleY(0.3);
+  }
+  to {
+    transform: scaleY(1.15);
+  }
+}
+
+@keyframes voice-orbit-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes voice-orbit-spin-reverse {
+  to {
+    transform: rotate(-1turn);
+  }
+}
+
+/*
+ * Animações do robô da IA (atalho flutuante). São sorteadas em runtime pelo
+ * `AiLauncher`; a classe é aplicada ao ícone e removida no `animationend`.
+ * Ficam fora de `@theme` porque não são utilitárias — só este componente usa.
+ */
+@layer components {
+  .bot-anim-wave {
+    animation: bot-wave 1s ease-in-out;
+    transform-origin: bottom center;
+  }
+  .bot-anim-bounce {
+    animation: bot-bounce 0.9s ease-in-out;
+  }
+  .bot-anim-spin {
+    animation: bot-spin 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .bot-anim-wobble {
+    animation: bot-wobble 1s ease-in-out;
+  }
+  .bot-anim-jelly {
+    animation: bot-jelly 0.9s ease-out;
+  }
+  .bot-anim-peek {
+    animation: bot-peek 1.2s ease-in-out;
+  }
+  .bot-anim-heartbeat {
+    animation: bot-heartbeat 1.1s ease-in-out;
+  }
+  .bot-anim-shake {
+    animation: bot-shake 0.7s ease-in-out;
+  }
+  .bot-anim-nod {
+    animation: bot-nod 0.9s ease-in-out;
+  }
+  .bot-anim-float {
+    animation: bot-float 2s ease-in-out;
+  }
+  .bot-anim-flip {
+    animation: bot-flip 1s ease-in-out;
+  }
+  .bot-anim-pop {
+    animation: bot-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .bot-anim-swing {
+    animation: bot-swing 1.2s ease-in-out;
+    transform-origin: top center;
+  }
+  .bot-anim-rubber {
+    animation: bot-rubber 1s ease-out;
+  }
+  .bot-anim-jump-spin {
+    animation: bot-jump-spin 1.1s ease-in-out;
+  }
+  .bot-anim-blink {
+    animation: bot-blink 0.9s ease-in-out;
+  }
+  .bot-anim-dance {
+    animation: bot-dance 1.2s ease-in-out;
+  }
+  .bot-anim-rocket {
+    animation: bot-rocket 1.1s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+  .bot-anim-glitch {
+    animation: bot-glitch 0.6s steps(2, end);
+  }
+  .bot-anim-orbit {
+    animation: bot-orbit 1.4s linear;
+  }
+
+  /*
+   * Rosto: olhos e boca são elementos do SVG e animam por conta própria.
+   * `transform-box: fill-box` faz o transform girar/escalar em torno do
+   * próprio elemento, e não do sistema de coordenadas do SVG inteiro.
+   */
+  .bot-eye,
+  .bot-mouth {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  /* Em repouso: pisca de tempos em tempos e a boca respira. */
+  .bot-eye {
+    animation: bot-eye-idle 6s ease-in-out infinite;
+  }
+  .bot-mouth {
+    animation: bot-mouth-idle 6s ease-in-out infinite;
+  }
+
+  /* Cada animação do corpo traz junto a expressão que combina com ela. */
+  .bot-anim-wave .bot-eye,
+  .bot-anim-bounce .bot-eye,
+  .bot-anim-float .bot-eye,
+  .bot-anim-jump-spin .bot-eye {
+    animation: bot-eye-happy 1s ease-in-out;
+  }
+  .bot-anim-heartbeat .bot-eye,
+  .bot-anim-jelly .bot-eye,
+  .bot-anim-pop .bot-eye {
+    animation: bot-eye-wide 1s ease-out;
+  }
+  .bot-anim-spin .bot-eye,
+  .bot-anim-rubber .bot-eye,
+  .bot-anim-rocket .bot-eye {
+    animation: bot-eye-squint 1s ease-in-out;
+  }
+  .bot-anim-wobble .bot-eye,
+  .bot-anim-peek .bot-eye,
+  .bot-anim-swing .bot-eye,
+  .bot-anim-dance .bot-eye {
+    animation: bot-eye-look 1.2s ease-in-out;
+  }
+  .bot-anim-nod .bot-eye,
+  .bot-anim-blink .bot-eye {
+    animation: bot-eye-close 1s ease-in-out;
+  }
+  .bot-anim-flip .bot-eye,
+  .bot-anim-glitch .bot-eye,
+  .bot-anim-shake .bot-eye {
+    animation: bot-eye-flicker 0.7s steps(2, end);
+  }
+  .bot-anim-orbit .bot-eye {
+    animation: bot-eye-roll 1.4s linear;
+  }
+
+  .bot-anim-wave .bot-mouth,
+  .bot-anim-bounce .bot-mouth,
+  .bot-anim-heartbeat .bot-mouth,
+  .bot-anim-float .bot-mouth,
+  .bot-anim-peek .bot-mouth,
+  .bot-anim-nod .bot-mouth,
+  .bot-anim-blink .bot-mouth,
+  .bot-anim-swing .bot-mouth,
+  .bot-anim-orbit .bot-mouth {
+    animation: bot-mouth-grin 1s ease-in-out;
+  }
+  .bot-anim-dance .bot-mouth,
+  .bot-anim-flip .bot-mouth,
+  .bot-anim-wobble .bot-mouth {
+    animation: bot-mouth-talk 1.1s ease-in-out;
+  }
+  .bot-anim-pop .bot-mouth,
+  .bot-anim-jump-spin .bot-mouth,
+  .bot-anim-rocket .bot-mouth {
+    animation: bot-mouth-open 1s ease-out;
+  }
+  .bot-anim-jelly .bot-mouth,
+  .bot-anim-rubber .bot-mouth {
+    animation: bot-mouth-stretch 1s ease-out;
+  }
+  .bot-anim-shake .bot-mouth,
+  .bot-anim-glitch .bot-mouth,
+  .bot-anim-spin .bot-mouth {
+    animation: bot-mouth-flat 0.8s ease-in-out;
+  }
+
+  /* Wordmark: "Rook" claro + "Hub" em gradiente da marca */
+  .brand-gradient-text {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+
+  /* Superfície de mapa mockado com grade tecnológica */
+  .map-surface {
+    background-color: var(--color-background);
+    background-image:
+      radial-gradient(
+        circle at 30% 20%,
+        color-mix(in oklch, var(--color-primary) 18%, transparent),
+        transparent 45%
+      ),
+      radial-gradient(
+        circle at 75% 70%,
+        color-mix(in oklch, var(--color-accent) 16%, transparent),
+        transparent 45%
+      ),
+      linear-gradient(
+        color-mix(in oklch, var(--color-border) 35%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in oklch, var(--color-border) 35%, transparent) 1px,
+        transparent 1px
+      );
+    background-size:
+      100% 100%,
+      100% 100%,
+      28px 28px,
+      28px 28px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Keyframes das animações do robô da IA
+ * ------------------------------------------------------------------------- */
+
+@keyframes bot-wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-18deg);
+  }
+  45% {
+    transform: rotate(14deg);
+  }
+  70% {
+    transform: rotate(-10deg);
+  }
+  88% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes bot-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-9px);
+  }
+  50% {
+    transform: translateY(0) scaleY(0.9);
+  }
+  75% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes bot-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bot-wobble {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  15% {
+    transform: translateX(-6px) rotate(-8deg);
+  }
+  35% {
+    transform: translateX(5px) rotate(6deg);
+  }
+  55% {
+    transform: translateX(-4px) rotate(-4deg);
+  }
+  75% {
+    transform: translateX(2px) rotate(2deg);
+  }
+}
+
+@keyframes bot-jelly {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  25% {
+    transform: scale(1.22, 0.8);
+  }
+  45% {
+    transform: scale(0.85, 1.18);
+  }
+  65% {
+    transform: scale(1.1, 0.92);
+  }
+  85% {
+    transform: scale(0.96, 1.04);
+  }
+}
+
+@keyframes bot-peek {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-5px) rotate(-14deg);
+  }
+  50% {
+    transform: translateX(0) rotate(0deg);
+  }
+  75% {
+    transform: translateX(5px) rotate(14deg);
+  }
+}
+
+@keyframes bot-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.22);
+  }
+  35% {
+    transform: scale(1);
+  }
+  55% {
+    transform: scale(1.16);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+@keyframes bot-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes bot-nod {
+  0%,
+  100% {
+    transform: perspective(220px) rotateX(0deg);
+  }
+  30% {
+    transform: perspective(220px) rotateX(38deg);
+  }
+  60% {
+    transform: perspective(220px) rotateX(-16deg);
+  }
+  85% {
+    transform: perspective(220px) rotateX(12deg);
+  }
+}
+
+@keyframes bot-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-6px) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(4deg);
+  }
+}
+
+@keyframes bot-flip {
+  0% {
+    transform: perspective(320px) rotateY(0deg);
+  }
+  100% {
+    transform: perspective(320px) rotateY(360deg);
+  }
+}
+
+@keyframes bot-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.7);
+  }
+  70% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes bot-swing {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(16deg);
+  }
+  45% {
+    transform: rotate(-13deg);
+  }
+  70% {
+    transform: rotate(8deg);
+  }
+  88% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes bot-rubber {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.3, 0.72);
+  }
+  45% {
+    transform: scale(0.78, 1.26);
+  }
+  60% {
+    transform: scale(1.16, 0.88);
+  }
+  80% {
+    transform: scale(0.94, 1.06);
+  }
+}
+
+@keyframes bot-jump-spin {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  40% {
+    transform: translateY(-12px) rotate(180deg);
+  }
+  70% {
+    transform: translateY(0) rotate(360deg) scaleY(0.88);
+  }
+  85% {
+    transform: translateY(-3px) rotate(360deg);
+  }
+  100% {
+    transform: translateY(0) rotate(360deg);
+  }
+}
+
+/* O corpo só inclina; quem pisca são os olhos (`bot-eye-close`). */
+@keyframes bot-blink {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: rotate(-7deg);
+  }
+  70% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes bot-dance {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  20% {
+    transform: translateX(-5px) rotate(-12deg);
+  }
+  40% {
+    transform: translateX(5px) rotate(12deg);
+  }
+  60% {
+    transform: translateX(-5px) rotate(-12deg);
+  }
+  80% {
+    transform: translateX(5px) rotate(12deg);
+  }
+}
+
+@keyframes bot-rocket {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  20% {
+    transform: translateY(4px) scale(0.9, 1.1);
+  }
+  55% {
+    transform: translateY(-16px) scale(1.05, 0.95);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bot-glitch {
+  0%,
+  100% {
+    transform: translate(0) skewX(0deg);
+    opacity: 1;
+  }
+  20% {
+    transform: translate(-3px, 2px) skewX(10deg);
+    opacity: 0.65;
+  }
+  40% {
+    transform: translate(3px, -2px) skewX(-12deg);
+  }
+  60% {
+    transform: translate(-2px, -1px) skewX(6deg);
+    opacity: 0.8;
+  }
+  80% {
+    transform: translate(2px, 1px) skewX(-4deg);
+  }
+}
+
+@keyframes bot-orbit {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(5px, -5px);
+  }
+  50% {
+    transform: translate(0, -7px);
+  }
+  75% {
+    transform: translate(-5px, -5px);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Keyframes dos olhos e da boca
+ * ------------------------------------------------------------------------- */
+
+/* Piscada dupla espaçada — o robô fica quase todo o ciclo de olhos abertos. */
+@keyframes bot-eye-idle {
+  0%,
+  86%,
+  100% {
+    transform: scaleY(1);
+  }
+  88%,
+  93% {
+    transform: scaleY(0.1);
+  }
+  90%,
+  96% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes bot-eye-happy {
+  0%,
+  100% {
+    transform: scaleY(1) translateY(0);
+  }
+  30%,
+  70% {
+    transform: scaleY(0.45) translateY(-0.6px);
+  }
+}
+
+@keyframes bot-eye-wide {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.5);
+  }
+  65% {
+    transform: scale(1.2);
+  }
+}
+
+@keyframes bot-eye-squint {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  30%,
+  70% {
+    transform: scaleY(0.3);
+  }
+}
+
+@keyframes bot-eye-look {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-1.4px);
+  }
+  50% {
+    transform: translateX(0);
+  }
+  75% {
+    transform: translateX(1.4px);
+  }
+}
+
+@keyframes bot-eye-close {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  20%,
+  45% {
+    transform: scaleY(0.08);
+  }
+  32%,
+  70% {
+    transform: scaleY(1);
+  }
+  85% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes bot-eye-flicker {
+  0%,
+  100% {
+    transform: scaleY(1) translateX(0);
+    opacity: 1;
+  }
+  25% {
+    transform: scaleY(0.2) translateX(-1px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleY(1) translateX(1px);
+  }
+  75% {
+    transform: scaleY(0.35) translateX(-0.5px);
+    opacity: 0.8;
+  }
+}
+
+@keyframes bot-eye-roll {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(1.2px, -0.9px);
+  }
+  50% {
+    transform: translate(0, -1.4px);
+  }
+  75% {
+    transform: translate(-1.2px, -0.9px);
+  }
+}
+
+@keyframes bot-mouth-idle {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06, 0.94);
+  }
+}
+
+@keyframes bot-mouth-grin {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40%,
+  70% {
+    transform: scale(1.3, 1.35);
+  }
+}
+
+@keyframes bot-mouth-talk {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  20%,
+  60% {
+    transform: scaleY(1.9);
+  }
+  40%,
+  80% {
+    transform: scaleY(0.35);
+  }
+}
+
+@keyframes bot-mouth-open {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.8, 2.2);
+  }
+  70% {
+    transform: scale(0.9, 1.6);
+  }
+}
+
+@keyframes bot-mouth-stretch {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.45, 0.6);
+  }
+  60% {
+    transform: scale(0.8, 1.4);
+  }
+  85% {
+    transform: scale(1.1, 0.9);
+  }
+}
+
+@keyframes bot-mouth-flat {
+  0%,
+  100% {
+    transform: scaleY(1) rotate(0deg);
+  }
+  30%,
+  70% {
+    transform: scaleY(0.12) rotate(-4deg);
+  }
+}

@@ -1,0 +1,14 @@
+# Normaliza as quebras de linha em LF na árvore de trabalho e no repositório.
+# Sem isso, o autocrlf do Windows converteria para CRLF e o Prettier
+# (endOfLine: "lf") passaria a acusar todo o projeto como mal formatado.
+* text=auto eol=lf
+
+# Binários — nunca normalizar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.docx binary

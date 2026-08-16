@@ -1,0 +1,68 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.session-preview.*
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build output
+dist
+dist-ssr
+*.local
+
+# Testes e cobertura
+coverage
+.vitest
+playwright-report
+test-results
+
+# Cache de ferramentas
+.eslintcache
+.cache
+*.tsbuildinfo
+
+# Configuração de agentes de IA.
+# CLAUDE.md, memoria.md e skills são versionados: valem para o time inteiro.
+# Só as permissões ficam de fora: são geradas por máquina, ao aceitar "allow".
+.claude/settings.json
+.claude/settings.local.json
+
+# Demais agentes de IA — nada deles é versionado.
+.agents/
+.codex/
+.openai/
+.cursor/
+/AGENTS.md
+/agents.md
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Env e segredos — nenhum arquivo de ambiente é versionado
+.env
+.env.*
+LOCAL_SETUP_SECRETS.env
+
+# Kit de entrega original (prompt duplicado, .docx e cópias das imagens de
+# referência). O conteúdo útil já está versionado em
+# CLAUDE_FRONTEND_IMPLEMENTATION_PROMPT.md e docs/references/.
+rookhub_frontend_kit/
+
+# MCP settings (contém tokens de API)
+.agents/settings.json

@@ -1,0 +1,260 @@
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
+import { Navigate, type RouteObject } from 'react-router';
+
+import { ManagementLayout } from '@/management/components/layout/management-layout';
+import { useSession } from '@/management/features/auth/store';
+import type { Role } from '@/management/types';
+import { Spinner } from '@/management/ui';
+
+/* -------------------------------------------------------------------------- */
+/* Carregamento sob demanda                                                    */
+/* -------------------------------------------------------------------------- */
+
+function RouteFallback() {
+  return (
+    <div className="text-on-surface-muted flex min-h-dvh items-center justify-center">
+      <Spinner className="size-6" />
+    </div>
+  );
+}
+
+/** Igual ao `lazyElement` do router principal, mas com o fallback do painel. */
+function lazyElement(factory: () => Promise<{ default: ComponentType }>) {
+  const Component = lazy(factory);
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Component />
+    </Suspense>
+  );
+}
+
+/** Atalho para as telas do painel, que usam exportação nomeada. */
+function page<M extends Record<string, unknown>>(
+  factory: () => Promise<M>,
+  name: keyof M & string,
+) {
+  return lazyElement(() =>
+    factory().then((module) => ({ default: module[name] as ComponentType })),
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Guarda por papel                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * ⚠️ Conveniência de navegação, NÃO controle de acesso. A autorização real
+ * (papel + entitlement) será sempre do backend — quem digitar a URL na mão vai
+ * bater no 403 de lá, não aqui.
+ *
+ * Guardamos apenas as telas **específicas de um papel**, e de propósito não o
+ * contrário: as telas operacionais seguem alcançáveis por link direto (ação de
+ * notificação, resposta do assistente).
+ */
+function RoleRoute({ allow, children }: { allow: Role[]; children: ReactNode }) {
+  const session = useSession();
+
+  if (session && !allow.includes(session.user.role)) {
+    return <Navigate to="/gestao" replace />;
+  }
+  return <>{children}</>;
+}
+
+const OWNER_ONLY: Role[] = ['OWNER'];
+const MANAGER_ONLY: Role[] = ['MANAGER', 'SUPER_ADMIN'];
+const OWNER_AND_MANAGER: Role[] = ['OWNER', 'MANAGER', 'SUPER_ADMIN'];
+
+/* -------------------------------------------------------------------------- */
+/* Home por papel                                                              */
+/* -------------------------------------------------------------------------- */
+
+const OwnerHomePage = lazy(() =>
+  import('@/management/features/owner/pages/owner-home-page').then((m) => ({
+    default: m.OwnerHomePage,
+  })),
+);
+const ManagerHomePage = lazy(() =>
+  import('@/management/features/manager/pages/manager-home-page').then((m) => ({
+    default: m.ManagerHomePage,
+  })),
+);
+
+/**
+ * A home de `/gestao` depende do papel: o dono abre no resultado consolidado e o
+ * gestor na prontidão da operação. É a mesma URL de propósito — link salvo,
+ * favorito e redirecionamento de login continuam valendo para os dois.
+ */
+function RoleHome() {
+  const role = useSession()?.user.role;
+  return role === 'OWNER' ? <OwnerHomePage /> : <ManagerHomePage />;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Rotas                                                                       */
+/* -------------------------------------------------------------------------- */
+
+const ownerModule = () => import('@/management/features/owner/pages/owner-result-page');
+
+export const managementRoutes: RouteObject = {
+  path: '/gestao',
+  element: <ManagementLayout />,
+  children: [
+    {
+      index: true,
+      element: (
+        <Suspense fallback={<RouteFallback />}>
+          <RoleHome />
+        </Suspense>
+      ),
+    },
+
+    /* Telas exclusivas do proprietário. */
+    {
+      path: 'resultado',
+      element: <RoleRoute allow={OWNER_ONLY}>{page(ownerModule, 'OwnerResultPage')}</RoleRoute>,
+    },
+    {
+      path: 'desempenho',
+      element: (
+        <RoleRoute allow={OWNER_ONLY}>
+          {page(
+            () => import('@/management/features/owner/pages/owner-performance-page'),
+            'OwnerPerformancePage',
+          )}
+        </RoleRoute>
+      ),
+    },
+    {
+      path: 'aprovacoes',
+      element: (
+        <RoleRoute allow={OWNER_ONLY}>
+          {page(
+            () => import('@/management/features/owner/pages/owner-approvals-page'),
+            'OwnerApprovalsPage',
+          )}
+        </RoleRoute>
+      ),
+    },
+    {
+      /* Fora da navegação principal de propósito: mora no menu da conta, que é
+         onde se procura contrato e fatura — não no meio da operação. */
+      path: 'cobranca',
+      element: (
+        <RoleRoute allow={OWNER_ONLY}>
+          {page(() => import('@/management/features/billing/pages/billing-page'), 'BillingPage')}
+        </RoleRoute>
+      ),
+    },
+    {
+      /* Ativar extensão é contratar serviço e mexer na fatura — só o dono. */
+      path: 'extensoes',
+      element: (
+        <RoleRoute allow={OWNER_ONLY}>
+          {page(
+            () => import('@/management/features/extensions/pages/extensions-page'),
+            'ExtensionsPage',
+          )}
+        </RoleRoute>
+      ),
+    },
+
+    /* Telas exclusivas do gestor. */
+    {
+      path: 'liberacoes',
+      element: (
+        <RoleRoute allow={MANAGER_ONLY}>
+          {page(() => import('@/management/features/manager/pages/releases-page'), 'ReleasesPage')}
+        </RoleRoute>
+      ),
+    },
+    {
+      path: 'pareceres',
+      element: (
+        <RoleRoute allow={MANAGER_ONLY}>
+          {page(
+            () => import('@/management/features/manager/pages/diagnoses-page'),
+            'DiagnosesPage',
+          )}
+        </RoleRoute>
+      ),
+    },
+
+    {
+      /* Compartilhada: o quadro é o mesmo, o que muda é a alçada — o gestor
+         recebe os atalhos de tratativa. */
+      path: 'equipe',
+      element: (
+        <RoleRoute allow={OWNER_AND_MANAGER}>
+          {page(() => import('@/management/features/team/pages/team-page'), 'TeamPage')}
+        </RoleRoute>
+      ),
+    },
+
+    /* Telas compartilhadas da operação. */
+    {
+      path: 'mapa',
+      element: page(
+        () => import('@/management/features/live-map/pages/live-map-page'),
+        'LiveMapPage',
+      ),
+    },
+    {
+      path: 'viagens',
+      element: page(() => import('@/management/features/trips/pages/trips-page'), 'TripsPage'),
+    },
+    {
+      path: 'checklists',
+      element: page(
+        () => import('@/management/features/checklists/pages/checklists-page'),
+        'ChecklistsPage',
+      ),
+    },
+    {
+      path: 'caminhoes',
+      element: page(() => import('@/management/features/trucks/pages/trucks-page'), 'TrucksPage'),
+    },
+    {
+      path: 'manutencao',
+      element: page(
+        () => import('@/management/features/maintenance/pages/maintenance-page'),
+        'MaintenancePage',
+      ),
+    },
+    {
+      path: 'motoristas',
+      element: page(
+        () => import('@/management/features/drivers/pages/drivers-page'),
+        'DriversPage',
+      ),
+    },
+    {
+      path: 'seguranca',
+      element: page(() => import('@/management/features/safety/pages/safety-page'), 'SafetyPage'),
+    },
+    {
+      path: 'custos',
+      element: page(() => import('@/management/features/costs/pages/costs-page'), 'CostsPage'),
+    },
+    {
+      path: 'relatorios',
+      element: page(
+        () => import('@/management/features/reports/pages/reports-page'),
+        'ReportsPage',
+      ),
+    },
+    {
+      path: 'notificacoes',
+      element: page(
+        () => import('@/management/features/notifications/pages/notifications-page'),
+        'NotificationsPage',
+      ),
+    },
+    {
+      path: 'configuracoes',
+      element: page(
+        () => import('@/management/features/settings/pages/settings-page'),
+        'SettingsPage',
+      ),
+    },
+  ],
+};

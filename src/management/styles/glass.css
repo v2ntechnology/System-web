@@ -1,0 +1,125 @@
+/**
+ * RookHub — Camada de vidro (glassmorphism)
+ *
+ * FE-06: todo container tem rgba(255,255,255,0.04) + blur(16px) + borda 1px em gradiente.
+ * FE-07: fallback automático de blur para hardware modesto e navegadores sem suporte.
+ *
+ * REGRA DE PROJETO (FE-07): listas e tabelas longas (>20 linhas) NUNCA usam blur por item.
+ * Apenas o container externo recebe .glass.
+ */
+
+@layer components {
+  .glass {
+    background: var(--glass-surface);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-radius: var(--radius-lg);
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(var(--glass-surface), var(--glass-surface)),
+      linear-gradient(135deg, var(--glass-border-from), var(--glass-border-to));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  /* Modais e superfícies de foco — DESIGN.md */
+  .glass-elevated {
+    background: var(--glass-surface-elevated);
+    backdrop-filter: blur(var(--glass-blur-elevated));
+    -webkit-backdrop-filter: blur(var(--glass-blur-elevated));
+    background-image:
+      linear-gradient(var(--glass-surface-elevated), var(--glass-surface-elevated)),
+      linear-gradient(135deg, var(--glass-border-from), var(--glass-border-to));
+  }
+
+  /* Poço — inputs e áreas de entrada */
+  .glass-well {
+    background: var(--color-surface-lowest);
+    border: 1px solid var(--color-outline-variant);
+    border-radius: var(--radius-md);
+  }
+
+  /**
+   * Poço sobre superfície clara — formulários dentro de um `LightCard`.
+   *
+   * O poço escuro sobre o painel claro inverte a hierarquia: o campo vira o
+   * elemento mais pesado da tela e o `on-surface-*` de dentro dele fica
+   * ilegível. Aqui o recuo vem do container claro com borda, não do preto.
+   */
+  .light-well {
+    background: var(--color-light-container);
+    border: 1px solid var(--color-light-outline);
+    border-radius: var(--radius-md);
+  }
+
+  /**
+   * Grão de filme sobre os gradientes do fundo.
+   *
+   * Radiais grandes e desfocados sofrem banding visível em telas de 8 bits — aparecem
+   * como anéis concêntricos. O ruído quebra o degradê e o banding some. Custo zero de
+   * rede (SVG inline) e desprezível de compositor.
+   */
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: soft-light;
+  }
+
+  .spectrum-text {
+    background: var(--spectrum-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .spectrum-bg {
+    background: var(--spectrum-gradient);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Fallback 1 — navegador sem suporte a backdrop-filter → superfície sólida
+ * ----------------------------------------------------------------------- */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass {
+    background-image: none;
+    background: var(--color-surface-container);
+    border-color: var(--color-outline-variant);
+  }
+
+  .glass-elevated {
+    background-image: none;
+    background: var(--color-surface-highest);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Fallback 2 — dispositivo de baixa performance (classe aplicada na raiz por JS)
+ * ou preferência do usuário por "modo alto desempenho".
+ * ----------------------------------------------------------------------- */
+:root.no-blur .glass,
+:root.no-blur .glass-elevated {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-image: none;
+  border-color: var(--color-outline-variant);
+}
+
+:root.no-blur .glass {
+  background: var(--color-surface-container);
+}
+
+:root.no-blur .glass-elevated {
+  background: var(--color-surface-highest);
+}
+
+:root.no-blur .glow-backdrop {
+  display: none;
+}
+
+/* Sem os gradientes, não há banding a disfarçar — e o blend custa caro. */
+:root.no-blur .grain {
+  display: none;
+}
+
+/* O bloco de `prefers-reduced-motion` do original saiu daqui: o `globals.css`
+   do System-web já aplica a mesma regra para a aplicação inteira. */
