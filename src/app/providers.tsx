@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { configureHttpClient } from '@/services/http';
+import { getAccessToken } from '@/services/token-store';
 import { useSessionStore } from '@/stores/session-store';
 import { useThemeStore } from '@/stores/theme-store';
 
@@ -40,9 +41,11 @@ function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function AppProviders({ children }: { children: ReactNode }) {
   useEffect(() => {
-    // Prepara o cliente HTTP para a integração futura: quando o backend
-    // retornar 401, a sessão é marcada como expirada de forma centralizada.
+    // Liga o cliente HTTP à sessão: ele busca o token a cada requisição e, ao
+    // receber 401 do backend, marca a sessão como expirada de forma
+    // centralizada, sem que cada tela precise tratar isso.
     configureHttpClient({
+      getAccessToken,
       onUnauthorized: () => useSessionStore.getState().expireSession(),
     });
   }, []);

@@ -1,19 +1,20 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
-  EnvelopeSimpleIcon,
   EyeIcon,
-  EyeSlashIcon,
+  EyeOffIcon,
   InfoIcon,
-  LockKeyIcon,
-} from '@phosphor-icons/react';
+  LockIcon,
+  MailIcon,
+} from '@/components/icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 
 import { landingForRole, ROLE_LABELS } from '@/app/permissions';
+import { BrandLogo } from '@/components/shared/brand-logo';
 import { GoogleMark } from '@/management/components/brand/google-mark';
 import { RookhubLogo } from '@/management/components/brand/rookhub-logo';
 import {
@@ -28,10 +29,9 @@ import {
   type GlassInputProps,
 } from '@/management/ui';
 import { DEMO_CREDENTIALS, DEMO_PASSWORD } from '@/mocks/session';
-import { requestPasswordReset, signIn, signInWithGoogle } from '@/services/auth';
+import { requestPasswordReset, signIn, signInWithGoogle, type AuthSession } from '@/services/auth';
 import { ApiError } from '@/services/http';
 import { useSessionStore } from '@/stores/session-store';
-import type { UserRole } from '@/types';
 
 /*
  * Telas de acesso — layout portado do painel do monorepo `System-mobile`.
@@ -64,11 +64,7 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
             aria-pressed={visible}
             className="rounded-pill text-on-surface-muted hover:text-on-surface focus-visible:ring-secondary -mr-1 shrink-0 p-2 transition-colors hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2"
           >
-            {visible ? (
-              <EyeSlashIcon size={20} weight="duotone" />
-            ) : (
-              <EyeIcon size={20} weight="duotone" />
-            )}
+            {visible ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
           </button>
         }
         {...props}
@@ -93,7 +89,7 @@ function DemoCredentials({
   return (
     <details className="glass-well text-label-md text-on-surface-muted group px-4 py-3 normal-case">
       <summary className="focus-visible:ring-secondary flex cursor-pointer list-none select-none items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2">
-        <InfoIcon size={16} weight="duotone" />
+        <InfoIcon size={16} />
         <span className="flex-1">Acessar com uma conta de demonstração</span>
         <ArrowRightIcon className="transition-transform group-open:rotate-90" size={16} />
       </summary>
@@ -227,7 +223,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const login = useSessionStore((state) => state.login);
+  const authenticate = useSessionStore((state) => state.authenticate);
 
   const [formError, setFormError] = useState<string | null>(null);
   const [ssoPending, setSsoPending] = useState(false);
@@ -256,9 +252,9 @@ export default function LoginPage() {
    * gestor passam pela escolha entre IA e sistema; operador e manutenção entram
    * direto no painel operacional.
    */
-  function enter(role: UserRole) {
-    login({ role });
-    navigate(attempted ?? landingForRole(role), { replace: true });
+  function enter(session: AuthSession) {
+    authenticate(session);
+    navigate(attempted ?? landingForRole(session.user.role), { replace: true });
   }
 
   async function onSubmit(values: LoginFormValues) {
@@ -302,15 +298,16 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <header>
-        <RookhubLogo variant="mark" className="h-10" />
+        {/*
+         * Wordmark trocado por tema (`BrandLogo`, não `RookhubLogo`): aqui a
+         * marca fica sobre a superfície, não sobre foto, então no claro entra a
+         * arte colorida e no escuro a branca.
+         */}
+        <BrandLogo className="h-11" />
 
-        <h1 className="font-sora text-on-surface mt-6 text-balance text-[28px] font-bold leading-9 sm:text-[32px] sm:leading-10">
+        <h1 className="font-sora text-on-surface mt-6 text-balance text-[24px] font-bold leading-8 sm:text-[26px] sm:leading-9">
           Bem-vindo de volta
         </h1>
-
-        <p className="text-body-md text-on-surface-variant mt-2">
-          Acesse suas viagens, veículos e equipe a qualquer hora, tudo em um só lugar.
-        </p>
       </header>
 
       <div className="mt-8">
@@ -337,7 +334,7 @@ export default function LoginPage() {
             autoComplete="email"
             inputMode="email"
             placeholder="nome@empresa.com.br"
-            leading={<EnvelopeSimpleIcon size={20} weight="duotone" aria-hidden="true" />}
+            leading={<MailIcon size={20} aria-hidden="true" />}
             autoFocus
             disabled={busy}
             error={errors.email?.message}
@@ -349,7 +346,7 @@ export default function LoginPage() {
             pill
             autoComplete="current-password"
             placeholder="Digite sua senha"
-            leading={<LockKeyIcon size={20} weight="duotone" aria-hidden="true" />}
+            leading={<LockIcon size={20} aria-hidden="true" />}
             disabled={busy}
             error={errors.password?.message}
             {...register('password')}
@@ -385,7 +382,7 @@ export default function LoginPage() {
             size="xl"
             block
             disabled={busy}
-            className="mt-2 hover:bg-light"
+            className="mt-2 hover:bg-[color-mix(in_oklab,var(--color-bright)_86%,black)] hover:opacity-100"
           >
             {isSubmitting ? (
               <>
@@ -471,7 +468,7 @@ export function ForgotPasswordPage() {
         {sent ? (
           <div className="flex flex-col items-center text-center">
             <span className="rounded-pill bg-success/15 text-success flex h-14 w-14 items-center justify-center">
-              <EnvelopeSimpleIcon size={26} weight="duotone" />
+              <MailIcon size={26} />
             </span>
             <h1 className="font-sora text-on-surface mt-7 text-[32px] font-bold leading-10">
               Verifique seu e-mail
@@ -484,7 +481,7 @@ export function ForgotPasswordPage() {
         ) : (
           <>
             <header className="flex flex-col items-center text-center">
-              <RookhubLogo variant="mark" />
+              <RookhubLogo variant="mark" tone="adaptive" />
               <h1 className="font-sora text-on-surface mt-7 text-[32px] font-bold leading-10">
                 Recuperar acesso
               </h1>
@@ -542,7 +539,7 @@ export function ForgotPasswordPage() {
             to="/"
             className="text-body-md text-on-surface-variant hover:text-on-surface focus-visible:ring-secondary focus-visible:ring-offset-background inline-flex items-center gap-2 rounded-sm underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
           >
-            <ArrowLeftIcon size={16} weight="bold" />
+            <ArrowLeftIcon size={16} />
             Voltar para o login
           </Link>
         </div>
@@ -592,7 +589,7 @@ export function InvitePage() {
   return (
     <AuthLayout>
       <header>
-        <RookhubLogo variant="mark" className="h-10" />
+        <RookhubLogo variant="mark" tone="adaptive" className="h-10" />
         <h1 className="font-sora text-on-surface mt-6 text-[28px] font-bold leading-9">
           Você foi convidado
         </h1>
@@ -621,7 +618,7 @@ export function InvitePage() {
           pill
           autoComplete="new-password"
           placeholder="Crie uma senha"
-          leading={<LockKeyIcon size={20} weight="duotone" aria-hidden="true" />}
+          leading={<LockIcon size={20} aria-hidden="true" />}
           disabled={isSubmitting}
           error={errors.password?.message}
           {...register('password')}
@@ -632,7 +629,7 @@ export function InvitePage() {
           pill
           autoComplete="new-password"
           placeholder="Repita a senha"
-          leading={<LockKeyIcon size={20} weight="duotone" aria-hidden="true" />}
+          leading={<LockIcon size={20} aria-hidden="true" />}
           disabled={isSubmitting}
           error={errors.confirm?.message}
           {...register('confirm')}
