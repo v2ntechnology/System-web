@@ -1,19 +1,11 @@
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  EyeIcon,
-  EyeOffIcon,
-  InfoIcon,
-  LockIcon,
-  MailIcon,
-} from '@/components/icons';
+import { ArrowLeftIcon, EyeIcon, EyeOffIcon, LockIcon, MailIcon } from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { landingForRole, ROLE_LABELS } from '@/app/permissions';
+import { landingForRole } from '@/app/permissions';
 import { BrandLogo } from '@/components/shared/brand-logo';
 import { GoogleMark } from '@/management/components/brand/google-mark';
 import { RookhubLogo } from '@/management/components/brand/rookhub-logo';
@@ -28,7 +20,6 @@ import {
   useNoBlur,
   type GlassInputProps,
 } from '@/management/ui';
-import { DEMO_CREDENTIALS, DEMO_PASSWORD } from '@/mocks/session';
 import { requestPasswordReset, signIn, signInWithGoogle, type AuthSession } from '@/services/auth';
 import { ApiError } from '@/services/http';
 import { useSessionStore } from '@/stores/session-store';
@@ -72,49 +63,6 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
     );
   },
 );
-
-/**
- * Atalho de desenvolvimento: lista as contas mockadas disponíveis.
- * Some automaticamente no build de produção.
- */
-function DemoCredentials({
-  onSelect,
-  disabled = false,
-}: {
-  onSelect: (email: string) => void;
-  disabled?: boolean;
-}) {
-  if (import.meta.env.PROD) return null;
-
-  return (
-    <details className="glass-well text-label-md text-on-surface-muted group px-4 py-3 normal-case">
-      <summary className="focus-visible:ring-secondary flex cursor-pointer list-none select-none items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2">
-        <InfoIcon size={16} />
-        <span className="flex-1">Acessar com uma conta de demonstração</span>
-        <ArrowRightIcon className="transition-transform group-open:rotate-90" size={16} />
-      </summary>
-      <ul className="border-outline-variant mt-3 grid gap-2 border-t pt-3 sm:grid-cols-2">
-        {DEMO_CREDENTIALS.map(({ email, role }) => (
-          <li key={role}>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onSelect(email)}
-              className="border-outline-variant hover:border-outline focus-visible:ring-secondary w-full rounded-md border bg-white/[0.03] px-3 py-2 text-left transition-colors hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
-            >
-              <span className="text-on-surface block font-semibold">{ROLE_LABELS[role]}</span>
-              <span className="tabular text-on-surface-muted mt-0.5 block truncate">{email}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      <p className="text-label-sm text-on-surface-muted mt-3 normal-case">
-        Os dados são preenchidos automaticamente. Senha padrão:{' '}
-        <span className="tabular">{DEMO_PASSWORD}</span>.
-      </p>
-    </details>
-  );
-}
 
 /**
  * Layout de duas colunas do login: painel de marca à esquerda, conteúdo à
@@ -233,8 +181,6 @@ export default function LoginPage() {
     register,
     handleSubmit,
     control,
-    setFocus,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -287,13 +233,6 @@ export default function LoginPage() {
   useEffect(() => {
     if (formError) errorRef.current?.focus();
   }, [formError]);
-
-  function fillDemoCredentials(email: string) {
-    setFormError(null);
-    setValue('email', email, { shouldDirty: true, shouldValidate: true });
-    setValue('password', DEMO_PASSWORD, { shouldDirty: true, shouldValidate: true });
-    setFocus('email');
-  }
 
   return (
     <AuthLayout>
@@ -411,8 +350,6 @@ export default function LoginPage() {
             {ssoPending ? <Spinner label="Conectando" /> : <GoogleMark className="h-5 w-5" />}
             Continuar com Google
           </SpectrumButton>
-
-          <DemoCredentials onSelect={fillDemoCredentials} disabled={busy} />
         </form>
 
         <p className="border-outline-variant text-body-md text-on-surface-variant mt-7 border-t pt-6 text-center">

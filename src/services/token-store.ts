@@ -1,29 +1,25 @@
 /**
- * Guarda dos tokens da sessão.
+ * Guarda do access token.
  *
- * Fica em memória de propósito. `localStorage` é legível por qualquer script da
- * página, então um XSS levaria a sessão inteira junto. O custo é que recarregar
- * a aba desconecta o usuário: só some quando o refresh token passar a viajar em
- * cookie `httpOnly`, que o navegador guarda e o JavaScript não alcança.
+ * Fica em memória: `localStorage` é legível por qualquer script da página, e um
+ * XSS levaria a sessão junto. O token é curto (15 minutos) e some ao fechar a
+ * aba.
+ *
+ * O refresh token não passa por aqui. Ele vive em cookie `httpOnly`, que o
+ * navegador guarda e reenvia sozinho, fora do alcance do JavaScript. É o que
+ * permite recarregar a página sem perder a sessão.
  */
 
 let accessToken: string | null = null;
-let refreshToken: string | null = null;
 
-export function setTokens(tokens: { accessToken: string; refreshToken: string }): void {
-  accessToken = tokens.accessToken;
-  refreshToken = tokens.refreshToken;
+export function setAccessToken(token: string): void {
+  accessToken = token;
 }
 
 export function getAccessToken(): string | null {
   return accessToken;
 }
 
-export function getRefreshToken(): string | null {
-  return refreshToken;
-}
-
-export function clearTokens(): void {
+export function clearAccessToken(): void {
   accessToken = null;
-  refreshToken = null;
 }

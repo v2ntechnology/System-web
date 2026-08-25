@@ -2,7 +2,7 @@ import { permissionsForRole } from '@/app/permissions';
 import { env } from '@/app/environment';
 import { BLOCKED_EMAIL, buildDemoUser, DEMO_CREDENTIALS, DEMO_PASSWORD, DEMO_TENANT } from '@/mocks/session';
 import { ApiError, networkDelay } from '@/services/http';
-import { clearTokens, getRefreshToken, setTokens } from '@/services/token-store';
+import { clearAccessToken, setAccessToken } from '@/services/token-store';
 import type { AuthUser, PlanType, Tenant, TenantStatus, UserRole } from '@/types';
 
 /**
@@ -18,7 +18,7 @@ export interface SignInInput {
   password: string;
 }
 
-/** Tudo que a sessão precisa. Os tokens ficam no `token-store`, fora daqui. */
+/** Tudo que a sessão precisa. O access token fica no `token-store`, fora daqui. */
 export interface AuthSession {
   user: AuthUser;
   tenant: Tenant;
@@ -42,7 +42,6 @@ interface TenantPayload {
 
 interface TokenPayload {
   accessToken: string;
-  refreshToken: string;
   expiresInSeconds: number;
   user: UserPayload;
   tenant: TenantPayload;
@@ -79,13 +78,21 @@ function toSession(payload: { user: UserPayload; tenant: TenantPayload }): AuthS
   };
 }
 
-/** Não usa `httpRequest` porque o login é a única rota que roda sem token. */
-async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${env.apiBaseUrl}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+/**
+ * `credentials: 'include'` é obrigatório: sem ele o navegador não envia nem
+ * aceita o cookie do refresh em requisição para outra origem, e a sessão morreria
+ * a cada recarregamento.
+ *
+ * Não usa `httpRequest` porque estas rotas rodam sem access token.
+ */
+async function postJson<T>(path: string, body?: unknown): Promise<T | null> {
+  const init: RequestInit = { method: 'POST', credentials: 'include' };
+  if (body !== undefined) {
+    init.headers = { 'Content-Type': 'application/json' };
+    init.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(`${env.apiBaseUrl}${path}`, init);
 
   if (response.status === 401) {
     throw new ApiError('E-mail ou senha incorretos.', 401);
@@ -96,8 +103,14 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   if (!response.ok) {
     throw new ApiError('Não foi possível entrar. Tente novamente.', response.status);
   }
+  if (response.status === 204) return null;
 
   return (await response.json()) as T;
+}
+
+function acceptSession(payload: TokenPayload): AuthSession {
+  setAccessToken(payload.accessToken);
+  return toSession(payload);
 }
 
 async function signInMocked({ email, password }: SignInInput): Promise<AuthSession> {
@@ -124,40 +137,36 @@ export async function signIn(input: SignInInput): Promise<AuthSession> {
     password: input.password,
   });
 
-  setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
-  return toSession(payload);
+  return acceptSession(payload as TokenPayload);
 }
 
 /**
- * Renova o access token a partir do refresh. O backend rotaciona: o refresh
- * usado morre no mesmo instante em que o novo nasce.
+ * Recupera a sessão a partir do cookie, sem pedir senha de novo.
+ *
+ * É o que sustenta o recarregar da página: o access token vivia em memória e se
+ * perdeu, mas o cookie do refresh continua com o navegador. Devolve `null` quando
+ * não há sessão a recuperar, que é o caso normal de quem ainda não entrou.
  */
-export async function refreshSession(): Promise<AuthSession | null> {
+export async function restoreSession(): Promise<AuthSession | null> {
   if (env.enableMocks) return null;
 
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
-
   try {
-    const payload = await postJson<TokenPayload>('/v1/auth/refresh', { refreshToken });
-    setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
-    return toSession(payload);
+    const payload = await postJson<TokenPayload>('/v1/auth/refresh');
+    return acceptSession(payload as TokenPayload);
   } catch {
-    clearTokens();
+    clearAccessToken();
     return null;
   }
 }
 
 export async function signOut(): Promise<void> {
-  const refreshToken = getRefreshToken();
-  clearTokens();
-
-  if (env.enableMocks || !refreshToken) return;
+  clearAccessToken();
+  if (env.enableMocks) return;
 
   /* A sessão local já caiu. Se o servidor não responder, o refresh expira
      sozinho pelo TTL do Redis, então falhar aqui não deixa nada pendurado. */
   try {
-    await postJson<void>('/v1/auth/logout', { refreshToken });
+    await postJson<void>('/v1/auth/logout');
   } catch {
     /* silêncio proposital */
   }

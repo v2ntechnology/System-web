@@ -48,6 +48,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
       getAccessToken,
       onUnauthorized: () => useSessionStore.getState().expireSession(),
     });
+
+    // Tenta retomar a sessão pelo cookie do refresh. Enquanto não responde, as
+    // guardas de rota seguram a tela em `restoring`, em vez de mandar para o
+    // login e trazer de volta.
+    void useSessionStore.getState().restore();
   }, []);
 
   return (

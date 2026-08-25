@@ -46,11 +46,29 @@ function lazyElement(factory: () => Promise<{ default: ComponentType }>) {
 /* Guardas                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Espera enquanto a sessão é recuperada pelo cookie.
+ *
+ * Sem esta parada, recarregar uma rota interna mandaria o usuário para o login
+ * antes de a resposta do refresh chegar, e ele voltaria sozinho um instante
+ * depois. O resultado seria um pisca a cada F5.
+ */
+function RestoringSession() {
+  return (
+    <div className="fixed inset-0 grid place-items-center">
+      <LoadingState label="Retomando sua sessão…" />
+    </div>
+  );
+}
+
 /** Exige uma sessão autenticada. Sessão expirada é tratada em rota própria. */
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const location = useLocation();
 
+  if (status === 'restoring') {
+    return <RestoringSession />;
+  }
   if (status === 'expired') {
     return <Navigate to="/sessao-expirada" replace />;
   }
@@ -72,6 +90,11 @@ function AdminRoute({ children }: { children: ReactNode }) {
 /** Impede o acesso a páginas públicas quando já autenticado. */
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { status, user } = useSession();
+  /* Também espera: mostrar o login para quem tem cookie válido e logo tirá-lo
+     dali é pior que segurar a tela por um instante. */
+  if (status === 'restoring') {
+    return <RestoringSession />;
+  }
   if (status === 'authenticated' && user) {
     return <Navigate to={landingForRole(user.role)} replace />;
   }
