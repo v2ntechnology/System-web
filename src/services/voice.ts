@@ -1,4 +1,6 @@
+import { env } from '@/app/environment';
 import { ApiError } from './http';
+import { getAccessToken } from './token-store';
 
 interface VoiceErrorPayload {
   message?: string;
@@ -8,10 +10,26 @@ function isVoiceErrorPayload(value: unknown): value is VoiceErrorPayload {
   return typeof value === 'object' && value !== null && 'message' in value;
 }
 
+/**
+ * Pede o áudio da fala ao `Backend-web`.
+ *
+ * A rota vivia num plugin Node do Vite, que só era registrado em
+ * desenvolvimento e preview: no build publicado ela não existiria, e a voz
+ * morreria em produção. Agora atravessa a mesma API do resto da aplicação, com
+ * o mesmo token e o mesmo controle de acesso.
+ *
+ * A resposta são bytes, não JSON: a chave da ElevenLabs fica no servidor e o
+ * navegador recebe apenas o áudio pronto.
+ */
 export async function synthesizeAssistantSpeech(text: string, signal?: AbortSignal): Promise<Blob> {
-  const response = await fetch('/api/voice/synthesize', {
+  const token = getAccessToken();
+
+  const response = await fetch(`${env.apiBaseUrl}/v1/voice/synthesize`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ text }),
     ...(signal ? { signal } : {}),
   });

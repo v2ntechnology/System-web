@@ -2,23 +2,18 @@ import { fileURLToPath, URL } from 'node:url';
 
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-import { elevenLabsVoicePlugin } from './server/elevenlabs-voice';
-
-export default defineConfig(({ mode }) => {
-  const environment = loadEnv(mode, process.cwd(), '');
-
+/*
+ * A síntese de voz vivia num plugin Node daqui, registrado apenas em
+ * `configureServer` e `configurePreviewServer`. Ou seja, existia só em
+ * desenvolvimento: no build publicado a rota não existiria e a voz morreria em
+ * produção, sem nada no código denunciando isso. Ela agora é `/v1/voice/synthesize`
+ * no `Backend-web`, com o mesmo token e o mesmo controle de acesso do resto da API.
+ */
+export default defineConfig(() => {
   return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      elevenLabsVoicePlugin({
-        apiKey: environment.ELEVENLABS_API_KEY,
-        voiceId: environment.ELEVENLABS_VOICE_ID,
-      }),
-    ],
+    plugins: [react(), tailwindcss()],
     resolve: {
       // Espelha o alias declarado em `paths` no tsconfig.app.json.
       alias: {
