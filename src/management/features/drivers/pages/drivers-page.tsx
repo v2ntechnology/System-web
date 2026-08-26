@@ -1,6 +1,6 @@
-import { MagnifyingGlassIcon, WarningIcon } from '@phosphor-icons/react';
+import { SearchIcon, WarningIcon } from '@/components/icons';
 import type { Driver, DriverStatus, RankingPeriod } from '@/management/types';
-import { GlassCard } from '@/management/ui';
+import { GlassCard, GlassSelect } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -24,10 +24,21 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
-/** Score baixo, muitos eventos ou CNH perto de vencer — quem precisa de olho. */
+/**
+ * Quem precisa de olho: nota baixa, muitos eventos ou CNH perto de vencer.
+ *
+ * Motorista sem nota não entra por esse critério. Ausência de nota significa que
+ * ele rodou pouco no período, não que dirige mal, e tratá-la como zero encheria
+ * a lista de atenção com quem estava de férias.
+ *
+ * A CNH também é opcional: ela vem do RH, não da telemetria.
+ */
 function needsAttention(driver: Driver) {
-  const cnhDays = (new Date(driver.cnhExpiresAt).getTime() - Date.now()) / 86_400_000;
-  return driver.score < 88 || driver.criticalEvents >= 3 || cnhDays <= 60;
+  const cnhDays = driver.cnhExpiresAt
+    ? (new Date(driver.cnhExpiresAt).getTime() - Date.now()) / 86_400_000
+    : Number.POSITIVE_INFINITY;
+
+  return (driver.score != null && driver.score < 88) || driver.criticalEvents >= 3 || cnhDays <= 60;
 }
 
 function matchesTab(driver: Driver, tab: TabId) {
@@ -65,8 +76,11 @@ export function DriversPage() {
 
     return [...filtered].sort((a, b) => {
       switch (sort) {
+        /* Sem nota vai para o fim da lista, e não para o topo: ordenar
+           `undefined` como zero colocaria quem não tem amostra como pior da
+           frota. */
         case 'score':
-          return b.score - a.score;
+          return (b.score ?? -1) - (a.score ?? -1);
         case 'events':
           return b.criticalEvents - a.criticalEvents;
         case 'km':
@@ -81,9 +95,12 @@ export function DriversPage() {
   const { selectedId, setSelectedId, selected } = useMasterDetail(visible, driverId);
 
   const attentionCount = drivers.filter(needsAttention).length;
+  /* A média considera só quem tem nota. Contar motorista sem amostra como zero
+     faria a frota parecer pior a cada contratação. */
+  const scored = drivers.map((driver) => driver.score).filter((score) => score != null);
   const averageScore =
-    drivers.length > 0
-      ? Math.round(drivers.reduce((sum, driver) => sum + driver.score, 0) / drivers.length)
+    scored.length > 0
+      ? Math.round(scored.reduce((sum, score) => sum + score, 0) / scored.length)
       : 0;
   const totalWarnings = drivers.reduce((sum, driver) => sum + driver.criticalEvents, 0);
 
@@ -157,12 +174,7 @@ export function DriversPage() {
 
             {attentionCount > 0 ? (
               <p className="text-warning text-label-md mt-4 flex items-start gap-2 normal-case">
-                <WarningIcon
-                  size={14}
-                  weight="fill"
-                  className="mt-0.5 shrink-0"
-                  aria-hidden="true"
-                />
+                <WarningIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
                 {attentionCount === 1
                   ? '1 motorista com score baixo, muitos eventos ou CNH próxima do vencimento.'
                   : `${attentionCount} motoristas com score baixo, muitos eventos ou CNH próxima do vencimento.`}
@@ -172,28 +184,25 @@ export function DriversPage() {
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <label htmlFor="driver-sort" className="text-on-surface-variant text-body-md">
+          {/* Texto solto, e não `<label>`: o rótulo acessível já vem do próprio
+              campo, e dois rótulos para o mesmo controle são lidos em dobro. */}
+          <span aria-hidden="true" className="text-on-surface-variant text-body-md">
             Ordenar por
-          </label>
-          <select
+          </span>
+          <GlassSelect
             id="driver-sort"
+            label="Ordenar por"
+            hideLabel
+            variant="outline"
+            pill
+            className="w-auto min-w-44"
             value={sort}
-            onChange={(event) => setSort(event.target.value as Sort)}
-            className="border-outline-variant bg-surface-lowest text-on-surface text-body-md focus-visible:ring-secondary rounded-pill h-11 border px-4 focus-visible:outline-none focus-visible:ring-2"
-          >
-            {SORTS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={(next) => setSort(next as Sort)}
+            options={SORTS.map((option) => ({ value: option.id, label: option.label }))}
+          />
 
           <div className="border-outline-variant bg-surface-lowest rounded-pill focus-within:border-secondary flex min-w-0 basis-full items-center gap-2 border px-4 sm:max-w-72 sm:flex-1 sm:basis-auto">
-            <MagnifyingGlassIcon
-              size={18}
-              className="text-on-surface-muted shrink-0"
-              aria-hidden="true"
-            />
+            <SearchIcon size={18} className="text-on-surface-muted shrink-0" aria-hidden="true" />
             <label htmlFor="driver-search" className="sr-only">
               Buscar motorista pelo nome
             </label>
@@ -203,7 +212,7 @@ export function DriversPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Nome do motorista"
-              className="text-body-md text-on-surface placeholder:text-on-surface-muted h-11 w-full bg-transparent focus:outline-none"
+              className="text-body-md text-on-surface placeholder:text-placeholder h-11 w-full bg-transparent focus:outline-none"
             />
           </div>
         </div>

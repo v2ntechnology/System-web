@@ -122,6 +122,9 @@ const ROAD_EVENT_LABELS: Record<RoadEventType, string> = {
   JORNADA_EXCEDIDA: 'Jornada excedida',
   DISTRACAO: 'Distração ao volante',
   SONOLENCIA: 'Sinal de sonolência',
+  ACELERACAO_BRUSCA: 'Aceleração brusca',
+  COLISAO_IMINENTE: 'Risco de colisão',
+  CINTO_SEGURANCA: 'Cinto de segurança',
 };
 
 function roadEvents(counts: Partial<Record<RoadEventType, [number, number]>>): RoadEventCount[] {
@@ -244,6 +247,11 @@ const PROFILES: Record<string, Omit<DriverProfile, 'driverId'>> = {
 
 /** Ficha padrão derivada do motorista — evita mock por pessoa da equipe inteira. */
 function fallbackProfile(driver: Driver): Omit<DriverProfile, 'driverId'> {
+  /* Motorista vindo da telemetria pode nao ter nota: rodou pouco no periodo.
+     A ficha de demonstracao precisa de um numero para derivar os graficos. */
+  const nota = driver.score ?? 100;
+  const variacao = driver.scoreDelta ?? 0;
+
   return {
     birthDate: '1988-06-21',
     cpfMasked: '***.000.000-**',
@@ -251,20 +259,21 @@ function fallbackProfile(driver: Driver): Omit<DriverProfile, 'driverId'> {
     city: 'Rio de Janeiro',
     state: 'RJ',
     cnhNumber: '00000000000',
-    cnhCategory: driver.cnhCategory,
-    cnhExpiresAt: driver.cnhExpiresAt,
+    /* Motorista vindo da telemetria não traz CNH: os dois campos são do RH. */
+    cnhCategory: driver.cnhCategory ?? 'E',
+    cnhExpiresAt: driver.cnhExpiresAt ?? '2027-12-31',
     cnhEar: true,
-    cnhPoints: Math.max(0, Math.round((100 - driver.score) / 3)),
+    cnhPoints: Math.max(0, Math.round((100 - nota) / 3)),
     hiredAt: '2021-05-10',
     role: 'Motorista carreteiro',
     monthlySalary: 5_900,
     contractType: 'CLT · integral',
-    avgFuelEfficiency: Math.round((driver.score / 34) * 10) / 10,
-    onTimeDeliveryRate: Math.round((driver.score * 0.99 + 5) * 10) / 10,
+    avgFuelEfficiency: Math.round((nota / 34) * 10) / 10,
+    onTimeDeliveryRate: Math.round((nota * 0.99 + 5) * 10) / 10,
     hoursDriven: 160,
     scoreHistory: ['mar', 'abr', 'mai', 'jun', 'jul', 'ago'].map((month, index) => ({
       month,
-      score: Math.max(60, driver.score - driver.scoreDelta * (5 - index)),
+      score: Math.max(60, nota - variacao * (5 - index)),
     })),
     roadEvents: roadEvents({
       EXCESSO_VELOCIDADE: [driver.criticalEvents, 0],
@@ -299,8 +308,10 @@ export async function mockDriverRanking(period: RankingPeriod): Promise<DriverRa
     kmDriven: period === 'ANO' ? driver.kmDriven * 11 : driver.kmDriven,
     score:
       period === 'MES'
-        ? driver.score
-        : Math.round((driver.score - driver.scoreDelta * 1.5 + driver.kmDriven / 4000) * 10) / 10,
+        ? (driver.score ?? 0)
+        : Math.round(
+            ((driver.score ?? 0) - (driver.scoreDelta ?? 0) * 1.5 + driver.kmDriven / 4000) * 10,
+          ) / 10,
   }));
 
   return scored

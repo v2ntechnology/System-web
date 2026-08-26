@@ -224,7 +224,10 @@ const DETAILS: Record<string, Omit<VehicleDetail, 'vehicleId'>> = {
 
 /** Detalhamento padrão, derivado do veículo — evita mock por veículo da frota inteira. */
 function fallbackDetail(vehicle: Vehicle): Omit<VehicleDetail, 'vehicleId'> {
-  const base = vehicle.costPerKm;
+  /* Veículo real vem sem custo por km: ele depende de abastecimento e ordem de
+     serviço, que ainda não têm origem no sistema. Este é o caminho de
+     demonstração, então usa um valor típico de carreta para derivar os gráficos. */
+  const base = vehicle.costPerKm ?? 3.2;
   return {
     fuelEfficiency: Math.round((7.4 / base) * 10) / 10,
     availability: vehicle.status === 'MANUTENCAO' ? 71.2 : 93.4,

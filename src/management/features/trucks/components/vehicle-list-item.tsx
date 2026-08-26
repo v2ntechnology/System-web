@@ -23,6 +23,11 @@ const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
  * houver, ela entra no mesmo `<img>` sem mudar o layout.
  */
 export function VehicleListItem({ vehicle, selected, onSelect }: VehicleListItemProps) {
+  /* Ano de fabricação não vem da telemetria. Quando falta, some da linha em vez
+     de deixar "Volvo FH · undefined" na tela. */
+  const modelo = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
+  const legenda = vehicle.year ? `${modelo} · ${vehicle.year}` : modelo;
+
   return (
     <button
       type="button"
@@ -36,7 +41,7 @@ export function VehicleListItem({ vehicle, selected, onSelect }: VehicleListItem
       <span
         className={cn(
           'flex h-11 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md',
-          selected ? 'bg-white/15' : 'bg-light-container',
+          selected ? 'bg-on-surface/15' : 'bg-light-container',
         )}
       >
         {/*
@@ -64,13 +69,13 @@ export function VehicleListItem({ vehicle, selected, onSelect }: VehicleListItem
           {vehicle.plate}
         </span>
         <span
-          title={`${vehicle.brand} ${vehicle.model} · ${vehicle.year}`}
+          title={legenda}
           className={cn(
             'text-label-md block truncate normal-case',
             selected ? 'text-on-primary' : 'text-on-light-muted',
           )}
         >
-          {vehicle.brand} {vehicle.model} · {vehicle.year}
+          {legenda}
         </span>
       </span>
 
@@ -81,7 +86,10 @@ export function VehicleListItem({ vehicle, selected, onSelect }: VehicleListItem
             selected ? 'text-on-primary' : 'text-on-light-variant',
           )}
         >
-          {brl.format(vehicle.costPerKm)}/km
+          {/* Custo por km depende de abastecimento e manutenção, que ainda não
+              têm origem no sistema. Travessão diz "não sabemos"; R$ 0,00 diria
+              "não gastou", que é afirmação falsa. */}
+          {vehicle.costPerKm == null ? '–' : `${brl.format(vehicle.costPerKm)}/km`}
         </span>
         {selected ? null : <VehicleStatusChip status={vehicle.status} />}
       </span>

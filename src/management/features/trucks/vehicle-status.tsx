@@ -1,9 +1,10 @@
 import {
+  BlockedIcon,
   CheckCircleIcon,
-  ProhibitIcon,
+  MaintenanceIcon,
   SteeringWheelIcon,
-  WrenchIcon,
-} from '@phosphor-icons/react';
+  WarningIcon,
+} from '@/components/icons';
 import type { VehicleStatus } from '@/management/types';
 import { StatusChip, type StatusTone } from '@/management/ui';
 import type { ComponentType } from 'react';
@@ -14,9 +15,17 @@ const STATUS: Record<
 > = {
   EM_VIAGEM: { label: 'Em viagem', tone: 'info', icon: SteeringWheelIcon },
   DISPONIVEL: { label: 'Disponível', tone: 'positive', icon: CheckCircleIcon },
-  MANUTENCAO: { label: 'Manutenção', tone: 'attention', icon: WrenchIcon },
-  /* Bloqueio por pendência de checklist (RF-016) — impede a saída do veículo. */
-  BLOQUEADO: { label: 'Bloqueado', tone: 'critical', icon: ProhibitIcon },
+  MANUTENCAO: { label: 'Manutenção', tone: 'attention', icon: MaintenanceIcon },
+  /* Bloqueio por pendência de checklist (RF-016): impede a saída do veículo. */
+  BLOQUEADO: { label: 'Bloqueado', tone: 'critical', icon: BlockedIcon },
+  /*
+   * Sem leitura do rastreador há mais de 24 horas.
+   *
+   * Tom de atenção, e não crítico: pode ser veículo em pátio ou rastreador
+   * desligado, o que não é emergência. Mas também não pode aparecer como
+   * disponível, senão alguém escala um caminhão que ninguém sabe onde está.
+   */
+  SEM_SINAL: { label: 'Sem sinal', tone: 'attention', icon: WarningIcon },
 };
 
 export const VEHICLE_STATUS_LABELS = Object.fromEntries(
@@ -34,7 +43,7 @@ export function VehicleStatusChip({
   const Icon = config.icon;
 
   return (
-    <StatusChip tone={config.tone} surface={surface} icon={<Icon size={14} weight="fill" />}>
+    <StatusChip tone={config.tone} surface={surface} icon={<Icon size={14} />}>
       {config.label}
     </StatusChip>
   );

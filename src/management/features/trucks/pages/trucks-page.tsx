@@ -1,4 +1,4 @@
-import { WarningIcon } from '@phosphor-icons/react';
+import { WarningIcon } from '@/components/icons';
 import type { Vehicle } from '@/management/types';
 import { GlassCard } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -20,7 +20,15 @@ import { VehicleListItem } from '../components/vehicle-list-item';
 /** RN-140 — integração parada há mais de 30 minutos vira aviso explícito. */
 const STALE_SYNC_MINUTES = 30;
 
+/**
+ * Veículo que nunca sincronizou conta como desatualizado.
+ *
+ * Sem a guarda, `new Date(undefined)` produz `NaN`, toda comparação com `NaN` é
+ * falsa, e o caminhão que nunca reportou seria o único a não aparecer no aviso
+ * de dado velho. Justamente o pior caso passaria despercebido.
+ */
 const isStale = (vehicle: Vehicle, now: number) =>
+  !vehicle.lastSyncAt ||
   (now - new Date(vehicle.lastSyncAt).getTime()) / 60_000 > STALE_SYNC_MINUTES;
 
 /**
@@ -37,10 +45,17 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
+/**
+ * "Parados" reúne bloqueado e sem sinal.
+ *
+ * São causas diferentes, e o efeito para quem escala a operação é o mesmo: não
+ * dá para contar com esse caminhão hoje. O chip de estado na linha continua
+ * dizendo qual é o caso.
+ */
 function matchesTab(vehicle: Vehicle, tab: TabId) {
   if (tab === 'ATIVOS') return vehicle.status === 'EM_VIAGEM' || vehicle.status === 'DISPONIVEL';
   if (tab === 'MANUTENCAO') return vehicle.status === 'MANUTENCAO';
-  return vehicle.status === 'BLOQUEADO';
+  return vehicle.status === 'BLOQUEADO' || vehicle.status === 'SEM_SINAL';
 }
 
 export function TrucksPage() {
@@ -70,12 +85,11 @@ export function TrucksPage() {
     return vehicles.filter((vehicle) => {
       if (!matchesTab(vehicle, tab)) return false;
       if (filters.brand !== 'TODAS' && vehicle.brand !== filters.brand) return false;
-      if (filters.maintenance === 'VENCIDA' && vehicle.kmToMaintenance >= 0) return false;
-      if (
-        filters.maintenance === 'PROXIMA' &&
-        !(vehicle.kmToMaintenance >= 0 && vehicle.kmToMaintenance < 1000)
-      )
-        return false;
+      /* Sem plano de manutenção cadastrado não dá para dizer se está vencida ou
+         próxima. Fica fora dos dois filtros, em vez de ser tratado como zero. */
+      const km = vehicle.kmToMaintenance;
+      if (filters.maintenance === 'VENCIDA' && !(km != null && km < 0)) return false;
+      if (filters.maintenance === 'PROXIMA' && !(km != null && km >= 0 && km < 1000)) return false;
       if (filters.sync === 'DESATUALIZADO' && !isStale(vehicle, now)) return false;
       if (
         term &&
@@ -101,7 +115,7 @@ export function TrucksPage() {
     const tabForVehicle: TabId =
       vehicle.status === 'MANUTENCAO'
         ? 'MANUTENCAO'
-        : vehicle.status === 'BLOQUEADO'
+        : vehicle.status === 'BLOQUEADO' || vehicle.status === 'SEM_SINAL'
           ? 'PARADOS'
           : 'ATIVOS';
 
@@ -143,7 +157,7 @@ export function TrucksPage() {
           isError={expensesQuery.isError}
           label="as despesas"
         >
-          {expensesQuery.data ? (
+          {expensesQuery.data && expensesQuery.data.categories.length > 0 ? (
             <div className="grid gap-5 xl:grid-cols-[1.55fr_1fr]">
               <GlassCard className="grid gap-6 p-5 sm:grid-cols-3 sm:p-6">
                 {expensesQuery.data.categories.map((category) => (
@@ -164,7 +178,19 @@ export function TrucksPage() {
                 />
               </GlassCard>
             </div>
-          ) : null}
+          ) : (
+            /* Sem origem de custo, o card diz o que falta em vez de sumir. Um
+               espaço em branco faria parecer que a frota não gastou nada. */
+            <GlassCard className="p-5 sm:p-6">
+              <p className="text-on-surface-variant text-body-md">
+                Ainda não há dados de custo nesta frota.
+              </p>
+              <p className="text-on-surface-muted text-label-md mt-1.5 normal-case">
+                Combustível, manutenção e multas não vêm do rastreador. Eles entram quando os
+                lançamentos forem registrados no sistema ou uma integração financeira for ligada.
+              </p>
+            </GlassCard>
+          )}
         </QueryState>
 
         {staleCount > 0 ? (
@@ -173,7 +199,7 @@ export function TrucksPage() {
            * de decidir com base nele. Requisito de confiança, não de conveniência.
            */
           <div className="bg-warning/10 border-warning/30 text-warning mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
-            <WarningIcon size={18} weight="fill" className="mt-0.5 shrink-0" aria-hidden="true" />
+            <WarningIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
             <p className="text-body-md">
               {staleCount === 1
                 ? '1 veículo está há mais de 30 minutos sem sincronizar'

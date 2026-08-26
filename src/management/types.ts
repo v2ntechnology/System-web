@@ -117,24 +117,43 @@ export interface DashboardSummary {
 /* Frota                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export type VehicleStatus = 'EM_VIAGEM' | 'DISPONIVEL' | 'MANUTENCAO' | 'BLOQUEADO';
+/**
+ * `SEM_SINAL` nasceu do dado real: numa frota de verdade sempre há caminhão que
+ * parou de reportar, por rastreador desligado, veículo em pátio ou equipamento
+ * com defeito. Sem esse estado ele apareceria como disponível, e alguém contaria
+ * com um caminhão que ninguém sabe onde está.
+ *
+ * `BLOQUEADO` continua sendo outra coisa: pendência de checklist (RF-016), que
+ * impede a saída de um veículo que está reportando normalmente.
+ */
+export type VehicleStatus = 'EM_VIAGEM' | 'DISPONIVEL' | 'MANUTENCAO' | 'BLOQUEADO' | 'SEM_SINAL';
 
+/**
+ * Campo opcional aqui significa "a telemetria não tem essa informação".
+ *
+ * Ano de fabricação, custo por quilômetro e plano de manutenção não existem na
+ * MiX. A tela mostra travessão no lugar. Preencher com zero seria pior: ninguém
+ * distinguiria depois o medido do inventado.
+ */
 export interface Vehicle {
   id: string;
   plate: string;
   brand: string;
   model: string;
-  year: number;
+  /** Sem origem na telemetria: cadastro manual. */
+  year?: number | undefined;
   status: VehicleStatus;
   /** Motorista atualmente vinculado, quando houver. */
   driverName?: string | undefined;
   odometerKm: number;
-  /** R$/km consolidado dos últimos 30 dias. */
-  costPerKm: number;
+  /** Filial a que o veículo pertence no fornecedor. */
+  unit?: string | undefined;
+  /** R$/km consolidado dos últimos 30 dias. Depende de custos, que não vêm da telemetria. */
+  costPerKm?: number | undefined;
   /** Km restantes até a próxima manutenção preventiva. Negativo = vencida. */
-  kmToMaintenance: number;
-  /** Última sincronização com o rastreador, ISO 8601 (RN-140). */
-  lastSyncAt: string;
+  kmToMaintenance?: number | undefined;
+  /** Última sincronização com o rastreador, ISO 8601 (RN-140). Ausente = nunca reportou. */
+  lastSyncAt?: string | undefined;
 }
 
 /** Uma barra do mini-ranking de despesa: quanto um veículo pesou na categoria. */
@@ -165,15 +184,25 @@ export interface VehicleCostRank {
 /** Detalhamento de um veículo, carregado sob demanda ao selecioná-lo. */
 export interface VehicleDetail {
   vehicleId: string;
-  /** km/l consolidado do período. */
-  fuelEfficiency: number;
-  /** % do tempo apto a rodar. */
-  availability: number;
+  /**
+   * km/l consolidado do período.
+   *
+   * Ausente quando o rastreador não informa consumo: depende de o veículo ter a
+   * rede CAN ligada ao equipamento, e boa parte da frota real não tem.
+   */
+  fuelEfficiency?: number | undefined;
+  /** Percentual do período com o veículo efetivamente rodando. */
+  availability?: number | undefined;
   openOrders: number;
-  /** Última manutenção concluída, ISO 8601. */
+  /** Última manutenção concluída, ISO 8601. Vazio quando não há registro. */
   lastMaintenanceAt: string;
-  /** Custo mensal do veículo, R$/km. */
+  /** Custo mensal do veículo, R$/km. Vazio enquanto não houver origem de custo. */
   monthlyCost: { month: string; value: number }[];
+  /** Quilômetros por dia, medidos pelos trechos. Alimenta o gráfico de uso. */
+  dailyDistance?: { day: string; km: number }[] | undefined;
+  /** Distância total e número de trechos no período. */
+  distanceKm?: number | undefined;
+  journeys?: number | undefined;
   recentEvents: {
     id: string;
     label: string;
@@ -195,8 +224,14 @@ export interface VehiclePosition {
   heading: number;
   /** Última sincronização com o rastreador, ISO 8601 (RN-140). */
   lastSyncAt: string;
-  /** Trecho ou cidade mais próxima, para quem lê sem olhar o mapa. */
-  place: string;
+  /**
+   * Trecho ou cidade mais próxima, para quem lê sem olhar o mapa.
+   *
+   * Vazio quando a MiX não geocodificou a leitura: as posições do fluxo
+   * incremental vêm sem `FormattedAddress`, que só acompanha início e fim de
+   * trecho. A lista mostra a coordenada nesse caso.
+   */
+  place?: string | undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -294,17 +329,26 @@ export interface Driver {
   name: string;
   avatarUrl?: string | undefined;
   status: DriverStatus;
-  /** Score de segurança 0–100 (RF-031). */
-  score: number;
+  /**
+   * Nota de condução, 0 a 100 (RF-031).
+   *
+   * Ausente quando o motorista rodou pouco demais no período para ter nota. Cada
+   * cliente configura eventos diferentes na telemetria, então a nota é relativa
+   * à própria frota: 75 é a média dela, 100 é quem não gera evento.
+   */
+  score?: number | undefined;
   /** Variação do score contra o período anterior, em pontos. */
-  scoreDelta: number;
+  scoreDelta?: number | undefined;
   tripsCount: number;
   kmDriven: number;
   criticalEvents: number;
-  cnhCategory: string;
-  /** Vencimento da CNH, ISO 8601. */
-  cnhExpiresAt: string;
+  /** Sem origem na telemetria: vem do RH. */
+  cnhCategory?: string | undefined;
+  /** Vencimento da CNH, ISO 8601. Sem origem na telemetria. */
+  cnhExpiresAt?: string | undefined;
   currentVehiclePlate?: string | undefined;
+  /** Filial a que o motorista pertence no fornecedor. */
+  unit?: string | undefined;
 }
 
 export type WarningSeverity = 'LEVE' | 'MEDIA' | 'GRAVE';
@@ -343,13 +387,27 @@ export interface DriverWarning {
   media?: EventMedia | undefined;
 }
 
+/**
+ * Categorias de comportamento ao volante.
+ *
+ * As três últimas entraram com o dado real: a frota usa câmera MiX Vision, que
+ * gera alerta de colisão e de cinto, e o pacote de direção econômica gera
+ * aceleração brusca. Sem elas, esses eventos cairiam todos em um balde só.
+ *
+ * O backend classifica pela descrição do tipo de evento, porque cada cliente
+ * batiza os eventos do jeito dele: nesta frota eles se chamam "VELOCIDADE
+ * LIMITE" e "USO DOS FREIOS".
+ */
 export type RoadEventType =
   | 'EXCESSO_VELOCIDADE'
   | 'FRENAGEM_BRUSCA'
+  | 'ACELERACAO_BRUSCA'
   | 'CURVA_AGRESSIVA'
   | 'JORNADA_EXCEDIDA'
   | 'DISTRACAO'
-  | 'SONOLENCIA';
+  | 'SONOLENCIA'
+  | 'COLISAO_IMINENTE'
+  | 'CINTO_SEGURANCA';
 
 export interface RoadEventCount {
   type: RoadEventType;
@@ -359,39 +417,55 @@ export interface RoadEventCount {
   delta: number;
 }
 
-/** Ficha completa do motorista, carregada ao selecioná-lo. */
+/**
+ * Ficha completa do motorista.
+ *
+ * ⚠️ **Tudo que é de RH é opcional.** CPF, CNH, admissão, salário e regime não
+ * existem na telemetria: a MiX devolve nome, matrícula e telefone, mais o que o
+ * veículo mediu. Enquanto não houver integração com a folha, esses campos
+ * chegam vazios e a tela diz "não informado".
+ *
+ * A alternativa seria preencher com valor plausível, e um CPF mascarado
+ * inventado passaria por real para qualquer pessoa que olhasse.
+ */
 export interface DriverProfile {
   driverId: string;
 
   /* Pessoais */
-  birthDate: string;
-  cpfMasked: string;
-  phone: string;
-  city: string;
-  state: string;
+  birthDate?: string | undefined;
+  cpfMasked?: string | undefined;
+  phone?: string | undefined;
+  city?: string | undefined;
+  state?: string | undefined;
 
   /* Habilitação */
-  cnhNumber: string;
-  cnhCategory: string;
-  cnhExpiresAt: string;
-  /** Exerce Atividade Remunerada — obrigatório para motorista profissional. */
-  cnhEar: boolean;
-  /** Pontos na CNH (0–40 antes da suspensão). */
-  cnhPoints: number;
+  cnhNumber?: string | undefined;
+  cnhCategory?: string | undefined;
+  cnhExpiresAt?: string | undefined;
+  /** Exerce Atividade Remunerada, obrigatório para motorista profissional. */
+  cnhEar?: boolean | undefined;
+  /** Pontos na CNH (0 a 40 antes da suspensão). */
+  cnhPoints?: number | undefined;
 
   /* Contrato */
-  hiredAt: string;
-  role: string;
+  hiredAt?: string | undefined;
+  role?: string | undefined;
   /** Salário base mensal. Só chega ao cliente se o papel puder ver (RF-007). */
   monthlySalary?: number | undefined;
-  contractType: string;
+  contractType?: string | undefined;
 
-  /* Operação no período */
-  avgFuelEfficiency: number;
-  onTimeDeliveryRate: number;
-  hoursDriven: number;
+  /* Operação no período: isto sim vem da telemetria. */
+  avgFuelEfficiency?: number | undefined;
+  onTimeDeliveryRate?: number | undefined;
+  hoursDriven?: number | undefined;
+  distanceKm?: number | undefined;
+  journeys?: number | undefined;
+  /** Filial a que pertence no fornecedor. */
+  unit?: string | undefined;
+  employeeNumber?: string | undefined;
+  currentVehiclePlate?: string | undefined;
 
-  /** Evolução do score de segurança. */
+  /** Evolução da nota. `month` carrega a data quando a série é diária. */
   scoreHistory: { month: string; score: number }[];
   roadEvents: RoadEventCount[];
   warnings: DriverWarning[];
@@ -466,12 +540,29 @@ export interface CopilotCamera {
   place: string;
 }
 
+/**
+ * `fleetScore` é a média das notas dos motoristas, e as notas são relativas à
+ * própria frota. Ele mede a dispersão da equipe, não segurança absoluta: uma
+ * frota inteira dirigindo mal, mas por igual, tira nota alta.
+ *
+ * O número que mede segurança é `eventsPer1000Km` comparado ao período
+ * anterior. É ele que responde "melhoramos ou pioramos".
+ */
 export interface SafetySummary {
   events: SafetyEvent[];
   contests: SafetyContest[];
   copilot: CopilotCamera[];
-  fleetScore: number;
-  scoreDelta: number;
+  fleetScore?: number | undefined;
+  scoreDelta?: number | undefined;
+  /** Eventos de condução por mil quilômetros rodados no período. */
+  eventsPer1000Km?: number | undefined;
+  eventsPer1000KmPrevious?: number | undefined;
+  /** Contagem por categoria, com o período anterior para comparação. */
+  byType?:
+    { type: RoadEventType; label: string; count: number; previousCount: number }[] | undefined;
+  totalEvents?: number | undefined;
+  criticalEvents?: number | undefined;
+  distanceKm?: number | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

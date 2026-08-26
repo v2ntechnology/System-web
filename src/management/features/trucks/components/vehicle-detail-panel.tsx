@@ -1,12 +1,12 @@
 import {
+  AlertCircleIcon,
   CalendarCheckIcon,
-  DropIcon,
+  DropletIcon,
   GaugeIcon,
   InfoIcon,
-  WarningCircleIcon,
+  MaintenanceIcon,
   WarningIcon,
-  WrenchIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { Vehicle, VehicleDetail } from '@/management/types';
 import { Spinner, StatusChip, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -40,7 +40,7 @@ const SEVERITY: Record<
     icon: ComponentType<{ size?: number; weight?: 'fill'; className?: string }>;
   }
 > = {
-  CRITICO: { tone: 'critical', label: 'Crítico', icon: WarningCircleIcon },
+  CRITICO: { tone: 'critical', label: 'Crítico', icon: AlertCircleIcon },
   ATENCAO: { tone: 'attention', label: 'Atenção', icon: WarningIcon },
   INFO: { tone: 'info', label: 'Informativo', icon: InfoIcon },
 };
@@ -57,9 +57,9 @@ function Metric({
   hint?: string | undefined;
 }) {
   return (
-    <div className="bg-white/4 min-w-0 rounded-md p-3">
+    <div className="bg-on-surface/4 min-w-0 rounded-md p-3">
       <p className="text-on-surface-muted text-label-md flex items-center gap-1.5 normal-case">
-        <Icon size={14} weight="duotone" aria-hidden="true" />
+        <Icon size={14} aria-hidden="true" />
         {label}
       </p>
       <p className="tabular text-on-surface text-headline-md font-sora mt-1.5 font-semibold">
@@ -70,6 +70,12 @@ function Metric({
       ) : null}
     </div>
   );
+}
+
+/** "2026-08-26" vira "26/08". O eixo tem espaço para cinco caracteres, não dez. */
+function diaCurto(iso: string): string {
+  const [, mes, dia] = iso.split('-');
+  return dia && mes ? `${dia}/${mes}` : iso;
 }
 
 /** Escala do eixo Y em passos de R$ 0,25, cobrindo a série com folga. */
@@ -95,7 +101,26 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
     queryFn: () => getVehicleDetail(vehicle.id),
   });
 
-  const axis = costAxis(data?.monthlyCost.map((point) => point.value) ?? [0, 1]);
+  /*
+   * O gráfico mostra custo quando existe custo, e quilometragem quando não.
+   *
+   * A alternativa seria alimentar o gráfico de custo com a distância, e o
+   * resultado seria uma curva plausível, com "R$" no eixo, errada por três
+   * ordens de grandeza. Ninguém notaria olhando.
+   */
+  const temCusto = (data?.monthlyCost.length ?? 0) > 0;
+  const serie = temCusto
+    ? (data?.monthlyCost ?? []).map((point) => ({ rotulo: point.month, valor: point.value }))
+    : (data?.dailyDistance ?? []).map((point) => ({
+        rotulo: diaCurto(point.day),
+        valor: point.km,
+      }));
+
+  /* Em quilometragem o passo automático do Recharts serve, então a lista de
+     marcas fica vazia e ele decide sozinho. */
+  const axis = temCusto
+    ? costAxis(serie.map((point) => point.valor))
+    : { min: 0, max: 'auto' as const, ticks: [] as number[] };
 
   return (
     <section
@@ -108,7 +133,10 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
             {vehicle.plate}
           </h3>
           <p className="text-on-surface-variant text-body-md mt-0.5">
-            {vehicle.brand} {vehicle.model} · {vehicle.year}
+            {/* Ano só aparece quando existe: a telemetria não informa fabricação. */}
+            {[vehicle.brand, vehicle.model].filter(Boolean).join(' ')}
+            {vehicle.year ? ` · ${vehicle.year}` : ''}
+            {vehicle.unit ? ` · ${vehicle.unit}` : ''}
           </p>
         </div>
 
@@ -131,53 +159,72 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
       ) : (
         <>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {/* Indicador sem origem no sistema mostra travessão, nunca zero: um
+                custo de R$ 0,00 na tela é lido como medição, não como ausência. */}
             <Metric
               icon={GaugeIcon}
               label="Custo por km"
-              value={brl.format(vehicle.costPerKm)}
-              hint="média de 30 dias"
+              value={vehicle.costPerKm == null ? '–' : brl.format(vehicle.costPerKm)}
+              hint={vehicle.costPerKm == null ? 'sem dados de custo ainda' : 'média de 30 dias'}
             />
             <Metric
-              icon={DropIcon}
+              icon={DropletIcon}
               label="Consumo"
-              value={`${data.fuelEfficiency.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} km/l`}
+              value={
+                data.fuelEfficiency == null
+                  ? '–'
+                  : `${data.fuelEfficiency.toLocaleString('pt-BR', {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })} km/l`
+              }
+              hint={data.fuelEfficiency == null ? 'rastreador não informa consumo' : undefined}
             />
             <Metric
               icon={CalendarCheckIcon}
-              label="Disponibilidade"
-              value={`${data.availability.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%`}
-              hint="tempo apto a rodar"
+              label="Tempo rodando"
+              value={
+                data.availability == null
+                  ? '–'
+                  : `${data.availability.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+              }
+              hint="do período, em movimento"
             />
             <Metric
-              icon={WrenchIcon}
+              icon={MaintenanceIcon}
               label="Próxima manutenção"
               value={
-                vehicle.kmToMaintenance < 0
-                  ? `${km.format(Math.abs(vehicle.kmToMaintenance))} km vencida`
-                  : `em ${km.format(vehicle.kmToMaintenance)} km`
+                vehicle.kmToMaintenance == null
+                  ? '–'
+                  : vehicle.kmToMaintenance < 0
+                    ? `${km.format(Math.abs(vehicle.kmToMaintenance))} km vencida`
+                    : `em ${km.format(vehicle.kmToMaintenance)} km`
               }
-              hint={`última em ${dayMonth.format(new Date(data.lastMaintenanceAt))}`}
+              hint={
+                data.lastMaintenanceAt
+                  ? `última em ${dayMonth.format(new Date(data.lastMaintenanceAt))}`
+                  : 'sem plano cadastrado'
+              }
             />
           </div>
 
           <figure className="mt-6">
             <figcaption className="text-on-surface-variant text-body-md mb-3 flex items-baseline justify-between gap-3">
-              Custo por quilômetro
+              {temCusto ? 'Custo por quilômetro' : 'Quilômetros por dia'}
               <span className="text-on-surface-muted text-label-md normal-case">
-                R$/km · últimos 6 meses
+                {temCusto
+                  ? 'R$/km · últimos 6 meses'
+                  : `km · ${data.journeys ?? 0} trecho${data.journeys === 1 ? '' : 's'} no período`}
               </span>
             </figcaption>
 
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={data.monthlyCost}
-                  margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
-                >
+                <AreaChart data={serie} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id={`cost-${vehicle.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-secondary)" stopOpacity={0.32} />
-                      <stop offset="100%" stopColor="var(--color-secondary)" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor="var(--secondary)" stopOpacity={0.32} />
+                      <stop offset="100%" stopColor="var(--secondary)" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -186,7 +233,7 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
                     strokeDasharray="3 3"
                   />
                   <XAxis
-                    dataKey="month"
+                    dataKey="rotulo"
                     tickLine={false}
                     axisLine={false}
                     tick={{ fill: 'var(--color-on-surface-muted)', fontSize: 12 }}
@@ -197,9 +244,12 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
                     axisLine={false}
                     width={56}
                     tick={{ fill: 'var(--color-on-surface-muted)', fontSize: 12 }}
-                    tickFormatter={(value: number) => brl.format(value)}
-                    /* Escala em passos de R$ 0,25 — o passo automático caía em
-                       valores como R$ 2,41, que ninguém lê de relance. */
+                    tickFormatter={(value: number) =>
+                      temCusto ? brl.format(value) : km.format(Math.round(value))
+                    }
+                    /* Escala em passos de R$ 0,25 no custo: o passo automático
+                       caía em valores como R$ 2,41, que ninguém lê de relance.
+                       Em quilometragem o passo automático serve. */
                     domain={[axis.min, axis.max]}
                     ticks={axis.ticks}
                   />
@@ -212,16 +262,21 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
                       color: 'var(--color-on-surface)',
                     }}
                     formatter={(value: unknown) =>
-                      [brl.format(Number(value)), 'Custo por km'] as [string, string]
+                      (temCusto
+                        ? [brl.format(Number(value)), 'Custo por km']
+                        : [`${km.format(Math.round(Number(value)))} km`, 'Rodado no dia']) as [
+                        string,
+                        string,
+                      ]
                     }
                   />
                   <Area
                     type="monotone"
-                    dataKey="value"
-                    stroke="var(--color-secondary)"
+                    dataKey="valor"
+                    stroke="var(--secondary)"
                     strokeWidth={2}
                     fill={`url(#cost-${vehicle.id})`}
-                    dot={{ r: 3, fill: 'var(--color-secondary)', strokeWidth: 0 }}
+                    dot={{ r: 3, fill: 'var(--secondary)', strokeWidth: 0 }}
                     isAnimationActive={false}
                   />
                 </AreaChart>
@@ -247,11 +302,10 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
                 return (
                   <li
                     key={event.id}
-                    className="bg-white/4 flex items-start gap-2.5 rounded-md px-3 py-2.5"
+                    className="bg-on-surface/4 flex items-start gap-2.5 rounded-md px-3 py-2.5"
                   >
                     <Icon
                       size={16}
-                      weight="fill"
                       aria-hidden="true"
                       className={cn(
                         'mt-0.5 shrink-0',

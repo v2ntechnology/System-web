@@ -1,4 +1,4 @@
-import { GaugeIcon, MapPinIcon, WarningIcon } from '@phosphor-icons/react';
+import { GaugeIcon, MapPinIcon, WarningIcon } from '@/components/icons';
 import type { VehiclePosition } from '@/management/types';
 import { GlassCard, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -52,7 +52,7 @@ export function LiveMapPage() {
           {staleCount > 0 ? (
             /* RN-141 — saber que o dado é velho ANTES de decidir com base nele. */
             <div className="bg-warning/10 border-warning/30 text-warning mb-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
-              <WarningIcon size={18} weight="fill" className="mt-0.5 shrink-0" aria-hidden="true" />
+              <WarningIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
               <p className="text-body-md">
                 {staleCount === 1
                   ? '1 veículo está há mais de 30 minutos sem sincronizar — a posição dele no mapa pode estar velha.'
@@ -107,8 +107,13 @@ export function LiveMapPage() {
                             active ? 'text-on-primary' : 'text-on-surface-muted',
                           )}
                         >
-                          <MapPinIcon size={13} weight="duotone" aria-hidden="true" />
-                          <span className="truncate">{vehicle.place}</span>
+                          <MapPinIcon size={13} aria-hidden="true" />
+                          {/* A MiX so geocodifica inicio e fim de trecho; a leitura solta vem sem
+                              endereco. Coordenada e melhor que espaco em branco. */}
+                          <span className="truncate">
+                            {vehicle.place ??
+                              `${vehicle.coordinates[1].toFixed(4)}, ${vehicle.coordinates[0].toFixed(4)}`}
+                          </span>
                         </span>
 
                         <span
@@ -118,8 +123,11 @@ export function LiveMapPage() {
                           )}
                         >
                           <span className="tabular flex items-center gap-1.5">
-                            <GaugeIcon size={13} weight="duotone" aria-hidden="true" />
-                            {vehicle.speedKmh} km/h
+                            <GaugeIcon size={13} aria-hidden="true" />
+                            {vehicle.speedKmh.toLocaleString('pt-BR', {
+                              maximumFractionDigits: 0,
+                            })}{' '}
+                            km/h
                           </span>
                           <span className={cn('tabular', stale && !active && 'text-warning')}>
                             {stale ? 'sem sinal desde ' : 'às '}

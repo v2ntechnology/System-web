@@ -1,14 +1,14 @@
 import {
-  CakeIcon,
-  IdentificationCardIcon,
-  LockSimpleIcon,
+  BadgeCheckIcon,
+  BirthdayIcon,
+  BriefcaseIcon,
+  IdCardIcon,
+  LockIcon,
   MapPinIcon,
   PhoneIcon,
-  PlayCircleIcon,
-  SealCheckIcon,
-  SuitcaseSimpleIcon,
+  PlayIcon,
   WarningIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { Driver, DriverWarning, WarningSeverity } from '@/management/types';
 import { Avatar, Spinner, StatusChip, cn, type StatusTone } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -46,6 +46,14 @@ const SEVERITY: Record<WarningSeverity, { label: string; tone: StatusTone }> = {
   MEDIA: { label: 'Média', tone: 'attention' },
   GRAVE: { label: 'Grave', tone: 'critical' },
 };
+
+/** Texto padrão para campo que a telemetria não tem e o RH ainda não preencheu. */
+const SEM_DADO = 'Não informado';
+
+/** Data curta, ou o marcador de ausência. Evita "Invalid Date" na tela. */
+function dataOu(iso: string | undefined): string {
+  return iso ? fullDate.format(new Date(iso)) : SEM_DADO;
+}
 
 /** Anos completos entre a data e hoje. */
 function yearsSince(iso: string) {
@@ -101,7 +109,8 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
           <h3 className="font-sora text-on-surface text-headline-md font-bold">{driver.name}</h3>
           <p className="text-on-surface-variant text-body-md mt-0.5">
             {data?.role ?? 'Motorista'}
-            {data ? ` · ${yearsSince(data.hiredAt)} anos de casa` : ''}
+            {data?.unit ? ` · ${data.unit}` : ''}
+            {data?.hiredAt ? ` · ${yearsSince(data.hiredAt)} anos de casa` : ''}
           </p>
         </div>
 
@@ -130,21 +139,27 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
             <div>
               <h4 className="text-on-surface-variant text-body-md mb-3">Dados pessoais</h4>
               <dl className="grid gap-3 sm:grid-cols-2">
-                <Field icon={<CakeIcon size={14} weight="duotone" />} label="Idade">
-                  <span className="tabular">{yearsSince(data.birthDate)} anos</span>
-                  <span className="text-on-surface-muted">
-                    {' '}
-                    · {fullDate.format(new Date(data.birthDate))}
-                  </span>
+                {/* Campo que a telemetria não entrega mostra o marcador de
+                    ausência. Preencher com valor plausível faria um CPF
+                    inventado passar por real para quem olhasse. */}
+                <Field icon={<BirthdayIcon size={14} />} label="Idade">
+                  {data.birthDate ? (
+                    <>
+                      <span className="tabular">{yearsSince(data.birthDate)} anos</span>
+                      <span className="text-on-surface-muted"> · {dataOu(data.birthDate)}</span>
+                    </>
+                  ) : (
+                    <span className="text-on-surface-muted">{SEM_DADO}</span>
+                  )}
                 </Field>
                 <Field label="CPF">
-                  <span className="tabular">{data.cpfMasked}</span>
+                  <span className="tabular">{data.cpfMasked ?? SEM_DADO}</span>
                 </Field>
-                <Field icon={<PhoneIcon size={14} weight="duotone" />} label="Telefone">
-                  <span className="tabular">{data.phone}</span>
+                <Field icon={<PhoneIcon size={14} />} label="Telefone">
+                  <span className="tabular">{data.phone ?? SEM_DADO}</span>
                 </Field>
-                <Field icon={<MapPinIcon size={14} weight="duotone" />} label="Cidade">
-                  {data.city} — {data.state}
+                <Field icon={<MapPinIcon size={14} />} label="Matrícula">
+                  <span className="tabular">{data.employeeNumber ?? SEM_DADO}</span>
                 </Field>
               </dl>
             </div>
@@ -152,17 +167,19 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
             <div>
               <h4 className="text-on-surface-variant text-body-md mb-3">Contrato</h4>
               <dl className="grid gap-3 sm:grid-cols-2">
-                <Field icon={<SuitcaseSimpleIcon size={14} weight="duotone" />} label="Admissão">
-                  <span className="tabular">{fullDate.format(new Date(data.hiredAt))}</span>
+                <Field icon={<BriefcaseIcon size={14} />} label="Admissão">
+                  <span className="tabular">{dataOu(data.hiredAt)}</span>
                 </Field>
                 <Field label="Tempo de empresa">
-                  <span className="tabular">{yearsSince(data.hiredAt)} anos</span>
+                  <span className="tabular">
+                    {data.hiredAt ? `${yearsSince(data.hiredAt)} anos` : SEM_DADO}
+                  </span>
                 </Field>
-                <Field label="Regime">{data.contractType}</Field>
+                <Field label="Regime">{data.contractType ?? SEM_DADO}</Field>
 
                 {/* RF-007 — bloqueado, não escondido: o usuário precisa saber que existe. */}
                 <Field
-                  icon={canSeeFinancials ? undefined : <LockSimpleIcon size={14} weight="fill" />}
+                  icon={canSeeFinancials ? undefined : <LockIcon size={14} />}
                   label="Salário base"
                 >
                   {canSeeFinancials && data.monthlySalary ? (
@@ -180,26 +197,28 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
            * ------------------------------------------------------------- */}
           <div className="mt-6">
             <h4 className="text-on-surface-variant text-body-md mb-3">Habilitação</h4>
-            <div className="bg-white/4 grid gap-4 rounded-lg p-4 sm:grid-cols-4">
-              <Field icon={<IdentificationCardIcon size={14} weight="duotone" />} label="Registro">
-                <span className="tabular">{data.cnhNumber}</span>
+            <div className="bg-on-surface/4 grid gap-4 rounded-lg p-4 sm:grid-cols-4">
+              <Field icon={<IdCardIcon size={14} />} label="Registro">
+                <span className="tabular">{data.cnhNumber ?? SEM_DADO}</span>
               </Field>
               <Field label="Categoria">
-                <span className="tabular">{data.cnhCategory}</span>
+                <span className="tabular">{data.cnhCategory ?? SEM_DADO}</span>
                 {data.cnhEar ? (
                   <span className="text-success text-label-md ml-2 inline-flex items-center gap-1 normal-case">
-                    <SealCheckIcon size={14} weight="fill" aria-hidden="true" />
+                    <BadgeCheckIcon size={14} aria-hidden="true" />
                     EAR
                   </span>
                 ) : null}
               </Field>
               <Field label="Validade">
-                <span className="tabular">{fullDate.format(new Date(data.cnhExpiresAt))}</span>
+                <span className="tabular">{dataOu(data.cnhExpiresAt)}</span>
               </Field>
               <Field label="Pontos na CNH">
-                <span className="tabular">{data.cnhPoints}</span>
-                <span className="text-on-surface-muted"> de 40</span>
-                {data.cnhPoints >= 15 ? (
+                <span className="tabular">{data.cnhPoints ?? SEM_DADO}</span>
+                {data.cnhPoints != null ? (
+                  <span className="text-on-surface-muted"> de 40</span>
+                ) : null}
+                {(data.cnhPoints ?? 0) >= 15 ? (
                   <StatusChip tone="attention" className="ml-2">
                     Atenção
                   </StatusChip>
@@ -217,14 +236,26 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
               { label: 'Km rodados', value: km.format(driver.kmDriven) },
               {
                 label: 'Consumo médio',
-                value: `${data.avgFuelEfficiency.toLocaleString('pt-BR', { minimumFractionDigits: 1 })} km/l`,
+                value:
+                  data.avgFuelEfficiency == null
+                    ? '–'
+                    : `${data.avgFuelEfficiency.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })} km/l`,
               },
               {
-                label: 'Entregas no prazo',
-                value: `${data.onTimeDeliveryRate.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%`,
+                /* Entrega no prazo depende de viagem com destino e janela, que a
+                   telemetria não conhece. Enquanto não houver a tela de fretes,
+                   o indicador útil aqui é o tempo ao volante. */
+                label: 'Horas dirigindo',
+                value:
+                  data.hoursDriven == null
+                    ? '–'
+                    : `${data.hoursDriven.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} h`,
               },
             ].map((metric) => (
-              <div key={metric.label} className="bg-white/4 min-w-0 rounded-md p-3">
+              <div key={metric.label} className="bg-on-surface/4 min-w-0 rounded-md p-3">
                 <p className="text-on-surface-muted text-label-md normal-case">{metric.label}</p>
                 <p className="tabular font-sora text-on-surface text-headline-md mt-1 font-semibold">
                   {metric.value}
@@ -238,7 +269,11 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
               <figcaption className="text-on-surface-variant text-body-md mb-3 flex items-baseline justify-between gap-3">
                 Evolução do score
                 <span className="text-on-surface-muted text-label-md normal-case">
-                  últimos 6 meses
+                  {/* A série é diária e cobre o que já foi coletado, não seis
+                      meses fixos: um cliente novo tem poucos dias de histórico. */}
+                  {data.scoreHistory.length === 1
+                    ? '1 dia com quilometragem'
+                    : `${data.scoreHistory.length} dias com quilometragem`}
                 </span>
               </figcaption>
               <div className="h-44 w-full">
@@ -280,9 +315,9 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
                     <Line
                       type="monotone"
                       dataKey="score"
-                      stroke="var(--color-secondary)"
+                      stroke="var(--secondary)"
                       strokeWidth={2}
-                      dot={{ r: 3, fill: 'var(--color-secondary)', strokeWidth: 0 }}
+                      dot={{ r: 3, fill: 'var(--secondary)', strokeWidth: 0 }}
                       activeDot={{ r: 6 }}
                       isAnimationActive={false}
                     />
@@ -358,7 +393,7 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
             </h4>
 
             {data.warnings.length === 0 ? (
-              <p className="bg-white/4 text-on-surface-variant text-body-md rounded-md px-4 py-3">
+              <p className="bg-on-surface/4 text-on-surface-variant text-body-md rounded-md px-4 py-3">
                 Nenhuma advertência registrada no período.
               </p>
             ) : (
@@ -367,13 +402,12 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
                   const severity = SEVERITY[warning.severity];
 
                   return (
-                    <li key={warning.id} className="bg-white/4 rounded-md p-4">
+                    <li key={warning.id} className="bg-on-surface/4 rounded-md p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-on-surface flex items-center gap-2 font-medium">
                             <WarningIcon
                               size={16}
-                              weight="fill"
                               aria-hidden="true"
                               className={cn(
                                 warning.severity === 'GRAVE' ? 'text-error' : 'text-warning',
@@ -409,9 +443,9 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
                           <button
                             type="button"
                             onClick={() => setOpenWarning(warning)}
-                            className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-white/5 px-3 py-1.5 normal-case transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2"
+                            className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                           >
-                            <PlayCircleIcon size={16} weight="fill" aria-hidden="true" />
+                            <PlayIcon size={16} aria-hidden="true" />
                             Ver vídeo ({warning.media.durationSeconds}s)
                           </button>
                         ) : (

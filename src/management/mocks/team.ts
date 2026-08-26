@@ -71,12 +71,15 @@ export async function mockTeam(): Promise<TeamSummary> {
       hiredAt: HIRED_AT[driver.id],
       phone: PHONES[driver.id],
       status: driver.status,
-      score: driver.score,
-      scoreDelta: driver.scoreDelta,
+      /* A tela de equipe ainda é toda de demonstração, e o motorista fictício
+         sempre traz nota e CNH. Os `??` existem só porque o tipo `Driver` passou
+         a admitir ausência, para caber no que a telemetria realmente entrega. */
+      score: driver.score ?? 0,
+      scoreDelta: driver.scoreDelta ?? 0,
       kmDriven: driver.kmDriven,
       criticalEvents: driver.criticalEvents,
-      cnhCategory: driver.cnhCategory,
-      cnhExpiresAt: driver.cnhExpiresAt,
+      cnhCategory: driver.cnhCategory ?? '',
+      cnhExpiresAt: driver.cnhExpiresAt ?? '',
       currentVehiclePlate: driver.currentVehiclePlate,
     })),
 

@@ -37,6 +37,9 @@ const STATUS_COLOR: Record<VehicleStatus, string> = {
   DISPONIVEL: '#34D399',
   MANUTENCAO: '#FBBF24',
   BLOQUEADO: '#FB7185',
+  /* Cinza de propósito: o ponto está no último lugar conhecido, que pode ser de
+     ontem. Pintá-lo com a mesma saturação dos demais faria parecer atual. */
+  SEM_SINAL: '#94A3B8',
 };
 
 function toGeoJson(positions: VehiclePosition[]): FeatureCollection<Point> {
@@ -162,6 +165,44 @@ export function FleetMap({ positions, selectedId, onSelect, className }: FleetMa
     if (!ready || !map.current) return;
     const source = map.current.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     source?.setData(toGeoJson(positions));
+  }, [positions, ready]);
+
+  /*
+   * Enquadra a frota no primeiro carregamento.
+   *
+   * O centro fixo era do Rio, herdado dos mocks, e com frota real a tela abria
+   * numa região vazia: os caminhões existiam e estavam fora do campo de visão.
+   * Cada cliente opera onde opera, e nenhuma coordenada fixa serve para todos.
+   *
+   * Só na primeira vez: refazer o enquadramento a cada polling de quatro
+   * segundos arrancaria o mapa da mão de quem estivesse navegando nele.
+   */
+  const framed = useRef(false);
+  useEffect(() => {
+    if (!ready || !map.current || framed.current || positions.length === 0) return;
+
+    const [oeste, sul, leste, norte] = positions.reduce(
+      (limites, vehicle) => {
+        const [lng, lat] = vehicle.coordinates;
+        return [
+          Math.min(limites[0], lng),
+          Math.min(limites[1], lat),
+          Math.max(limites[2], lng),
+          Math.max(limites[3], lat),
+        ] as [number, number, number, number];
+      },
+      [180, 90, -180, -90] as [number, number, number, number],
+    );
+
+    framed.current = true;
+    map.current.fitBounds(
+      [
+        [oeste, sul],
+        [leste, norte],
+      ],
+      /* `maxZoom` impede que uma frota inteira num pátio jogue o zoom no telhado. */
+      { padding: 64, maxZoom: 12, duration: 0 },
+    );
   }, [positions, ready]);
 
   /* Selecionar na lista centraliza o mapa no veículo. */

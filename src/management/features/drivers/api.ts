@@ -6,6 +6,8 @@ import type {
   RankingPeriod,
 } from '@/management/types';
 
+import { env } from '@/app/environment';
+import { fetchDriverProfile, fetchDriverRanking, fetchDrivers } from '@/management/lib/fleet-api';
 import {
   mockDriverProfile,
   mockDriverRanking,
@@ -13,19 +15,36 @@ import {
   mockWarningMedia,
 } from '@/management/mocks/drivers';
 
-/** Fronteira única dos motoristas. Vira `GET /v1/drivers`. */
+/**
+ * Fronteira única dos motoristas.
+ *
+ * ⚠️ Contas de sistema não chegam aqui. O fornecedor cria motorista automático
+ * quando o veículo roda sem identificação de condutor, e na frota real são 17 de
+ * 149. Uma delas, "Unknown", recebe metade das viagens: sem o filtro do backend,
+ * o primeiro lugar do ranking seria um fantasma com o dobro de quilômetros de
+ * qualquer pessoa.
+ */
 export function getDrivers(): Promise<Driver[]> {
-  return mockDrivers();
+  return env.enableMocks ? mockDrivers() : fetchDrivers();
 }
 
-/** `GET /v1/drivers/{id}/profile` — carregado sob demanda ao selecionar. */
+/**
+ * Ficha completa do motorista.
+ *
+ * ⚠️ CPF, CNH, admissão, salário e regime **não vêm da telemetria**: são do RH, e
+ * não existe integração com folha. Esses campos chegam vazios e a tela mostra
+ * "não informado".
+ *
+ * O que é real: quilômetros, trechos, tempo dirigindo, consumo, eventos por
+ * categoria e a evolução da nota.
+ */
 export function getDriverProfile(driverId: string): Promise<DriverProfile> {
-  return mockDriverProfile(driverId);
+  return env.enableMocks ? mockDriverProfile(driverId) : fetchDriverProfile(driverId);
 }
 
-/** `GET /v1/drivers/ranking?period=` — agregação pré-calculada (DAT-06). */
+/** Ranking por nota de condução, calculada sobre eventos e quilômetros reais. */
 export function getDriverRanking(period: RankingPeriod): Promise<DriverRankEntry[]> {
-  return mockDriverRanking(period);
+  return env.enableMocks ? mockDriverRanking(period) : fetchDriverRanking(period);
 }
 
 /**
@@ -33,6 +52,8 @@ export function getDriverRanking(period: RankingPeriod): Promise<DriverRankEntry
  *
  * Chamada só quando o usuário aperta "assistir": a URL vive 15 minutos (RNF-022)
  * e o backend valida tenant, papel e entitlement antes de emiti-la.
+ *
+ * ⚠️ Em mock: a rota de mídia da MiX ainda não foi ligada.
  */
 export function getWarningMedia(warningId: string): Promise<EventMedia> {
   return mockWarningMedia(warningId);

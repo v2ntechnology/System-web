@@ -1,5 +1,5 @@
+import { LockIcon, SearchIcon, WarningIcon } from '@/components/icons';
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Lock, Search } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,9 @@ const YARD_STATUS: Record<YardVehicle['status'], VehicleStatus> = {
   DISPONIVEL: 'available',
   MANUTENCAO: 'maintenance',
   BLOQUEADO: 'alert',
+  /* Sem sinal nao e 'parado': ninguem sabe onde o caminhao esta. No painel
+     operacional isso e alerta, e nao disponibilidade. */
+  SEM_SINAL: 'alert',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -64,7 +67,7 @@ export function YardMetric({
       <CardContent className="pt-6">
         <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
-          {locked && <Lock className="h-3 w-3" aria-label="Restrito ao seu perfil" />}
+          {locked && <LockIcon className="h-3 w-3" aria-label="Restrito ao seu perfil" />}
         </p>
         <p
           className={cn(
@@ -138,7 +141,7 @@ export function RecentEntries({
                     formatCurrency(entry.amount)
                   ) : (
                     <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
-                      <Lock className="h-3 w-3" aria-hidden />
+                      <LockIcon className="h-3 w-3" aria-hidden />
                       Restrito
                     </span>
                   )}
@@ -200,7 +203,7 @@ export function YardBoard({
 
       <CardContent className="space-y-4">
         <div className="relative">
-          <Search
+          <SearchIcon
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
@@ -220,7 +223,7 @@ export function YardBoard({
             description="Revise o termo da busca — ela cobre placa, vaga e motorista."
           />
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {visible.map((vehicle) => {
               const overdue = vehicle.kmToMaintenance < 0;
 
@@ -272,7 +275,7 @@ export function YardBoard({
 
                   {vehicle.blockingReason ? (
                     <p className="mt-3 flex items-start gap-1.5 text-xs text-destructive">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                       {vehicle.blockingReason}
                     </p>
                   ) : (

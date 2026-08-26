@@ -1,4 +1,4 @@
-import { WarningIcon } from '@phosphor-icons/react';
+import { WarningIcon } from '@/components/icons';
 import type { Driver, DriverStatus } from '@/management/types';
 import { Avatar, cn, type StatusTone } from '@/management/ui';
 
@@ -13,8 +13,15 @@ export const DRIVER_STATUS_LABELS = Object.fromEntries(
   Object.entries(STATUS).map(([key, value]) => [key, value.label]),
 ) as Record<DriverStatus, string>;
 
-/** Dias até o vencimento da CNH. Abaixo de 60 vira alerta. */
-function daysUntil(iso: string) {
+/**
+ * Dias até o vencimento da CNH. Abaixo de 60 vira alerta.
+ *
+ * Sem data cadastrada não há alerta a dar: a CNH vem do RH, não da telemetria, e
+ * tratar a ausência como vencida marcaria a frota inteira de vermelho no dia em
+ * que os motoristas chegassem pela integração.
+ */
+function daysUntil(iso: string | undefined) {
+  if (!iso) return Number.POSITIVE_INFINITY;
   return Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
 }
 
@@ -71,7 +78,6 @@ export function DriverListItem({
         {cnhExpiring ? (
           <WarningIcon
             size={16}
-            weight="fill"
             aria-label={cnhDays <= 0 ? 'CNH vencida' : `CNH vence em ${cnhDays} dias`}
             className={cn(selected ? 'text-on-primary' : 'text-warning-on-light')}
           />

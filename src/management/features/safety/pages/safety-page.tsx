@@ -1,12 +1,12 @@
 import {
+  BlockedIcon,
   CheckCircleIcon,
   ClockIcon,
   InfoIcon,
-  PlayCircleIcon,
-  ProhibitIcon,
-  ShieldWarningIcon,
-  VideoCameraIcon,
-} from '@phosphor-icons/react';
+  PlayIcon,
+  ShieldAlertIcon,
+  VideoIcon,
+} from '@/components/icons';
 import type { ContestStatus, SafetyEvent, SafetySeverity } from '@/management/types';
 import { GlassCard, LightCard, StatusChip, cn, type StatusTone } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -28,6 +28,23 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
+
+/**
+ * A frase de comparação embaixo da nota.
+ *
+ * Compara taxa por mil quilômetros, e não contagem bruta de eventos: uma frota
+ * que rodou o dobro no mês gera o dobro de eventos sem ter piorado nada. Sem a
+ * normalização, todo mês de pico viraria alarme falso.
+ */
+function rateHint(atual: number | undefined, anterior: number | undefined): string {
+  if (atual == null) return 'sem quilometragem no período';
+  const taxa = atual.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  if (anterior == null || anterior === 0) return `${taxa} eventos por mil km`;
+
+  const variacao = Math.round(((atual - anterior) / anterior) * 100);
+  if (variacao === 0) return `${taxa} por mil km, estável`;
+  return `${taxa} por mil km, ${variacao > 0 ? '+' : ''}${variacao}% vs. período anterior`;
+}
 
 const SEVERITY: Record<SafetySeverity, { label: string; tone: StatusTone }> = {
   CRITICO: { label: 'Crítico', tone: 'critical' },
@@ -80,9 +97,15 @@ export function SafetyPage() {
                 { label: 'Críticos', value: critical, alert: critical > 0 },
                 { label: 'Contestações abertas', value: pending, alert: pending > 0 },
                 {
+                  /*
+                   * A nota é relativa à própria frota, então a comparação útil
+                   * não é contra um alvo absoluto: é a taxa de eventos por mil
+                   * quilômetros contra o período anterior. É ela que responde
+                   * "melhoramos ou pioramos".
+                   */
                   label: 'Score médio da frota',
-                  value: data.fleetScore,
-                  hint: `${data.scoreDelta > 0 ? '+' : ''}${data.scoreDelta} vs. mês anterior`,
+                  value: data.fleetScore ?? '–',
+                  hint: rateHint(data.eventsPer1000Km, data.eventsPer1000KmPrevious),
                 },
               ].map((metric) => (
                 <div key={metric.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
@@ -138,9 +161,8 @@ export function SafetyPage() {
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-on-surface flex items-center gap-2 font-medium">
-                                  <ShieldWarningIcon
+                                  <ShieldAlertIcon
                                     size={16}
-                                    weight="fill"
                                     aria-hidden="true"
                                     className={
                                       event.severity === 'CRITICO' ? 'text-error' : 'text-warning'
@@ -176,9 +198,9 @@ export function SafetyPage() {
                                 <button
                                   type="button"
                                   onClick={() => setOpenEvent(event)}
-                                  className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-white/5 px-3 py-1.5 normal-case transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2"
+                                  className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                                 >
-                                  <PlayCircleIcon size={16} weight="fill" aria-hidden="true" />
+                                  <PlayIcon size={16} aria-hidden="true" />
                                   Ver vídeo ({event.media.durationSeconds}s)
                                 </button>
                               ) : (
@@ -252,9 +274,9 @@ export function SafetyPage() {
                                         'O evento vira falso positivo e sai do score. A decisão exige motivo e vai para o log de auditoria.',
                                     })
                                   }
-                                  className="border-success/40 text-success text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2"
+                                  className="border-success/40 text-success text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
                                 >
-                                  <CheckCircleIcon size={14} weight="fill" aria-hidden="true" />
+                                  <CheckCircleIcon size={14} aria-hidden="true" />
                                   Aceitar
                                 </button>
                                 <button
@@ -265,9 +287,9 @@ export function SafetyPage() {
                                         'A advertência é mantida. O motivo da recusa fica registrado.',
                                     })
                                   }
-                                  className="border-error/40 text-error text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2"
+                                  className="border-error/40 text-error text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
                                 >
-                                  <ProhibitIcon size={14} weight="fill" aria-hidden="true" />
+                                  <BlockedIcon size={14} aria-hidden="true" />
                                   Recusar
                                 </button>
                               </div>
@@ -307,9 +329,8 @@ export function SafetyPage() {
                                 {camera.driverName}
                               </p>
                             </div>
-                            <VideoCameraIcon
+                            <VideoIcon
                               size={20}
-                              weight="duotone"
                               className="text-on-surface-muted shrink-0"
                               aria-hidden="true"
                             />
@@ -365,7 +386,7 @@ export function SafetyPage() {
                           </ul>
 
                           <p className="border-outline-variant text-on-surface-muted text-label-md mt-auto flex items-center gap-1.5 border-t pt-3 normal-case">
-                            <ClockIcon size={13} weight="duotone" aria-hidden="true" />
+                            <ClockIcon size={13} aria-hidden="true" />
                             {camera.hoursDriving.toLocaleString('pt-BR', {
                               minimumFractionDigits: 1,
                             })}
