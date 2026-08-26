@@ -138,6 +138,11 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
             {vehicle.year ? ` · ${vehicle.year}` : ''}
             {vehicle.unit ? ` · ${vehicle.unit}` : ''}
           </p>
+          {/* Observação que o cliente escreveu no cadastro do rastreador. É onde
+              aparece a transferência de filial, que explica a placa repetida. */}
+          {vehicle.notes ? (
+            <p className="text-on-surface-muted text-label-md mt-1 normal-case">{vehicle.notes}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col items-end gap-2">

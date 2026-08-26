@@ -46,6 +46,39 @@ function rateHint(atual: number | undefined, anterior: number | undefined): stri
   return `${taxa} por mil km, ${variacao > 0 ? '+' : ''}${variacao}% vs. período anterior`;
 }
 
+/**
+ * O nome da grandeza vem do fornecedor, em inglês.
+ *
+ * Traduzido por tabela, e não por serviço: são poucos nomes e eles vêm do
+ * catálogo da MiX, não de texto livre do cliente. O que não estiver aqui passa
+ * como veio, que é melhor que sumir.
+ */
+const GRANDEZA: Record<string, string> = {
+  deceleration: 'Desaceleração',
+  acceleration: 'Aceleração',
+  'engine rpm': 'Rotação do motor',
+  'road speed': 'Velocidade',
+  speed: 'Velocidade',
+  duration: 'Duração',
+  'engine speed': 'Rotação do motor',
+  distance: 'Distância',
+  'fuel used': 'Combustível',
+};
+
+/**
+ * O que foi medido no evento, pronto para ler.
+ *
+ * Vazio quando o fornecedor não disse o que o número significa. Mostrar "Valor:
+ * 2100" sem o nome e a unidade é pior que não mostrar: o usuário completa a
+ * lacuna sozinho, e geralmente erra.
+ */
+function medida(event: SafetyEvent): string | null {
+  if (event.value == null || !event.valueName) return null;
+  const grandeza = GRANDEZA[event.valueName.toLowerCase()] ?? event.valueName;
+  const numero = event.value.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  return `${grandeza}: ${numero}${event.valueUnit ? ` ${event.valueUnit}` : ''}`;
+}
+
 const SEVERITY: Record<SafetySeverity, { label: string; tone: StatusTone }> = {
   CRITICO: { label: 'Crítico', tone: 'critical' },
   ATENCAO: { label: 'Atenção', tone: 'attention' },
@@ -172,6 +205,15 @@ export function SafetyPage() {
                                 </p>
                                 <p className="text-on-surface-variant text-body-md mt-1">
                                   {event.description}
+                                  {/* O número medido só entra acompanhado do que
+                                      ele mede e da unidade. "2100" sozinho não
+                                      diz se são rotações, km/h ou segundos. */}
+                                  {medida(event) ? (
+                                    <span className="text-on-surface tabular">
+                                      {' '}
+                                      · {medida(event)}
+                                    </span>
+                                  ) : null}
                                 </p>
                               </div>
                               <StatusChip tone={severity.tone}>{severity.label}</StatusChip>

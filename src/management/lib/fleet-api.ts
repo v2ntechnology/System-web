@@ -45,6 +45,9 @@ interface VehicleDto {
   latitude: number | null;
   longitude: number | null;
   place: string | null;
+  imageUrl: string | null;
+  notes: string | null;
+  type: string | null;
 }
 
 interface PositionDto {
@@ -96,6 +99,10 @@ interface SafetyEventDto {
   location: string | null;
   description: string;
   value: number | null;
+  valueName: string | null;
+  valueUnit: string | null;
+  durationSeconds: number | null;
+  occurrences: number | null;
 }
 
 interface SafetySummaryDto {
@@ -168,6 +175,9 @@ const toVehicle = (dto: VehicleDto): Vehicle => ({
   costPerKm: dto.costPerKm ?? undefined,
   kmToMaintenance: dto.kmToMaintenance ?? undefined,
   lastSyncAt: dto.lastSyncAt ?? undefined,
+  imageUrl: dto.imageUrl ?? undefined,
+  notes: dto.notes ?? undefined,
+  type: dto.type ?? undefined,
 });
 
 const toPosition = (dto: PositionDto): VehiclePosition => ({
@@ -211,6 +221,11 @@ const toSafetyEvent = (dto: SafetyEventDto): SafetyEvent => ({
   location: dto.location ?? formatCoordinates(dto.latitude, dto.longitude),
   description: dto.typeLabel,
   warned: false,
+  value: dto.value ?? undefined,
+  valueName: dto.valueName ?? undefined,
+  valueUnit: dto.valueUnit ?? undefined,
+  durationSeconds: dto.durationSeconds ?? undefined,
+  occurrences: dto.occurrences ?? undefined,
 });
 
 /** "2026-08-26" vira "26/08". Rótulo de eixo tem espaço para cinco caracteres. */

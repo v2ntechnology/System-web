@@ -154,6 +154,18 @@ export interface Vehicle {
   kmToMaintenance?: number | undefined;
   /** Última sincronização com o rastreador, ISO 8601 (RN-140). Ausente = nunca reportou. */
   lastSyncAt?: string | undefined;
+  /** Foto do veículo hospedada pelo fornecedor. Vem em 100% dos ativos da frota real. */
+  imageUrl?: string | undefined;
+  /**
+   * Texto livre que o cliente escreveu no cadastro do rastreador.
+   *
+   * Vale a pena mostrar: na frota real ele traz a transferência de filial
+   * ("TRANSFERIDO PARA SÃO CRISTOVÃO DIA 19.08.2026"), que é a explicação humana
+   * das placas que aparecem em dois cadastros.
+   */
+  notes?: string | undefined;
+  /** truck, tractor_unit, trailer, van ou light. Deduzido pelo fornecedor. */
+  type?: string | undefined;
 }
 
 /** Uma barra do mini-ranking de despesa: quanto um veículo pesou na categoria. */
@@ -502,6 +514,19 @@ export interface SafetyEvent {
   /** Já virou advertência formal para o motorista. */
   warned: boolean;
   media?: EventMedia | undefined;
+  /** O número medido no evento, quando existe. */
+  value?: number | undefined;
+  /**
+   * O que o número mede, e em que unidade.
+   *
+   * Sem esse par, um "2100" na tela não diz nada: pode ser rotação, velocidade
+   * ou segundos. O fornecedor entrega os dois no catálogo de tipos de evento.
+   */
+  valueName?: string | undefined;
+  valueUnit?: string | undefined;
+  /** Quantas vezes o evento ocorreu, quando o registro é um agregado de período. */
+  occurrences?: number | undefined;
+  durationSeconds?: number | undefined;
 }
 
 export type ContestStatus = 'PENDENTE' | 'ACEITA' | 'RECUSADA';

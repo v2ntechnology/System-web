@@ -19,12 +19,13 @@ const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
  * O selecionado vira um cartão indigo. O texto dele é branco, e não escuro como
  * no Figma: `#16161A` sobre `#6366F1` dá 4.1:1 e reprova AA em texto de corpo.
  *
- * A silhueta é a mesma para todos enquanto não houver foto por veículo — quando
- * houver, ela entra no mesmo `<img>` sem mudar o layout.
+ * A imagem vem do fornecedor quando existe, e cai para a silhueta genérica
+ * quando não. Na frota real todos os 41 ativos têm imagem, mas ela é do TIPO do
+ * veículo (van, caminhão), não uma foto do caminhão em si.
  */
 export function VehicleListItem({ vehicle, selected, onSelect }: VehicleListItemProps) {
-  /* Ano de fabricação não vem da telemetria. Quando falta, some da linha em vez
-     de deixar "Volvo FH · undefined" na tela. */
+  /* O ano vem em cerca de um quarto dos ativos. Quando falta, some da linha em
+     vez de deixar "Volkswagen DELIVERY · undefined" na tela. */
   const modelo = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
   const legenda = vehicle.year ? `${modelo} · ${vehicle.year}` : modelo;
 
@@ -46,16 +47,22 @@ export function VehicleListItem({ vehicle, selected, onSelect }: VehicleListItem
       >
         {/*
          * `object-contain` preserva a silhueta 3:2; a escala compensa a margem
-         * transparente do PNG — o caminhão ocupa só 56% da altura do arquivo,
-         * e sem isso o thumbnail vira um borrão de 24px.
+         * transparente do PNG: o caminhão ocupa só 56% da altura do arquivo, e
+         * sem isso o thumbnail vira um borrão de 24px.
+         *
+         * A escala só vale para a silhueta nossa. A imagem do fornecedor já vem
+         * recortada, e ampliá-la cortaria o veículo nas bordas.
          */}
         <img
-          src={truckSide}
+          src={vehicle.imageUrl ?? truckSide}
           alt=""
           aria-hidden="true"
           loading="lazy"
           draggable={false}
-          className="h-full w-full scale-[1.35] object-contain"
+          className={cn(
+            'h-full w-full object-contain',
+            vehicle.imageUrl ? undefined : 'scale-[1.35]',
+          )}
         />
       </span>
 
