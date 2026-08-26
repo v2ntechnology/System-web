@@ -2,6 +2,7 @@ import type {
   Driver,
   DriverProfile,
   DriverRankEntry,
+  ManagerOverview,
   RoadEventType,
   SafetyEvent,
   SafetySummary,
@@ -387,6 +388,121 @@ export async function fetchDriverProfile(driverId: string, days = 30): Promise<D
     /* Advertência é fluxo da RookHub, não da telemetria: ainda não existe. */
     warnings: [],
   };
+}
+
+interface OperationsDto {
+  periodLabel: string;
+  vehiclesReady: number;
+  vehiclesBlocked: number;
+  vehiclesNoSignal: number;
+  driversActive: number;
+  driversWithoutRecord: number;
+  pendingReleases: number;
+  awaitingOwner: number;
+  openAnomalies: number;
+  metrics: {
+    id: string;
+    label: string;
+    value: number;
+    unit: string | null;
+    delta: number | null;
+    lowerIsBetter: boolean;
+    hint: string;
+  }[];
+  trend: { label: string; fatigue: number; harshDriving: number; speeding: number }[];
+}
+
+/**
+ * Prontidão da operação, o quadro que o gestor abre de manhã.
+ *
+ * Três filas saem em zero e continuam em zero: liberações, aguardando o dono e
+ * anomalias. São fluxo interno da RookHub, não telemetria, e ainda não existem.
+ * A tela mostra zero, que é a resposta honesta.
+ */
+export async function fetchOperations(days = 7): Promise<ManagerOverview> {
+  const dto = await httpRequest<OperationsDto>(`/v1/fleet/operations?days=${days}`);
+
+  return {
+    periodLabel: dto.periodLabel,
+    source: 'Telemetria MiX, atualizada a cada cinco minutos',
+    vehiclesReady: dto.vehiclesReady,
+    vehiclesBlocked: dto.vehiclesBlocked,
+    vehiclesNoSignal: dto.vehiclesNoSignal,
+    driversReady: dto.driversActive,
+    driversUnavailable: dto.driversWithoutRecord,
+    pendingReleases: dto.pendingReleases,
+    awaitingOwner: dto.awaitingOwner,
+    openAnomalies: dto.openAnomalies,
+    metrics: dto.metrics.map((m) => ({
+      id: m.id,
+      label: m.label,
+      value: m.value,
+      unit: m.unit || undefined,
+      delta: m.delta ?? undefined,
+      lowerIsBetter: m.lowerIsBetter,
+      hint: m.hint,
+    })),
+    trend: dto.trend.map((t) => ({
+      label: diaCurto(t.label),
+      fatigue: t.fatigue,
+      harshDriving: t.harshDriving,
+      speeding: t.speeding,
+    })),
+    /* Reprovação de checklist depende do módulo de checklist, que ainda não
+       existe no backend. Lista vazia, e a tela já trata vazio. */
+    failures: [],
+  };
+}
+
+interface DriverHoursDto {
+  driverId: string;
+  name: string;
+  currentVehiclePlate: string;
+  drivingSeconds: number;
+  longestStretchSeconds: number;
+  longestBreakSeconds: number;
+  firstStart: string;
+  lastEnd: string;
+  journeys: number;
+  distanceKm: number | null;
+  violations: string[];
+}
+
+export interface DriverHours {
+  driverId: string;
+  name: string;
+  plate: string;
+  drivingSeconds: number;
+  longestStretchSeconds: number;
+  longestBreakSeconds: number;
+  firstStart: string;
+  lastEnd: string;
+  journeys: number;
+  distanceKm?: number | undefined;
+  violations: string[];
+}
+
+/**
+ * Jornada dos motoristas nas últimas horas.
+ *
+ * ⚠️ Indicador de risco, não ponto eletrônico. Mede o veículo andando com aquele
+ * condutor identificado; quem dirige sem se identificar não aparece.
+ */
+export async function fetchDriverHours(hours = 24): Promise<DriverHours[]> {
+  const rows = await httpRequest<DriverHoursDto[]>(`/v1/drivers/hours?hours=${hours}`);
+  return rows.map((row) => ({
+    driverId: row.driverId,
+    name: row.name,
+    plate: row.currentVehiclePlate,
+    drivingSeconds: row.drivingSeconds,
+    longestStretchSeconds: row.longestStretchSeconds,
+    longestBreakSeconds: row.longestBreakSeconds,
+    firstStart: row.firstStart,
+    lastEnd: row.lastEnd,
+    journeys: row.journeys,
+    distanceKm: row.distanceKm ?? undefined,
+    violations: row.violations,
+  }));
 }
 
 /** Rota percorrida, em [longitude, latitude]. Para desenhar o trajeto no mapa. */

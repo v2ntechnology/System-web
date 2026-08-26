@@ -1,10 +1,11 @@
-import { ArrowRightIcon, InfoIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon, InfoIcon } from '@/components/icons';
 import { GlassCard, SpectrumButton, cn } from '@/management/ui';
 import { Link } from 'react-router';
 
 export interface ReadinessStripProps {
   vehiclesReady: number;
   vehiclesBlocked: number;
+  vehiclesNoSignal?: number | undefined;
   driversReady: number;
   driversUnavailable: number;
   pendingReleases: number;
@@ -50,6 +51,7 @@ function Tile({
 export function ReadinessStrip({
   vehiclesReady,
   vehiclesBlocked,
+  vehiclesNoSignal,
   driversReady,
   driversUnavailable,
   pendingReleases,
@@ -70,11 +72,19 @@ export function ReadinessStrip({
         </p>
 
         <p className="text-label-md mt-3 normal-case">
-          <span className="text-on-surface-variant">{driversReady} motoristas disponíveis</span>
+          {/* "Rodaram" e não "disponíveis": quem não aparece pode estar de folga,
+              dirigindo sem se identificar ou apenas sem dado coletado ainda. */}
+          <span className="text-on-surface-variant">{driversReady} motoristas rodaram</span>
           {vehiclesBlocked > 0 ? (
             <span className="text-warning">
               {' · '}
-              {vehiclesBlocked} {vehiclesBlocked === 1 ? 'veículo retido' : 'veículos retidos'}
+              {vehiclesBlocked} {vehiclesBlocked === 1 ? 'em manutenção' : 'em manutenção'}
+            </span>
+          ) : null}
+          {vehiclesNoSignal ? (
+            <span className="text-on-surface-muted">
+              {' · '}
+              {vehiclesNoSignal} sem sinal
             </span>
           ) : null}
         </p>
@@ -104,10 +114,13 @@ export function ReadinessStrip({
           hint="números que subiriam sem explicação"
           tone={openAnomalies > 0 ? 'warning' : 'neutral'}
         />
+        {/* "Sem registro" e não "indisponível": inclui folga, quem dirigiu sem se
+            identificar e quem ainda não teve dado coletado. Chamar de
+            indisponibilidade daria 120 de 132 no primeiro dia de coleta. */}
         <Tile
-          label="Motoristas indisponíveis"
+          label="Motoristas sem registro"
           value={String(driversUnavailable)}
-          hint="descanso, afastamento ou bloqueio"
+          hint="folga, sem identificação ou sem dado no período"
         />
 
         {pendingReleases > 0 ? (
@@ -120,7 +133,7 @@ export function ReadinessStrip({
             <SpectrumButton asChild size="sm">
               <Link to="/gestao/liberacoes">
                 Tratar fila
-                <ArrowRightIcon size={16} weight="bold" aria-hidden="true" />
+                <ArrowRightIcon size={16} aria-hidden="true" />
               </Link>
             </SpectrumButton>
           </div>

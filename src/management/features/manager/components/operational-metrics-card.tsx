@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from '@phosphor-icons/react';
+import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from '@/components/icons';
 import type { OperationalMetric } from '@/management/types';
 import { LightCard, cn } from '@/management/ui';
 
@@ -31,8 +31,12 @@ export function OperationalMetricsCard({
     >
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {metrics.map((metric) => {
-          const stable = metric.delta === 0;
-          const worse = metric.lowerIsBetter ? metric.delta > 0 : metric.delta < 0;
+          /* Sem período anterior não há seta: nem verde, nem vermelha, nem
+             traço de "estável". A ausência de comparação é ela mesma a
+             informação, e um traço seria lido como "não mudou". */
+          const delta = metric.delta;
+          const stable = delta === 0;
+          const worse = metric.lowerIsBetter ? (delta ?? 0) > 0 : (delta ?? 0) < 0;
 
           return (
             <li key={metric.id} className="bg-light-container min-w-0 rounded-lg p-4">
@@ -48,27 +52,33 @@ export function OperationalMetricsCard({
                   ) : null}
                 </span>
 
-                <span
-                  className={cn(
-                    'tabular text-label-md flex items-center gap-0.5 normal-case',
-                    stable
-                      ? 'text-on-light-muted'
-                      : worse
-                        ? 'text-error-on-light'
-                        : 'text-success-on-light',
-                  )}
-                >
-                  {stable ? (
-                    <MinusIcon size={12} weight="bold" aria-hidden="true" />
-                  ) : metric.delta > 0 ? (
-                    <ArrowUpIcon size={12} weight="bold" aria-hidden="true" />
-                  ) : (
-                    <ArrowDownIcon size={12} weight="bold" aria-hidden="true" />
-                  )}
-                  {metric.delta > 0 ? '+' : ''}
-                  {metric.delta.toLocaleString('pt-BR')}
-                  {metric.unit ?? ''}
-                </span>
+                {delta == null ? (
+                  <span className="text-on-light-muted text-label-md normal-case">
+                    sem período anterior
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      'tabular text-label-md flex items-center gap-0.5 normal-case',
+                      stable
+                        ? 'text-on-light-muted'
+                        : worse
+                          ? 'text-error-on-light'
+                          : 'text-success-on-light',
+                    )}
+                  >
+                    {stable ? (
+                      <MinusIcon size={12} aria-hidden="true" />
+                    ) : delta > 0 ? (
+                      <ArrowUpIcon size={12} aria-hidden="true" />
+                    ) : (
+                      <ArrowDownIcon size={12} aria-hidden="true" />
+                    )}
+                    {delta > 0 ? '+' : ''}
+                    {delta.toLocaleString('pt-BR')}
+                    {metric.unit ?? ''}
+                  </span>
+                )}
               </p>
 
               <p className="text-on-light-muted text-label-md mt-2 normal-case">{metric.hint}</p>
@@ -78,7 +88,7 @@ export function OperationalMetricsCard({
       </ul>
 
       <p className="text-on-light-muted text-label-md mt-auto pt-5 normal-case">
-        Variação contra o período anterior. Telemetria, checklists e controle de jornada.
+        Medido pela telemetria: trechos, consumo e eventos do rastreador.
       </p>
     </LightCard>
   );

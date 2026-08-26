@@ -53,6 +53,7 @@ export function ManagerHomePage() {
               <ReadinessStrip
                 vehiclesReady={data.vehiclesReady}
                 vehiclesBlocked={data.vehiclesBlocked}
+                vehiclesNoSignal={data.vehiclesNoSignal}
                 driversReady={data.driversReady}
                 driversUnavailable={data.driversUnavailable}
                 pendingReleases={data.pendingReleases}

@@ -1086,8 +1086,14 @@ export interface OperationalMetric {
   label: string;
   value: number;
   unit?: string | undefined;
-  /** Variação contra o período anterior, na mesma unidade do valor. */
-  delta: number;
+  /**
+   * Variação contra o período anterior, na mesma unidade do valor.
+   *
+   * ⚠️ Ausente quando não existe período anterior com dado. Sem essa
+   * distinção, a primeira medição de um cliente sai como "+5.060 km,
+   * melhorou", afirmando uma melhora que ninguém mediu.
+   */
+  delta?: number | undefined;
   /**
    * Verdadeiro quando **subir é ruim** (eventos, reprovações, desvios).
    *
@@ -1099,10 +1105,16 @@ export interface OperationalMetric {
 }
 
 /** Uma semana da série de eventos operacionais. */
+/**
+ * Um dia da série de eventos.
+ *
+ * ⚠️ Não existe desvio de rota: a telemetria não sabe para onde o caminhão
+ * deveria estar indo. A terceira série é condução brusca, que é medida.
+ */
 export interface OperationalTrendPoint {
   label: string;
   fatigue: number;
-  routeDeviation: number;
+  harshDriving: number;
   speeding: number;
 }
 
@@ -1122,10 +1134,26 @@ export interface ChecklistFailure {
 export interface ManagerOverview {
   periodLabel: string;
   source: string;
-  /* Prontidão — o que pode sair agora. */
+  /* Prontidão: o que pode sair agora. */
   vehiclesReady: number;
+  /** Em manutenção: retido de verdade, por decisão da operação. */
   vehiclesBlocked: number;
+  /**
+   * Sem leitura há mais de 24 horas.
+   *
+   * Separado de `vehiclesBlocked`: um caminhão sem sinal não está retido,
+   * está invisível. Somar os dois manda o gestor procurar na oficina um
+   * veículo que pode estar rodando com o rastreador mudo.
+   */
+  vehiclesNoSignal?: number | undefined;
+  /** Motoristas que efetivamente rodaram no período. */
   driversReady: number;
+  /**
+   * Motoristas sem nenhum trecho no período.
+   *
+   * NÃO é indisponibilidade: inclui folga, quem dirigiu sem se identificar e
+   * quem ainda não teve dado coletado.
+   */
   driversUnavailable: number;
   /* Filas que dependem do gestor. */
   pendingReleases: number;

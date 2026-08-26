@@ -25,7 +25,9 @@ import {
  */
 const SERIES = [
   { key: 'fatigue', label: 'Sonolência', color: 'var(--color-chart-1)' },
-  { key: 'routeDeviation', label: 'Desvio de rota', color: 'var(--color-chart-2)' },
+  /* Nao existe desvio de rota: a telemetria nao sabe para onde o caminhao
+     deveria estar indo. Conducao brusca e medida de verdade. */
+  { key: 'harshDriving', label: 'Condução brusca', color: 'var(--color-chart-2)' },
   { key: 'speeding', label: 'Excesso de velocidade', color: 'var(--color-chart-3)' },
 ] as const;
 
@@ -129,7 +131,7 @@ export function EventsTrendCard({ data, className }: EventsTrendCardProps) {
                     </td>
                   ))}
                   <td className="text-on-light text-body-md py-2 text-right font-semibold">
-                    {point.fatigue + point.routeDeviation + point.speeding}
+                    {point.fatigue + point.harshDriving + point.speeding}
                   </td>
                 </tr>
               ))}

@@ -6,6 +6,9 @@ import type {
   ReleaseRequest,
 } from '@/management/types';
 
+import { env } from '@/app/environment';
+import { fetchOperations } from '@/management/lib/fleet-api';
+
 import {
   mockAnomalies,
   mockDecideRelease,
@@ -24,8 +27,23 @@ import {
  * nenhuma tela é tocada. Ver `features/auth/api.ts` para a nota completa.
  */
 
+/**
+ * Prontidão da operação.
+ *
+ * O período do seletor vira janela em dias: o gestor pensa em semana e mês, e o
+ * backend só entende dias.
+ */
+const DIAS_POR_PERIODO: Record<AnalyticsPeriod, number> = {
+  '30D': 30,
+  '3M': 90,
+  '6M': 180,
+  '12M': 365,
+};
+
 export function getManagerOverview(period: AnalyticsPeriod): Promise<ManagerOverview> {
-  return mockManagerOverview(period);
+  return env.enableMocks
+    ? mockManagerOverview(period)
+    : fetchOperations(DIAS_POR_PERIODO[period] ?? 7);
 }
 
 export function getReleases(): Promise<ReleaseRequest[]> {

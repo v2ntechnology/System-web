@@ -561,11 +561,11 @@ const METRICS: OperationalMetric[] = [
 ];
 
 const TREND: OperationalTrendPoint[] = [
-  { label: 'sem 1', fatigue: 1, routeDeviation: 6, speeding: 12 },
-  { label: 'sem 2', fatigue: 2, routeDeviation: 5, speeding: 10 },
-  { label: 'sem 3', fatigue: 1, routeDeviation: 4, speeding: 9 },
-  { label: 'sem 4', fatigue: 2, routeDeviation: 3, speeding: 7 },
-  { label: 'sem 5', fatigue: 3, routeDeviation: 3, speeding: 8 },
+  { label: 'sem 1', fatigue: 1, harshDriving: 6, speeding: 12 },
+  { label: 'sem 2', fatigue: 2, harshDriving: 5, speeding: 10 },
+  { label: 'sem 3', fatigue: 1, harshDriving: 4, speeding: 9 },
+  { label: 'sem 4', fatigue: 2, harshDriving: 3, speeding: 7 },
+  { label: 'sem 5', fatigue: 3, harshDriving: 3, speeding: 8 },
 ];
 
 const FAILURES: ChecklistFailure[] = [
