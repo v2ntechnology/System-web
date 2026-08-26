@@ -7,7 +7,13 @@ import type {
 } from '@/management/types';
 
 import { env } from '@/app/environment';
-import { fetchDriverProfile, fetchDriverRanking, fetchDrivers } from '@/management/lib/fleet-api';
+import {
+  fetchDriverHours,
+  fetchDriverProfile,
+  fetchDriverRanking,
+  fetchDrivers,
+  type DriverHours,
+} from '@/management/lib/fleet-api';
 import {
   mockDriverProfile,
   mockDriverRanking,
@@ -58,3 +64,16 @@ export function getDriverRanking(period: RankingPeriod): Promise<DriverRankEntry
 export function getWarningMedia(warningId: string): Promise<EventMedia> {
   return mockWarningMedia(warningId);
 }
+
+/**
+ * Jornada das ultimas horas.
+ *
+ * Sem caminho de mock: e indicador de risco calculado sobre trechos reais, e uma
+ * versao ficticia dele seria pior que nao ter. Alguem poderia ligar para um
+ * motorista mandando parar por causa de um numero inventado.
+ */
+export function getDriverHours(hours = 24): Promise<DriverHours[]> {
+  return fetchDriverHours(hours);
+}
+
+export type { DriverHours };

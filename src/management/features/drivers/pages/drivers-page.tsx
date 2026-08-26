@@ -12,6 +12,7 @@ import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
 import { getDrivers } from '../api';
 import { DriverDetailPanel } from '../components/driver-detail-panel';
+import { DriverHoursCard } from '../components/driver-hours-card';
 import { DriverListItem } from '../components/driver-list-item';
 import { DriverRankingCard } from '../components/driver-ranking-card';
 
@@ -182,6 +183,13 @@ export function DriversPage() {
             ) : null}
           </GlassCard>
         </div>
+
+        {/* Jornada logo abaixo do resumo: é a informação com prazo. Score e
+            ranking podem esperar a tarde; um motorista em 5h30 precisa parar
+            agora, e quem abre esta tela é quem faz essa ligação. */}
+        <GlassCard className="mt-5 p-5 sm:p-6">
+          <DriverHoursCard />
+        </GlassCard>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           {/* Texto solto, e não `<label>`: o rótulo acessível já vem do próprio
