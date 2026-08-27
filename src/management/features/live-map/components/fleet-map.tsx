@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { iconIdFor, loadVehicleIcons } from './vehicle-icons';
+import { SETA_ESCALA, headingIdFor, iconIdFor, loadVehicleIcons } from './vehicle-icons';
 
 /**
  * Estilo escuro gratuito e sem chave de API.
@@ -32,8 +32,48 @@ const STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.j
 
 const SOURCE_ID = 'fleet';
 const LAYER_HALO = 'fleet-halo';
+/* A seta de direção é uma camada própria porque GIRA, e o crachá não pode girar:
+   o caminhão desenhado dentro dele ficaria de cabeça para baixo. */
+const LAYER_HEADING = 'fleet-heading';
 const LAYER_ICON = 'fleet-icon';
 const LAYER_LABEL = 'fleet-label';
+
+/**
+ * Tamanho do marcador conforme o zoom, em fração da imagem de 64 pixels.
+ *
+ * Calibrado para o DISCO, e não para o canvas: o crachá ocupa cerca de 70% do
+ * lado, então estes fatores dão um disco de 26 pixels no zoom em que a tela
+ * abre, 32 na cidade e 40 na rua. Abaixo de 24 pixels a silhueta dentro do
+ * crachá deixa de ser reconhecível, que é exatamente o defeito da primeira
+ * versão.
+ *
+ * Nenhum ponto passa de 1: acima disso o MapLibre amplia a imagem e a borda
+ * embaça.
+ */
+const TAMANHO_POR_ZOOM: ['interpolate', ['linear'], ['zoom'], ...number[]] = [
+  'interpolate',
+  ['linear'],
+  ['zoom'],
+  5,
+  0.56,
+  11,
+  0.7,
+  16,
+  0.88,
+];
+
+/** A mesma curva, ampliada. Ver `SETA_ESCALA` em `vehicle-icons`. */
+const TAMANHO_DA_SETA: ['interpolate', ['linear'], ['zoom'], ...number[]] = [
+  'interpolate',
+  ['linear'],
+  ['zoom'],
+  5,
+  0.56 * SETA_ESCALA,
+  11,
+  0.7 * SETA_ESCALA,
+  16,
+  0.88 * SETA_ESCALA,
+];
 
 /* Camadas da rota do veículo selecionado. */
 const SOURCE_TRACK = 'track';
@@ -120,12 +160,17 @@ function toGeoJson(
           status: vehicle.status,
           color: STATUS_COLOR[vehicle.status],
           icon: iconIdFor(vehicle.type, vehicle.status),
+          'heading-icon': headingIdFor(vehicle.status),
           heading: atual ? atual.heading : vehicle.heading,
           selected: vehicle.vehicleId === selectedId,
           destacado: vehicle.vehicleId === selectedId || vehicle.vehicleId === hoveredId,
-          /* Parado não gira: com velocidade zero o GPS oscila a direção, e o
-             ícone ficaria rodopiando no pátio. */
+          /* Parado não ganha seta: com velocidade zero o GPS oscila a direção, e
+             a seta ficaria rodopiando no pátio apontando para lugar nenhum. */
           parado: vehicle.speedKmh <= 3,
+          /* Veículo mudo há mais de um dia fica para trás no empilhamento
+             visual. Ele continua na tela, mas não disputa atenção com quem está
+             rodando agora. */
+          opacidade: vehicle.status === 'SEM_SINAL' ? 0.62 : 1,
         },
       };
     }),
@@ -359,21 +404,42 @@ export function FleetMap({
 
       mapa.addSource(SOURCE_ID, { type: 'geojson', data: vazio() });
 
-      /* Halo do selecionado: um anel por baixo do ícone. Destacar mudando a cor
-         do próprio veículo apagaria o status, que é o que a cor significa. */
+      /* Halo do selecionado: um anel por baixo do marcador. Destacar mudando a
+         cor do próprio veículo apagaria o status, que é o que a cor significa. */
       mapa.addLayer({
         id: LAYER_HALO,
         type: 'circle',
         source: SOURCE_ID,
         filter: ['==', ['get', 'destacado'], true],
         paint: {
-          'circle-radius': 22,
+          /* Acompanha o marcador: anel de raio fixo ficaria maior que o crachá
+             de longe e escondido atrás dele de perto. */
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 21, 11, 26, 16, 33],
           'circle-color': ['get', 'color'],
-          'circle-opacity': 0.18,
+          'circle-opacity': 0.16,
           'circle-stroke-width': 2,
           'circle-stroke-color': ['get', 'color'],
-          'circle-stroke-opacity': 0.5,
+          'circle-stroke-opacity': 0.55,
         },
+      });
+
+      /* Seta de direção, por baixo do crachá. Só para quem está andando: com
+         velocidade zero o GPS oscila a direção, e a seta ficaria rodopiando no
+         pátio apontando para lugar nenhum. */
+      mapa.addLayer({
+        id: LAYER_HEADING,
+        type: 'symbol',
+        source: SOURCE_ID,
+        filter: ['==', ['get', 'parado'], false],
+        layout: {
+          'icon-image': ['get', 'heading-icon'],
+          'icon-size': TAMANHO_DA_SETA,
+          'icon-rotate': ['get', 'heading'],
+          'icon-rotation-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: { 'icon-opacity': ['get', 'opacidade'] },
       });
 
       mapa.addLayer({
@@ -382,21 +448,20 @@ export function FleetMap({
         source: SOURCE_ID,
         layout: {
           'icon-image': ['get', 'icon'],
-          /*
-           * Cresce com o zoom: de longe precisa caber, de perto precisa mostrar
-           * que é um caminhão.
-           *
-           * O piso é 0,34 porque abaixo disso a silhueta vira um retângulo de
-           * doze pixels e a forma deixa de comunicar qualquer coisa. Numa frota
-           * espalhada por dois estados, esse é o zoom em que a tela abre.
-           */
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.34, 11, 0.46, 16, 0.66],
-          'icon-rotate': ['get', 'heading'],
-          'icon-rotation-alignment': 'map',
+          'icon-size': TAMANHO_POR_ZOOM,
+          /* ⚠️ SEM `icon-rotate`. O crachá tem um caminhão desenhado dentro, e
+             girar a imagem deixaria o caminhão de cabeça para baixo metade do
+             tempo. Quem gira é a seta, na camada de baixo. */
+          'icon-rotation-alignment': 'viewport',
           /* Frota parada num pátio sobrepõe: esconder metade dos veículos por
              colisão de ícone seria pior que a sobreposição. */
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
+        },
+        paint: {
+          /* Quem não reporta há um dia não pode ter o mesmo peso visual de quem
+             está rodando agora. O olho precisa cair no que está acontecendo. */
+          'icon-opacity': ['get', 'opacidade'],
         },
       });
 
@@ -407,9 +472,10 @@ export function FleetMap({
         layout: {
           'text-field': ['get', 'plate'],
           'text-size': 11,
-          'text-offset': [0, 1.9],
+          'text-offset': [0, 2],
           'text-anchor': 'top',
           'text-allow-overlap': false,
+          'text-optional': true,
         },
         paint: {
           'text-color': '#F0F0F2',
