@@ -8,7 +8,7 @@ import { PageBanner } from '@/management/components/layout/page-banner';
 import { QueryState } from '@/management/components/layout/query-state';
 import { VehicleStatusChip } from '@/management/features/trucks/vehicle-status';
 
-import { getVehiclePositions } from '../api';
+import { getVehiclePositions, getVehicleTrack } from '../api';
 import { FleetMap } from '../components/fleet-map';
 
 /** RN-140 — integração parada há mais de 30 minutos vira aviso explícito. */
@@ -16,6 +16,18 @@ const STALE_SYNC_MINUTES = 30;
 
 const isStale = (vehicle: VehiclePosition) =>
   (Date.now() - new Date(vehicle.lastSyncAt).getTime()) / 60_000 > STALE_SYNC_MINUTES;
+
+/**
+ * Janelas da rota.
+ *
+ * 72h e o teto do backend, e nao um numero redondo: e a unica consulta que toca
+ * a serie bruta de posicoes, com 2.863 leituras por veiculo por dia.
+ */
+const TRACK_WINDOWS = [
+  { hours: 6, label: '6h' },
+  { hours: 24, label: '24h' },
+  { hours: 72, label: '72h' },
+] as const;
 
 const time = new Intl.DateTimeFormat('pt-BR', {
   hour: '2-digit',
@@ -32,6 +44,24 @@ export function LiveMapPage() {
   });
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  /**
+   * Janela da rota, em horas.
+   *
+   * O backend recusa acima de 72 porque esta é a única consulta que toca a série
+   * bruta de posições: são 2.863 leituras por veículo por dia, e um pedido de
+   * trinta dias devolveria quase cem mil pontos para o navegador desenhar.
+   */
+  const [trackHours, setTrackHours] = useState(24);
+
+  const trackQuery = useQuery({
+    queryKey: ['vehicle-track', selectedId, trackHours],
+    queryFn: () => getVehicleTrack(selectedId as string, trackHours),
+    /* Sem veículo selecionado não há rota a buscar. */
+    enabled: Boolean(selectedId),
+    /* A rota é histórico: ela não muda a cada quatro segundos como a posição. */
+    staleTime: 60_000,
+  });
 
   const positions = useMemo(() => data ?? [], [data]);
   const moving = positions.filter((vehicle) => vehicle.speedKmh > 0).length;
@@ -152,12 +182,53 @@ export function LiveMapPage() {
               </ul>
             </GlassCard>
 
-            <FleetMap
-              positions={positions}
-              selectedId={selectedId}
-              onSelect={select}
-              className="min-h-[520px] xl:min-h-[calc(100dvh-320px)]"
-            />
+            <div className="flex min-w-0 flex-col gap-3">
+              {/* O seletor só aparece com veículo escolhido: sem seleção não há
+                  rota, e um controle inerte no topo do mapa é ruído. */}
+              {selectedId ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-on-surface-variant text-label-md normal-case">
+                    Rota percorrida
+                  </span>
+                  <div className="bg-on-surface/8 flex gap-1 rounded-full p-1">
+                    {TRACK_WINDOWS.map((janela) => (
+                      <button
+                        key={janela.hours}
+                        type="button"
+                        onClick={() => setTrackHours(janela.hours)}
+                        aria-pressed={trackHours === janela.hours}
+                        className={cn(
+                          'text-label-md focus-visible:ring-secondary rounded-full px-3 py-1 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                          trackHours === janela.hours
+                            ? 'bg-primary-strong text-on-primary'
+                            : 'text-on-surface-variant hover:text-on-surface',
+                        )}
+                      >
+                        {janela.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <span className="text-on-surface-muted text-label-md normal-case">
+                    {trackQuery.isPending
+                      ? 'traçando…'
+                      : trackQuery.isError
+                        ? 'não foi possível traçar a rota'
+                        : (trackQuery.data?.length ?? 0) < 2
+                          ? 'sem leituras suficientes no período'
+                          : `${(trackQuery.data ?? []).length.toLocaleString('pt-BR')} pontos`}
+                  </span>
+                </div>
+              ) : null}
+
+              <FleetMap
+                positions={positions}
+                selectedId={selectedId}
+                onSelect={select}
+                track={trackQuery.data}
+                className="min-h-[520px] xl:min-h-[calc(100dvh-360px)]"
+              />
+            </div>
           </div>
         </QueryState>
       </main>

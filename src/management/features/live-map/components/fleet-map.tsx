@@ -31,6 +31,13 @@ const SOURCE_ID = 'fleet';
 const LAYER_CIRCLE = 'fleet-circle';
 const LAYER_LABEL = 'fleet-label';
 
+/* Camadas da rota do veículo selecionado. */
+const SOURCE_TRACK = 'track';
+const LAYER_TRACK = 'track-line';
+const LAYER_TRACK_GLOW = 'track-glow';
+const SOURCE_TRACK_ENDS = 'track-ends';
+const LAYER_TRACK_ENDS = 'track-ends-circle';
+
 /** Cores por status, espelhando `features/trucks/vehicle-status.tsx`. */
 const STATUS_COLOR: Record<VehicleStatus, string> = {
   EM_VIAGEM: '#38BDF8',
@@ -58,11 +65,60 @@ function toGeoJson(positions: VehiclePosition[]): FeatureCollection<Point> {
   };
 }
 
+/**
+ * A rota percorrida pelo veículo selecionado, em [longitude, latitude].
+ *
+ * Chega pronta de fora: o mapa desenha, não busca. Quem decide a janela de horas
+ * é a tela, que tem o seletor.
+ */
 export interface FleetMapProps {
   positions: VehiclePosition[];
   selectedId: string | null;
   onSelect: (vehicleId: string) => void;
+  track?: [number, number][] | undefined;
   className?: string | undefined;
+}
+
+/** Uma linha com menos de dois pontos não é linha: o MapLibre recusa. */
+const temRota = (track: [number, number][] | undefined): track is [number, number][] =>
+  Array.isArray(track) && track.length >= 2;
+
+function toTrackLine(track: [number, number][]): FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: [
+      { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: track } },
+    ],
+  };
+}
+
+/**
+ * Só as duas pontas da rota, e não um ponto por leitura.
+ *
+ * São 2.863 posições por veículo por dia: desenhar um círculo em cada uma
+ * cobriria a linha inteira e derrubaria o quadro. O que o gestor precisa ver é
+ * onde começou e onde está.
+ */
+function toTrackEnds(track: [number, number][]): FeatureCollection<Point> {
+  const inicio = track[0];
+  const fim = track[track.length - 1];
+  if (!inicio || !fim) return { type: 'FeatureCollection', features: [] };
+
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { ponta: 'inicio', color: '#94A3B8' },
+        geometry: { type: 'Point', coordinates: inicio },
+      },
+      {
+        type: 'Feature',
+        properties: { ponta: 'fim', color: '#38BDF8' },
+        geometry: { type: 'Point', coordinates: fim },
+      },
+    ],
+  };
 }
 
 /**
@@ -77,7 +133,7 @@ export interface FleetMapProps {
  *  2. **Atualização por `setData`** — posição nova reescreve a fonte GeoJSON.
  *     Nunca recriar a fonte, a camada ou o mapa a cada tick.
  */
-export function FleetMap({ positions, selectedId, onSelect, className }: FleetMapProps) {
+export function FleetMap({ positions, selectedId, onSelect, track, className }: FleetMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
@@ -104,6 +160,52 @@ export function FleetMap({ positions, selectedId, onSelect, className }: FleetMa
 
     instance.on('load', () => {
       instance.addSource(SOURCE_ID, { type: 'geojson', data: toGeoJson([]) });
+
+      /*
+       * A rota entra ANTES dos pontos da frota.
+       *
+       * O MapLibre desenha na ordem em que as camadas foram adicionadas, e uma
+       * linha por cima dos círculos passaria em cima do caminhão. A ordem aqui é
+       * a ordem visual.
+       */
+      instance.addSource(SOURCE_TRACK, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      instance.addSource(SOURCE_TRACK_ENDS, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      /* Halo largo e transparente: dá contraste sobre o mapa escuro sem
+         engrossar a linha, que precisa seguir a rua. */
+      instance.addLayer({
+        id: LAYER_TRACK_GLOW,
+        type: 'line',
+        source: SOURCE_TRACK,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#38BDF8', 'line-width': 8, 'line-opacity': 0.18 },
+      });
+
+      instance.addLayer({
+        id: LAYER_TRACK,
+        type: 'line',
+        source: SOURCE_TRACK,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#38BDF8', 'line-width': 2.5, 'line-opacity': 0.9 },
+      });
+
+      instance.addLayer({
+        id: LAYER_TRACK_ENDS,
+        type: 'circle',
+        source: SOURCE_TRACK_ENDS,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#171717',
+        },
+      });
 
       instance.addLayer({
         id: LAYER_CIRCLE,
@@ -218,6 +320,51 @@ export function FleetMap({ positions, selectedId, onSelect, className }: FleetMa
       duration: reduced ? 0 : 600,
     });
   }, [selectedId, ready, positions]);
+
+  /**
+   * Desenha a rota do veículo selecionado, e a enquadra.
+   *
+   * O enquadramento é o que faz a rota servir: sem ele, um caminhão que rodou
+   * 90 km some da tela assim que a linha é desenhada, porque o mapa continua
+   * centrado no ponto atual com zoom de bairro.
+   */
+  useEffect(() => {
+    if (!ready || !map.current) return;
+
+    const linha = map.current.getSource(SOURCE_TRACK) as GeoJSONSource | undefined;
+    const pontas = map.current.getSource(SOURCE_TRACK_ENDS) as GeoJSONSource | undefined;
+
+    if (!temRota(track)) {
+      linha?.setData({ type: 'FeatureCollection', features: [] });
+      pontas?.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    linha?.setData(toTrackLine(track));
+    pontas?.setData(toTrackEnds(track));
+
+    const [oeste, sul, leste, norte] = track.reduce(
+      (limites, [lng, lat]) =>
+        [
+          Math.min(limites[0], lng),
+          Math.min(limites[1], lat),
+          Math.max(limites[2], lng),
+          Math.max(limites[3], lat),
+        ] as [number, number, number, number],
+      [180, 90, -180, -90] as [number, number, number, number],
+    );
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    map.current.fitBounds(
+      [
+        [oeste, sul],
+        [leste, norte],
+      ],
+      /* `maxZoom` alto porque uma rota curta, de entrega urbana, precisa de zoom
+         de rua para a linha não virar um borrão de dois pixels. */
+      { padding: 72, maxZoom: 15, duration: reduced ? 0 : 700 },
+    );
+  }, [track, ready]);
 
   if (failed) {
     return (
