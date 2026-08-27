@@ -118,6 +118,7 @@ interface SafetySummaryDto {
   eventsPer1000KmPrevious: number | null;
   totalEvents: number;
   criticalEvents: number;
+  measuresCritical: boolean;
   distanceKm: number | null;
 }
 
@@ -299,6 +300,7 @@ export async function fetchSafetySummary(days = 30): Promise<SafetySummary> {
     })),
     totalEvents: dto.totalEvents,
     criticalEvents: dto.criticalEvents,
+    measuresCritical: dto.measuresCritical,
     distanceKm: dto.distanceKm ?? undefined,
   };
 }

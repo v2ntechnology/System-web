@@ -49,6 +49,12 @@ export function DriverPerformanceCard({
 
   const semNota = drivers.length - comNota.length;
 
+  /* ⚠️ Coluna inteira zerada de evento grave NÃO significa frota exemplar.
+     Sonolência, distração e colisão só existem em frota com câmera e sensor de
+     fadiga; sem eles a coluna nunca sai do zero. Dizer isso é a diferença entre
+     uma boa notícia e uma cegueira. */
+  const nenhumGrave = comNota.every((motorista) => motorista.criticalEvents === 0);
+
   return (
     <LightCard
       title="Quem dirige melhor"
@@ -165,6 +171,9 @@ export function DriverPerformanceCard({
         então nota absoluta não compararia nada.
         {semNota > 0
           ? ` ${semNota} ${semNota === 1 ? 'motorista não rodou' : 'motoristas não rodaram'} o suficiente no período e ${semNota === 1 ? 'ficou' : 'ficaram'} de fora.`
+          : ''}
+        {nenhumGrave && comNota.length > 0
+          ? ' Evento grave zerado em todo mundo significa que nenhum equipamento desta frota gera sonolência, distração ou colisão, e não que ninguém teve.'
           : ''}
       </p>
     </LightCard>

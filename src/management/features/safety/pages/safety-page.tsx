@@ -127,7 +127,18 @@ export function SafetyPage() {
             <GlassCard className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
               {[
                 { label: 'Eventos no período', value: data.events.length },
-                { label: 'Críticos', value: critical, alert: critical > 0 },
+                {
+                  label: 'Críticos',
+                  value: critical,
+                  alert: critical > 0,
+                  /* Zero aqui pode significar "ninguém dormiu ao volante" ou
+                     "esta frota não tem câmera". São conclusões opostas, e sem
+                     a distinção o gestor lê a segunda como a primeira. */
+                  hint:
+                    data.measuresCritical === false
+                      ? 'nenhum equipamento desta frota gera este evento'
+                      : 'sonolência, distração e colisão',
+                },
                 { label: 'Contestações abertas', value: pending, alert: pending > 0 },
                 {
                   /*

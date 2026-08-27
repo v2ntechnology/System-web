@@ -610,6 +610,15 @@ export interface SafetySummary {
     { type: RoadEventType; label: string; count: number; previousCount: number }[] | undefined;
   totalEvents?: number | undefined;
   criticalEvents?: number | undefined;
+  /**
+   * A frota já registrou evento crítico alguma vez.
+   *
+   * ⚠️ Zero em críticos tem DOIS significados opostos. Sonolência, distração e
+   * risco de colisão só existem em frota com câmera e sensor de fadiga: sem
+   * eles, o zero não é conquista, é cegueira. A tela precisa saber qual dos dois
+   * casos está mostrando.
+   */
+  measuresCritical?: boolean | undefined;
   distanceKm?: number | undefined;
 }
 
