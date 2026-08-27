@@ -1,4 +1,4 @@
-import { ArrowRightIcon, WarningIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon, ClockIcon, WarningIcon } from '@/components/icons';
 import type { Trip } from '@/management/types';
 import { GlassCard, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -7,10 +7,17 @@ import { useCallback, useMemo, useState } from 'react';
 import { PageBanner } from '@/management/components/layout/page-banner';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
+import { PendingSource } from '@/management/components/layout/pending-source';
 import { QueryState } from '@/management/components/layout/query-state';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
+import { env } from '@/app/environment';
+import { fetchFrequentStops, fetchJourneys } from '@/management/lib/fleet-api';
+import { duration } from '@/management/lib/format';
+
 import { getTrips } from '../api';
+import { JourneyList } from '../components/journey-list';
+import { StopsMap } from '../components/stops-map';
 import { TripDetailPanel } from '../components/trip-detail-panel';
 import { TripStatusChip, finishedLate, isLate } from '../trip-status';
 
@@ -32,7 +39,323 @@ function matchesTab(trip: Trip, tab: TabId) {
   return !isOpen(trip);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Com dado real                                                               */
+/* -------------------------------------------------------------------------- */
+
+const JANELAS = [
+  { dias: 1, label: 'Hoje' },
+  { dias: 7, label: '7 dias' },
+  { dias: 30, label: '30 dias' },
+] as const;
+
+const ABAS_REAIS = [
+  { id: 'PERCURSOS', label: 'Percursos' },
+  { id: 'PARADAS', label: 'Onde a frota para' },
+] as const;
+
+type AbaReal = (typeof ABAS_REAIS)[number]['id'];
+
+const numero = (valor: number | undefined, casas = 0) =>
+  valor == null
+    ? '–'
+    : valor.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+
+/**
+ * Viagens com o que a telemetria entrega.
+ *
+ * <h2>Percurso não é viagem de frete</h2>
+ *
+ * ⚠️ A tela de origem mostrava código da viagem, cliente, prazo acordado e taxa
+ * de entrega no prazo. **Nada disso existe na telemetria.** A MiX entrega o
+ * trecho entre ligar e desligar o veículo, e só. Cliente, carga, frete e prazo
+ * saem de um TMS ou de um cadastro próprio, que ainda não existe.
+ *
+ * Manter os campos antigos preenchidos com mock seria o pior caso: um gestor
+ * lendo "94% no prazo" acreditaria, porque o número tem exatamente a cara de um
+ * indicador medido.
+ *
+ * <h2>O que entrou no lugar</h2>
+ *
+ * Percursos, que é o dado real, e onde a frota fica parada, que ninguém
+ * pergunta e todo mundo paga. A segunda aba respondeu na primeira execução algo
+ * que nenhuma outra tela responde: 122 horas em um único endereço em trinta
+ * dias, com dez dos treze veículos passando por lá.
+ */
+function ViagensReais() {
+  const [dias, setDias] = useState<number>(7);
+  const [busca, setBusca] = useState('');
+  const [aba, setAba] = useState<AbaReal>('PERCURSOS');
+  const [paradaAtiva, setParadaAtiva] = useState<number | null>(null);
+
+  const percursos = useQuery({
+    queryKey: ['viagens', 'percursos', dias, busca],
+    queryFn: () => fetchJourneys({ days: dias, search: busca || undefined }),
+  });
+
+  /* Trinta dias fixos: parada frequente é padrão, e padrão não aparece em um
+     dia. Amarrar na janela dos percursos deixaria a aba vazia em "Hoje". */
+  const paradas = useQuery({
+    queryKey: ['viagens', 'paradas'],
+    queryFn: () => fetchFrequentStops(30),
+  });
+
+  const lista = useMemo(() => percursos.data?.journeys ?? [], [percursos.data]);
+
+  const resumo = useMemo(() => {
+    const distancia = lista.reduce((soma, item) => soma + (item.distanceKm ?? 0), 0);
+    const aoVolante = lista.reduce((soma, item) => soma + (item.drivingSeconds ?? 0), 0);
+    const parado = lista.reduce((soma, item) => soma + (item.idleSeconds ?? 0), 0);
+    const semMotorista = lista.filter((item) => !item.driverName).length;
+    return { distancia, aoVolante, parado, semMotorista };
+  }, [lista]);
+
+  const totalHorasParadas = (paradas.data ?? []).reduce(
+    (soma, parada) => soma + parada.totalHours,
+    0,
+  );
+
+  return (
+    <>
+      <PageBanner
+        size="inline"
+        title="Viagens"
+        description="Cada percurso que a frota fez, e os lugares onde ela mais fica parada."
+      />
+
+      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+        <h2 className="sr-only">Resumo do período</h2>
+
+        <div role="group" aria-label="Período" className="mb-4 flex flex-wrap gap-1.5">
+          {JANELAS.map((janela) => (
+            <button
+              key={janela.dias}
+              type="button"
+              onClick={() => setDias(janela.dias)}
+              aria-pressed={dias === janela.dias}
+              className={cn(
+                'text-label-md focus-visible:ring-secondary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                dias === janela.dias
+                  ? 'bg-primary-strong text-on-primary'
+                  : 'bg-on-surface/8 text-on-surface-variant hover:text-on-surface',
+              )}
+            >
+              {janela.label}
+            </button>
+          ))}
+        </div>
+
+        <QueryState
+          isPending={percursos.isPending}
+          isError={percursos.isError}
+          label="os percursos"
+        >
+          <GlassCard className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
+            {[
+              { label: 'Percursos', value: km.format(lista.length) },
+              { label: 'Quilômetros rodados', value: km.format(resumo.distancia) },
+              { label: 'Tempo ao volante', value: duration(resumo.aoVolante) },
+              {
+                label: 'Motor ligado parado',
+                value: duration(resumo.parado),
+                /* Parado com motor ligado é combustível queimado sem sair do
+                   lugar. Destacado quando passa de um quinto do total. */
+                alerta: resumo.aoVolante > 0 && resumo.parado / resumo.aoVolante > 0.2,
+              },
+            ].map((metrica) => (
+              <div key={metrica.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                <p className="text-on-surface-variant text-label-md normal-case">{metrica.label}</p>
+                <p
+                  className={cn(
+                    'tabular font-sora mt-2 text-[32px] font-bold leading-none',
+                    metrica.alerta ? 'text-warning' : 'text-on-surface',
+                  )}
+                >
+                  {metrica.value}
+                </p>
+              </div>
+            ))}
+          </GlassCard>
+
+          {resumo.semMotorista > 0 ? (
+            /* Percurso sem condutor identificado não entra em nota, jornada nem
+               ranking. O gestor precisa saber o tamanho do buraco. */
+            <div className="bg-warning/10 border-warning/30 text-warning mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
+              <WarningIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <p className="text-body-md">
+                {resumo.semMotorista === 1
+                  ? '1 percurso rodou sem condutor identificado e não entra na nota de nenhum motorista.'
+                  : `${resumo.semMotorista} percursos rodaram sem condutor identificado e não entram na nota de nenhum motorista.`}
+              </p>
+            </div>
+          ) : null}
+        </QueryState>
+      </section>
+
+      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
+        <PageTabs
+          tabs={ABAS_REAIS.map((opcao) => ({
+            ...opcao,
+            count: opcao.id === 'PERCURSOS' ? lista.length : (paradas.data ?? []).length,
+          }))}
+          value={aba}
+          onValueChange={setAba}
+          label="O que ver das viagens"
+        >
+          {aba === 'PERCURSOS' ? (
+            <div className="pb-4">
+              <label className="mb-4 block max-w-md">
+                <span className="sr-only">Buscar por placa, motorista ou endereço</span>
+                <input
+                  type="search"
+                  value={busca}
+                  onChange={(evento) => setBusca(evento.target.value)}
+                  placeholder="Placa, motorista ou endereço"
+                  className="bg-light-container text-on-light placeholder:text-on-light-muted focus-visible:ring-primary-on-light w-full rounded-lg px-3 py-2 text-body-md focus-visible:outline-none focus-visible:ring-2"
+                />
+              </label>
+
+              <QueryState
+                isPending={percursos.isPending}
+                isError={percursos.isError}
+                label="os percursos"
+              >
+                {lista.length === 0 ? (
+                  <p className="text-on-light-variant text-body-md py-10 text-center">
+                    Nenhum percurso no período.
+                  </p>
+                ) : (
+                  <JourneyList journeys={lista} />
+                )}
+
+                {percursos.data && percursos.data.ignored > 0 ? (
+                  /* O piso é recorte, e recorte invisível faz a soma da tela
+                     nunca fechar com a do banco. */
+                  <p className="text-on-light-muted text-label-md mt-4 normal-case">
+                    {percursos.data.ignored.toLocaleString('pt-BR')} manobras abaixo de{' '}
+                    {numero(percursos.data.minKm * 1000)} metros ficaram de fora: são partidas de
+                    pátio, não percursos.
+                  </p>
+                ) : null}
+              </QueryState>
+            </div>
+          ) : (
+            <div className="pb-4">
+              <QueryState
+                isPending={paradas.isPending}
+                isError={paradas.isError}
+                label="as paradas"
+              >
+                <p className="text-on-light-variant text-body-md mb-4 max-w-3xl">
+                  Onde a frota ficou parada por mais de vinte minutos nos últimos trinta dias,
+                  somando {km.format(totalHorasParadas)} horas. O sistema não sabe se o lugar é a
+                  base, um cliente ou um posto: mostra o endereço e quem reconhece é você.
+                </p>
+
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,380px)_1fr]">
+                  <ul className="flex max-h-[560px] flex-col gap-2 overflow-y-auto">
+                    {(paradas.data ?? []).map((parada, indice) => {
+                      const ativa = indice === paradaAtiva;
+
+                      return (
+                        <li key={`${parada.coordinates[0]}-${parada.coordinates[1]}`}>
+                          <button
+                            type="button"
+                            onClick={() => setParadaAtiva(indice)}
+                            aria-current={ativa ? 'true' : undefined}
+                            className={cn(
+                              'focus-visible:ring-primary-on-light w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
+                              ativa ? 'bg-primary-strong' : 'hover:bg-light-container',
+                            )}
+                          >
+                            <span className="flex items-baseline justify-between gap-2">
+                              <span
+                                className={cn(
+                                  'text-body-md truncate font-medium',
+                                  ativa ? 'text-on-primary' : 'text-on-light',
+                                )}
+                              >
+                                {parada.address ?? 'Endereço não informado'}
+                              </span>
+                              <span
+                                className={cn(
+                                  'tabular shrink-0 font-semibold',
+                                  ativa ? 'text-on-primary' : 'text-on-light',
+                                )}
+                              >
+                                {numero(parada.totalHours, 1)} h
+                              </span>
+                            </span>
+
+                            <span
+                              className={cn(
+                                'text-label-md mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 normal-case',
+                                ativa ? 'text-on-primary' : 'text-on-light-muted',
+                              )}
+                            >
+                              <span className="tabular">
+                                {parada.stops} {parada.stops === 1 ? 'parada' : 'paradas'}
+                              </span>
+                              {/* Veículos distintos separam a base do ponto de
+                                  um motorista só. */}
+                              <span className="tabular">
+                                {parada.vehicles} {parada.vehicles === 1 ? 'veículo' : 'veículos'}
+                              </span>
+                              <span className="tabular flex items-center gap-1">
+                                <ClockIcon size={12} aria-hidden="true" />
+                                {numero(parada.avgMinutes)} min em média
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  <StopsMap
+                    stops={paradas.data ?? []}
+                    selectedIndex={paradaAtiva}
+                    onSelect={setParadaAtiva}
+                    className="min-h-[420px] xl:min-h-[560px]"
+                  />
+                </div>
+              </QueryState>
+            </div>
+          )}
+        </PageTabs>
+
+        <div className="mt-6">
+          <PendingSource
+            title="A viagem de frete ainda não existe aqui"
+            description="Percurso é o que o veículo fez entre ligar e desligar. Viagem é o que a transportadora vendeu: cliente, carga, prazo e valor. A telemetria não sabe nada disso, e por isso esta tela não mostra prazo acordado nem taxa de entrega no prazo."
+            requirements={[
+              'Cadastro de viagem, ligando um ou mais percursos a um cliente e a uma carga',
+              'Prazo combinado com o cliente, que é o que define atraso',
+              'Valor do frete, sem o qual não há receita por viagem',
+              'Ou, no lugar dos três, integração com o TMS que a transportadora já usa',
+            ]}
+            meanwhile={[
+              { label: 'Percursos e paradas reais', to: '/gestao/viagens' },
+              { label: 'Onde cada caminhão está agora', to: '/gestao/mapa' },
+              { label: 'Comparação entre filiais', to: '/gestao/resultado' },
+            ]}
+          />
+        </div>
+      </PageContent>
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Com mock                                                                    */
+/* -------------------------------------------------------------------------- */
+
 export function TripsPage() {
+  if (!env.enableMocks) return <ViagensReais />;
+  return <ViagensSimuladas />;
+}
+
+function ViagensSimuladas() {
   const { data, isPending, isError } = useQuery({ queryKey: ['trips'], queryFn: getTrips });
   const [tab, setTab] = useState<TabId>('EM_CURSO');
 
@@ -90,7 +413,7 @@ export function TripsPage() {
 
           {lateCount > 0 ? (
             <div className="bg-error/10 border-error/30 text-error mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
-              <WarningIcon size={18} weight="fill" className="mt-0.5 shrink-0" aria-hidden="true" />
+              <WarningIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
               <p className="text-body-md">
                 {lateCount === 1
                   ? '1 viagem em curso já passou do prazo acordado com o cliente.'
@@ -151,7 +474,6 @@ export function TripsPage() {
                               {active ? null : late ? (
                                 <WarningIcon
                                   size={15}
-                                  weight="fill"
                                   aria-label="Atrasada"
                                   className="text-error-on-light"
                                 />
@@ -167,7 +489,7 @@ export function TripsPage() {
                               )}
                             >
                               <span className="truncate">{trip.origin}</span>
-                              <ArrowRightIcon size={11} weight="bold" aria-hidden="true" />
+                              <ArrowRightIcon size={11} aria-hidden="true" />
                               <span className="truncate">{trip.destination}</span>
                             </span>
 

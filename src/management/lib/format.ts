@@ -94,3 +94,17 @@ export const dateOnly = new Intl.DateTimeFormat('pt-BR', {
   year: 'numeric',
   timeZone: 'America/Sao_Paulo',
 });
+
+/**
+ * Duração em texto curto: "1 h 24" lê mais rápido que "84 minutos".
+ *
+ * Fica aqui, e não no componente que a usa, porque tempo ao volante aparece em
+ * percurso, jornada e ficha do motorista. Três formatações do mesmo número é
+ * como o mesmo valor ganha dois rostos.
+ */
+export function duration(seconds: number | undefined): string {
+  if (seconds == null) return '–';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.round((seconds % 3600) / 60);
+  return hours > 0 ? `${hours} h ${String(minutes).padStart(2, '0')}` : `${minutes} min`;
+}

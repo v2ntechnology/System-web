@@ -613,3 +613,159 @@ export async function fetchEventHeatmap(days = 7, category?: string): Promise<He
     critical: r.critical,
   }));
 }
+
+/* -------------------------------------------------------------------------- */
+/* Trechos e paradas                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Um trecho percorrido: da chave girada até o motor desligado.
+ *
+ * ⚠️ **Não é a viagem de frete.** Não tem cliente, carga nem valor, porque a
+ * telemetria não sabe nada disso. Chamar de viagem na tela faria o gestor
+ * procurar aqui o faturamento do mês.
+ */
+export interface Journey {
+  id: string;
+  vehicleId: string;
+  plate: string;
+  unit?: string | undefined;
+  driverId?: string | undefined;
+  /** Ausente quando ninguém se identificou ao volante. */
+  driverName?: string | undefined;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds?: number | undefined;
+  drivingSeconds?: number | undefined;
+  idleSeconds?: number | undefined;
+  distanceKm?: number | undefined;
+  maxSpeedKmh?: number | undefined;
+  avgSpeedKmh?: number | undefined;
+  fuelUsedLitres?: number | undefined;
+  fuelEfficiency?: number | undefined;
+  startAddress?: string | undefined;
+  endAddress?: string | undefined;
+  startCoordinates?: [number, number] | undefined;
+  endCoordinates?: [number, number] | undefined;
+}
+
+export interface JourneyPage {
+  journeys: Journey[];
+  /** Trechos abaixo do piso de distância. A tela diz o número em vez de escondê-los. */
+  ignored: number;
+  minKm: number;
+}
+
+interface JourneyDto {
+  id: string;
+  vehicleId: string;
+  plate: string;
+  unit: string | null;
+  driverId: string | null;
+  driverName: string | null;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number | null;
+  drivingSeconds: number | null;
+  idleSeconds: number | null;
+  distanceKm: number | null;
+  maxSpeedKmh: number | null;
+  avgSpeedKmh: number | null;
+  fuelUsedLitres: number | null;
+  fuelEfficiency: number | null;
+  startAddress: string | null;
+  endAddress: string | null;
+  startCoordinates: [number, number] | null;
+  endCoordinates: [number, number] | null;
+}
+
+export interface JourneyFilters {
+  days?: number | undefined;
+  minKm?: number | undefined;
+  search?: string | undefined;
+  vehicleId?: string | undefined;
+}
+
+export async function fetchJourneys(filters: JourneyFilters = {}): Promise<JourneyPage> {
+  const query = new URLSearchParams({
+    days: String(filters.days ?? 7),
+    minKm: String(filters.minKm ?? 0.5),
+  });
+  if (filters.search) query.set('search', filters.search);
+  if (filters.vehicleId) query.set('vehicleId', filters.vehicleId);
+
+  const page = await httpRequest<{ journeys: JourneyDto[]; ignored: number; minKm: number }>(
+    `/v1/fleet/journeys?${query.toString()}`,
+  );
+
+  return {
+    ignored: page.ignored,
+    minKm: page.minKm,
+    journeys: page.journeys.map((row) => ({
+      id: row.id,
+      vehicleId: row.vehicleId,
+      plate: row.plate,
+      unit: row.unit ?? undefined,
+      driverId: row.driverId ?? undefined,
+      driverName: row.driverName ?? undefined,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+      durationSeconds: row.durationSeconds ?? undefined,
+      drivingSeconds: row.drivingSeconds ?? undefined,
+      idleSeconds: row.idleSeconds ?? undefined,
+      distanceKm: row.distanceKm ?? undefined,
+      maxSpeedKmh: row.maxSpeedKmh ?? undefined,
+      avgSpeedKmh: row.avgSpeedKmh ?? undefined,
+      fuelUsedLitres: row.fuelUsedLitres ?? undefined,
+      fuelEfficiency: row.fuelEfficiency ?? undefined,
+      startAddress: row.startAddress ?? undefined,
+      endAddress: row.endAddress ?? undefined,
+      startCoordinates: row.startCoordinates ?? undefined,
+      endCoordinates: row.endCoordinates ?? undefined,
+    })),
+  };
+}
+
+/**
+ * Um lugar onde a frota para com frequência.
+ *
+ * ⚠️ `address` é o endereço mais frequente do agrupamento, e não um cadastro. O
+ * sistema não sabe se ali é a base, um cliente ou um posto: quem olha reconhece.
+ */
+export interface FrequentStop {
+  coordinates: [number, number];
+  address?: string | undefined;
+  stops: number;
+  vehicles: number;
+  totalHours: number;
+  avgMinutes?: number | undefined;
+  longestHours: number;
+  lastAt?: string | undefined;
+}
+
+export async function fetchFrequentStops(days = 30, minMinutes = 20): Promise<FrequentStop[]> {
+  const rows = await httpRequest<
+    {
+      lat: number;
+      lng: number;
+      address: string | null;
+      stops: number;
+      vehicles: number;
+      totalHours: number;
+      avgMinutes: number | null;
+      longestHours: number;
+      lastAt: string | null;
+    }[]
+  >(`/v1/fleet/stops?days=${days}&minMinutes=${minMinutes}`);
+
+  return rows.map((row) => ({
+    coordinates: [row.lng, row.lat] as [number, number],
+    address: row.address ?? undefined,
+    stops: row.stops,
+    vehicles: row.vehicles,
+    totalHours: row.totalHours,
+    avgMinutes: row.avgMinutes ?? undefined,
+    longestHours: row.longestHours,
+    lastAt: row.lastAt ?? undefined,
+  }));
+}
