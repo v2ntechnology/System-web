@@ -505,13 +505,61 @@ export async function fetchDriverHours(hours = 24): Promise<DriverHours[]> {
   }));
 }
 
-/** Rota percorrida, em [longitude, latitude]. Para desenhar o trajeto no mapa. */
-export async function fetchVehicleTrack(
-  vehicleId: string,
-  hours = 24,
-): Promise<[number, number][]> {
-  const dto = await httpRequest<{ hours: number; points: [number, number][] }>(
+/**
+ * Um ponto da rota percorrida.
+ *
+ * Carrega horário e velocidade além da coordenada: é o que permite refazer o dia
+ * ponto a ponto. Só o par de números diz por onde passou, e não quando nem a que
+ * velocidade, que é o que se quer saber ao reconstituir uma ocorrência.
+ */
+export interface TrackPoint {
+  coordinates: [number, number];
+  at: string;
+  speedKmh?: number | undefined;
+}
+
+interface TrackPointDto {
+  lng: number;
+  lat: number;
+  at: string;
+  speedKmh: number | null;
+}
+
+export async function fetchVehicleTrack(vehicleId: string, hours = 24): Promise<TrackPoint[]> {
+  const dto = await httpRequest<{ hours: number; points: TrackPointDto[] }>(
     `/v1/vehicles/${vehicleId}/track?hours=${hours}`,
   );
-  return dto.points;
+  return dto.points.map((p) => ({
+    coordinates: [p.lng, p.lat] as [number, number],
+    at: p.at,
+    speedKmh: p.speedKmh ?? undefined,
+  }));
+}
+
+/** Uma célula do mapa de calor, já agregada pelo backend. */
+export interface HeatPoint {
+  coordinates: [number, number];
+  total: number;
+  critical: number;
+}
+
+/**
+ * Onde a frota gera evento.
+ *
+ * Vem agregado em células de cerca de 110 metros, a escala de um cruzamento.
+ * Mandar os doze mil eventos crus seria quase um megabyte por carregamento, e o
+ * mapa de calor não precisa da coordenada exata: precisa saber onde concentrou.
+ */
+export async function fetchEventHeatmap(days = 7, category?: string): Promise<HeatPoint[]> {
+  const query = new URLSearchParams({ days: String(days) });
+  if (category) query.set('category', category);
+
+  const rows = await httpRequest<{ lng: number; lat: number; total: number; critical: number }[]>(
+    `/v1/safety/heatmap?${query.toString()}`,
+  );
+  return rows.map((r) => ({
+    coordinates: [r.lng, r.lat] as [number, number],
+    total: r.total,
+    critical: r.critical,
+  }));
 }

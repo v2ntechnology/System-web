@@ -38,6 +38,12 @@ const LAYER_TRACK_GLOW = 'track-glow';
 const SOURCE_TRACK_ENDS = 'track-ends';
 const LAYER_TRACK_ENDS = 'track-ends-circle';
 
+/* Mapa de calor de eventos e o marcador do replay. */
+const SOURCE_HEAT = 'heat';
+const LAYER_HEAT = 'heat-layer';
+const SOURCE_PLAYHEAD = 'playhead';
+const LAYER_PLAYHEAD = 'playhead-circle';
+
 /** Cores por status, espelhando `features/trucks/vehicle-status.tsx`. */
 const STATUS_COLOR: Record<VehicleStatus, string> = {
   EM_VIAGEM: '#38BDF8',
@@ -76,6 +82,10 @@ export interface FleetMapProps {
   selectedId: string | null;
   onSelect: (vehicleId: string) => void;
   track?: [number, number][] | undefined;
+  /** Células do mapa de calor. Vazio ou ausente esconde a camada. */
+  heat?: { coordinates: [number, number]; total: number }[] | undefined;
+  /** Onde o replay está agora. Nulo esconde o marcador. */
+  playhead?: [number, number] | null | undefined;
   className?: string | undefined;
 }
 
@@ -133,7 +143,15 @@ function toTrackEnds(track: [number, number][]): FeatureCollection<Point> {
  *  2. **Atualização por `setData`** — posição nova reescreve a fonte GeoJSON.
  *     Nunca recriar a fonte, a camada ou o mapa a cada tick.
  */
-export function FleetMap({ positions, selectedId, onSelect, track, className }: FleetMapProps) {
+export function FleetMap({
+  positions,
+  selectedId,
+  onSelect,
+  track,
+  heat,
+  playhead,
+  className,
+}: FleetMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
@@ -168,6 +186,40 @@ export function FleetMap({ positions, selectedId, onSelect, track, className }: 
        * linha por cima dos círculos passaria em cima do caminhão. A ordem aqui é
        * a ordem visual.
        */
+      /* O calor entra por baixo de tudo: ele é fundo, não informação pontual. */
+      instance.addSource(SOURCE_HEAT, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      instance.addLayer({
+        id: LAYER_HEAT,
+        type: 'heatmap',
+        source: SOURCE_HEAT,
+        paint: {
+          /* O peso vem da contagem da célula, limitado a 10: uma esquina com
+             200 ocorrências apagaria todas as outras da escala de cor. */
+          'heatmap-weight': ['interpolate', ['linear'], ['get', 'total'], 0, 0, 10, 1],
+          'heatmap-intensity': 1.1,
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 6, 8, 14, 26],
+          'heatmap-opacity': 0.65,
+          'heatmap-color': [
+            'interpolate',
+            ['linear'],
+            ['heatmap-density'],
+            0,
+            'rgba(56,189,248,0)',
+            0.25,
+            'rgba(56,189,248,0.55)',
+            0.5,
+            'rgba(251,191,36,0.65)',
+            0.75,
+            'rgba(251,146,60,0.75)',
+            1,
+            'rgba(244,63,94,0.85)',
+          ],
+        },
+      });
+
       instance.addSource(SOURCE_TRACK, {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -193,6 +245,22 @@ export function FleetMap({ positions, selectedId, onSelect, track, className }: 
         source: SOURCE_TRACK,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': '#38BDF8', 'line-width': 2.5, 'line-opacity': 0.9 },
+      });
+
+      instance.addSource(SOURCE_PLAYHEAD, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      instance.addLayer({
+        id: LAYER_PLAYHEAD,
+        type: 'circle',
+        source: SOURCE_PLAYHEAD,
+        paint: {
+          'circle-radius': 7,
+          'circle-color': '#FBBF24',
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#171717',
+        },
       });
 
       instance.addLayer({
@@ -365,6 +433,40 @@ export function FleetMap({ positions, selectedId, onSelect, track, className }: 
       { padding: 72, maxZoom: 15, duration: reduced ? 0 : 700 },
     );
   }, [track, ready]);
+
+  /* Mapa de calor: só reescreve a fonte, nunca recria a camada. */
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const fonte = map.current.getSource(SOURCE_HEAT) as GeoJSONSource | undefined;
+
+    fonte?.setData({
+      type: 'FeatureCollection',
+      features: (heat ?? []).map((celula) => ({
+        type: 'Feature',
+        properties: { total: celula.total },
+        geometry: { type: 'Point', coordinates: celula.coordinates },
+      })),
+    });
+  }, [heat, ready]);
+
+  /**
+   * O marcador do replay.
+   *
+   * Não move a câmera junto, de propósito: seguir o ponto faria o mapa correr
+   * sozinho enquanto o gestor tenta olhar um cruzamento específico. Quem quiser
+   * acompanhar arrasta o mapa; quem quiser examinar fica onde está.
+   */
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const fonte = map.current.getSource(SOURCE_PLAYHEAD) as GeoJSONSource | undefined;
+
+    fonte?.setData({
+      type: 'FeatureCollection',
+      features: playhead
+        ? [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: playhead } }]
+        : [],
+    });
+  }, [playhead, ready]);
 
   if (failed) {
     return (

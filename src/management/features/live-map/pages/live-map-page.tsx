@@ -8,8 +8,9 @@ import { PageBanner } from '@/management/components/layout/page-banner';
 import { QueryState } from '@/management/components/layout/query-state';
 import { VehicleStatusChip } from '@/management/features/trucks/vehicle-status';
 
-import { getVehiclePositions, getVehicleTrack } from '../api';
+import { getEventHeatmap, getVehiclePositions, getVehicleTrack } from '../api';
 import { FleetMap } from '../components/fleet-map';
+import { TrackReplay } from '../components/track-replay';
 
 /** RN-140 — integração parada há mais de 30 minutos vira aviso explícito. */
 const STALE_SYNC_MINUTES = 30;
@@ -53,6 +54,26 @@ export function LiveMapPage() {
    * trinta dias devolveria quase cem mil pontos para o navegador desenhar.
    */
   const [trackHours, setTrackHours] = useState(24);
+
+  /** Onde o replay está agora. Nulo quando ninguém mexeu no controle. */
+  const [replayIndex, setReplayIndex] = useState<number | null>(null);
+
+  /**
+   * O mapa de calor fica desligado por padrão.
+   *
+   * Ele é fundo, e ligado sempre competiria com a posição atual, que é o que a
+   * tela existe para mostrar. Quem quer saber ONDE a frota freia forte liga
+   * quando essa for a pergunta.
+   */
+  const [showHeat, setShowHeat] = useState(false);
+
+  const heatQuery = useQuery({
+    queryKey: ['event-heatmap'],
+    queryFn: () => getEventHeatmap(7),
+    enabled: showHeat,
+    /* Sete dias de evento não mudam de minuto a minuto. */
+    staleTime: 5 * 60_000,
+  });
 
   const trackQuery = useQuery({
     queryKey: ['vehicle-track', selectedId, trackHours],
@@ -183,6 +204,30 @@ export function LiveMapPage() {
             </GlassCard>
 
             <div className="flex min-w-0 flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowHeat((valor) => !valor)}
+                  aria-pressed={showHeat}
+                  className={cn(
+                    'text-label-md focus-visible:ring-secondary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                    showHeat
+                      ? 'bg-primary-strong text-on-primary'
+                      : 'bg-on-surface/8 text-on-surface-variant hover:text-on-surface',
+                  )}
+                >
+                  Onde a frota gera evento
+                </button>
+
+                {showHeat ? (
+                  <span className="text-on-surface-muted text-label-md normal-case">
+                    {heatQuery.isPending
+                      ? 'somando os eventos…'
+                      : `${(heatQuery.data ?? []).length.toLocaleString('pt-BR')} pontos de concentração nos últimos 7 dias`}
+                  </span>
+                ) : null}
+              </div>
+
               {/* O seletor só aparece com veículo escolhido: sem seleção não há
                   rota, e um controle inerte no topo do mapa é ruído. */}
               {selectedId ? (
@@ -221,12 +266,27 @@ export function LiveMapPage() {
                 </div>
               ) : null}
 
+              {selectedId && (trackQuery.data?.length ?? 0) >= 2 ? (
+                /* `key` com veículo e janela: trocar de rota REMONTA o controle,
+                   em vez de sincronizar o índice por efeito. Sem isso, o cursor
+                   apareceria no ponto 300 de uma rota de 12 até o efeito rodar. */
+                <TrackReplay
+                  key={`${selectedId}-${trackHours}`}
+                  points={trackQuery.data ?? []}
+                  onIndexChange={setReplayIndex}
+                />
+              ) : null}
+
               <FleetMap
                 positions={positions}
                 selectedId={selectedId}
                 onSelect={select}
-                track={trackQuery.data}
-                className="min-h-[520px] xl:min-h-[calc(100dvh-360px)]"
+                track={(trackQuery.data ?? []).map((ponto) => ponto.coordinates)}
+                heat={showHeat ? heatQuery.data : undefined}
+                playhead={
+                  replayIndex != null ? (trackQuery.data?.[replayIndex]?.coordinates ?? null) : null
+                }
+                className="min-h-[520px] xl:min-h-[calc(100dvh-400px)]"
               />
             </div>
           </div>
