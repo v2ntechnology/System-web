@@ -1,4 +1,11 @@
-import { ArrowLeft, AudioLines, BrainCircuit, Mic, MicOff, Volume2 } from 'lucide-react';
+import {
+  AiIcon,
+  ArrowLeftIcon,
+  AudioWaveIcon,
+  MicIcon,
+  MicOffIcon,
+  VolumeIcon,
+} from '@/components/icons';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 
@@ -6,6 +13,8 @@ import { BrandLogo, RookMark } from '@/components/shared/brand-logo';
 import { VoiceSphere } from '@/components/shared/voice-sphere';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ask } from '@/management/features/assistant/api';
+import { useSpeechRecognition } from '@/management/features/assistant/use-speech-recognition';
 import { synthesizeAssistantSpeech } from '@/services';
 
 type VoiceStatus = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
@@ -40,8 +49,15 @@ const VOICE_STATUS_CONTENT: Record<VoiceStatus, VoiceStatusContent> = {
 
 const WAVE_BARS = Array.from({ length: 32 }, (_, index) => index);
 const ORBIT_BARS = Array.from({ length: 72 }, (_, index) => index);
-const DEMO_RESPONSE =
-  'Sua solicitação foi recebida. A operação está estável, com atenção recomendada para dois veículos em manutenção e uma viagem com risco de atraso. Esta resposta é uma demonstração de voz da RookHub.';
+/**
+ * O que dizer quando o microfone não entendeu nada.
+ *
+ * Não é resposta de demonstração: é o pedido para repetir. Falar um resumo
+ * plausível da operação sem ter ouvido pergunta nenhuma seria inventar, e o
+ * usuário acreditaria, porque veio na voz do assistente.
+ */
+const SEM_PERGUNTA =
+  'Não consegui entender a pergunta. Tente falar de novo, um pouco mais perto do microfone.';
 
 function pickNaturalVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const normalized = (lang: string) => lang.replace('_', '-').toLowerCase();
@@ -62,6 +78,32 @@ function pickNaturalVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice 
 export default function VoiceAssistantPage() {
   const [status, setStatus] = useState<VoiceStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  /**
+   * A última resposta, para a tela mostrar em texto o que foi falado.
+   *
+   * Voz sem texto obriga a decorar. O gestor que ouviu "dois caminhões passaram
+   * do limite" precisa poder reler quais eram, e ler é mais rápido que pedir de
+   * novo.
+   */
+  const [lastAnswer, setLastAnswer] = useState<string | null>(null);
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
+
+  /* Ref além do estado: o fallback de voz do dispositivo lê fora do render. */
+  const lastAnswerRef = useRef<string | null>(null);
+  useEffect(() => {
+    lastAnswerRef.current = lastAnswer;
+  }, [lastAnswer]);
+
+  /* A transcrição chega por callback e é lida ao encerrar a escuta. Estado aqui
+     provocaria render a cada palavra reconhecida, sem nada mudar na tela. */
+  const transcriptRef = useRef('');
+  const speech = useSpeechRecognition({
+    onResult: (texto: string) => {
+      transcriptRef.current = texto;
+      setLastQuestion(texto);
+    },
+  });
   const waveformRef = useRef<HTMLDivElement>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
   /** Nível de áudio entregue à esfera sem passar por estado do React. */
@@ -268,7 +310,7 @@ export default function VoiceAssistantPage() {
     startSyntheticSpeakingAnimation();
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(DEMO_RESPONSE);
+    const utterance = new SpeechSynthesisUtterance(lastAnswerRef.current || SEM_PERGUNTA);
     const voice = pickNaturalVoice(voicesRef.current);
     if (voice) utterance.voice = voice;
     utterance.lang = voice?.lang ?? 'pt-BR';
@@ -280,13 +322,25 @@ export default function VoiceAssistantPage() {
     window.speechSynthesis.speak(utterance);
   }
 
-  async function speakResponse() {
+  /**
+   * Transcreve, pergunta e fala.
+   *
+   * A pergunta vai para a MESMA rota do assistente de texto, e não para um
+   * caminho paralelo: voz é outra forma de entrada, não outro produto. O
+   * escopo por papel, a auditoria e a recusa de inventar valem igual.
+   */
+  async function speakResponse(question: string) {
     responseAbortRef.current?.abort();
     const controller = new AbortController();
     responseAbortRef.current = controller;
 
     try {
-      const audio = await synthesizeAssistantSpeech(DEMO_RESPONSE, controller.signal);
+      const pergunta = question.trim();
+      const resposta = pergunta ? (await ask(pergunta)).text : SEM_PERGUNTA;
+      if (controller.signal.aborted) return;
+
+      setLastAnswer(resposta);
+      const audio = await synthesizeAssistantSpeech(resposta, controller.signal);
       const context = playbackAudioContextRef.current;
       if (!context) {
         throw new Error('audio_context_unavailable');
@@ -324,12 +378,21 @@ export default function VoiceAssistantPage() {
 
   function finishListening() {
     stopAudioCapture();
+    speech.stop();
     setStatus('processing');
-    void speakResponse();
+    /* O texto vem do reconhecimento, que corre em paralelo à captura de áudio:
+       a captura alimenta a animação da esfera, a transcrição alimenta a
+       pergunta. São duas leituras do mesmo microfone, e nenhuma substitui a
+       outra. */
+    void speakResponse(transcriptRef.current);
+    transcriptRef.current = '';
   }
 
   async function startListening() {
     setErrorMessage(null);
+    setLastAnswer(null);
+    setLastQuestion(null);
+    transcriptRef.current = '';
     window.speechSynthesis?.cancel();
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -357,6 +420,21 @@ export default function VoiceAssistantPage() {
       const frequencyData = new Uint8Array(analyser.frequencyBinCount);
       source.connect(analyser);
       inputAudioContextRef.current = audioContext;
+
+      /*
+       * Duas leituras do mesmo microfone, e nenhuma substitui a outra: a captura
+       * de áudio alimenta a animação da esfera, e o reconhecimento alimenta a
+       * pergunta. Sem o reconhecimento a esfera reagiria lindamente a uma
+       * pergunta que ninguém leu.
+       */
+      if (speech.supported) {
+        speech.start();
+      } else {
+        setErrorMessage(
+          'Este navegador não transcreve fala. A esfera responde à sua voz, mas a pergunta não chega ao assistente.',
+        );
+      }
+
       setStatus('listening');
 
       function sampleVoice() {
@@ -431,7 +509,7 @@ export default function VoiceAssistantPage() {
         <header className="flex items-center gap-4 border-b border-border/60 pb-4">
           <Button asChild variant="ghost" size="icon" className="rounded-full" title="Voltar">
             <Link to="/painel" aria-label="Voltar para a escolha de acesso">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeftIcon className="h-4 w-4" />
             </Link>
           </Button>
           <Link to="/painel" aria-label="RookHub — início">
@@ -471,6 +549,23 @@ export default function VoiceAssistantPage() {
               </p>
             </div>
 
+            {/* A resposta em texto abaixo da falada.
+                Voz sem texto obriga a decorar: quem ouviu "dois caminhões
+                passaram do limite" precisa poder reler quais eram, e ler é mais
+                rápido que perguntar de novo. */}
+            {lastAnswer ? (
+              <div className="mx-auto mt-6 max-w-2xl rounded-xl border border-border/60 bg-card/60 p-4 text-left backdrop-blur">
+                {lastQuestion ? (
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {lastQuestion}
+                  </p>
+                ) : null}
+                <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line sm:text-base">
+                  {lastAnswer}
+                </p>
+              </div>
+            ) : null}
+
             <div
               ref={waveformRef}
               className={cn('voice-waveform', `voice-waveform--${status}`)}
@@ -498,15 +593,15 @@ export default function VoiceAssistantPage() {
               aria-label={actionLabel}
             >
               {status === 'listening' ? (
-                <AudioLines className="h-4 w-4" />
+                <AudioWaveIcon className="h-4 w-4" />
               ) : status === 'speaking' ? (
-                <Volume2 className="h-4 w-4" />
+                <VolumeIcon className="h-4 w-4" />
               ) : status === 'error' ? (
-                <MicOff className="h-4 w-4" />
+                <MicOffIcon className="h-4 w-4" />
               ) : status === 'processing' ? (
-                <BrainCircuit className="h-4 w-4 animate-pulse" />
+                <AiIcon className="h-4 w-4 animate-pulse" />
               ) : (
-                <Mic className="h-4 w-4" />
+                <MicIcon className="h-4 w-4" />
               )}
               {status === 'processing' ? 'Processando…' : actionLabel}
             </Button>
