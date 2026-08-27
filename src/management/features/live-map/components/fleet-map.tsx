@@ -4,12 +4,15 @@ import { cn } from '@/management/ui';
 import {
   type GeoJSONSource,
   Map as MapLibreMap,
-  NavigationControl,
   type MapLayerMouseEvent,
+  NavigationControl,
+  Popup,
 } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+import { iconIdFor, loadVehicleIcons } from './vehicle-icons';
 
 /**
  * Estilo escuro gratuito e sem chave de API.
@@ -23,12 +26,13 @@ const STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.j
 /*
  * O `setWorkerUrl` que este arquivo trazia do monorepo **não existe aqui**: lá o
  * MapLibre era o 6, que publica o worker num arquivo à parte; o System-web está
- * no 5, que embute o worker no próprio bundle — é o mesmo que a tela de
- * rastreamento já usa. Reintroduzir o import quebra o servidor de dev.
+ * no 5, que embute o worker no próprio bundle. Reintroduzir o import quebra o
+ * servidor de desenvolvimento.
  */
 
 const SOURCE_ID = 'fleet';
-const LAYER_CIRCLE = 'fleet-circle';
+const LAYER_HALO = 'fleet-halo';
+const LAYER_ICON = 'fleet-icon';
 const LAYER_LABEL = 'fleet-label';
 
 /* Camadas da rota do veículo selecionado. */
@@ -44,39 +48,29 @@ const LAYER_HEAT = 'heat-layer';
 const SOURCE_PLAYHEAD = 'playhead';
 const LAYER_PLAYHEAD = 'playhead-circle';
 
-/** Cores por status, espelhando `features/trucks/vehicle-status.tsx`. */
+/**
+ * Duração do deslize entre uma leitura e a seguinte.
+ *
+ * Menor que o intervalo do polling, de propósito: a animação precisa terminar
+ * antes da próxima posição chegar, senão o caminhão nunca alcança o alvo e fica
+ * permanentemente atrasado em relação ao dado.
+ */
+const DESLIZE_MS = 1600;
+
 const STATUS_COLOR: Record<VehicleStatus, string> = {
   EM_VIAGEM: '#38BDF8',
   DISPONIVEL: '#34D399',
   MANUTENCAO: '#FBBF24',
   BLOQUEADO: '#FB7185',
-  /* Cinza de propósito: o ponto está no último lugar conhecido, que pode ser de
-     ontem. Pintá-lo com a mesma saturação dos demais faria parecer atual. */
   SEM_SINAL: '#94A3B8',
 };
 
-function toGeoJson(positions: VehiclePosition[]): FeatureCollection<Point> {
-  return {
-    type: 'FeatureCollection',
-    features: positions.map((vehicle) => ({
-      type: 'Feature',
-      id: vehicle.vehicleId,
-      geometry: { type: 'Point', coordinates: vehicle.coordinates },
-      properties: {
-        vehicleId: vehicle.vehicleId,
-        plate: vehicle.plate,
-        color: STATUS_COLOR[vehicle.status],
-      },
-    })),
-  };
+interface Desenhado {
+  lng: number;
+  lat: number;
+  heading: number;
 }
 
-/**
- * A rota percorrida pelo veículo selecionado, em [longitude, latitude].
- *
- * Chega pronta de fora: o mapa desenha, não busca. Quem decide a janela de horas
- * é a tela, que tem o seletor.
- */
 export interface FleetMapProps {
   positions: VehiclePosition[];
   selectedId: string | null;
@@ -86,10 +80,72 @@ export interface FleetMapProps {
   heat?: { coordinates: [number, number]; total: number }[] | undefined;
   /** Onde o replay está agora. Nulo esconde o marcador. */
   playhead?: [number, number] | null | undefined;
+  /**
+   * Veículo sob o cursor na lista ao lado.
+   *
+   * Apontar na lista destaca no mapa sem selecionar: o gestor percorre doze
+   * placas procurando uma, e clicar em cada uma para descobrir onde está
+   * arrastaria a câmera doze vezes.
+   */
+  hoveredId?: string | null | undefined;
   className?: string | undefined;
 }
 
-/** Uma linha com menos de dois pontos não é linha: o MapLibre recusa. */
+/* -------------------------------------------------------------------------- */
+/* Geometria                                                                   */
+/* -------------------------------------------------------------------------- */
+
+function toGeoJson(
+  positions: VehiclePosition[],
+  desenhado: Map<string, Desenhado>,
+  selectedId: string | null,
+  hoveredId?: string | null,
+): FeatureCollection<Point> {
+  return {
+    type: 'FeatureCollection',
+    features: positions.map((vehicle) => {
+      const atual = desenhado.get(vehicle.vehicleId);
+      return {
+        type: 'Feature',
+        id: vehicle.vehicleId,
+        geometry: {
+          type: 'Point',
+          coordinates: atual ? [atual.lng, atual.lat] : vehicle.coordinates,
+        },
+        properties: {
+          vehicleId: vehicle.vehicleId,
+          plate: vehicle.plate,
+          driverName: vehicle.driverName ?? '',
+          speedKmh: Math.round(vehicle.speedKmh),
+          status: vehicle.status,
+          color: STATUS_COLOR[vehicle.status],
+          icon: iconIdFor(vehicle.type, vehicle.status),
+          heading: atual ? atual.heading : vehicle.heading,
+          selected: vehicle.vehicleId === selectedId,
+          destacado: vehicle.vehicleId === selectedId || vehicle.vehicleId === hoveredId,
+          /* Parado não gira: com velocidade zero o GPS oscila a direção, e o
+             ícone ficaria rodopiando no pátio. */
+          parado: vehicle.speedKmh <= 3,
+        },
+      };
+    }),
+  };
+}
+
+/**
+ * O caminho angular mais curto entre duas direções.
+ *
+ * De 350 para 10 graus são 20 graus para a direita, e não 340 para a esquerda.
+ * Sem isso, todo cruzamento do norte faria o ícone dar um giro completo.
+ */
+function interpolarAngulo(de: number, para: number, fracao: number): number {
+  const diferenca = ((((para - de) % 360) + 540) % 360) - 180;
+  return (de + diferenca * fracao + 360) % 360;
+}
+
+/** Suaviza a ponta da animação: começa e termina devagar. */
+const suavizar = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+
 const temRota = (track: [number, number][] | undefined): track is [number, number][] =>
   Array.isArray(track) && track.length >= 2;
 
@@ -106,8 +162,7 @@ function toTrackLine(track: [number, number][]): FeatureCollection {
  * Só as duas pontas da rota, e não um ponto por leitura.
  *
  * São 2.863 posições por veículo por dia: desenhar um círculo em cada uma
- * cobriria a linha inteira e derrubaria o quadro. O que o gestor precisa ver é
- * onde começou e onde está.
+ * cobriria a linha inteira e derrubaria o quadro.
  */
 function toTrackEnds(track: [number, number][]): FeatureCollection<Point> {
   const inicio = track[0];
@@ -119,17 +174,21 @@ function toTrackEnds(track: [number, number][]): FeatureCollection<Point> {
     features: [
       {
         type: 'Feature',
-        properties: { ponta: 'inicio', color: '#94A3B8' },
+        properties: { color: '#94A3B8' },
         geometry: { type: 'Point', coordinates: inicio },
       },
       {
         type: 'Feature',
-        properties: { ponta: 'fim', color: '#38BDF8' },
+        properties: { color: '#38BDF8' },
         geometry: { type: 'Point', coordinates: fim },
       },
     ],
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* Componente                                                                  */
+/* -------------------------------------------------------------------------- */
 
 /**
  * Mapa da frota em tempo real.
@@ -137,11 +196,18 @@ function toTrackEnds(track: [number, number][]): FeatureCollection<Point> {
  * ⚠️ Duas regras do `RT-02`, que valem igual para MapLibre e existem porque o
  * custo destas bibliotecas é cobrado por carregamento de mapa:
  *
- *  1. **Uma única instância por sessão** — o mapa é criado uma vez e nunca
+ *  1. **Uma única instância por sessão.** O mapa é criado uma vez e nunca
  *     remontado. Por isso o `useEffect` de criação tem lista de dependências
  *     vazia e a instância vive num `ref`.
- *  2. **Atualização por `setData`** — posição nova reescreve a fonte GeoJSON.
+ *  2. **Atualização por `setData`.** Posição nova reescreve a fonte GeoJSON.
  *     Nunca recriar a fonte, a camada ou o mapa a cada tick.
+ *
+ * <h2>O caminhão desliza, não pula</h2>
+ *
+ * O polling traz uma posição nova a cada quatro segundos. Escrever direto faria
+ * o ícone saltar de um ponto a outro, o que num mapa de frota lê como falha de
+ * dado. A cada leitura nova o componente anima da posição desenhada até a
+ * recebida, e o resultado é um veículo que anda.
  */
 export function FleetMap({
   positions,
@@ -150,6 +216,7 @@ export function FleetMap({
   track,
   heat,
   playhead,
+  hoveredId,
   className,
 }: FleetMapProps) {
   const container = useRef<HTMLDivElement>(null);
@@ -162,6 +229,21 @@ export function FleetMap({
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  /* O que está desenhado agora, que não é o que chegou do backend enquanto a
+     animação corre. */
+  const desenhadoRef = useRef<Map<string, Desenhado>>(new Map());
+  const animacaoRef = useRef<number | null>(null);
+  const selectedRef = useRef<string | null>(selectedId);
+  useEffect(() => {
+    selectedRef.current = selectedId;
+  }, [selectedId]);
+
+  /* Em ref porque o laço de animação lê fora do render. */
+  const hoveredRef = useRef<string | null | undefined>(hoveredId);
+  useEffect(() => {
+    hoveredRef.current = hoveredId;
+  }, [hoveredId]);
 
   useEffect(() => {
     if (!container.current || map.current) return;
@@ -176,28 +258,40 @@ export function FleetMap({
 
     instance.addControl(new NavigationControl({ showCompass: false }), 'top-right');
 
-    instance.on('load', () => {
-      instance.addSource(SOURCE_ID, { type: 'geojson', data: toGeoJson([]) });
+    const popup = new Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 18,
+      className: 'fleet-popup',
+    });
 
+    instance.on('load', () => {
       /*
-       * A rota entra ANTES dos pontos da frota.
-       *
-       * O MapLibre desenha na ordem em que as camadas foram adicionadas, e uma
-       * linha por cima dos círculos passaria em cima do caminhão. A ordem aqui é
-       * a ordem visual.
+       * ⚠️ As imagens PRECISAM existir antes da camada que as usa. Registrar a
+       * camada primeiro faz o MapLibre avisar "image not found" e simplesmente
+       * não desenhar: o mapa fica vazio sem erro na aplicação.
        */
+      void loadVehicleIcons()
+        .then((imagens) => {
+          for (const [id, imagem] of Object.entries(imagens)) {
+            if (!instance.hasImage(id)) instance.addImage(id, imagem, { pixelRatio: 2 });
+          }
+          montarCamadas(instance);
+          setReady(true);
+        })
+        .catch(() => setFailed(true));
+    });
+
+    function montarCamadas(mapa: MapLibreMap) {
       /* O calor entra por baixo de tudo: ele é fundo, não informação pontual. */
-      instance.addSource(SOURCE_HEAT, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-      instance.addLayer({
+      mapa.addSource(SOURCE_HEAT, { type: 'geojson', data: vazio() });
+      mapa.addLayer({
         id: LAYER_HEAT,
         type: 'heatmap',
         source: SOURCE_HEAT,
         paint: {
-          /* O peso vem da contagem da célula, limitado a 10: uma esquina com
-             200 ocorrências apagaria todas as outras da escala de cor. */
+          /* Peso limitado a 10: uma esquina com 200 ocorrências apagaria todas
+             as outras da escala de cor. */
           'heatmap-weight': ['interpolate', ['linear'], ['get', 'total'], 0, 0, 10, 1],
           'heatmap-intensity': 1.1,
           'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 6, 8, 14, 26],
@@ -220,50 +314,27 @@ export function FleetMap({
         },
       });
 
-      instance.addSource(SOURCE_TRACK, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-      instance.addSource(SOURCE_TRACK_ENDS, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
+      /* A rota entra antes dos veículos: o MapLibre desenha na ordem de
+         inserção, e a linha por cima passaria em cima do caminhão. */
+      mapa.addSource(SOURCE_TRACK, { type: 'geojson', data: vazio() });
+      mapa.addSource(SOURCE_TRACK_ENDS, { type: 'geojson', data: vazio() });
+      mapa.addSource(SOURCE_PLAYHEAD, { type: 'geojson', data: vazio() });
 
-      /* Halo largo e transparente: dá contraste sobre o mapa escuro sem
-         engrossar a linha, que precisa seguir a rua. */
-      instance.addLayer({
+      mapa.addLayer({
         id: LAYER_TRACK_GLOW,
         type: 'line',
         source: SOURCE_TRACK,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': '#38BDF8', 'line-width': 8, 'line-opacity': 0.18 },
       });
-
-      instance.addLayer({
+      mapa.addLayer({
         id: LAYER_TRACK,
         type: 'line',
         source: SOURCE_TRACK,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': '#38BDF8', 'line-width': 2.5, 'line-opacity': 0.9 },
       });
-
-      instance.addSource(SOURCE_PLAYHEAD, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-      instance.addLayer({
-        id: LAYER_PLAYHEAD,
-        type: 'circle',
-        source: SOURCE_PLAYHEAD,
-        paint: {
-          'circle-radius': 7,
-          'circle-color': '#FBBF24',
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#171717',
-        },
-      });
-
-      instance.addLayer({
+      mapa.addLayer({
         id: LAYER_TRACK_ENDS,
         type: 'circle',
         source: SOURCE_TRACK_ENDS,
@@ -271,53 +342,112 @@ export function FleetMap({
           'circle-radius': 5,
           'circle-color': ['get', 'color'],
           'circle-stroke-width': 2,
-          'circle-stroke-color': '#171717',
+          'circle-stroke-color': '#0B0B0E',
+        },
+      });
+      mapa.addLayer({
+        id: LAYER_PLAYHEAD,
+        type: 'circle',
+        source: SOURCE_PLAYHEAD,
+        paint: {
+          'circle-radius': 7,
+          'circle-color': '#FBBF24',
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#0B0B0E',
         },
       });
 
-      instance.addLayer({
-        id: LAYER_CIRCLE,
+      mapa.addSource(SOURCE_ID, { type: 'geojson', data: vazio() });
+
+      /* Halo do selecionado: um anel por baixo do ícone. Destacar mudando a cor
+         do próprio veículo apagaria o status, que é o que a cor significa. */
+      mapa.addLayer({
+        id: LAYER_HALO,
         type: 'circle',
         source: SOURCE_ID,
+        filter: ['==', ['get', 'destacado'], true],
         paint: {
-          'circle-radius': 9,
+          'circle-radius': 22,
           'circle-color': ['get', 'color'],
+          'circle-opacity': 0.18,
           'circle-stroke-width': 2,
-          'circle-stroke-color': '#171717',
+          'circle-stroke-color': ['get', 'color'],
+          'circle-stroke-opacity': 0.5,
         },
       });
 
-      instance.addLayer({
+      mapa.addLayer({
+        id: LAYER_ICON,
+        type: 'symbol',
+        source: SOURCE_ID,
+        layout: {
+          'icon-image': ['get', 'icon'],
+          /*
+           * Cresce com o zoom: de longe precisa caber, de perto precisa mostrar
+           * que é um caminhão.
+           *
+           * O piso é 0,34 porque abaixo disso a silhueta vira um retângulo de
+           * doze pixels e a forma deixa de comunicar qualquer coisa. Numa frota
+           * espalhada por dois estados, esse é o zoom em que a tela abre.
+           */
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.34, 11, 0.46, 16, 0.66],
+          'icon-rotate': ['get', 'heading'],
+          'icon-rotation-alignment': 'map',
+          /* Frota parada num pátio sobrepõe: esconder metade dos veículos por
+             colisão de ícone seria pior que a sobreposição. */
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+      });
+
+      mapa.addLayer({
         id: LAYER_LABEL,
         type: 'symbol',
         source: SOURCE_ID,
         layout: {
           'text-field': ['get', 'plate'],
           'text-size': 11,
-          'text-offset': [0, 1.5],
+          'text-offset': [0, 1.9],
           'text-anchor': 'top',
+          'text-allow-overlap': false,
         },
         paint: {
           'text-color': '#F0F0F2',
-          'text-halo-color': '#171717',
+          'text-halo-color': '#0B0B0E',
           'text-halo-width': 1.4,
         },
       });
 
-      instance.on('click', LAYER_CIRCLE, (event: MapLayerMouseEvent) => {
+      mapa.on('click', LAYER_ICON, (event: MapLayerMouseEvent) => {
         const id = event.features?.[0]?.properties?.vehicleId;
         if (typeof id === 'string') onSelectRef.current(id);
       });
 
-      instance.on('mouseenter', LAYER_CIRCLE, () => {
-        instance.getCanvas().style.cursor = 'pointer';
-      });
-      instance.on('mouseleave', LAYER_CIRCLE, () => {
-        instance.getCanvas().style.cursor = '';
+      /* Passar o mouse já responde a pergunta mais comum, sem exigir clique e
+         sem tirar o gestor de onde ele estava olhando. */
+      mapa.on('mousemove', LAYER_ICON, (event: MapLayerMouseEvent) => {
+        mapa.getCanvas().style.cursor = 'pointer';
+
+        const feature = event.features?.[0];
+        if (!feature) return;
+        const p = feature.properties ?? {};
+        const coordenadas = (feature.geometry as Point).coordinates.slice() as [number, number];
+
+        popup
+          .setLngLat(coordenadas)
+          .setHTML(
+            `<strong>${escapar(String(p.plate ?? ''))}</strong>` +
+              `<span>${Number(p.speedKmh ?? 0)} km/h</span>` +
+              (p.driverName ? `<em>${escapar(String(p.driverName))}</em>` : ''),
+          )
+          .addTo(mapa);
       });
 
-      setReady(true);
-    });
+      mapa.on('mouseleave', LAYER_ICON, () => {
+        mapa.getCanvas().style.cursor = '';
+        popup.remove();
+      });
+    }
 
     /* Sem tiles a tela cai para a lista, em vez de mostrar um retângulo cinza. */
     instance.on('error', () => setFailed(true));
@@ -325,77 +455,98 @@ export function FleetMap({
     map.current = instance;
 
     return () => {
+      if (animacaoRef.current !== null) cancelAnimationFrame(animacaoRef.current);
+      popup.remove();
       instance.remove();
       map.current = null;
     };
   }, []);
 
-  /* Posição nova → `setData`. Nunca recriar fonte, camada ou mapa. */
+  /**
+   * Posição nova: anima do desenhado até o recebido.
+   *
+   * Veículo que aparece pela primeira vez entra direto no lugar certo, sem
+   * deslizar do nada: um caminhão surgindo do meio do oceano e correndo até o
+   * Rio seria bonito e mentiroso.
+   */
   useEffect(() => {
-    if (!ready || !map.current) return;
-    const source = map.current.getSource(SOURCE_ID) as GeoJSONSource | undefined;
-    source?.setData(toGeoJson(positions));
+    if (!ready || !map.current || positions.length === 0) return;
+
+    const fonte = map.current.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+    if (!fonte) return;
+
+    const de = new Map(desenhadoRef.current);
+    const para = new Map<string, Desenhado>();
+    for (const vehicle of positions) {
+      para.set(vehicle.vehicleId, {
+        lng: vehicle.coordinates[0],
+        lat: vehicle.coordinates[1],
+        heading: vehicle.heading,
+      });
+      if (!de.has(vehicle.vehicleId)) {
+        de.set(vehicle.vehicleId, {
+          lng: vehicle.coordinates[0],
+          lat: vehicle.coordinates[1],
+          heading: vehicle.heading,
+        });
+      }
+    }
+
+    if (animacaoRef.current !== null) cancelAnimationFrame(animacaoRef.current);
+    const inicio = performance.now();
+
+    const passo = (agora: number) => {
+      const fracao = Math.min(1, (agora - inicio) / DESLIZE_MS);
+      const suave = suavizar(fracao);
+
+      const atual = new Map<string, Desenhado>();
+      for (const [id, alvo] of para) {
+        const origem = de.get(id) ?? alvo;
+        atual.set(id, {
+          lng: origem.lng + (alvo.lng - origem.lng) * suave,
+          lat: origem.lat + (alvo.lat - origem.lat) * suave,
+          heading: interpolarAngulo(origem.heading, alvo.heading, suave),
+        });
+      }
+
+      desenhadoRef.current = atual;
+      fonte.setData(toGeoJson(positions, atual, selectedRef.current, hoveredRef.current));
+
+      if (fracao < 1) {
+        animacaoRef.current = requestAnimationFrame(passo);
+      } else {
+        animacaoRef.current = null;
+      }
+    };
+
+    animacaoRef.current = requestAnimationFrame(passo);
   }, [positions, ready]);
 
-  /*
+  /* Seleção e destaque mudam só uma propriedade: não precisam reanimar nada. */
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const fonte = map.current.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+    fonte?.setData(toGeoJson(positions, desenhadoRef.current, selectedId, hoveredId));
+  }, [selectedId, hoveredId, ready, positions]);
+
+  /**
    * Enquadra a frota no primeiro carregamento.
    *
    * O centro fixo era do Rio, herdado dos mocks, e com frota real a tela abria
    * numa região vazia: os caminhões existiam e estavam fora do campo de visão.
-   * Cada cliente opera onde opera, e nenhuma coordenada fixa serve para todos.
-   *
-   * Só na primeira vez: refazer o enquadramento a cada polling de quatro
-   * segundos arrancaria o mapa da mão de quem estivesse navegando nele.
+   * Só na primeira vez: refazer a cada polling arrancaria o mapa da mão de quem
+   * estivesse navegando nele.
    */
-  const framed = useRef(false);
+  const enquadrado = useRef(false);
   useEffect(() => {
-    if (!ready || !map.current || framed.current || positions.length === 0) return;
+    if (!ready || !map.current || enquadrado.current || positions.length === 0) return;
 
-    const [oeste, sul, leste, norte] = positions.reduce(
-      (limites, vehicle) => {
-        const [lng, lat] = vehicle.coordinates;
-        return [
-          Math.min(limites[0], lng),
-          Math.min(limites[1], lat),
-          Math.max(limites[2], lng),
-          Math.max(limites[3], lat),
-        ] as [number, number, number, number];
-      },
-      [180, 90, -180, -90] as [number, number, number, number],
-    );
-
-    framed.current = true;
-    map.current.fitBounds(
-      [
-        [oeste, sul],
-        [leste, norte],
-      ],
-      /* `maxZoom` impede que uma frota inteira num pátio jogue o zoom no telhado. */
-      { padding: 64, maxZoom: 12, duration: 0 },
-    );
+    const limites = envolver(positions.map((v) => v.coordinates));
+    enquadrado.current = true;
+    map.current.fitBounds(limites, { padding: 64, maxZoom: 12, duration: 0 });
   }, [positions, ready]);
 
-  /* Selecionar na lista centraliza o mapa no veículo. */
-  useEffect(() => {
-    if (!ready || !map.current || !selectedId) return;
-    const target = positions.find((vehicle) => vehicle.vehicleId === selectedId);
-    if (!target) return;
-
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    map.current.easeTo({
-      center: target.coordinates,
-      zoom: Math.max(map.current.getZoom(), 11),
-      duration: reduced ? 0 : 600,
-    });
-  }, [selectedId, ready, positions]);
-
-  /**
-   * Desenha a rota do veículo selecionado, e a enquadra.
-   *
-   * O enquadramento é o que faz a rota servir: sem ele, um caminhão que rodou
-   * 90 km some da tela assim que a linha é desenhada, porque o mapa continua
-   * centrado no ponto atual com zoom de bairro.
-   */
+  /* Rota do veículo selecionado, enquadrada ao aparecer. */
   useEffect(() => {
     if (!ready || !map.current) return;
 
@@ -403,35 +554,22 @@ export function FleetMap({
     const pontas = map.current.getSource(SOURCE_TRACK_ENDS) as GeoJSONSource | undefined;
 
     if (!temRota(track)) {
-      linha?.setData({ type: 'FeatureCollection', features: [] });
-      pontas?.setData({ type: 'FeatureCollection', features: [] });
+      linha?.setData(vazio());
+      pontas?.setData(vazio());
       return;
     }
 
     linha?.setData(toTrackLine(track));
     pontas?.setData(toTrackEnds(track));
 
-    const [oeste, sul, leste, norte] = track.reduce(
-      (limites, [lng, lat]) =>
-        [
-          Math.min(limites[0], lng),
-          Math.min(limites[1], lat),
-          Math.max(limites[2], lng),
-          Math.max(limites[3], lat),
-        ] as [number, number, number, number],
-      [180, 90, -180, -90] as [number, number, number, number],
-    );
-
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    map.current.fitBounds(
-      [
-        [oeste, sul],
-        [leste, norte],
-      ],
+    map.current.fitBounds(envolver(track), {
       /* `maxZoom` alto porque uma rota curta, de entrega urbana, precisa de zoom
          de rua para a linha não virar um borrão de dois pixels. */
-      { padding: 72, maxZoom: 15, duration: reduced ? 0 : 700 },
-    );
+      padding: 72,
+      maxZoom: 15,
+      duration: reduced ? 0 : 700,
+    });
   }, [track, ready]);
 
   /* Mapa de calor: só reescreve a fonte, nunca recria a camada. */
@@ -453,8 +591,7 @@ export function FleetMap({
    * O marcador do replay.
    *
    * Não move a câmera junto, de propósito: seguir o ponto faria o mapa correr
-   * sozinho enquanto o gestor tenta olhar um cruzamento específico. Quem quiser
-   * acompanhar arrasta o mapa; quem quiser examinar fica onde está.
+   * sozinho enquanto o gestor tenta olhar um cruzamento específico.
    */
   useEffect(() => {
     if (!ready || !map.current) return;
@@ -487,10 +624,46 @@ export function FleetMap({
     <div
       ref={container}
       /* Estado exposto no DOM: serve para teste E2E sem precisar da instância. */
-      data-map-state={failed ? 'failed' : ready ? 'ready' : 'loading'}
-      role="application"
-      aria-label="Mapa da frota em tempo real"
-      className={cn('ring-outline-variant overflow-hidden rounded-xl ring-1', className)}
+      data-map-ready={ready ? 'true' : 'false'}
+      className={cn('overflow-hidden rounded-xl', className)}
     />
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Apoio                                                                       */
+/* -------------------------------------------------------------------------- */
+
+const vazio = (): FeatureCollection => ({ type: 'FeatureCollection', features: [] });
+
+/** Caixa que contém todos os pontos, no formato que o `fitBounds` espera. */
+function envolver(pontos: [number, number][]): [[number, number], [number, number]] {
+  const [oeste, sul, leste, norte] = pontos.reduce(
+    (limites, [lng, lat]) =>
+      [
+        Math.min(limites[0], lng),
+        Math.min(limites[1], lat),
+        Math.max(limites[2], lng),
+        Math.max(limites[3], lat),
+      ] as [number, number, number, number],
+    [180, 90, -180, -90] as [number, number, number, number],
+  );
+  return [
+    [oeste, sul],
+    [leste, norte],
+  ];
+}
+
+/**
+ * O nome do motorista e a placa vêm do cliente e entram como HTML no popup.
+ *
+ * Nome com `<` ou `&` quebraria a marcação, e nome com `<script>` seria bem
+ * pior. É dado de terceiro chegando por API: escapar não é paranoia.
+ */
+function escapar(texto: string): string {
+  return texto
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }

@@ -123,3 +123,56 @@
 
 /* O bloco de `prefers-reduced-motion` do original saiu daqui: o `globals.css`
    do System-web já aplica a mesma regra para a aplicação inteira. */
+
+/* -------------------------------------------------------------------------- */
+/* Popup do mapa                                                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * O MapLibre traz um popup branco de balão, que sobre o mapa escuro parece um
+ * post-it colado na tela. Aqui ele vira uma etiqueta discreta, no mesmo
+ * vocabulário do resto do painel.
+ *
+ * `pointer-events: none` é o detalhe que faz funcionar: o popup abre no
+ * `mousemove` sobre o ícone, e se ele capturasse o ponteiro o mouse sairia do
+ * ícone ao entrar no popup, o popup fecharia, o mouse voltaria ao ícone e o
+ * ciclo se repetiria. O resultado seria uma etiqueta piscando sem parar.
+ */
+.fleet-popup {
+  pointer-events: none;
+}
+
+.fleet-popup .maplibregl-popup-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(11 11 14 / 0.92);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  color: #f0f0f2;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+}
+
+.fleet-popup .maplibregl-popup-content strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.fleet-popup .maplibregl-popup-content span {
+  color: rgb(240 240 242 / 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
+.fleet-popup .maplibregl-popup-content em {
+  color: rgb(240 240 242 / 0.55);
+  font-style: normal;
+  font-size: 0.75rem;
+}
+
+.fleet-popup .maplibregl-popup-tip {
+  border-top-color: rgb(11 11 14 / 0.92);
+  border-bottom-color: rgb(11 11 14 / 0.92);
+}

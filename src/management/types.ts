@@ -244,6 +244,14 @@ export interface VehiclePosition {
    * trecho. A lista mostra a coordenada nesse caso.
    */
   place?: string | undefined;
+  /**
+   * truck, tractor_unit, trailer, van ou light.
+   *
+   * O mapa desenha a silhueta certa para cada um: uma Fiorino com desenho de
+   * carreta faz o operador procurar o veículo errado no pátio.
+   */
+  type?: string | undefined;
+  odometerKm?: number | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

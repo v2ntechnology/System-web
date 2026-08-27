@@ -1,5 +1,5 @@
 import { GaugeIcon, MapPinIcon, WarningIcon } from '@/components/icons';
-import type { VehiclePosition } from '@/management/types';
+import type { VehiclePosition, VehicleStatus } from '@/management/types';
 import { GlassCard, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
@@ -18,11 +18,20 @@ const STALE_SYNC_MINUTES = 30;
 const isStale = (vehicle: VehiclePosition) =>
   (Date.now() - new Date(vehicle.lastSyncAt).getTime()) / 60_000 > STALE_SYNC_MINUTES;
 
+/** Situações do filtro, na ordem em que o gestor pensa: quem está rodando primeiro. */
+const SITUACOES: { id: VehicleStatus | 'TODOS'; label: string }[] = [
+  { id: 'TODOS', label: 'Todos' },
+  { id: 'EM_VIAGEM', label: 'Em viagem' },
+  { id: 'DISPONIVEL', label: 'Disponíveis' },
+  { id: 'MANUTENCAO', label: 'Manutenção' },
+  { id: 'SEM_SINAL', label: 'Sem sinal' },
+];
+
 /**
  * Janelas da rota.
  *
- * 72h e o teto do backend, e nao um numero redondo: e a unica consulta que toca
- * a serie bruta de posicoes, com 2.863 leituras por veiculo por dia.
+ * 72h é o teto do backend, e não um número redondo: é a única consulta que toca
+ * a série bruta de posições, com 2.863 leituras por veículo por dia.
  */
 const TRACK_WINDOWS = [
   { hours: 6, label: '6h' },
@@ -58,6 +67,11 @@ export function LiveMapPage() {
   /** Onde o replay está agora. Nulo quando ninguém mexeu no controle. */
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
 
+  const [busca, setBusca] = useState('');
+  const [situacao, setSituacao] = useState<VehicleStatus | 'TODOS'>('TODOS');
+  /* Apontar na lista destaca no mapa, sem selecionar nem mover a câmera. */
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
   /**
    * O mapa de calor fica desligado por padrão.
    *
@@ -85,8 +99,45 @@ export function LiveMapPage() {
   });
 
   const positions = useMemo(() => data ?? [], [data]);
-  const moving = positions.filter((vehicle) => vehicle.speedKmh > 0).length;
+  /**
+   * Em movimento é acima de 5 km/h, e não acima de zero.
+   *
+   * O GPS oscila com o veículo parado e devolve 0,014 km/h: contando qualquer
+   * valor positivo, a tela dizia "21 em movimento de 21" ao lado do filtro
+   * marcando "Em viagem 3". Duas afirmações contraditórias na mesma tela fazem
+   * o usuário parar de acreditar nas duas.
+   *
+   * O corte é o mesmo que o backend usa para decidir EM_VIAGEM, de propósito.
+   */
+  const moving = positions.filter((vehicle) => vehicle.speedKmh > 5).length;
   const staleCount = positions.filter(isStale).length;
+
+  /*
+   * A lista filtra, o MAPA NÃO.
+   *
+   * Esconder do mapa o que foi filtrado tiraria a referência de onde está o
+   * resto da frota, que é justamente o que o mapa serve para mostrar. O filtro
+   * é uma lente sobre a lista, não sobre a operação.
+   */
+  const visiveis = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return positions.filter((vehicle) => {
+      if (situacao !== 'TODOS' && vehicle.status !== situacao) return false;
+      if (!termo) return true;
+      return (
+        vehicle.plate.toLowerCase().includes(termo) ||
+        (vehicle.driverName ?? '').toLowerCase().includes(termo)
+      );
+    });
+  }, [positions, busca, situacao]);
+
+  const contagem = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const vehicle of positions) {
+      mapa.set(vehicle.status, (mapa.get(vehicle.status) ?? 0) + 1);
+    }
+    return mapa;
+  }, [positions]);
 
   const select = useCallback((vehicleId: string) => setSelectedId(vehicleId), []);
 
@@ -115,15 +166,57 @@ export function LiveMapPage() {
           <div className="grid gap-5 xl:grid-cols-[minmax(0,340px)_1fr]">
             {/* Lista — funciona como fonte de informação mesmo sem o mapa. */}
             <GlassCard className="flex flex-col p-5 sm:p-6">
-              <div className="mb-4 flex items-baseline justify-between gap-3">
+              <div className="mb-3 flex items-baseline justify-between gap-3">
                 <h2 className="text-on-surface-variant text-body-md">Frota</h2>
                 <span className="tabular text-on-surface-muted text-label-md normal-case">
                   {moving} em movimento de {positions.length}
                 </span>
               </div>
 
+              <label className="mb-3 block">
+                <span className="sr-only">Buscar por placa ou motorista</span>
+                <input
+                  type="search"
+                  value={busca}
+                  onChange={(evento) => setBusca(evento.target.value)}
+                  placeholder="Placa ou motorista"
+                  className="bg-surface-lowest text-on-surface placeholder:text-on-surface-muted focus-visible:ring-secondary w-full rounded-lg px-3 py-2 text-body-md focus-visible:outline-none focus-visible:ring-2"
+                />
+              </label>
+
+              <div
+                role="group"
+                aria-label="Filtrar por situação"
+                className="mb-3 flex flex-wrap gap-1.5"
+              >
+                {SITUACOES.map((opcao) => {
+                  const total =
+                    opcao.id === 'TODOS' ? positions.length : (contagem.get(opcao.id) ?? 0);
+                  /* Situação sem nenhum veículo some do filtro: um chip que
+                     sempre devolve lista vazia é só ruído. */
+                  if (total === 0 && opcao.id !== 'TODOS') return null;
+
+                  return (
+                    <button
+                      key={opcao.id}
+                      type="button"
+                      onClick={() => setSituacao(opcao.id)}
+                      aria-pressed={situacao === opcao.id}
+                      className={cn(
+                        'text-label-md focus-visible:ring-secondary rounded-full px-2.5 py-1 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                        situacao === opcao.id
+                          ? 'bg-primary-strong text-on-primary'
+                          : 'bg-on-surface/8 text-on-surface-variant hover:text-on-surface',
+                      )}
+                    >
+                      {opcao.label} <span className="tabular opacity-70">{total}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               <ul className="flex flex-col gap-2">
-                {positions.map((vehicle) => {
+                {visiveis.map((vehicle) => {
                   const active = vehicle.vehicleId === selectedId;
                   const stale = isStale(vehicle);
 
@@ -132,6 +225,10 @@ export function LiveMapPage() {
                       <button
                         type="button"
                         onClick={() => select(vehicle.vehicleId)}
+                        onMouseEnter={() => setHoveredId(vehicle.vehicleId)}
+                        onMouseLeave={() => setHoveredId(null)}
+                        onFocus={() => setHoveredId(vehicle.vehicleId)}
+                        onBlur={() => setHoveredId(null)}
                         aria-current={active ? 'true' : undefined}
                         className={cn(
                           'focus-visible:ring-secondary w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
@@ -283,6 +380,7 @@ export function LiveMapPage() {
                 onSelect={select}
                 track={(trackQuery.data ?? []).map((ponto) => ponto.coordinates)}
                 heat={showHeat ? heatQuery.data : undefined}
+                hoveredId={hoveredId}
                 playhead={
                   replayIndex != null ? (trackQuery.data?.[replayIndex]?.coordinates ?? null) : null
                 }

@@ -61,6 +61,8 @@ interface PositionDto {
   heading: number | null;
   lastSyncAt: string;
   place: string | null;
+  type: string | null;
+  odometerKm: number | null;
 }
 
 interface DriverDto {
@@ -191,6 +193,8 @@ const toPosition = (dto: PositionDto): VehiclePosition => ({
   heading: dto.heading ?? 0,
   lastSyncAt: dto.lastSyncAt,
   place: dto.place ?? undefined,
+  type: dto.type ?? undefined,
+  odometerKm: dto.odometerKm ?? undefined,
 });
 
 const toDriver = (dto: DriverDto): Driver => ({
