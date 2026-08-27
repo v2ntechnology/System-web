@@ -69,11 +69,23 @@ export function VehicleListItem({ vehicle, selected, onSelect }: VehicleListItem
       <span className="min-w-0 flex-1">
         <span
           className={cn(
-            'tabular block font-semibold',
+            'tabular flex items-baseline gap-2 font-semibold',
             selected ? 'text-on-primary' : 'text-on-light',
           )}
         >
           {vehicle.plate}
+          {/* O pátio chama o caminhão pelo número da porta, e a placa é o que o
+              sistema conhece. Quem preencheu o código quer procurar por ele. */}
+          {vehicle.internalCode ? (
+            <span
+              className={cn(
+                'text-label-md font-normal normal-case',
+                selected ? 'text-on-primary/80' : 'text-on-light-muted',
+              )}
+            >
+              {vehicle.internalCode}
+            </span>
+          ) : null}
         </span>
         <span
           title={legenda}

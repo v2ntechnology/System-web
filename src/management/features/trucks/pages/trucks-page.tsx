@@ -93,7 +93,15 @@ export function TrucksPage() {
       if (filters.sync === 'DESATUALIZADO' && !isStale(vehicle, now)) return false;
       if (
         term &&
-        ![vehicle.plate, vehicle.brand, vehicle.model, vehicle.driverName ?? '']
+        /* O código interno entra na busca: quem preencheu o número da porta
+           procura por ele, e não pela placa. */
+        ![
+          vehicle.plate,
+          vehicle.internalCode ?? '',
+          vehicle.brand,
+          vehicle.model,
+          vehicle.driverName ?? '',
+        ]
           .join(' ')
           .toLowerCase()
           .includes(term)
