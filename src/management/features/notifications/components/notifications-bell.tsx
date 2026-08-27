@@ -1,5 +1,5 @@
+import { ArrowRightIcon, BellIcon } from '@/components/icons';
 import * as Popover from '@radix-ui/react-popover';
-import { ArrowRightIcon, BellIcon } from '@phosphor-icons/react';
 import { Spinner, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -30,13 +30,17 @@ export function NotificationsBell() {
         <button
           type="button"
           aria-label={unread > 0 ? `Notificações — ${unread} não lidas` : 'Notificações'}
-          className="bg-primary-strong text-on-primary rounded-pill focus-visible:ring-secondary focus-visible:ring-offset-background relative flex size-10 items-center justify-center transition-colors hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          /* Sem pastilha roxa (decisão do usuário em 20/08/2026): o sino é só o
+             símbolo e a contagem, como no painel operacional. Como aqui ele fica
+             sobre a fotografia do banner, a cor é `on-media` e o véu do hover é
+             branco fixo, igual ao botão de menu ao lado. */
+          className="text-on-media rounded-pill focus-visible:ring-secondary focus-visible:ring-offset-background relative flex size-10 items-center justify-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >
-          <BellIcon size={18} weight="fill" />
+          <BellIcon size={22} />
           {unread > 0 ? (
             <span
               aria-hidden="true"
-              className="bg-error text-on-bright rounded-pill tabular size-4.5 absolute -right-0.5 -top-0.5 flex items-center justify-center text-[10px] font-bold"
+              className="bg-error text-on-error rounded-pill tabular absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center px-1 text-[9px] font-bold leading-none"
             >
               {unread}
             </span>
@@ -79,12 +83,11 @@ export function NotificationsBell() {
                     <Link
                       to={item.actionTo ?? '/gestao/notificacoes'}
                       onClick={() => setOpen(false)}
-                      className="focus-visible:ring-secondary hover:bg-white/8 block rounded-md px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2"
+                      className="focus-visible:ring-secondary hover:bg-on-surface/8 block rounded-md px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2"
                     >
                       <span className="flex items-start gap-2.5">
                         <SeverityIcon
                           size={16}
-                          weight="fill"
                           aria-label={severity.label}
                           className={cn('mt-0.5 shrink-0', severity.color)}
                         />
@@ -122,10 +125,10 @@ export function NotificationsBell() {
             <Link
               to="/gestao/notificacoes"
               onClick={() => setOpen(false)}
-              className="text-secondary focus-visible:ring-secondary text-body-md hover:bg-white/8 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
+              className="text-secondary focus-visible:ring-secondary text-body-md hover:bg-on-surface/8 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
             >
               Ver todas
-              <ArrowRightIcon size={14} weight="bold" aria-hidden="true" />
+              <ArrowRightIcon size={14} aria-hidden="true" />
             </Link>
           </div>
         </Popover.Content>

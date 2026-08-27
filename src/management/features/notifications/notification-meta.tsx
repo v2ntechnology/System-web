@@ -1,14 +1,14 @@
 import {
-  DropIcon,
+  AlertCircleIcon,
+  ChecklistIcon,
+  DropletIcon,
   InfoIcon,
-  PlugsConnectedIcon,
-  RoadHorizonIcon,
-  ShieldWarningIcon,
-  ClipboardTextIcon,
-  WarningCircleIcon,
+  IntegrationIcon,
+  MaintenanceIcon,
+  RouteIcon,
+  ShieldAlertIcon,
   WarningIcon,
-  WrenchIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { NotificationSeverity, NotificationSource } from '@/management/types';
 import type { StatusTone } from '@/management/ui';
 import type { ComponentType } from 'react';
@@ -20,18 +20,18 @@ export const SEVERITY: Record<
   NotificationSeverity,
   { label: string; tone: StatusTone; icon: IconType; color: string }
 > = {
-  CRITICO: { label: 'Crítico', tone: 'critical', icon: WarningCircleIcon, color: 'text-error' },
+  CRITICO: { label: 'Crítico', tone: 'critical', icon: AlertCircleIcon, color: 'text-error' },
   ATENCAO: { label: 'Atenção', tone: 'attention', icon: WarningIcon, color: 'text-warning' },
   INFO: { label: 'Informativo', tone: 'info', icon: InfoIcon, color: 'text-info' },
 };
 
 export const SOURCE: Record<NotificationSource, { label: string; icon: IconType }> = {
-  SAFETY: { label: 'Segurança', icon: ShieldWarningIcon },
-  MAINTENANCE: { label: 'Manutenção', icon: WrenchIcon },
-  CHECKLIST: { label: 'Checklist', icon: ClipboardTextIcon },
-  TRIPS: { label: 'Viagens', icon: RoadHorizonIcon },
-  COSTS: { label: 'Custos', icon: DropIcon },
-  INTEGRATIONS: { label: 'Integrações', icon: PlugsConnectedIcon },
+  SAFETY: { label: 'Segurança', icon: ShieldAlertIcon },
+  MAINTENANCE: { label: 'Manutenção', icon: MaintenanceIcon },
+  CHECKLIST: { label: 'Checklist', icon: ChecklistIcon },
+  TRIPS: { label: 'Viagens', icon: RouteIcon },
+  COSTS: { label: 'Custos', icon: DropletIcon },
+  INTEGRATIONS: { label: 'Integrações', icon: IntegrationIcon },
 };
 
 /** "há 4 min", "há 2 h", "há 3 d" — o absoluto fica no title do elemento. */

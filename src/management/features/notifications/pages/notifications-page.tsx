@@ -1,7 +1,7 @@
-import { ArrowRightIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon } from '@/components/icons';
 import type { NotificationSeverity } from '@/management/types';
 import { LightCard, StatusChip, cn } from '@/management/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -9,7 +9,7 @@ import { PageBanner } from '@/management/components/layout/page-banner';
 import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
 
-import { getNotifications } from '../api';
+import { getNotifications, markNotificationsRead } from '../api';
 import { SEVERITY, SOURCE, absoluteTime, relativeTime } from '../notification-meta';
 
 const FILTERS: { id: NotificationSeverity | 'TODAS'; label: string }[] = [
@@ -25,6 +25,8 @@ export function NotificationsPage() {
     queryFn: getNotifications,
   });
 
+  const queryClient = useQueryClient();
+
   const [filter, setFilter] = useState<NotificationSeverity | 'TODAS'>('TODAS');
 
   const notifications = useMemo(() => data ?? [], [data]);
@@ -35,6 +37,18 @@ export function NotificationsPage() {
   );
 
   const unread = notifications.filter((item) => !item.read).length;
+
+  /**
+   * Marcar como lido invalida a lista.
+   *
+   * O alerta não é gravado no banco: ele é recalculado do estado atual a cada
+   * consulta. Só a leitura persiste, então recarregar é a forma correta de
+   * refletir a marcação, e não mexer na lista em memória.
+   */
+  const marcarLidas = useMutation({
+    mutationFn: markNotificationsRead,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
 
   const counts = useMemo(
     () =>
@@ -62,8 +76,24 @@ export function NotificationsPage() {
           <LightCard
             title="Central de notificações"
             action={
-              <span className="text-on-light-muted text-label-md tabular normal-case">
-                {unread > 0 ? `${unread} não lidas` : 'tudo lido'}
+              <span className="flex items-center gap-3">
+                <span className="text-on-light-muted text-label-md tabular normal-case">
+                  {unread > 0 ? `${unread} não lidas` : 'tudo lido'}
+                </span>
+                {unread > 0 ? (
+                  <button
+                    type="button"
+                    disabled={marcarLidas.isPending}
+                    onClick={() =>
+                      marcarLidas.mutate(
+                        notifications.filter((item) => !item.read).map((item) => item.id),
+                      )
+                    }
+                    className="text-label-md focus-visible:ring-secondary rounded-full bg-on-light/8 px-3 py-1 normal-case text-on-light-variant transition-colors hover:text-on-light focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
+                  >
+                    {marcarLidas.isPending ? 'marcando…' : 'Marcar tudo como lido'}
+                  </button>
+                ) : null}
               </span>
             }
           >
@@ -118,12 +148,7 @@ export function NotificationsPage() {
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-on-surface flex items-center gap-2 font-medium">
-                            <SeverityIcon
-                              size={16}
-                              weight="fill"
-                              aria-hidden="true"
-                              className={severity.color}
-                            />
+                            <SeverityIcon size={16} aria-hidden="true" className={severity.color} />
                             {item.title}
                             {/* `primary` a 12px sobre #171717 dá 4,01:1 e reprova AA —
                                 o filete indigo à esquerda do card já marca o estado. */}
@@ -143,7 +168,7 @@ export function NotificationsPage() {
 
                       <div className="border-outline-variant mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3">
                         <span className="text-on-surface-muted text-label-md flex items-center gap-1.5 normal-case">
-                          <SourceIcon size={14} weight="duotone" aria-hidden="true" />
+                          <SourceIcon size={14} aria-hidden="true" />
                           {source.label}
                         </span>
                         <span
@@ -157,7 +182,7 @@ export function NotificationsPage() {
                         {item.actionTo ? (
                           <Link
                             to={item.actionTo}
-                            className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-white/5 px-3 py-1.5 normal-case transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2"
+                            className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                           >
                             {item.actionLabel ?? 'Abrir'}
                             <ArrowRightIcon size={14} aria-hidden="true" />
