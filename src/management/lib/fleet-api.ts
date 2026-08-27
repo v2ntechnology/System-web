@@ -540,6 +540,52 @@ export async function fetchVehicleTrack(vehicleId: string, hours = 24): Promise<
   }));
 }
 
+/**
+ * Desempenho de uma filial.
+ *
+ * Taxa ausente significa que a filial não rodou no período, e não que rodou
+ * perfeitamente. Zero em "eventos por mil km" leria como frota exemplar.
+ */
+export interface UnitPerformance {
+  unit: string;
+  vehicles: number;
+  reporting: number;
+  distanceKm?: number | undefined;
+  journeys: number;
+  events: number;
+  eventsPer1000Km?: number | undefined;
+  avgFuelEfficiency?: number | undefined;
+  idleHours?: number | undefined;
+}
+
+interface UnitPerformanceDto {
+  unit: string;
+  vehicles: number;
+  reporting: number;
+  distanceKm: number | null;
+  journeys: number;
+  events: number;
+  eventsPer1000Km: number | null;
+  avgFuelEfficiency: number | null;
+  idleHours: number | null;
+}
+
+/** Comparação entre filiais. A árvore de unidades vem do cadastro do fornecedor. */
+export async function fetchUnitPerformance(days = 30): Promise<UnitPerformance[]> {
+  const rows = await httpRequest<UnitPerformanceDto[]>(`/v1/fleet/units?days=${days}`);
+  return rows.map((row) => ({
+    unit: row.unit,
+    vehicles: row.vehicles,
+    reporting: row.reporting,
+    distanceKm: row.distanceKm ?? undefined,
+    journeys: row.journeys,
+    events: row.events,
+    eventsPer1000Km: row.eventsPer1000Km ?? undefined,
+    avgFuelEfficiency: row.avgFuelEfficiency ?? undefined,
+    idleHours: row.idleHours ?? undefined,
+  }));
+}
+
 /** Uma célula do mapa de calor, já agregada pelo backend. */
 export interface HeatPoint {
   coordinates: [number, number];
