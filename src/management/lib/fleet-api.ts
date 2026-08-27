@@ -865,3 +865,161 @@ export async function saveVehicleRegistry(
   });
   return toRegistry(dto);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Desempenho por veículo                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * O que cada caminhão fez no período.
+ *
+ * ⚠️ **Não é rentabilidade.** Receita por caminhão depende de frete, e custo por
+ * caminhão depende de abastecimento e manutenção: nenhum dos três existe no
+ * sistema. O que dá para comparar é o que o veículo fez, e isso já responde a
+ * pergunta que o dono faz, que é qual ativo está saindo caro.
+ *
+ * Taxa e consumo vêm ausentes quando o veículo praticamente não rodou. Zero em
+ * "eventos por mil km" leria como caminhão exemplar quando significa que ele não
+ * saiu do pátio.
+ */
+export interface VehiclePerformance {
+  vehicleId: string;
+  plate: string;
+  model: string;
+  unit?: string | undefined;
+  type?: string | undefined;
+  distanceKm?: number | undefined;
+  journeys: number;
+  daysUsed: number;
+  drivingHours?: number | undefined;
+  idleHours?: number | undefined;
+  fuelEfficiency?: number | undefined;
+  events: number;
+  eventsPer1000Km?: number | undefined;
+}
+
+interface VehiclePerformanceDto {
+  vehicleId: string;
+  plate: string;
+  model: string;
+  unit: string | null;
+  type: string | null;
+  distanceKm: number | null;
+  journeys: number;
+  daysUsed: number;
+  drivingHours: number | null;
+  idleHours: number | null;
+  fuelEfficiency: number | null;
+  events: number;
+  eventsPer1000Km: number | null;
+}
+
+export async function fetchVehiclePerformance(days = 30): Promise<VehiclePerformance[]> {
+  const rows = await httpRequest<VehiclePerformanceDto[]>(`/v1/vehicles/performance?days=${days}`);
+  return rows.map((row) => ({
+    vehicleId: row.vehicleId,
+    plate: row.plate,
+    model: row.model,
+    unit: row.unit ?? undefined,
+    type: row.type ?? undefined,
+    distanceKm: row.distanceKm ?? undefined,
+    journeys: row.journeys,
+    daysUsed: row.daysUsed,
+    drivingHours: row.drivingHours ?? undefined,
+    idleHours: row.idleHours ?? undefined,
+    fuelEfficiency: row.fuelEfficiency ?? undefined,
+    events: row.events,
+    eventsPer1000Km: row.eventsPer1000Km ?? undefined,
+  }));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Equipe                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Uma pessoa do time.
+ *
+ * ⚠️ São DUAS origens diferentes na mesma lista. Motorista vem da telemetria, e
+ * é de lá que saem nome, filial e o que a pessoa rodou. Usuário de painel vem do
+ * nosso banco: é quem tem senha e entra no sistema.
+ *
+ * Os dois conjuntos quase não se cruzam, e por isso a contagem é separada: um
+ * total único de "funcionários" não corresponderia a nenhuma folha.
+ */
+export interface TeamMember {
+  kind: 'MOTORISTA' | 'PAINEL';
+  id: string;
+  name: string;
+  unit?: string | undefined;
+  email?: string | undefined;
+  role?: string | undefined;
+  active: boolean;
+  distanceKm?: number | undefined;
+  journeys?: number | undefined;
+  criticalEvents?: number | undefined;
+  currentVehiclePlate?: string | undefined;
+  lastSeenAt?: string | undefined;
+}
+
+export interface TeamOverview {
+  headcount: number;
+  drivers: number;
+  staff: number;
+  driversActive: number;
+  /** Sem trecho no período. NÃO é indisponibilidade: ver a nota do backend. */
+  driversWithoutRecord: number;
+  staffInactive: number;
+  people: TeamMember[];
+}
+
+interface TeamMemberDto {
+  kind: string;
+  id: string;
+  name: string;
+  unit: string | null;
+  email: string | null;
+  role: string | null;
+  active: boolean;
+  score: number | null;
+  distanceKm: number | null;
+  journeys: number | null;
+  criticalEvents: number | null;
+  currentVehiclePlate: string | null;
+  lastSeenAt: string | null;
+}
+
+export async function fetchTeam(days = 30): Promise<TeamOverview> {
+  const dto = await httpRequest<{
+    headcount: number;
+    drivers: number;
+    staff: number;
+    driversActive: number;
+    driversWithoutRecord: number;
+    staffInactive: number;
+    people: TeamMemberDto[];
+  }>(`/v1/team?days=${days}`);
+
+  return {
+    headcount: dto.headcount,
+    drivers: dto.drivers,
+    staff: dto.staff,
+    driversActive: dto.driversActive,
+    driversWithoutRecord: dto.driversWithoutRecord,
+    staffInactive: dto.staffInactive,
+    people: dto.people.map((row) => ({
+      kind: row.kind === 'PAINEL' ? 'PAINEL' : 'MOTORISTA',
+      id: row.id,
+      name: row.name,
+      unit: row.unit ?? undefined,
+      email: row.email ?? undefined,
+      role: row.role ?? undefined,
+      active: row.active,
+      distanceKm: row.distanceKm ?? undefined,
+      journeys: row.journeys ?? undefined,
+      criticalEvents: row.criticalEvents ?? undefined,
+      currentVehiclePlate: row.currentVehiclePlate ?? undefined,
+      lastSeenAt: row.lastSeenAt ?? undefined,
+    })),
+  };
+}

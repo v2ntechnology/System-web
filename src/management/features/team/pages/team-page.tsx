@@ -1,4 +1,4 @@
-import { InfoIcon, MagnifyingGlassIcon, UsersThreeIcon } from '@phosphor-icons/react';
+import { InfoIcon, SearchIcon, UsersIcon } from '@/components/icons';
 import type { TeamPerson } from '@/management/types';
 import { GlassCard, LightCard, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,12 @@ import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
 import { useSession } from '@/management/features/auth/store';
 
+import { env } from '@/app/environment';
+import { PendingSource } from '@/management/components/layout/pending-source';
+import { fetchTeam } from '@/management/lib/fleet-api';
+
 import { getTeam } from '../api';
+import { TeamRoster } from '../components/team-roster';
 import { PersonCard } from '../components/person-card';
 
 const TABS = [
@@ -64,6 +69,127 @@ function Tile({
  * pessoas é do gestor (RF-003).
  */
 export function TeamPage() {
+  if (!env.enableMocks) return <EquipeReal />;
+  return <EquipeSimulada />;
+}
+
+/**
+ * Equipe com o que a telemetria e o nosso banco sabem.
+ *
+ * ⚠️ A tela de origem mostrava "disponíveis agora", "CNH a vencer" e "acesso sem
+ * MFA". **Nenhum dos três tem origem.** Disponibilidade de motorista depende de
+ * escala, CNH e admissão são do RH, e segundo fator ainda não foi implementado.
+ * Uma CNH vencendo que ninguém cadastrou é pior que uma coluna vazia, porque lê
+ * como "está tudo em dia".
+ *
+ * O que entra no lugar é o que existe: quem rodou no período, quem não rodou e
+ * quem tem acesso ao painel.
+ *
+ * <h2>Sem registro não é indisponível</h2>
+ *
+ * 120 dos 132 motoristas não aparecem em trecho nenhum nos últimos 30 dias.
+ * Isso NÃO significa que estão afastados: inclui folga, quem dirigiu sem se
+ * identificar por tag e quem simplesmente ainda não teve dado coletado, já que
+ * a coleta começou há poucos dias. Chamar isso de indisponibilidade daria uma
+ * frota parada que não existe.
+ */
+function EquipeReal() {
+  const { data, isPending, isError } = useQuery({
+    queryKey: ['equipe'],
+    queryFn: () => fetchTeam(30),
+  });
+
+  return (
+    <>
+      <PageBanner
+        size="inline"
+        title="Equipe"
+        description="Quem dirige, quem tem acesso ao painel e quem apareceu na operação nos últimos 30 dias."
+      />
+
+      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+        <h2 className="sr-only">Resumo do quadro</h2>
+
+        <QueryState isPending={isPending} isError={isError} label="a equipe">
+          {data ? (
+            <div className="grid gap-5 xl:grid-cols-[1fr_1.55fr]">
+              <GlassCard className="flex min-w-0 flex-col p-5 sm:p-6">
+                <h3 className="text-on-surface-variant text-body-md flex items-center gap-2">
+                  <UsersIcon size={18} aria-hidden="true" />
+                  Pessoas no quadro
+                </h3>
+
+                <p className="tabular font-sora text-on-surface mt-2 text-[44px] font-bold leading-none">
+                  {data.headcount}
+                </p>
+
+                <p className="text-on-surface-variant text-label-md mt-3 normal-case">
+                  {data.drivers} motoristas · {data.staff} com acesso ao painel
+                </p>
+
+                <p className="text-on-surface-muted text-label-md mt-auto flex items-start gap-1.5 pt-5 normal-case">
+                  <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  Duas origens: cadastro da telemetria e cadastro do sistema
+                </p>
+              </GlassCard>
+
+              <GlassCard className="grid min-w-0 gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
+                <Tile
+                  label="Rodaram no período"
+                  value={String(data.driversActive)}
+                  hint="com trecho registrado"
+                />
+                {/* Ver a nota do componente: isto NÃO é indisponibilidade. */}
+                <Tile
+                  label="Sem registro"
+                  value={String(data.driversWithoutRecord)}
+                  hint="folga, sem tag ou sem coleta"
+                />
+                <Tile
+                  label="Acessos ao painel"
+                  value={String(data.staff)}
+                  hint="quem entra no sistema"
+                />
+                <Tile
+                  label="Acessos desativados"
+                  value={String(data.staffInactive)}
+                  hint="tratado em Configurações"
+                  tone={data.staffInactive > 0 ? 'warning' : 'neutral'}
+                />
+              </GlassCard>
+            </div>
+          ) : null}
+        </QueryState>
+      </section>
+
+      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
+        <QueryState isPending={isPending} isError={isError} label="a equipe">
+          <TeamRoster people={data?.people ?? []} />
+
+          <div className="mt-6">
+            <PendingSource
+              title="Escala e documentação ainda não estão aqui"
+              description="Saber quem pode assumir viagem hoje exige escala e documento em dia. A telemetria diz quem dirigiu, e não quem está apto a dirigir."
+              requirements={[
+                'CNH com categoria e vencimento, que vem do RH e não do rastreador',
+                'Escala de trabalho, folga e afastamento',
+                'Exame toxicológico e curso obrigatório, quando a operação exigir',
+                'Segundo fator no acesso ao painel, que ainda não foi implementado',
+              ]}
+              meanwhile={[
+                { label: 'Jornada do dia e limite legal', to: '/gestao/motoristas' },
+                { label: 'Ranking de condução', to: '/gestao/desempenho' },
+                { label: 'Papéis e acesso', to: '/gestao/configuracoes' },
+              ]}
+            />
+          </div>
+        </QueryState>
+      </PageContent>
+    </>
+  );
+}
+
+function EquipeSimulada() {
   const [tab, setTab] = useState<TabId>('TODOS');
   const [term, setTerm] = useState('');
 
@@ -133,7 +259,7 @@ export function TeamPage() {
             <div className="grid gap-5 xl:grid-cols-[1fr_1.55fr]">
               <GlassCard className="flex min-w-0 flex-col p-5 sm:p-6">
                 <h3 className="text-on-surface-variant text-body-md flex items-center gap-2">
-                  <UsersThreeIcon size={18} weight="duotone" aria-hidden="true" />
+                  <UsersIcon size={18} aria-hidden="true" />
                   Pessoas no quadro
                 </h3>
 
@@ -194,7 +320,7 @@ export function TeamPage() {
               title="Quadro"
               action={
                 <div className="rounded-pill focus-within:border-primary-on-light bg-light-container border-light-outline flex min-w-0 items-center gap-2 border px-4 sm:w-64">
-                  <MagnifyingGlassIcon
+                  <SearchIcon
                     size={18}
                     className="text-on-light-muted shrink-0"
                     aria-hidden="true"
@@ -208,7 +334,7 @@ export function TeamPage() {
                     value={term}
                     onChange={(event) => setTerm(event.target.value)}
                     placeholder="Nome, função ou placa"
-                    className="text-body-md text-on-light placeholder:text-on-light-muted h-10 w-full bg-transparent focus:outline-none"
+                    className="text-body-md text-on-light placeholder:text-placeholder h-10 w-full bg-transparent focus:outline-none"
                   />
                 </div>
               }
