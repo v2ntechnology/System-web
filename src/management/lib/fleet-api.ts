@@ -49,6 +49,8 @@ interface VehicleDto {
   imageUrl: string | null;
   notes: string | null;
   type: string | null;
+  internalCode: string | null;
+  manualNotes: string | null;
 }
 
 interface PositionDto {
@@ -181,6 +183,8 @@ const toVehicle = (dto: VehicleDto): Vehicle => ({
   imageUrl: dto.imageUrl ?? undefined,
   notes: dto.notes ?? undefined,
   type: dto.type ?? undefined,
+  internalCode: dto.internalCode ?? undefined,
+  manualNotes: dto.manualNotes ?? undefined,
 });
 
 const toPosition = (dto: PositionDto): VehiclePosition => ({
@@ -768,4 +772,96 @@ export async function fetchFrequentStops(days = 30, minMinutes = 20): Promise<Fr
     longestHours: row.longestHours,
     lastAt: row.lastAt ?? undefined,
   }));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cadastro editável do veículo                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * O que a operação possui do veículo.
+ *
+ * ⚠️ **Não existe criar veículo.** A frota vem do fornecedor de telemetria: um
+ * caminhão aparece aqui quando o rastreador dele existe. Uma placa criada à mão
+ * nunca reportaria posição e ficaria para sempre como "sem sinal" no mapa, ao
+ * lado de caminhões de verdade que perderam sinal.
+ *
+ * O que dá para editar é o que a telemetria não sabe.
+ */
+export interface VehicleRegistry {
+  vehicleId: string;
+  plate: string;
+  internalCode?: string | undefined;
+  manualNotes?: string | undefined;
+  nextMaintenanceKm?: number | undefined;
+  nextMaintenanceDate?: string | undefined;
+  /** Quilômetros até a revisão. Negativo significa vencida. */
+  kmToMaintenance?: number | undefined;
+  outOfService: boolean;
+  outOfServiceReason?: string | undefined;
+  outOfServiceSince?: string | undefined;
+  updatedAt?: string | undefined;
+  updatedByName?: string | undefined;
+}
+
+interface VehicleRegistryDto {
+  vehicleId: string;
+  plate: string;
+  internalCode: string | null;
+  manualNotes: string | null;
+  nextMaintenanceKm: number | null;
+  nextMaintenanceDate: string | null;
+  kmToMaintenance: number | null;
+  outOfService: boolean;
+  outOfServiceReason: string | null;
+  outOfServiceSince: string | null;
+  updatedAt: string | null;
+  updatedByName: string | null;
+}
+
+const toRegistry = (dto: VehicleRegistryDto): VehicleRegistry => ({
+  vehicleId: dto.vehicleId,
+  plate: dto.plate,
+  internalCode: dto.internalCode ?? undefined,
+  manualNotes: dto.manualNotes ?? undefined,
+  nextMaintenanceKm: dto.nextMaintenanceKm ?? undefined,
+  nextMaintenanceDate: dto.nextMaintenanceDate ?? undefined,
+  kmToMaintenance: dto.kmToMaintenance ?? undefined,
+  outOfService: dto.outOfService,
+  outOfServiceReason: dto.outOfServiceReason ?? undefined,
+  outOfServiceSince: dto.outOfServiceSince ?? undefined,
+  updatedAt: dto.updatedAt ?? undefined,
+  updatedByName: dto.updatedByName ?? undefined,
+});
+
+export async function fetchVehicleRegistry(vehicleId: string): Promise<VehicleRegistry> {
+  const dto = await httpRequest<VehicleRegistryDto>(`/v1/vehicles/${vehicleId}/registry`);
+  return toRegistry(dto);
+}
+
+/**
+ * Só os campos presentes são enviados.
+ *
+ * ⚠️ O backend distingue TRÊS estados: campo ausente preserva, campo com valor
+ * grava, campo `null` apaga. Mandar o formulário inteiro a cada salvamento
+ * apagaria o que o usuário nem abriu.
+ */
+export interface VehicleRegistryPatch {
+  internalCode?: string | null;
+  manualNotes?: string | null;
+  nextMaintenanceKm?: number | null;
+  nextMaintenanceDate?: string | null;
+  outOfService?: boolean;
+  outOfServiceReason?: string | null;
+}
+
+export async function saveVehicleRegistry(
+  vehicleId: string,
+  patch: VehicleRegistryPatch,
+): Promise<VehicleRegistry> {
+  const dto = await httpRequest<VehicleRegistryDto>(`/v1/vehicles/${vehicleId}/registry`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  return toRegistry(dto);
 }

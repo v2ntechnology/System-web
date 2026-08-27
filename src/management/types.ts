@@ -166,6 +166,21 @@ export interface Vehicle {
   notes?: string | undefined;
   /** truck, tractor_unit, trailer, van ou light. Deduzido pelo fornecedor. */
   type?: string | undefined;
+  /**
+   * O número pintado na porta, preenchido pela operação.
+   *
+   * O pátio chama o caminhão por ele, e não pela placa. A telemetria não tem
+   * esse campo: quem preenche é quem trabalha com o veículo.
+   */
+  internalCode?: string | undefined;
+  /**
+   * Observação da operação.
+   *
+   * ⚠️ Não confundir com `notes`, que é o texto do fornecedor e volta ao valor
+   * dele a cada sincronização. O que a operação escreve mora aqui justamente
+   * por isso.
+   */
+  manualNotes?: string | undefined;
 }
 
 /** Uma barra do mini-ranking de despesa: quanto um veículo pesou na categoria. */

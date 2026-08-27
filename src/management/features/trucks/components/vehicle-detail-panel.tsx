@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 
 import { getVehicleDetail } from '../api';
+import { VehicleRegistryCard } from './vehicle-registry-card';
 import { VehicleStatusChip } from '../vehicle-status';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -208,7 +209,12 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
               hint={
                 data.lastMaintenanceAt
                   ? `última em ${dayMonth.format(new Date(data.lastMaintenanceAt))}`
-                  : 'sem plano cadastrado'
+                  : /* O plano passou a existir quando alguém preencheu o
+                       cadastro abaixo. Continuar dizendo "sem plano" ao lado de
+                       um "em 12.688 km" faria a tela se contradizer. */
+                    vehicle.kmToMaintenance != null
+                    ? 'plano preenchido no cadastro'
+                    : 'sem plano cadastrado'
               }
             />
           </div>
@@ -331,6 +337,13 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
                 );
               })}
             </ul>
+          </div>
+
+          {/* O cadastro fica no fim: primeiro o que o veiculo fez, depois o que
+              a operacao anota sobre ele. */}
+          <div className="border-outline-variant mt-6 border-t pt-5">
+            <h4 className="text-on-surface-variant text-body-md mb-3">Cadastro da operação</h4>
+            <VehicleRegistryCard vehicleId={vehicle.id} />
           </div>
         </>
       )}
