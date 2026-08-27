@@ -1,4 +1,4 @@
-import { WarningIcon, WrenchIcon } from '@phosphor-icons/react';
+import { MaintenanceIcon, WarningIcon } from '@/components/icons';
 import type { ServiceOrder, ServiceOrderStatus } from '@/management/types';
 import { GlassCard, LightCard, StatusChip, cn, type StatusTone } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +7,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { PageBanner } from '@/management/components/layout/page-banner';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
+import { PendingSource } from '@/management/components/layout/pending-source';
 import { QueryState } from '@/management/components/layout/query-state';
+import { env } from '@/app/environment';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
 import { getMaintenanceSummary } from '../api';
@@ -55,6 +57,41 @@ export function MaintenancePage() {
       ? Math.round((orders.reduce((sum, o) => sum + o.downtimeHours, 0) / orders.length) * 10) / 10
       : 0;
 
+  /*
+   * Sem origem de dado, a tela explica a ausência em vez de mostrar o mock.
+   *
+   * O caminho de demonstração continua inteiro: com `VITE_ENABLE_MOCKS=true` a
+   * tela cheia volta. O que não pode acontecer é número simulado ao lado da
+   * frota verdadeira, porque quem olha não tem como saber que é enfeite.
+   */
+  if (!env.enableMocks) {
+    return (
+      <>
+        <PageBanner
+          size="inline"
+          title="Manutenção"
+          description="Ordens de serviço, planos preventivos e desempenho das oficinas."
+        />
+
+        <PageContent className="mt-0 sm:mt-0">
+          <PendingSource
+            title="Manutenção ainda não tem origem no sistema"
+            description="A telemetria sabe o odômetro e o horímetro de cada veículo, que é metade do que um plano preventivo precisa. A outra metade, o plano em si e o que foi feito na oficina, não existe em lugar nenhum ainda."
+            requirements={[
+              'Plano preventivo: qual serviço, a cada quantos quilômetros ou horas',
+              'Ordem de serviço: abertura, oficina, peças, valor e conclusão',
+              'Tempo parado, que é o custo invisível da manutenção',
+            ]}
+            meanwhile={[
+              { label: 'Odômetro e horímetro de cada veículo', to: '/gestao/caminhoes' },
+              { label: 'Alertas mecânicos do rastreador', to: '/gestao/seguranca' },
+            ]}
+          />
+        </PageContent>
+      </>
+    );
+  }
+
   return (
     <>
       <PageBanner
@@ -90,7 +127,7 @@ export function MaintenancePage() {
 
           {late > 0 ? (
             <div className="bg-error/10 border-error/30 text-error mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
-              <WarningIcon size={18} weight="fill" className="mt-0.5 shrink-0" aria-hidden="true" />
+              <WarningIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
               <p className="text-body-md">
                 {late === 1
                   ? '1 ordem de serviço passou do prazo — o veículo continua rodando com pendência.'
@@ -200,7 +237,10 @@ export function MaintenancePage() {
                               { label: 'Prazo', value: date.format(new Date(selected.dueAt)) },
                               { label: 'Parada', value: `${selected.downtimeHours} h` },
                             ].map((field) => (
-                              <div key={field.label} className="bg-white/4 min-w-0 rounded-md p-3">
+                              <div
+                                key={field.label}
+                                className="bg-on-surface/4 min-w-0 rounded-md p-3"
+                              >
                                 <dt className="text-on-surface-muted text-label-md normal-case">
                                   {field.label}
                                 </dt>
@@ -219,7 +259,7 @@ export function MaintenancePage() {
                               {selected.items.map((item) => (
                                 <li
                                   key={item.label}
-                                  className="bg-white/4 flex items-center justify-between gap-3 rounded-md px-3 py-2.5"
+                                  className="bg-on-surface/4 flex items-center justify-between gap-3 rounded-md px-3 py-2.5"
                                 >
                                   <span className="text-on-surface text-body-md">{item.label}</span>
                                   <span className="tabular text-on-surface text-body-md">
@@ -259,9 +299,8 @@ export function MaintenancePage() {
                                 a cada {km.format(plan.intervalKm)} km · {plan.appliesTo}
                               </p>
                             </div>
-                            <WrenchIcon
+                            <MaintenanceIcon
                               size={18}
-                              weight="duotone"
                               className="text-on-surface-muted shrink-0"
                               aria-hidden="true"
                             />
@@ -269,7 +308,7 @@ export function MaintenancePage() {
 
                           {plan.overdueVehicles.length > 0 ? (
                             <p className="text-error text-label-md mt-3 flex items-center gap-1.5 normal-case">
-                              <WarningIcon size={14} weight="fill" aria-hidden="true" />
+                              <WarningIcon size={14} aria-hidden="true" />
                               Vencido em{' '}
                               <span className="tabular">{plan.overdueVehicles.join(', ')}</span>
                             </p>

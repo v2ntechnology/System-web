@@ -1,4 +1,4 @@
-import { InfoIcon, LockSimpleIcon, WarningIcon } from '@phosphor-icons/react';
+import { InfoIcon, LockIcon, WarningIcon } from '@/components/icons';
 import type { AnalyticsPeriod, FuelingRecord, VehicleCostRow } from '@/management/types';
 import { DataTable, GlassCard, LightCard, StatusChip, cn, type Column } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,9 @@ import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { PERIOD_LABELS } from '@/management/components/layout/period-labels';
 import { PeriodPicker } from '@/management/components/layout/period-picker';
+import { PendingSource } from '@/management/components/layout/pending-source';
 import { QueryState } from '@/management/components/layout/query-state';
+import { env } from '@/app/environment';
 import { useFinancialVisibility } from '@/management/features/drivers/use-financial-visibility';
 
 import { getCostsSummary } from '../api';
@@ -59,12 +61,7 @@ export function CostsPage() {
         <PageBanner size="inline" title="Custos" description="Custo por quilômetro em camadas." />
         <main className="mx-auto w-full max-w-2xl px-4 pb-24 sm:px-6">
           <GlassCard className="flex flex-col items-center gap-4 p-10 text-center">
-            <LockSimpleIcon
-              size={40}
-              weight="duotone"
-              className="text-warning"
-              aria-hidden="true"
-            />
+            <LockIcon size={40} className="text-warning" aria-hidden="true" />
             <h2 className="font-sora text-on-surface text-headline-md">
               Você não tem acesso aos valores financeiros
             </h2>
@@ -175,6 +172,43 @@ export function CostsPage() {
 
   const anomalies = data?.fuelings.filter((item) => item.anomaly) ?? [];
 
+  /*
+   * Sem origem de dado, a tela explica a ausência em vez de mostrar o mock.
+   *
+   * O caminho de demonstração continua inteiro: com `VITE_ENABLE_MOCKS=true` a
+   * tela cheia volta. O que não pode acontecer é número simulado ao lado da
+   * frota verdadeira, porque quem olha não tem como saber que é enfeite.
+   */
+  if (!env.enableMocks) {
+    return (
+      <>
+        <PageBanner
+          size="inline"
+          title="Custos"
+          description="Combustível, manutenção e custos fixos separados por veículo."
+        />
+
+        <PageContent className="mt-0 sm:mt-0">
+          <PendingSource
+            title="Custos ainda não têm origem no sistema"
+            description="O custo por quilômetro é o número que o dono olha, e ele depende de lançamentos que o rastreador não conhece. A telemetria entrega quilometragem e consumo em litros; o preço do diesel, a nota da oficina e o valor da multa vêm de fora."
+            requirements={[
+              'Abastecimento: litros, preço por litro, posto e data',
+              'Manutenção: ordem de serviço, peças, oficina e valor',
+              'Multas: infração, valor, órgão e prazo de recurso',
+              'Custo fixo: parcela, seguro, licenciamento e depreciação',
+            ]}
+            meanwhile={[
+              { label: 'Quilômetros rodados e consumo médio', to: '/gestao' },
+              { label: 'Motor ligado parado, que é diesel queimado', to: '/gestao' },
+              { label: 'Consumo por veículo', to: '/gestao/caminhoes' },
+            ]}
+          />
+        </PageContent>
+      </>
+    );
+  }
+
   return (
     <>
       <PageBanner
@@ -249,12 +283,7 @@ export function CostsPage() {
               {anomalies.length > 0 ? (
                 /* RF-022 — abastecimento fora do padrão é achado, não estatística. */
                 <div className="bg-warning/10 border-warning/30 text-warning mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
-                  <WarningIcon
-                    size={18}
-                    weight="fill"
-                    className="mt-0.5 shrink-0"
-                    aria-hidden="true"
-                  />
+                  <WarningIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
                   <p className="text-body-md">
                     {anomalies.length === 1
                       ? '1 abastecimento fora do padrão histórico no período.'
@@ -322,7 +351,6 @@ export function CostsPage() {
                               <p className="text-on-surface flex items-center gap-2 font-medium">
                                 <WarningIcon
                                   size={14}
-                                  weight="fill"
                                   className="text-warning"
                                   aria-hidden="true"
                                 />

@@ -1,11 +1,11 @@
 import {
+  BlockedIcon,
   CameraIcon,
   CheckCircleIcon,
-  ClipboardTextIcon,
-  ProhibitIcon,
+  ChecklistIcon,
   WarningIcon,
   XCircleIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { ChecklistFill } from '@/management/types';
 import { GlassCard, LightCard, StatusChip, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -15,7 +15,9 @@ import { toast } from 'sonner';
 import { PageBanner } from '@/management/components/layout/page-banner';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
+import { PendingSource } from '@/management/components/layout/pending-source';
 import { QueryState } from '@/management/components/layout/query-state';
+import { env } from '@/app/environment';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
 import { getChecklistSummary } from '../api';
@@ -70,6 +72,41 @@ export function ChecklistsPage() {
   const failed = fills.filter((f) => f.result === 'REPROVADO').length;
   const flagged = fills.filter((f) => syncGapHours(f) > SYNC_FLAG_HOURS).length;
 
+  /*
+   * Sem origem de dado, a tela explica a ausência em vez de mostrar o mock.
+   *
+   * O caminho de demonstração continua inteiro: com `VITE_ENABLE_MOCKS=true` a
+   * tela cheia volta. O que não pode acontecer é número simulado ao lado da
+   * frota verdadeira, porque quem olha não tem como saber que é enfeite.
+   */
+  if (!env.enableMocks) {
+    return (
+      <>
+        <PageBanner
+          size="inline"
+          title="Checklists"
+          description="O que o motorista verificou antes de sair e o que reprovou."
+        />
+
+        <PageContent className="mt-0 sm:mt-0">
+          <PendingSource
+            title="Checklists dependem do aplicativo do motorista"
+            description="O checklist é preenchido por quem está no veículo, antes de sair. Ele não vem do rastreador: vem do aplicativo do motorista, que ainda não está ligado ao backend."
+            requirements={[
+              'Modelo de checklist: quais itens, por tipo de veículo',
+              'Aplicativo do motorista enviando o preenchimento',
+              'Regra de bloqueio: qual reprovação impede a saída (RF-016)',
+            ]}
+            meanwhile={[
+              { label: 'Quais veículos estão rodando agora', to: '/gestao/mapa' },
+              { label: 'Quem passou do limite de jornada', to: '/gestao/motoristas' },
+            ]}
+          />
+        </PageContent>
+      </>
+    );
+  }
+
   return (
     <>
       <PageBanner
@@ -106,12 +143,7 @@ export function ChecklistsPage() {
           {blocked > 0 ? (
             /* RF-016 — o bloqueio é o ponto do checklist, não um efeito colateral. */
             <div className="bg-error/10 border-error/30 text-error mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
-              <ProhibitIcon
-                size={18}
-                weight="fill"
-                className="mt-0.5 shrink-0"
-                aria-hidden="true"
-              />
+              <BlockedIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
               <p className="text-body-md">
                 {blocked === 1
                   ? '1 veículo está impedido de sair por pendência de checklist.'
@@ -157,9 +189,8 @@ export function ChecklistsPage() {
                                 {template.appliesTo}
                               </p>
                             </div>
-                            <ClipboardTextIcon
+                            <ChecklistIcon
                               size={18}
-                              weight="duotone"
                               className="text-on-surface-muted shrink-0"
                               aria-hidden="true"
                             />
@@ -274,19 +305,13 @@ export function ChecklistsPage() {
                             </div>
 
                             {isBlocked(selected) ? (
-                              <StatusChip
-                                tone="critical"
-                                icon={<ProhibitIcon size={14} weight="fill" />}
-                              >
+                              <StatusChip tone="critical" icon={<BlockedIcon size={14} />}>
                                 Veículo bloqueado
                               </StatusChip>
                             ) : selected.result === 'REPROVADO' ? (
                               <StatusChip tone="attention">Liberado após correção</StatusChip>
                             ) : (
-                              <StatusChip
-                                tone="positive"
-                                icon={<CheckCircleIcon size={14} weight="fill" />}
-                              >
+                              <StatusChip tone="positive" icon={<CheckCircleIcon size={14} />}>
                                 Aprovado
                               </StatusChip>
                             )}
@@ -294,7 +319,7 @@ export function ChecklistsPage() {
 
                           {/* RN-054 — os dois relógios, lado a lado. */}
                           <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                            <div className="bg-white/4 rounded-md p-3">
+                            <div className="bg-on-surface/4 rounded-md p-3">
                               <dt className="text-on-surface-muted text-label-md normal-case">
                                 Preenchido no aparelho
                               </dt>
@@ -302,7 +327,7 @@ export function ChecklistsPage() {
                                 {dateTime.format(new Date(selected.filledAt))}
                               </dd>
                             </div>
-                            <div className="bg-white/4 rounded-md p-3">
+                            <div className="bg-on-surface/4 rounded-md p-3">
                               <dt className="text-on-surface-muted text-label-md normal-case">
                                 Recebido pelo servidor
                               </dt>
@@ -316,7 +341,6 @@ export function ChecklistsPage() {
                             <p className="bg-warning/10 border-warning/30 text-warning text-label-md mt-3 flex items-start gap-2 rounded-md border px-3 py-2 normal-case">
                               <WarningIcon
                                 size={14}
-                                weight="fill"
                                 className="mt-0.5 shrink-0"
                                 aria-hidden="true"
                               />
@@ -349,19 +373,17 @@ export function ChecklistsPage() {
                               {selected.items.map((item) => (
                                 <li
                                   key={item.label}
-                                  className="bg-white/4 flex items-start gap-2.5 rounded-md px-3 py-2.5"
+                                  className="bg-on-surface/4 flex items-start gap-2.5 rounded-md px-3 py-2.5"
                                 >
                                   {item.result === 'APROVADO' ? (
                                     <CheckCircleIcon
                                       size={16}
-                                      weight="fill"
                                       className="text-success mt-0.5 shrink-0"
                                       aria-label="Aprovado"
                                     />
                                   ) : (
                                     <XCircleIcon
                                       size={16}
-                                      weight="fill"
                                       className="text-error mt-0.5 shrink-0"
                                       aria-label="Reprovado"
                                     />
@@ -379,7 +401,6 @@ export function ChecklistsPage() {
                                   {item.hasPhoto ? (
                                     <CameraIcon
                                       size={16}
-                                      weight="duotone"
                                       className="text-on-surface-muted mt-0.5 shrink-0"
                                       aria-label="Com foto anexada"
                                     />
@@ -399,7 +420,7 @@ export function ChecklistsPage() {
                                       'Liberar veículo bloqueado é operação auditada: exige motivo textual e fica no log imutável.',
                                   })
                                 }
-                                className="border-warning/40 text-warning text-label-md focus-visible:ring-secondary rounded-md border px-4 py-2 normal-case transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2"
+                                className="border-warning/40 text-warning text-label-md focus-visible:ring-secondary rounded-md border px-4 py-2 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
                               >
                                 Liberar veículo
                               </button>
