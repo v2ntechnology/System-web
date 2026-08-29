@@ -1,5 +1,5 @@
+import { ChecklistIcon, ClockIcon, ImageIcon, SpinnerIcon, WarningIcon } from '@/components/icons';
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ClipboardList, Clock, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { EmptyState, ErrorState } from '@/components/shared/states';
@@ -82,7 +82,7 @@ function TriageDetail({ fill }: { fill: TriageFill }) {
         {/* Relógio do aparelho fora de hora vira flag de auditoria (RN-054). */}
         {fill.clockSkewHours >= 6 && (
           <p className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            <ClockIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             {fill.clockSkewHours}h de diferença entre o relógio do aparelho e o do servidor. Confira
             a data antes de decidir.
           </p>
@@ -127,7 +127,7 @@ function TriageDetail({ fill }: { fill: TriageFill }) {
           <div className="space-y-4">
             {fill.blocking && (
               <p className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 Reprovação bloqueante: o veículo só sai com autorização do gestor.
               </p>
             )}
@@ -183,7 +183,7 @@ function TriageDetail({ fill }: { fill: TriageFill }) {
                 decide.mutate({ fillId: fill.id, action, note }, { onSuccess: () => setNote('') })
               }
             >
-              {decide.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {decide.isPending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
               Concluir triagem
             </Button>
           </div>
@@ -234,7 +234,7 @@ export default function TriagePage() {
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-4 pt-6">
-          <ClipboardList className="h-7 w-7 shrink-0 text-primary" aria-hidden />
+          <ChecklistIcon className="h-7 w-7 shrink-0 text-primary" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="font-medium">
               {pending.length === 0

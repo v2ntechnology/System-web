@@ -1,4 +1,4 @@
-import { TrendDownIcon, TrendUpIcon } from '@phosphor-icons/react';
+import { TrendDownIcon, TrendUpIcon } from '@/components/icons';
 import type { ExpenseCategory } from '@/management/types';
 import { cn } from '@/management/ui';
 
@@ -38,7 +38,7 @@ export function ExpenseCard({ category, highlightPlate, onSelectPlate }: Expense
       </p>
 
       <p className={cn('text-label-md mt-2 flex items-center gap-1 normal-case', trendTone)}>
-        <TrendIcon size={14} weight="bold" aria-hidden="true" />
+        <TrendIcon size={14} aria-hidden="true" />
         {rising ? '+' : ''}
         {category.deltaPercent.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%
         <span className="text-on-surface-muted">vs. período anterior</span>
@@ -56,7 +56,7 @@ export function ExpenseCard({ category, highlightPlate, onSelectPlate }: Expense
                 aria-label={`${entry.plate}: ${brlCompact.format(entry.value)} em ${category.label}`}
                 className={cn(
                   'focus-visible:ring-secondary group block w-full rounded-md px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
-                  active ? 'bg-white/8' : 'hover:bg-white/5',
+                  active ? 'bg-on-surface/8' : 'hover:bg-on-surface/5',
                 )}
               >
                 <span className="mb-1 flex items-baseline justify-between gap-2">

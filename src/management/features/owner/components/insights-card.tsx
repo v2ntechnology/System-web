@@ -4,7 +4,7 @@ import {
   TrendDownIcon,
   TrendUpIcon,
   WarningIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { OwnerInsight, OwnerInsightTone } from '@/management/types';
 import { LightCard, cn } from '@/management/ui';
 import type { ReactNode } from 'react';
@@ -24,19 +24,19 @@ const TONES: Record<
   { icon: ReactNode; text: string; chip: string; label: string }
 > = {
   GANHO: {
-    icon: <TrendUpIcon size={18} weight="fill" aria-hidden="true" />,
+    icon: <TrendUpIcon size={18} aria-hidden="true" />,
     text: 'text-success-on-light',
     chip: 'bg-success-on-light/12 text-success-on-light',
     label: 'Ganho',
   },
   ATENCAO: {
-    icon: <WarningIcon size={18} weight="fill" aria-hidden="true" />,
+    icon: <WarningIcon size={18} aria-hidden="true" />,
     text: 'text-warning-on-light',
     chip: 'bg-warning-on-light/12 text-warning-on-light',
     label: 'Atenção',
   },
   PERDA: {
-    icon: <TrendDownIcon size={18} weight="fill" aria-hidden="true" />,
+    icon: <TrendDownIcon size={18} aria-hidden="true" />,
     text: 'text-error-on-light',
     chip: 'bg-error-on-light/12 text-error-on-light',
     label: 'Perda',
@@ -109,7 +109,7 @@ export function InsightsCard({ insights, className }: InsightsCardProps) {
                       className="text-primary-on-light text-label-md focus-visible:ring-primary-on-light inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
                     >
                       {insight.action.label}
-                      <ArrowRightIcon size={14} weight="bold" aria-hidden="true" />
+                      <ArrowRightIcon size={14} aria-hidden="true" />
                     </Link>
                   ) : null}
                 </div>

@@ -5,7 +5,7 @@ import {
   type VehicleRegistry,
   type VehicleRegistryPatch,
 } from '@/management/lib/fleet-api';
-import { GlassInput, SpectrumButton, Spinner, cn } from '@/management/ui';
+import { Checkbox, GlassDateField, GlassInput, SpectrumButton, Spinner, cn } from '@/management/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -204,11 +204,10 @@ function Formulario({
           inputMode="numeric"
         />
 
-        <GlassInput
+        <GlassDateField
           label="Próxima revisão (data)"
-          type="date"
           value={form.nextMaintenanceDate}
-          onChange={(evento) => alterar('nextMaintenanceDate', evento.target.value)}
+          onValueChange={(valor) => alterar('nextMaintenanceDate', valor)}
         />
 
         <GlassInput
@@ -221,23 +220,15 @@ function Formulario({
       </div>
 
       <div className="border-outline-variant flex flex-col gap-3 border-t pt-4">
-        <label className="flex items-start gap-2.5">
-          <input
-            type="checkbox"
-            checked={form.outOfService}
-            onChange={(evento) => alterar('outOfService', evento.target.checked)}
-            className="accent-primary-strong mt-0.5 size-4 shrink-0"
-          />
-          <span>
-            <span className="text-on-surface text-body-md">Fora de operação</span>
-            <span className="text-on-surface-muted text-label-md block normal-case">
-              {/* O status derivado da telemetria não sabe distinguir oficina de
-                  rastreador mudo. Só quem opera sabe, e é por isso que existe
-                  esta caixa. */}
-              Tira o caminhão da conta de frota disponível até alguém devolver
-            </span>
-          </span>
-        </label>
+        {/* O status derivado da telemetria não sabe distinguir oficina de
+            rastreador mudo. Só quem opera sabe, e é por isso que existe esta
+            caixa. */}
+        <Checkbox
+          label="Fora de operação"
+          description="Tira o caminhão da conta de frota disponível até alguém devolver"
+          checked={form.outOfService}
+          onCheckedChange={(marcado) => alterar('outOfService', marcado === true)}
+        />
 
         {form.outOfService ? (
           <GlassInput

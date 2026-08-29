@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeftIcon } from '@/components/icons';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -67,7 +67,7 @@ export default function NotFoundPage() {
 
         <Button asChild variant="brand">
           <Link to="/painel">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeftIcon className="h-4 w-4" />
             Voltar ao painel
           </Link>
         </Button>

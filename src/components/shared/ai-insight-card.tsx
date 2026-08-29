@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRightIcon, SparklesIcon } from '@/components/icons';
 import { useNavigate } from 'react-router';
 
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,7 @@ export function AIInsightCard({ insight }: { insight: AiInsight }) {
       <CardContent className="pt-6">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-gradient text-primary-foreground">
-            <Sparkles className="h-5 w-5" />
+            <SparklesIcon className="h-5 w-5" />
           </div>
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -36,7 +36,7 @@ export function AIInsightCard({ insight }: { insight: AiInsight }) {
         <div className="mt-4 flex justify-end">
           <Button size="sm" variant="brand" onClick={() => navigate('/app/ia')}>
             Abrir central de IA
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRightIcon className="h-4 w-4" />
           </Button>
         </div>
       </CardContent>

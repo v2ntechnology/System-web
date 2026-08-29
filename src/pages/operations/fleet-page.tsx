@@ -1,4 +1,11 @@
-import { AlertTriangle, Boxes, CheckCircle2, CircleParking, Route, Wrench } from 'lucide-react';
+import {
+  BoxesIcon,
+  CheckCircleIcon,
+  MaintenanceIcon,
+  ParkingIcon,
+  RouteIcon,
+  WarningIcon,
+} from '@/components/icons';
 
 import { ChartCard, DonutChart } from '@/components/shared/charts';
 import { InfoCard } from '@/components/shared/cards';
@@ -30,33 +37,33 @@ export default function FleetPage() {
       {isError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : isLoading || !data ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <InfoCard label="Total de veículos" value={data.total} icon={Boxes} />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            <InfoCard label="Total de veículos" value={data.total} icon={BoxesIcon} />
             <InfoCard
               label="Disponíveis"
               value={data.available}
-              icon={CheckCircle2}
+              icon={CheckCircleIcon}
               accent="success"
             />
-            <InfoCard label="Em viagem" value={data.onTrip} icon={Route} accent="info" />
+            <InfoCard label="Em viagem" value={data.onTrip} icon={RouteIcon} accent="info" />
             <InfoCard
               label="Em manutenção"
               value={data.maintenance}
-              icon={Wrench}
+              icon={MaintenanceIcon}
               accent="warning"
             />
-            <InfoCard label="Parados" value={data.stopped} icon={CircleParking} />
+            <InfoCard label="Parados" value={data.stopped} icon={ParkingIcon} />
             <InfoCard
               label="Com alertas"
               value={data.withAlerts}
-              icon={AlertTriangle}
+              icon={WarningIcon}
               accent="destructive"
             />
           </div>

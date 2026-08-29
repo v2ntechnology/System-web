@@ -1,13 +1,13 @@
 import {
-  Camera,
-  Fuel,
-  Gavel,
-  MessageCircle,
-  Radar,
-  Satellite,
-  Boxes,
-  type LucideIcon,
-} from 'lucide-react';
+  ApprovalIcon,
+  BoxesIcon,
+  CameraIcon,
+  ChatIcon,
+  FuelIcon,
+  RadarIcon,
+  SatelliteIcon,
+} from '@/components/icons';
+import type { IconType } from '@/components/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ interface Integration {
   id: string;
   name: string;
   description: string;
-  icon: LucideIcon;
+  icon: IconType;
   status: IntegrationStatus;
   lastSync?: string;
 }
@@ -40,7 +40,7 @@ const INTEGRATIONS: Integration[] = [
     id: 'telemetry',
     name: 'Telemetria',
     description: 'Dados de motor, RPM, temperatura e freio motor.',
-    icon: Satellite,
+    icon: SatelliteIcon,
     status: 'connected',
     lastSync: 'há 3 minutos',
   },
@@ -48,7 +48,7 @@ const INTEGRATIONS: Integration[] = [
     id: 'tracking',
     name: 'Rastreamento',
     description: 'Posição GPS em tempo real da frota.',
-    icon: Radar,
+    icon: RadarIcon,
     status: 'connected',
     lastSync: 'há 1 minuto',
   },
@@ -56,7 +56,7 @@ const INTEGRATIONS: Integration[] = [
     id: 'fuel',
     name: 'Abastecimento',
     description: 'Integração com redes de postos e cartões.',
-    icon: Fuel,
+    icon: FuelIcon,
     status: 'error',
     lastSync: 'há 2 horas',
   },
@@ -64,21 +64,21 @@ const INTEGRATIONS: Integration[] = [
     id: 'fines',
     name: 'Multas',
     description: 'Consulta automática de infrações nos órgãos.',
-    icon: Gavel,
+    icon: ApprovalIcon,
     status: 'disconnected',
   },
   {
     id: 'erp',
     name: 'ERP',
     description: 'Sincronização de custos, notas e ordens.',
-    icon: Boxes,
+    icon: BoxesIcon,
     status: 'disconnected',
   },
   {
     id: 'whatsapp',
     name: 'WhatsApp',
     description: 'Notificações e checklists via WhatsApp.',
-    icon: MessageCircle,
+    icon: ChatIcon,
     status: 'connected',
     lastSync: 'há 20 minutos',
   },
@@ -86,7 +86,7 @@ const INTEGRATIONS: Integration[] = [
     id: 'cameras',
     name: 'Câmeras e visão computacional',
     description: 'Detecção de fadiga e eventos em cabine.',
-    icon: Camera,
+    icon: CameraIcon,
     status: 'disconnected',
   },
 ];

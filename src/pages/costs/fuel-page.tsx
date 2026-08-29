@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react';
+import { WarningIcon } from '@/components/icons';
 import { useState } from 'react';
 
 import { DataTable, type DataTableColumn } from '@/components/shared/data-table';
@@ -39,7 +39,7 @@ export default function FuelPage() {
       cell: (r) =>
         r.hasAnomaly ? (
           <Badge variant="destructive">
-            <AlertTriangle className="h-3 w-3" />
+            <WarningIcon className="h-3 w-3" />
             {r.computedConsumptionKmL} km/L
           </Badge>
         ) : (

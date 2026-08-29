@@ -1,4 +1,4 @@
-import { RoadHorizonIcon, TruckIcon, WarningIcon, WrenchIcon } from '@phosphor-icons/react';
+import { MaintenanceIcon, RouteIcon, TruckIcon, WarningIcon } from '@/components/icons';
 import type { HubMetric } from '@/management/types';
 import { LightCard, StatTile } from '@/management/ui';
 import type { ComponentType } from 'react';
@@ -10,8 +10,8 @@ export interface HubOverviewCardProps {
 
 const ICONS: Record<HubMetric['icon'], ComponentType<{ size?: number; weight?: 'duotone' }>> = {
   truck: TruckIcon,
-  wrench: WrenchIcon,
-  route: RoadHorizonIcon,
+  wrench: MaintenanceIcon,
+  route: RouteIcon,
   warning: WarningIcon,
 };
 
@@ -30,7 +30,7 @@ export function HubOverviewCard({ metrics, className }: HubOverviewCardProps) {
               value={metric.value}
               unit={metric.unit}
               accent={metric.accent}
-              icon={<Icon size={20} weight="duotone" />}
+              icon={<Icon size={20} />}
             />
           );
         })}

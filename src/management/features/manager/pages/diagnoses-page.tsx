@@ -1,4 +1,4 @@
-import { NotePencilIcon } from '@phosphor-icons/react';
+import { EntryIcon } from '@/components/icons';
 import type { Anomaly } from '@/management/types';
 import { GlassCard, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -71,12 +71,7 @@ export function DiagnosesPage() {
         <h2 className="sr-only">Situação dos pareceres</h2>
 
         <GlassCard className="flex flex-wrap items-center gap-4 p-5 sm:p-6">
-          <NotePencilIcon
-            size={28}
-            weight="duotone"
-            className="text-primary shrink-0"
-            aria-hidden="true"
-          />
+          <EntryIcon size={28} className="text-primary shrink-0" aria-hidden="true" />
 
           <div className="min-w-0 flex-1">
             <p className="text-on-surface text-body-lg">

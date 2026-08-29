@@ -1,5 +1,5 @@
+import { BlockedIcon, CheckIcon, UserIcon } from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckIcon, ProhibitIcon, UserIcon } from '@phosphor-icons/react';
 import type { OwnerApproval } from '@/management/types';
 import { LightCard, SpectrumButton, Spinner, StatusChip, cn } from '@/management/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -93,11 +93,7 @@ export function ApprovalDetailPanel({ approval }: ApprovalDetailPanelProps) {
       }
     >
       <div className="flex flex-wrap items-center gap-2">
-        <StatusChip
-          tone="info"
-          surface="light"
-          icon={<kind.icon size={14} weight="fill" aria-hidden="true" />}
-        >
+        <StatusChip tone="info" surface="light" icon={<kind.icon size={14} aria-hidden="true" />}>
           {kind.label}
         </StatusChip>
 
@@ -115,7 +111,7 @@ export function ApprovalDetailPanel({ approval }: ApprovalDetailPanelProps) {
           <StatusChip
             tone="neutral"
             surface="light"
-            icon={<UserIcon size={14} weight="fill" aria-hidden="true" />}
+            icon={<UserIcon size={14} aria-hidden="true" />}
           >
             {approval.driverName}
           </StatusChip>
@@ -201,7 +197,7 @@ export function ApprovalDetailPanel({ approval }: ApprovalDetailPanelProps) {
             aria-describedby={errors.note ? 'decision-note-error' : undefined}
             placeholder="Ex.: liberado após reteste do freio aprovado; manter inspeção extra em 30 dias."
             className={cn(
-              'text-body-md text-on-light placeholder:text-on-light-muted bg-light-container mt-3 w-full rounded-md border p-3',
+              'text-body-md text-on-light placeholder:text-placeholder bg-light-container mt-3 w-full rounded-md border p-3',
               'focus-visible:ring-primary-on-light focus:outline-none focus-visible:ring-2',
               'disabled:opacity-60',
               errors.note ? 'border-error-on-light' : 'border-light-outline',
@@ -226,11 +222,7 @@ export function ApprovalDetailPanel({ approval }: ApprovalDetailPanelProps) {
               disabled={busy || !pending}
               onClick={decide(true)}
             >
-              {busy ? (
-                <Spinner label="Registrando" />
-              ) : (
-                <CheckIcon size={18} weight="bold" aria-hidden="true" />
-              )}
+              {busy ? <Spinner label="Registrando" /> : <CheckIcon size={18} aria-hidden="true" />}
               Aprovar
             </SpectrumButton>
 
@@ -243,7 +235,7 @@ export function ApprovalDetailPanel({ approval }: ApprovalDetailPanelProps) {
                  da borda e do texto escuros para não sumir. */
               className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
             >
-              <ProhibitIcon size={18} weight="bold" aria-hidden="true" />
+              <BlockedIcon size={18} aria-hidden="true" />
               Recusar
             </SpectrumButton>
           </div>

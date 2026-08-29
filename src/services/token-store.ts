@@ -2,8 +2,7 @@
  * Guarda do access token.
  *
  * Fica em memória: `localStorage` é legível por qualquer script da página, e um
- * XSS levaria a sessão junto. O token é curto (15 minutos) e some ao fechar a
- * aba.
+ * XSS levaria a sessão junto. O token dura 1 hora e some ao fechar a aba.
  *
  * O refresh token não passa por aqui. Ele vive em cookie `httpOnly`, que o
  * navegador guarda e reenvia sozinho, fora do alcance do JavaScript. É o que

@@ -15,7 +15,7 @@ function initials(name: string) {
 }
 
 export function Avatar({ src, name, className }: AvatarProps) {
-  const base = 'rounded-pill shrink-0 overflow-hidden ring-1 ring-white/15';
+  const base = 'rounded-pill shrink-0 overflow-hidden ring-1 ring-on-surface/15';
 
   if (!src) {
     return (

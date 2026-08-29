@@ -1,4 +1,4 @@
-import { CameraIcon } from '@phosphor-icons/react';
+import { CameraIcon } from '@/components/icons';
 import type { ChecklistFailure } from '@/management/types';
 import { DataTable, LightCard, StatusChip, type Column } from '@/management/ui';
 
@@ -44,12 +44,7 @@ export function ChecklistFailuresCard({ failures, className }: ChecklistFailures
           {row.item}
           {/* RN-040 — foto anexada pelo motorista. Sem ela a tratativa é cega. */}
           {row.hasPhoto ? (
-            <CameraIcon
-              size={14}
-              weight="fill"
-              className="text-on-light-muted shrink-0"
-              aria-label="Com foto"
-            />
+            <CameraIcon size={14} className="text-on-light-muted shrink-0" aria-label="Com foto" />
           ) : null}
         </span>
       ),

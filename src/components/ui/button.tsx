@@ -9,15 +9,24 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
-        destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
+        /* Mesmo roxo e mesmo hover do `primary` do `SpectrumButton` (decisão do
+           usuário em 20/08/2026): ação preenchida é `primary-strong` nos quatro
+           perfis, e o hover escurece a própria cor, sem véu translúcido (com
+           `/90` o indigo clareava no tema claro). */
+        default:
+          'bg-primary-strong text-on-primary hover:bg-[color-mix(in_oklab,var(--color-primary-strong)_86%,black)]',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline:
-          'border border-input bg-transparent shadow-sm hover:bg-secondary hover:text-secondary-foreground',
-        secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
+          'border border-input bg-transparent hover:bg-secondary hover:text-secondary-foreground',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-secondary hover:text-secondary-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
+        /* O gradiente saiu daqui em 20/08/2026, a pedido do usuário: ação
+           principal é o mesmo roxo em todo o sistema, e o degradê indigo/cyan
+           fazia o botão do operador parecer de outra família ao lado do botão
+           da gestão. A variante continua por ser usada em dezenas de telas. */
         brand:
-          'bg-brand-gradient text-primary-foreground shadow-sm transition-opacity hover:opacity-90',
+          'bg-primary-strong text-on-primary hover:bg-[color-mix(in_oklab,var(--color-primary-strong)_86%,black)]',
       },
       size: {
         default: 'h-9 px-4 py-2',

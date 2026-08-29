@@ -1,7 +1,9 @@
+import { Suspense } from 'react';
 import { Outlet } from 'react-router';
 
 import { AssistantDialog } from '@/management/features/assistant/components/assistant-dialog';
 import { useAssistantShortcut } from '@/management/features/assistant/use-assistant-shortcut';
+import { Spinner } from '@/management/ui';
 
 import { AssistantFab } from './assistant-fab';
 
@@ -21,9 +23,26 @@ export function ManagementLayout() {
 
   return (
     <div className="management-theme bg-surface min-h-dvh">
-      <Outlet />
+      {/*
+       * Limite de suspense **único** do painel, e não um por rota (ver
+       * `routes.tsx`). Como ele já existe quando a navegação começa, o React
+       * mantém a tela atual no ar até o próximo módulo chegar, em vez de trocar
+       * tudo por um spinner. O fallback abaixo só aparece na primeira entrada no
+       * painel, quando ainda não há tela anterior para segurar.
+       */}
+      <Suspense fallback={<RouteFallback />}>
+        <Outlet />
+      </Suspense>
       <AssistantFab />
       <AssistantDialog />
+    </div>
+  );
+}
+
+function RouteFallback() {
+  return (
+    <div className="text-on-surface-muted flex min-h-dvh items-center justify-center">
+      <Spinner className="size-6" />
     </div>
   );
 }

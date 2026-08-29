@@ -1,4 +1,4 @@
-import { ClockCountdownIcon, PlayCircleIcon } from '@phosphor-icons/react';
+import { ClockCountdownIcon, PlayIcon } from '@/components/icons';
 import type { SafetyEvent } from '@/management/types';
 import { GlassModal, Spinner } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -64,12 +64,7 @@ export function EventVideoDialog({
             </p>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <PlayCircleIcon
-                size={64}
-                weight="fill"
-                className="text-on-surface/70"
-                aria-hidden="true"
-              />
+              <PlayIcon size={64} className="text-on-surface/70" aria-hidden="true" />
               <p className="text-on-surface-variant text-body-md">
                 Clipe de {data.durationSeconds}s · {data.provider}
               </p>

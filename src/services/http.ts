@@ -76,10 +76,64 @@ export async function httpRequest<T>(path: string, init: RequestInit = {}): Prom
   }
 
   if (!response.ok) {
-    throw new ApiError(`Erro na requisição (${response.status}).`, response.status);
+    throw new ApiError(await motivoDoErro(response), response.status);
   }
 
   return (await response.json()) as T;
+}
+
+/**
+ * Um binário da API, como URL de objeto para `<img>` ou `<a download>`.
+ *
+ * ⚠️ Existe porque `<img src>` não manda cabeçalho, e as rotas de mídia exigem
+ * `Authorization`. Apontar o `src` direto para a API devolveria 401 e a imagem
+ * quebraria sem explicação. Aqui a busca é autenticada e o resultado vira um
+ * blob local.
+ *
+ * Quem chama é dono da URL devolvida e precisa passar por `URL.revokeObjectURL`
+ * ao desmontar: sem isso o blob fica na memória da aba até ela fechar.
+ */
+export async function httpBlob(path: string): Promise<string> {
+  const token = getAccessToken();
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${env.apiBaseUrl}${path}`, { headers });
+
+  if (response.status === 401) {
+    onUnauthorized();
+    throw new ApiError('Sessão expirada.', 401);
+  }
+  if (!response.ok) {
+    throw new ApiError(`Erro na requisição (${response.status}).`, response.status);
+  }
+
+  return URL.createObjectURL(await response.blob());
+}
+
+/**
+ * A frase que o backend mandou, quando ele mandou uma.
+ *
+ * O backend responde em RFC 7807 (`spring.mvc.problemdetails`), então recusa
+ * prevista chega com `detail` preenchido: "Já existe um motorista cadastrado com
+ * este CPF" em vez de "erro na requisição (409)". A primeira diz o que fazer a
+ * seguir; a segunda manda o usuário adivinhar.
+ *
+ * O genérico continua valendo para erro sem corpo, resposta que não é JSON e
+ * falha inesperada. Nesses casos não há frase melhor para mostrar.
+ */
+async function motivoDoErro(response: Response): Promise<string> {
+  const generico = `Erro na requisição (${response.status}).`;
+  try {
+    const corpo: unknown = await response.json();
+    if (corpo && typeof corpo === 'object') {
+      const detalhe = (corpo as { detail?: unknown }).detail;
+      if (typeof detalhe === 'string' && detalhe.trim() !== '') return detalhe;
+    }
+  } catch {
+    /* Corpo vazio ou não-JSON: o genérico é o melhor que existe. */
+  }
+  return generico;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -109,3 +163,4 @@ export function sortBy<T>(items: T[], key: keyof T, dir: 'asc' | 'desc' = 'asc')
   const sorted = [...items].sort((a, b) => compareValues(a[key], b[key]));
   return dir === 'desc' ? sorted.reverse() : sorted;
 }
+

@@ -1,4 +1,4 @@
-import { CalendarBlankIcon } from '@phosphor-icons/react';
+import { CalendarIcon } from '@/components/icons';
 import type { AnalyticsPeriod } from '@/management/types';
 import { cn } from '@/management/ui';
 
@@ -26,7 +26,7 @@ export function PeriodPicker({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <p className="text-on-surface-variant text-body-md flex items-center gap-2">
-        <CalendarBlankIcon size={18} weight="duotone" aria-hidden="true" />
+        <CalendarIcon size={18} aria-hidden="true" />
         Período
       </p>
 

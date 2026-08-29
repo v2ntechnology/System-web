@@ -1,4 +1,4 @@
-import { CalendarBlankIcon, ClockIcon, WarningCircleIcon } from '@phosphor-icons/react';
+import { AlertCircleIcon, CalendarIcon, ClockIcon } from '@/components/icons';
 import type { MaintenanceOrder, MaintenanceStatus } from '@/management/types';
 import { LightCard, cn } from '@/management/ui';
 import type { ComponentType } from 'react';
@@ -16,9 +16,9 @@ const STATUS: Record<
   MaintenanceStatus,
   { label: string; className: string; icon: ComponentType<{ size?: number; weight?: 'fill' }> }
 > = {
-  ATRASADA: { label: 'Atrasada', className: 'text-error', icon: WarningCircleIcon },
+  ATRASADA: { label: 'Atrasada', className: 'text-error', icon: AlertCircleIcon },
   HOJE: { label: 'Hoje', className: 'text-warning', icon: ClockIcon },
-  AGENDADA: { label: 'Agendada', className: 'text-on-surface-muted', icon: CalendarBlankIcon },
+  AGENDADA: { label: 'Agendada', className: 'text-on-surface-muted', icon: CalendarIcon },
 };
 
 const dateFormat = new Intl.DateTimeFormat('pt-BR', {
@@ -69,7 +69,7 @@ export function MaintenanceCard({ orders, className }: MaintenanceCardProps) {
                       status.className,
                     )}
                   >
-                    <StatusIcon size={14} weight="fill" />
+                    <StatusIcon size={14} />
                     {status.label}
                   </span>
                 </div>

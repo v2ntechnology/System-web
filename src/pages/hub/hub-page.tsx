@@ -1,17 +1,17 @@
-import { useState } from 'react';
 import {
-  BarChart3,
-  ClipboardCheck,
-  Fuel,
-  LayoutGrid,
-  LineChart,
-  MessageSquareText,
-  Radar,
-  ShieldCheck,
-  Sparkles,
-  Target,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+  ChartBarIcon,
+  ChartIcon,
+  ChecklistDoneIcon,
+  FuelIcon,
+  GridIcon,
+  MessageIcon,
+  RadarIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  TargetIcon,
+} from '@/components/icons';
+import type { IconType } from '@/components/icons';
+import { useState } from 'react';
 import { Link } from 'react-router';
 
 import { BrandLogo } from '@/components/shared/brand-logo';
@@ -19,7 +19,7 @@ import { Globe } from '@/components/shared/globe';
 import { cn } from '@/lib/utils';
 
 interface PanelHighlight {
-  Icon: LucideIcon;
+  Icon: IconType;
   title: string;
   description: string;
 }
@@ -39,15 +39,16 @@ interface HubPanel {
 interface HubOption {
   path: string;
   badgeLabel: string;
-  BadgeIcon: LucideIcon;
+  BadgeIcon: IconType;
   badgeClass: string;
   titleStart: string;
   titleHighlight: string;
   titleEnd: string;
+  /** Segundo trecho destacado, depois de `titleEnd`. */
+  titleTail?: string | undefined;
   highlightClass: string;
-  description: string;
   actionLabel: string;
-  ActionIcon: LucideIcon;
+  ActionIcon: IconType;
   actionClass: string;
   borderClass: string;
   art: string;
@@ -66,17 +67,20 @@ interface HubOption {
 const ASSISTANT_OPTION: HubOption = {
   path: '/assistente',
   badgeLabel: 'IA',
-  BadgeIcon: Sparkles,
-  badgeClass: 'bg-primary text-primary-foreground',
+  BadgeIcon: SparklesIcon,
+  badgeClass: 'bg-primary-strong text-on-primary',
   titleStart: 'Conversar com a ',
   titleHighlight: 'IA',
-  titleEnd: ' da RookHub',
-  highlightClass: 'text-primary',
-  description:
-    'Obtenha respostas rápidas, análises inteligentes e apoio para tomar decisões com a ajuda da nossa IA.',
+  titleEnd: ' da ',
+  /* "RookHub" é a parte do título que passa por cima do robô: no roxo do "IA"
+     ela se separa da arte, em vez de se perder no preto do capacete. */
+  titleTail: 'RookHub',
+  /* No claro o indigo da marca cai para 4,5:1 sobre papel; o par escuro da
+     paleta devolve o mesmo destaque com folga de contraste. */
+  highlightClass: 'text-primary light:text-primary-on-light',
   actionLabel: 'Iniciar conversa',
-  ActionIcon: Sparkles,
-  actionClass: 'bg-primary text-primary-foreground',
+  ActionIcon: SparklesIcon,
+  actionClass: 'bg-primary-strong text-on-primary',
   borderClass: 'border-primary/40 hover:border-primary/70',
   art: '/images/hub-robot.png',
   artSizeClass: 'bottom-0 h-[78%]',
@@ -93,17 +97,17 @@ const ASSISTANT_OPTION: HubOption = {
     iconClass: 'border-primary/25 bg-primary/10 text-primary',
     highlights: [
       {
-        Icon: MessageSquareText,
+        Icon: MessageIcon,
         title: 'Respostas instantâneas',
         description: 'Tire dúvidas e receba orientações em tempo real.',
       },
       {
-        Icon: LineChart,
+        Icon: ChartIcon,
         title: 'Insights inteligentes',
         description: 'Análises e recomendações baseadas nos seus dados.',
       },
       {
-        Icon: Target,
+        Icon: TargetIcon,
         title: 'Decisões melhores',
         description: 'Apoio estratégico para decisões mais rápidas e assertivas.',
       },
@@ -115,16 +119,16 @@ const PLATFORM_OPTION: HubOption = {
   /* Quem passa pela hub (dono e gestor) tem o painel de gestão como sistema. */
   path: '/gestao',
   badgeLabel: 'Gestão',
-  BadgeIcon: BarChart3,
+  BadgeIcon: ChartBarIcon,
   badgeClass: 'bg-accent text-accent-foreground',
   titleStart: 'Acessar o sistema de ',
   titleHighlight: 'gestão',
   titleEnd: '',
-  highlightClass: 'text-accent',
-  description:
-    'Acesse dashboards, dados operacionais, relatórios e todas as ferramentas para gerenciar sua frota.',
+  /* O ciano da marca dá 2,4:1 sobre papel: como texto no tema claro ele precisa
+     do tom fechado (`secondary-container`), que é o mesmo cyan escurecido. */
+  highlightClass: 'text-accent light:text-secondary-container',
   actionLabel: 'Entrar no sistema',
-  ActionIcon: LayoutGrid,
+  ActionIcon: GridIcon,
   actionClass: 'bg-accent text-accent-foreground',
   borderClass: 'border-accent/40 hover:border-accent/70',
   art: '/images/hub-rook.png',
@@ -142,17 +146,17 @@ const PLATFORM_OPTION: HubOption = {
     iconClass: 'border-accent/25 bg-accent/10 text-accent',
     highlights: [
       {
-        Icon: Radar,
+        Icon: RadarIcon,
         title: 'Operação rastreada',
         description: 'Veículos, viagens e rotas acompanhados no mapa em tempo real.',
       },
       {
-        Icon: Fuel,
+        Icon: FuelIcon,
         title: 'Custos sob controle',
         description: 'Abastecimentos, manutenções e multas reunidos por veículo.',
       },
       {
-        Icon: ClipboardCheck,
+        Icon: ChecklistDoneIcon,
         title: 'Rotina organizada',
         description: 'Checklists, alertas e relatórios para agir antes do problema.',
       },
@@ -292,11 +296,10 @@ export default function HubPage() {
                   {option.titleStart}
                   <span className={option.highlightClass}>{option.titleHighlight}</span>
                   {option.titleEnd}
+                  {option.titleTail ? (
+                    <span className={option.highlightClass}>{option.titleTail}</span>
+                  ) : null}
                 </h2>
-
-                <p className="relative z-10 mt-3 text-sm leading-relaxed text-muted-foreground dark:text-white/70">
-                  {option.description}
-                </p>
 
                 <span
                   className={cn(
@@ -356,7 +359,7 @@ export default function HubPage() {
         </div>
 
         <footer className="mb-10 flex items-center justify-center gap-2 text-xs text-muted-foreground sm:mb-16 sm:text-sm">
-          <ShieldCheck className="h-4 w-4" aria-hidden />
+          <ShieldCheckIcon className="h-4 w-4" aria-hidden />
           <span>Seguro • Confiável • Inteligente</span>
         </footer>
       </div>

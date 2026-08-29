@@ -1,12 +1,12 @@
 import {
-  Inbox,
-  Loader2,
-  Lock,
-  ShieldAlert,
-  Sparkles,
-  TriangleAlert,
-  type LucideIcon,
-} from 'lucide-react';
+  InboxIcon,
+  LockIcon,
+  ShieldAlertIcon,
+  SparklesIcon,
+  SpinnerIcon,
+  WarningIcon,
+} from '@/components/icons';
+import type { IconType } from '@/components/icons';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -35,7 +35,7 @@ export function LoadingState({
       role="status"
       aria-live="polite"
     >
-      <Loader2 className="h-4 w-4 animate-spin" />
+      <SpinnerIcon className="h-4 w-4 animate-spin" />
       {label}
     </div>
   );
@@ -71,7 +71,7 @@ export function TableSkeleton({ rows = 6 }: { rows?: number }) {
 /* -------------------------------------------------------------------------- */
 
 interface EmptyStateProps {
-  icon?: LucideIcon;
+  icon?: IconType;
   title: string;
   description?: string;
   action?: ReactNode;
@@ -79,7 +79,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon: Icon = Inbox,
+  icon: Icon = InboxIcon,
   title,
   description,
   action,
@@ -132,7 +132,7 @@ export function ErrorState({
       )}
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 text-destructive">
-        <TriangleAlert className="h-6 w-6" />
+        <WarningIcon className="h-6 w-6" />
       </div>
       <div className="space-y-1">
         <p className="font-display font-semibold">{title}</p>
@@ -160,7 +160,7 @@ export function NoAccessState({ className }: { className?: string }) {
       )}
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
-        <ShieldAlert className="h-6 w-6" />
+        <ShieldAlertIcon className="h-6 w-6" />
       </div>
       <div className="space-y-1">
         <p className="font-display font-semibold">Acesso restrito</p>
@@ -182,7 +182,7 @@ export function PlanLockedState({ className }: { className?: string }) {
       )}
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
-        <Lock className="h-6 w-6" />
+        <LockIcon className="h-6 w-6" />
       </div>
       <div className="space-y-1">
         <p className="font-display font-semibold">Recurso disponível em outro plano</p>
@@ -193,7 +193,7 @@ export function PlanLockedState({ className }: { className?: string }) {
       </div>
       <Button asChild size="sm" variant="brand">
         <Link to="/app/planos">
-          <Sparkles className="h-4 w-4" />
+          <SparklesIcon className="h-4 w-4" />
           Ver planos
         </Link>
       </Button>

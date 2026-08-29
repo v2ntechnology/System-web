@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeftIcon } from '@/components/icons';
 import { type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -43,7 +43,7 @@ export default function SaasTenantDetailPage() {
           onClick={() => navigate('/admin-saas/empresas')}
           aria-label="Voltar"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeftIcon className="h-4 w-4" />
         </Button>
         <div className="flex-1">
           <PageHeader title={tenant.name} description={`Identificador: ${tenant.slug}`} />

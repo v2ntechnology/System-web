@@ -1,4 +1,4 @@
-import { ClockCountdownIcon, PlayCircleIcon, VideoCameraIcon } from '@phosphor-icons/react';
+import { ClockCountdownIcon, PlayIcon, VideoIcon } from '@/components/icons';
 import type { DriverWarning } from '@/management/types';
 import { GlassModal, Spinner } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -64,12 +64,7 @@ export function WarningVideoDialog({
              * como estão.
              */
             <div className="flex flex-col items-center gap-3">
-              <PlayCircleIcon
-                size={64}
-                weight="fill"
-                className="text-on-surface/70"
-                aria-hidden="true"
-              />
+              <PlayIcon size={64} className="text-on-surface/70" aria-hidden="true" />
               <p className="text-on-surface-variant text-body-md">
                 Clipe de {data.durationSeconds}s · {data.provider}
               </p>
@@ -108,7 +103,7 @@ export function WarningVideoDialog({
               <div>
                 <dt className="text-on-surface-muted text-label-md normal-case">Origem da mídia</dt>
                 <dd className="text-on-surface text-body-md mt-0.5 flex items-center gap-1.5">
-                  <VideoCameraIcon size={16} weight="duotone" aria-hidden="true" />
+                  <VideoIcon size={16} aria-hidden="true" />
                   {warning.media.provider}
                 </dd>
               </div>

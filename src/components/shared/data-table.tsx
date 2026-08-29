@@ -1,4 +1,10 @@
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react';
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronsUpDownIcon,
+} from '@/components/icons';
 import type { ReactNode } from 'react';
 
 import { ErrorState, TableSkeleton } from '@/components/shared/states';
@@ -80,10 +86,10 @@ export function DataTable<T>({
             {columns.map((col) => {
               const isSorted = sort?.field === col.sortField;
               const SortIcon = !isSorted
-                ? ChevronsUpDown
+                ? ChevronsUpDownIcon
                 : sort?.dir === 'asc'
-                  ? ArrowUp
-                  : ArrowDown;
+                  ? ArrowUpIcon
+                  : ArrowDownIcon;
               return (
                 <TableHead
                   key={col.id}
@@ -164,7 +170,7 @@ export function DataTablePagination({
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeftIcon className="h-4 w-4" />
           Anterior
         </Button>
         <span className="text-xs text-muted-foreground">
@@ -177,7 +183,7 @@ export function DataTablePagination({
           disabled={page >= totalPages}
         >
           Próxima
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRightIcon className="h-4 w-4" />
         </Button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { DownloadSimpleIcon, InfoIcon, LockSimpleIcon, RowsIcon } from '@phosphor-icons/react';
+import { DownloadIcon, InfoIcon, LockIcon, RowsIcon } from '@/components/icons';
 import type { ReportDefinition, ReportFormat, AnalyticsPeriod } from '@/management/types';
 import { Spinner, StatusChip } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -50,7 +50,7 @@ export function ReportDetailPanel({
         </div>
 
         {locked ? (
-          <StatusChip tone="attention" icon={<LockSimpleIcon size={14} weight="fill" />}>
+          <StatusChip tone="attention" icon={<LockIcon size={14} />}>
             Não contratado
           </StatusChip>
         ) : null}
@@ -59,7 +59,7 @@ export function ReportDetailPanel({
       {locked ? (
         /* RN-004 — módulo não contratado aparece bloqueado, com CTA, e não some. */
         <div className="flex flex-1 flex-col items-center justify-center gap-4 py-16 text-center">
-          <LockSimpleIcon size={40} weight="duotone" className="text-warning" aria-hidden="true" />
+          <LockIcon size={40} className="text-warning" aria-hidden="true" />
           <p className="text-on-surface-variant text-body-md max-w-sm">
             Este relatório faz parte de um módulo que não está no seu plano. Fale com o time
             comercial para liberar o acesso.
@@ -71,7 +71,7 @@ export function ReportDetailPanel({
                 description: 'Nosso time comercial entrará em contato.',
               })
             }
-            className="border-warning/40 text-warning text-label-md focus-visible:ring-secondary rounded-md border px-4 py-2 normal-case transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2"
+            className="border-warning/40 text-warning text-label-md focus-visible:ring-secondary rounded-md border px-4 py-2 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
           >
             Conhecer o módulo
           </button>
@@ -80,20 +80,20 @@ export function ReportDetailPanel({
         <>
           {/* Metadados do recorte */}
           <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="bg-white/4 rounded-md p-3">
+            <div className="bg-on-surface/4 rounded-md p-3">
               <dt className="text-on-surface-muted text-label-md normal-case">Período</dt>
               <dd className="text-on-surface text-body-md mt-1">{PERIOD_LABELS[period]}</dd>
             </div>
-            <div className="bg-white/4 rounded-md p-3">
+            <div className="bg-on-surface/4 rounded-md p-3">
               <dt className="text-on-surface-muted text-label-md flex items-center gap-1.5 normal-case">
-                <RowsIcon size={14} weight="duotone" aria-hidden="true" />
+                <RowsIcon size={14} aria-hidden="true" />
                 Linhas estimadas
               </dt>
               <dd className="tabular text-on-surface text-body-md mt-1">
                 {data ? number.format(data.totalRows) : '—'}
               </dd>
             </div>
-            <div className="bg-white/4 rounded-md p-3">
+            <div className="bg-on-surface/4 rounded-md p-3">
               <dt className="text-on-surface-muted text-label-md normal-case">Última geração</dt>
               <dd className="tabular text-on-surface text-body-md mt-1">
                 {dateTime.format(new Date(report.generatedAt))}
@@ -129,7 +129,7 @@ export function ReportDetailPanel({
             ) : isError || !data ? (
               <p className="text-error text-body-md">Não foi possível carregar a prévia.</p>
             ) : data.rows.length === 0 ? (
-              <p className="bg-white/4 text-on-surface-variant text-body-md rounded-md px-4 py-3">
+              <p className="bg-on-surface/4 text-on-surface-variant text-body-md rounded-md px-4 py-3">
                 Prévia indisponível para este relatório. O arquivo completo traz as colunas acima.
               </p>
             ) : (
@@ -193,9 +193,9 @@ export function ReportDetailPanel({
                 key={format}
                 type="button"
                 onClick={() => download(format)}
-                className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border bg-white/5 px-3 py-2 normal-case transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2"
+                className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-2 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
               >
-                <DownloadSimpleIcon size={16} weight="bold" aria-hidden="true" />
+                <DownloadIcon size={16} aria-hidden="true" />
                 {format}
                 <span className="sr-only">— baixar {report.title}</span>
               </button>

@@ -1,13 +1,14 @@
+import { EntryIcon, SpinnerIcon } from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
-import { Loader2, NotebookPen } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { RecentEntries } from '@/components/shared/operator-cards';
 import { ErrorState } from '@/components/shared/states';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -95,7 +96,16 @@ function EntryForm({ kind }: { kind: EntryKind }) {
       <div key={field.name} className={cn('space-y-2', field.wide && 'sm:col-span-2')}>
         <Label htmlFor={id}>{field.label}</Label>
 
-        {field.type === 'select' ? (
+        {field.type === 'date' ? (
+          <DatePicker
+            id={id}
+            value={watch(field.name as keyof EntryFormValues)}
+            onChange={(date) =>
+              setValue(field.name as keyof EntryFormValues, date, { shouldValidate: true })
+            }
+            invalid={Boolean(error)}
+          />
+        ) : field.type === 'select' ? (
           <Select
             value={watch(field.name as keyof EntryFormValues)}
             onValueChange={(value) =>
@@ -116,7 +126,7 @@ function EntryForm({ kind }: { kind: EntryKind }) {
         ) : (
           <Input
             id={id}
-            type={field.type === 'date' ? 'date' : 'text'}
+            type="text"
             inputMode={field.type === 'number' || field.type === 'money' ? 'decimal' : undefined}
             placeholder={field.placeholder}
             aria-invalid={Boolean(error)}
@@ -139,11 +149,15 @@ function EntryForm({ kind }: { kind: EntryKind }) {
 
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2">{fields.map(renderField)}</div>
+          {/* Mais colunas conforme a janela cresce: em monitor grande, duas
+              colunas deixavam campos de 700px para digitar "480,5". */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {fields.map(renderField)}
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" variant="brand" disabled={createEntry.isPending}>
-              {createEntry.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {createEntry.isPending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
               Lançar {meta.label.toLowerCase()}
             </Button>
             <Button type="button" variant="ghost" onClick={() => reset(EMPTY_FORM)}>
@@ -180,7 +194,7 @@ export default function EntriesPage() {
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-4 pt-6">
-          <NotebookPen className="h-7 w-7 shrink-0 text-primary" aria-hidden />
+          <EntryIcon className="h-7 w-7 shrink-0 text-primary" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="font-medium">
               {todayCount === 0

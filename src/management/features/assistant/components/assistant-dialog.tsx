@@ -1,4 +1,4 @@
-import { ArrowUpIcon, MicrophoneIcon, SparkleIcon } from '@phosphor-icons/react';
+import { ArrowUpIcon, MicIcon, SparklesIcon } from '@/components/icons';
 import { GlassModal } from '@/management/ui';
 import { useEffect, useRef, useState } from 'react';
 
@@ -65,9 +65,8 @@ export function AssistantDialog() {
         {turns.length === 0 ? (
           <div className="py-4">
             <div className="border-outline-variant flex items-start gap-3 rounded-lg border border-dashed p-4">
-              <SparkleIcon
+              <SparklesIcon
                 size={20}
-                weight="duotone"
                 className="text-secondary mt-0.5 shrink-0"
                 aria-hidden="true"
               />
@@ -86,7 +85,7 @@ export function AssistantDialog() {
                   <button
                     type="button"
                     onClick={() => void submit(suggestion)}
-                    className="border-outline-variant hover:border-outline text-on-surface text-body-md focus-visible:ring-secondary w-full rounded-md border bg-white/[0.03] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2"
+                    className="border-outline-variant hover:border-outline text-on-surface text-body-md focus-visible:ring-secondary bg-on-surface/[0.03] hover:bg-on-surface/[0.07] w-full rounded-md border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
                   >
                     {suggestion}
                   </button>
@@ -122,7 +121,7 @@ export function AssistantDialog() {
             disabled={busy}
             autoComplete="off"
             placeholder="Pergunte alguma coisa sobre a sua frota…"
-            className="text-body-md text-on-surface placeholder:text-on-surface-muted h-12 w-full bg-transparent focus:outline-none"
+            className="text-body-md text-on-surface placeholder:text-placeholder h-12 w-full bg-transparent focus:outline-none"
           />
 
           <button
@@ -132,7 +131,7 @@ export function AssistantDialog() {
             disabled
             className="text-on-surface-muted rounded-pill flex size-9 shrink-0 items-center justify-center transition-colors disabled:opacity-40"
           >
-            <MicrophoneIcon size={20} weight="duotone" />
+            <MicIcon size={20} />
           </button>
 
           <button
@@ -141,7 +140,7 @@ export function AssistantDialog() {
             disabled={busy || question.trim().length === 0}
             className="bg-primary-strong text-on-primary rounded-pill focus-visible:ring-secondary flex size-9 shrink-0 items-center justify-center transition-opacity hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 disabled:opacity-40"
           >
-            <ArrowUpIcon size={18} weight="bold" />
+            <ArrowUpIcon size={18} />
           </button>
         </div>
 

@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRightIcon } from '@/components/icons';
 import { Fragment } from 'react';
 import { Link, useLocation } from 'react-router';
 
@@ -39,7 +39,7 @@ export function Breadcrumbs() {
               >
                 {crumb.label}
               </Link>
-              <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+              <ChevronRightIcon className="h-4 w-4 text-muted-foreground/50" />
             </>
           )}
         </Fragment>

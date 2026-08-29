@@ -1,7 +1,7 @@
+import { MapPinIcon } from '@/components/icons';
 import type { FeatureCollection } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { MapPin } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -120,7 +120,7 @@ function buildMarkerElement(marker: MapVehicleMarker, isSelected: boolean): HTML
   const badge = document.createElement('span');
   badge.className = cn(
     'absolute left-1/2 top-1/2 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2',
-    'items-center justify-center rounded-full text-white shadow-md ring-2',
+    'items-center justify-center rounded-full text-white ring-2',
     'transition-transform group-hover:scale-110',
     isSelected && 'scale-125',
   );
@@ -259,7 +259,7 @@ export function OperationMap({
       </div>
 
       <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-md border border-border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
-        <MapPin className="h-3.5 w-3.5 text-primary" />
+        <MapPinIcon className="h-3.5 w-3.5 text-primary" />
         {markers.length} veículos
         {routeCount > 0 && <span className="text-muted-foreground/70">· {routeCount} em rota</span>}
       </div>

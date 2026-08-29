@@ -1,9 +1,4 @@
-import {
-  ArrowClockwiseIcon,
-  CheckCircleIcon,
-  DownloadSimpleIcon,
-  WarningCircleIcon,
-} from '@phosphor-icons/react';
+import { AlertCircleIcon, CheckCircleIcon, DownloadIcon, RefreshIcon } from '@/components/icons';
 import type { ReportRunStatus } from '@/management/types';
 import { Spinner, StatusChip, type StatusTone } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -17,8 +12,8 @@ const STATUS: Record<
   { label: string; tone: StatusTone; icon: ComponentType<{ size?: number; weight?: 'fill' }> }
 > = {
   PRONTO: { label: 'Pronto', tone: 'positive', icon: CheckCircleIcon },
-  PROCESSANDO: { label: 'Processando', tone: 'info', icon: ArrowClockwiseIcon },
-  FALHOU: { label: 'Falhou', tone: 'critical', icon: WarningCircleIcon },
+  PROCESSANDO: { label: 'Processando', tone: 'info', icon: RefreshIcon },
+  FALHOU: { label: 'Falhou', tone: 'critical', icon: AlertCircleIcon },
 };
 
 const dateTime = new Intl.DateTimeFormat('pt-BR', {
@@ -80,7 +75,7 @@ export function ReportHistory() {
                   </p>
                 </div>
 
-                <StatusChip tone={status.tone} icon={<StatusIcon size={14} weight="fill" />}>
+                <StatusChip tone={status.tone} icon={<StatusIcon size={14} />}>
                   {status.label}
                 </StatusChip>
               </div>
@@ -98,9 +93,9 @@ export function ReportHistory() {
                     <button
                       type="button"
                       onClick={() => toast.success(`Baixando "${run.reportTitle}"`)}
-                      className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-white/5 px-3 py-1.5 normal-case transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2"
+                      className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                     >
-                      <DownloadSimpleIcon size={14} weight="bold" aria-hidden="true" />
+                      <DownloadIcon size={14} aria-hidden="true" />
                       Baixar
                       <span className="sr-only">{run.reportTitle}</span>
                     </button>
@@ -113,9 +108,9 @@ export function ReportHistory() {
                   <button
                     type="button"
                     onClick={() => toast.info(`Gerando "${run.reportTitle}" novamente`)}
-                    className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-white/5 px-3 py-1.5 normal-case transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2"
+                    className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                   >
-                    <ArrowClockwiseIcon size={14} weight="bold" aria-hidden="true" />
+                    <RefreshIcon size={14} aria-hidden="true" />
                     Tentar de novo
                     <span className="sr-only">— {run.reportTitle}</span>
                   </button>

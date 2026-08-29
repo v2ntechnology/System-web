@@ -1,5 +1,5 @@
+import { ArrowRightIcon, InfoIcon } from '@/components/icons';
 import { useState } from 'react';
-import { ArrowRight, Info } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { ChartCard, SimpleBarChart, TrendAreaChart } from '@/components/shared/charts';
@@ -67,7 +67,7 @@ function YardSummary() {
 
             {/* O número vem com a procedência colada nele. */}
             <p className="mt-auto flex items-start gap-1.5 pt-5 text-xs text-muted-foreground">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               {data.source}
             </p>
           </CardContent>
@@ -120,7 +120,7 @@ function YardSummary() {
               <Button asChild variant="brand" size="sm">
                 <Link to="/app/triagem">
                   Abrir triagem
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Link>
               </Button>
             </CardContent>

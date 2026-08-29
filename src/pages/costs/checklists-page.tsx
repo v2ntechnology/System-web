@@ -1,4 +1,4 @@
-import { Camera, ChevronRight } from 'lucide-react';
+import { CameraIcon, ChevronRightIcon } from '@/components/icons';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -69,7 +69,7 @@ export default function ChecklistsPage() {
       align: 'right',
       cell: (c) => (
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <Camera className="h-3.5 w-3.5" />
+          <CameraIcon className="h-3.5 w-3.5" />
           {c.photosCount}
         </span>
       ),
@@ -83,7 +83,7 @@ export default function ChecklistsPage() {
       id: 'actions',
       header: '',
       align: 'right',
-      cell: () => <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />,
+      cell: () => <ChevronRightIcon className="ml-auto h-4 w-4 text-muted-foreground" />,
     },
   ];
 

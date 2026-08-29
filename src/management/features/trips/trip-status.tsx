@@ -1,11 +1,11 @@
 import {
+  BlockedIcon,
   CheckCircleIcon,
+  ClockIcon,
   PackageIcon,
-  ProhibitIcon,
   TruckIcon,
   WarehouseIcon,
-  ClockIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { Trip, TripStatus } from '@/management/types';
 import { StatusChip, type StatusTone } from '@/management/ui';
 import type { ComponentType } from 'react';
@@ -19,7 +19,7 @@ export const TRIP_STATUS: Record<TripStatus, { label: string; tone: StatusTone; 
     EM_TRANSITO: { label: 'Em trânsito', tone: 'info', icon: TruckIcon },
     EM_DESCARGA: { label: 'Em descarga', tone: 'info', icon: WarehouseIcon },
     CONCLUIDA: { label: 'Concluída', tone: 'positive', icon: CheckCircleIcon },
-    CANCELADA: { label: 'Cancelada', tone: 'critical', icon: ProhibitIcon },
+    CANCELADA: { label: 'Cancelada', tone: 'critical', icon: BlockedIcon },
   };
 
 /**
@@ -50,7 +50,7 @@ export function TripStatusChip({
   const config = TRIP_STATUS[status];
   const Icon = config.icon;
   return (
-    <StatusChip tone={config.tone} surface={surface} icon={<Icon size={14} weight="fill" />}>
+    <StatusChip tone={config.tone} surface={surface} icon={<Icon size={14} />}>
       {config.label}
     </StatusChip>
   );

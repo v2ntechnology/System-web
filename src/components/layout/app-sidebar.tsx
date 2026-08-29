@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeftIcon } from '@/components/icons';
 import { Link } from 'react-router';
 
 import type { NavGroup } from '@/app/navigation';
@@ -35,12 +35,12 @@ export function AppSidebar({ navigation }: { navigation: NavGroup[] }) {
       <Button
         variant="ghost"
         size="icon"
-        className="absolute -right-3 top-8 z-20 h-7 w-7 -translate-y-1/2 rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-sm transition-[background-color,color,box-shadow] duration-200 hover:bg-sidebar-accent hover:text-foreground hover:shadow-md"
+        className="absolute -right-3 top-8 z-20 h-7 w-7 -translate-y-1/2 rounded-full border border-sidebar-border bg-sidebar text-muted-foreground transition-colors duration-200 hover:bg-sidebar-accent hover:text-foreground"
         onClick={toggleCollapsed}
         aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
         title={collapsed ? 'Expandir menu' : 'Recolher menu'}
       >
-        <ChevronLeft
+        <ChevronLeftIcon
           className={cn(
             'h-3.5 w-3.5 transition-transform duration-300 ease-in-out',
             collapsed && 'rotate-180',

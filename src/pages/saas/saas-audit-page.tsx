@@ -1,4 +1,4 @@
-import { ScrollText } from 'lucide-react';
+import { ReportIcon } from '@/components/icons';
 
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,7 +17,7 @@ export default function SaasAuditPage() {
           {SAAS_AUDIT.map((event) => (
             <div key={event.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted/60 text-muted-foreground">
-                <ScrollText className="h-4 w-4" />
+                <ReportIcon className="h-4 w-4" />
               </div>
               <div className="flex-1">
                 <p className="text-sm">{event.action}</p>

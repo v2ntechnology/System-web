@@ -1,4 +1,4 @@
-import { ArrowLeft, MapPin } from 'lucide-react';
+import { ArrowLeftIcon, MapPinIcon } from '@/components/icons';
 import { type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -43,7 +43,7 @@ export default function TripDetailPage() {
           onClick={() => navigate('/app/viagens')}
           aria-label="Voltar"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeftIcon className="h-4 w-4" />
         </Button>
         <div className="flex-1">
           <h1 className="font-display text-2xl font-bold tracking-tight">
@@ -92,7 +92,7 @@ export default function TripDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
-              <MapPin className="h-4 w-4 text-primary" />O acompanhamento em mapa em tempo real
+              <MapPinIcon className="h-4 w-4 text-primary" />O acompanhamento em mapa em tempo real
               ficará disponível com a integração de rastreamento.
             </div>
           </CardContent>

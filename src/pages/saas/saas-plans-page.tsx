@@ -1,4 +1,4 @@
-import { Users2, Truck } from 'lucide-react';
+import { TruckIcon, UsersIcon } from '@/components/icons';
 
 import { PLAN_DEFINITIONS } from '@/app/plans';
 import { PageHeader } from '@/components/layout/page-header';
@@ -38,11 +38,11 @@ export default function SaasPlansPage() {
                 </p>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
-                    <Truck className="h-4 w-4" />
+                    <TruckIcon className="h-4 w-4" />
                     {formatNumber(def.vehicleLimit)} veículos
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Users2 className="h-4 w-4" />
+                    <UsersIcon className="h-4 w-4" />
                     {formatNumber(def.userLimit)} usuários
                   </span>
                 </div>

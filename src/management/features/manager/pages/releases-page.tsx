@@ -1,4 +1,4 @@
-import { ClockIcon, TruckIcon, UserIcon } from '@phosphor-icons/react';
+import { ClockIcon, TruckIcon, UserIcon } from '@/components/icons';
 import type { ReleaseRequest } from '@/management/types';
 import { GlassCard, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -79,12 +79,7 @@ export function ReleasesPage() {
         <h2 className="sr-only">Situação da fila</h2>
 
         <GlassCard className="flex flex-wrap items-center gap-4 p-5 sm:p-6">
-          <ClockIcon
-            size={28}
-            weight="duotone"
-            className="text-primary shrink-0"
-            aria-hidden="true"
-          />
+          <ClockIcon size={28} className="text-primary shrink-0" aria-hidden="true" />
 
           <div className="min-w-0 flex-1">
             <p className="text-on-surface text-body-lg">
@@ -143,7 +138,6 @@ export function ReleasesPage() {
                             <span className="flex items-start gap-2">
                               <Icon
                                 size={18}
-                                weight="duotone"
                                 aria-hidden="true"
                                 className={cn(
                                   'mt-0.5 shrink-0',

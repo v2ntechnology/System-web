@@ -1,4 +1,4 @@
-import { MedalIcon } from '@phosphor-icons/react';
+import { MedalIcon } from '@/components/icons';
 import type { FleetProfitability } from '@/management/types';
 import { DataTable, LightCard, StatusChip, cn, type Column } from '@/management/ui';
 import { useState } from 'react';
@@ -135,7 +135,6 @@ export function FleetProfitabilityCard({
                     {medal ? (
                       <MedalIcon
                         size={18}
-                        weight="fill"
                         className={cn('shrink-0', medal.color)}
                         aria-label={medal.label}
                       />

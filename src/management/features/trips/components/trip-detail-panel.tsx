@@ -1,4 +1,4 @@
-import { ArrowRightIcon, MapPinIcon, PackageIcon, UserIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon, MapPinIcon, PackageIcon, UserIcon } from '@/components/icons';
 import type { Trip } from '@/management/types';
 import { StatusChip, cn } from '@/management/ui';
 
@@ -35,9 +35,9 @@ export function TripDetailPanel({ trip }: { trip: Trip }) {
             {trip.code}
           </h3>
           <p className="text-on-surface-variant text-body-md mt-1 flex flex-wrap items-center gap-2">
-            <MapPinIcon size={14} weight="duotone" aria-hidden="true" />
+            <MapPinIcon size={14} aria-hidden="true" />
             {trip.origin}
-            <ArrowRightIcon size={12} weight="bold" aria-hidden="true" />
+            <ArrowRightIcon size={12} aria-hidden="true" />
             {trip.destination}
           </p>
         </div>
@@ -64,12 +64,12 @@ export function TripDetailPanel({ trip }: { trip: Trip }) {
           {
             label: 'Motorista',
             value: trip.driverName,
-            icon: <UserIcon size={14} weight="duotone" />,
+            icon: <UserIcon size={14} />,
           },
           { label: 'Veículo', value: trip.plate, icon: null },
-          { label: 'Carga', value: trip.cargo, icon: <PackageIcon size={14} weight="duotone" /> },
+          { label: 'Carga', value: trip.cargo, icon: <PackageIcon size={14} /> },
         ].map((field) => (
-          <div key={field.label} className="bg-white/4 min-w-0 rounded-md p-3">
+          <div key={field.label} className="bg-on-surface/4 min-w-0 rounded-md p-3">
             <dt className="text-on-surface-muted text-label-md flex items-center gap-1.5 normal-case">
               {field.icon}
               {field.label}
@@ -130,7 +130,7 @@ export function TripDetailPanel({ trip }: { trip: Trip }) {
                         : 'bg-surface-high text-on-surface-muted',
                     )}
                   >
-                    <Icon size={15} weight="fill" />
+                    <Icon size={15} />
                   </span>
                   {index < all.length - 1 ? (
                     <span

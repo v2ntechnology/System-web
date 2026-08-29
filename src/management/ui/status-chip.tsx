@@ -21,8 +21,10 @@ export interface StatusChipProps {
  */
 const TONES: Record<StatusTone, { dark: string; light: string }> = {
   neutral: {
-    dark: 'bg-white/8 text-on-surface-variant',
-    light: 'bg-black/6 text-on-light-variant',
+    dark: 'bg-on-surface/8 text-on-surface-variant',
+    /* `on-light` e não preto fixo: o painel acompanha o tema, e um véu preto
+       sobre ele no escuro não aparece. */
+    light: 'bg-on-light/8 text-on-light-variant',
   },
   positive: {
     dark: 'bg-success/15 text-success',

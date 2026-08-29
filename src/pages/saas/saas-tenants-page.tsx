@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRightIcon } from '@/components/icons';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -52,7 +52,7 @@ export default function SaasTenantsPage() {
       id: 'actions',
       header: '',
       align: 'right',
-      cell: () => <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />,
+      cell: () => <ChevronRightIcon className="ml-auto h-4 w-4 text-muted-foreground" />,
     },
   ];
 

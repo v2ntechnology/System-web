@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { BellIcon } from '@/components/icons';
 import { Link } from 'react-router';
 
 import { SeverityBadge } from '@/components/shared/status-badge';
@@ -25,15 +25,17 @@ export function NotificationMenu() {
         <Button
           variant="ghost"
           size="icon"
-          // O `size-4` que o Button aplica a todo svg vence a classe do ícone; o tamanho do sino tem que vir daqui.
-          className="relative h-10 w-10 rounded-full [&_svg]:size-[22px]"
+          /* O `size-4` que o Button aplica a todo svg vence a classe do ícone; o tamanho do sino
+             tem que vir daqui. E `shrink-0` porque a busca ao lado espremia o botão para 26px de
+             largura: o realce do hover saía oval, e não o círculo do painel de gestão. */
+          className="relative h-10 w-10 shrink-0 rounded-full [&_svg]:size-[22px]"
           aria-label={
             openAlerts.length > 0
               ? `Notificações: ${openAlerts.length} ativas`
               : 'Notificações: nenhuma ativa'
           }
         >
-          <Bell />
+          <BellIcon />
           {openAlerts.length > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold leading-none text-destructive-foreground ring-2 ring-background">
               {badge}

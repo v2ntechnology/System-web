@@ -1,4 +1,10 @@
-import { Building2, Plug, TrendingUp, Truck, Users } from 'lucide-react';
+import {
+  CompanyIcon,
+  IntegrationIcon,
+  TrendUpIcon,
+  TruckIcon,
+  UsersIcon,
+} from '@/components/icons';
 import { Link } from 'react-router';
 
 import { ChartCard, SimpleBarChart } from '@/components/shared/charts';
@@ -36,15 +42,20 @@ export default function SaasDashboardPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <InfoCard label="Empresas" value={total} icon={Building2} />
+        <InfoCard label="Empresas" value={total} icon={CompanyIcon} />
         <InfoCard
           label="Receita recorrente (MRR)"
           value={formatCurrency(mrr)}
-          icon={TrendingUp}
+          icon={TrendUpIcon}
           accent="success"
         />
-        <InfoCard label="Usuários ativos" value={formatNumber(users)} icon={Users} accent="info" />
-        <InfoCard label="Veículos monitorados" value={formatNumber(vehicles)} icon={Truck} />
+        <InfoCard
+          label="Usuários ativos"
+          value={formatNumber(users)}
+          icon={UsersIcon}
+          accent="info"
+        />
+        <InfoCard label="Veículos monitorados" value={formatNumber(vehicles)} icon={TruckIcon} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -65,7 +76,7 @@ export default function SaasDashboardPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Consumo de integrações</CardTitle>
-            <Plug className="h-4 w-4 text-muted-foreground" />
+            <IntegrationIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="space-y-3">
             {[

@@ -1,4 +1,4 @@
-import { ChartLineIcon, TableIcon } from '@phosphor-icons/react';
+import { ChartIcon, TableIcon } from '@/components/icons';
 import type { ReactNode } from 'react';
 
 /**
@@ -23,7 +23,7 @@ export function ChartViewToggle({ asTable, onToggle }: { asTable: boolean; onTog
       aria-pressed={asTable}
       className="border-light-outline text-on-light-variant hover:bg-light-container focus-visible:ring-primary-on-light text-label-md flex items-center gap-2 rounded-md border px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2"
     >
-      {asTable ? <ChartLineIcon size={16} /> : <TableIcon size={16} />}
+      {asTable ? <ChartIcon size={16} /> : <TableIcon size={16} />}
       {asTable ? 'Ver gráfico' : 'Ver tabela'}
     </button>
   );

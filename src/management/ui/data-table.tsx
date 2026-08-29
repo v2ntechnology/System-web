@@ -1,4 +1,4 @@
-import { CaretDownIcon, CaretUpIcon } from '@phosphor-icons/react';
+import { ChevronDownIcon, ChevronUpIcon } from '@/components/icons';
 import { useMemo, useState, type ReactNode } from 'react';
 import { cn } from './lib/cn';
 
@@ -101,9 +101,9 @@ export function DataTable<T>({
                       {column.header}
                       {active ? (
                         sort.dir === 'asc' ? (
-                          <CaretUpIcon size={12} weight="bold" />
+                          <ChevronUpIcon size={12} />
                         ) : (
-                          <CaretDownIcon size={12} weight="bold" />
+                          <ChevronDownIcon size={12} />
                         )
                       ) : null}
                     </button>

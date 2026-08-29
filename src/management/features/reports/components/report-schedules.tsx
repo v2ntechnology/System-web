@@ -1,4 +1,4 @@
-import { EnvelopeSimpleIcon, PlusIcon, RepeatIcon } from '@phosphor-icons/react';
+import { MailIcon, PlusIcon, RepeatIcon } from '@/components/icons';
 import type { ScheduleFrequency } from '@/management/types';
 import { Spinner, StatusChip } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -62,7 +62,7 @@ export function ReportSchedules() {
           }
           className="bg-primary-strong text-on-primary text-label-md focus-visible:ring-primary-on-light inline-flex shrink-0 items-center gap-1.5 rounded-md px-4 py-2.5 normal-case transition-opacity hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
         >
-          <PlusIcon size={16} weight="bold" aria-hidden="true" />
+          <PlusIcon size={16} aria-hidden="true" />
           Novo agendamento
         </button>
       </div>
@@ -75,7 +75,7 @@ export function ReportSchedules() {
                 <h3 className="text-on-surface font-semibold">{schedule.reportTitle}</h3>
                 <p className="text-on-surface-variant text-body-md mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="flex items-center gap-1.5">
-                    <RepeatIcon size={14} weight="duotone" aria-hidden="true" />
+                    <RepeatIcon size={14} aria-hidden="true" />
                     {FREQUENCY[schedule.frequency]} · {schedule.format}
                   </span>
                   <span className="tabular text-on-surface-muted text-label-md normal-case">
@@ -90,12 +90,7 @@ export function ReportSchedules() {
             </div>
 
             <div className="border-outline-variant mt-auto flex flex-wrap items-center gap-2 border-t pt-3">
-              <EnvelopeSimpleIcon
-                size={14}
-                weight="duotone"
-                className="text-on-surface-muted"
-                aria-hidden="true"
-              />
+              <MailIcon size={14} className="text-on-surface-muted" aria-hidden="true" />
               <span className="text-on-surface-muted text-label-md normal-case">
                 {schedule.recipients.length === 1
                   ? 'Destinatário:'

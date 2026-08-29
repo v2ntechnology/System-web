@@ -1,8 +1,9 @@
-import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ComponentType, type ReactNode } from 'react';
 import { Navigate, useLocation, useRoutes, type RouteObject } from 'react-router';
 
 import { APP_NAVIGATION, SAAS_NAVIGATION } from '@/app/navigation';
 import { HUB_ROLES, landingForRole, usesManagementPanel } from '@/app/permissions';
+import { connectSession } from '@/app/session-bootstrap';
 import { AppShell } from '@/components/layout/app-shell';
 import { NoAccessState, LoadingState } from '@/components/shared/states';
 import { usePermissions, useSession } from '@/hooks/use-session';
@@ -54,6 +55,19 @@ function lazyElement(factory: () => Promise<{ default: ComponentType }>) {
  * depois. O resultado seria um pisca a cada F5.
  */
 function RestoringSession() {
+  /*
+   * Pede a recuperação de novo ao aparecer.
+   *
+   * ⚠️ Não é redundante com o `AppProviders`. Em desenvolvimento, editar
+   * `services/http` derruba `services/auth` e o `session-store` junto: nasce um
+   * store novo em `restoring`, e o efeito do provider já rodou e não roda de
+   * novo. Sem isto a tela fica parada aqui até um F5. `connectSession` é
+   * idempotente, então em produção esta chamada não faz nada.
+   */
+  useEffect(() => {
+    connectSession();
+  }, []);
+
   return (
     <div className="fixed inset-0 grid place-items-center">
       <LoadingState label="Retomando sua sessão…" />

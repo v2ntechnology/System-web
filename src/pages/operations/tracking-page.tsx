@@ -1,4 +1,4 @@
-import { Clock, MapPin } from 'lucide-react';
+import { ClockIcon, MapPinIcon } from '@/components/icons';
 import { useMemo, useState } from 'react';
 
 import { OperationMap } from '@/components/shared/operation-map';
@@ -12,6 +12,10 @@ import { useVehicles } from '@/hooks/use-queries';
 import { cn } from '@/lib/utils';
 import { vehicleStatusDescriptor } from '@/lib/status-maps';
 import type { MapVehicleMarker, Vehicle } from '@/types';
+
+/* Desconto do topbar, do respiro da página e do cabeçalho da tela. */
+const MAP_HEIGHT = 'h-[calc(100svh-17rem)] min-h-[26rem]';
+const PANEL_HEIGHT = 'max-h-[calc(100svh-17rem)] min-h-[26rem]';
 
 export default function TrackingPage() {
   const { data, isLoading } = useVehicles({ pageSize: 100 });
@@ -48,7 +52,10 @@ export default function TrackingPage() {
         <LoadingState label="Carregando frota…" />
       ) : (
         <div className="grid gap-4 lg:grid-cols-[280px_1fr_300px]">
-          <Card className="order-2 flex max-h-[520px] flex-col lg:order-1">
+          {/* Altura pela janela, e não fixa em 520px: numa tela grande sobrava
+              meia tela vazia embaixo do mapa. O mínimo garante o mapa utilizável
+              em notebook. */}
+          <Card className={cn('order-2 flex flex-col lg:order-1', PANEL_HEIGHT)}>
             <CardHeader className="pb-3">
               <SearchInput
                 value={search}
@@ -87,11 +94,11 @@ export default function TrackingPage() {
               markers={markers}
               selectedId={selectedId}
               onSelect={(m) => setSelectedId(m.id)}
-              heightClassName="h-[520px]"
+              heightClassName={MAP_HEIGHT}
             />
           </div>
 
-          <Card className="order-3 max-h-[520px] overflow-y-auto">
+          <Card className={cn('order-3 overflow-y-auto', PANEL_HEIGHT)}>
             <CardHeader>
               <CardTitle className="text-base">
                 {selected ? `Veículo ${selected.plate}` : 'Detalhes'}
@@ -102,7 +109,7 @@ export default function TrackingPage() {
                 <div className="space-y-4">
                   <div className="space-y-1 text-sm">
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-primary" />
+                      <MapPinIcon className="h-4 w-4 text-primary" />
                       {selected.lastPosition?.city}/{selected.lastPosition?.state}
                     </div>
                     <p className="text-muted-foreground">
@@ -130,7 +137,7 @@ export default function TrackingPage() {
                           <span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full bg-primary" />
                           <p className="font-medium">{event}</p>
                           <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
+                            <ClockIcon className="h-3 w-3" />
                             {`0${7 + i}:${i * 12 + 10}`.replace(/:(\d)$/, ':0$1')}
                           </p>
                         </li>

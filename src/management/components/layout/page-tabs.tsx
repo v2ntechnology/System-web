@@ -36,7 +36,7 @@ export function PageTabs<T extends string>({
     <TabsPrimitive.Root value={value} onValueChange={(next) => onValueChange(next as T)}>
       <TabsPrimitive.List
         aria-label={label}
-        className="bg-surface-lowest mx-auto -mt-14 mb-8 flex w-fit max-w-full gap-2 overflow-x-auto rounded-xl p-2 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.9)] sm:-mt-16"
+        className="bg-surface-lowest mx-auto -mt-14 mb-8 flex w-fit max-w-full gap-2 overflow-x-auto rounded-xl p-2 sm:-mt-16"
       >
         {tabs.map((tab) => (
           <TabsPrimitive.Trigger
@@ -44,7 +44,7 @@ export function PageTabs<T extends string>({
             value={tab.id}
             className={cn(
               'text-body-md focus-visible:ring-secondary shrink-0 rounded-md px-5 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2',
-              'text-on-surface-variant hover:text-on-surface hover:bg-white/8',
+              'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/8',
               'data-[state=active]:bg-primary-strong data-[state=active]:text-on-primary data-[state=active]:font-medium',
             )}
           >

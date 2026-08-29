@@ -1,4 +1,4 @@
-import { MedalIcon, SealCheckIcon } from '@phosphor-icons/react';
+import { BadgeCheckIcon, MedalIcon } from '@/components/icons';
 import type { DriverHighlight, RankingPeriod } from '@/management/types';
 import { Avatar, LightCard, cn } from '@/management/ui';
 
@@ -114,12 +114,7 @@ export function DriverHighlightsCard({
                   </span>
 
                   {medal ? (
-                    <MedalIcon
-                      size={24}
-                      weight="fill"
-                      className={medal.color}
-                      aria-label={medal.label}
-                    />
+                    <MedalIcon size={24} className={medal.color} aria-label={medal.label} />
                   ) : (
                     <span className="w-6" aria-hidden="true" />
                   )}
@@ -133,7 +128,7 @@ export function DriverHighlightsCard({
                       key={badge}
                       className="rounded-pill text-label-md bg-success-on-light/12 text-success-on-light inline-flex items-center gap-1.5 px-2.5 py-1 normal-case"
                     >
-                      <SealCheckIcon size={14} weight="fill" aria-hidden="true" />
+                      <BadgeCheckIcon size={14} aria-hidden="true" />
                       {badge}
                     </li>
                   ))}

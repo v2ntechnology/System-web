@@ -1,4 +1,4 @@
-import { MedalIcon } from '@phosphor-icons/react';
+import { MedalIcon } from '@/components/icons';
 import type { DriverRanking } from '@/management/types';
 import { Avatar, LightCard, cn } from '@/management/ui';
 
@@ -44,12 +44,7 @@ export function TopDriversCard({ drivers, className }: TopDriversCardProps) {
                   {driver.score}
                 </span>
                 {medal ? (
-                  <MedalIcon
-                    size={28}
-                    weight="fill"
-                    className={cn(medal.color)}
-                    aria-label={medal.label}
-                  />
+                  <MedalIcon size={28} className={cn(medal.color)} aria-label={medal.label} />
                 ) : null}
               </div>
             </li>

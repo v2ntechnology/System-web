@@ -179,7 +179,21 @@ const MANAGER_NAV: NavEntry[] = [
     label: 'Pessoas',
     items: [
       { to: '/gestao/equipe', label: 'Equipe', hint: 'Quadro completo e quem pode rodar hoje' },
-      { to: '/gestao/motoristas', label: 'Motoristas', hint: 'Ficha, score e advertências' },
+      {
+        /* ⚠️ `end` aqui, e não só no filho. `isItemActive` casa por prefixo
+           quando `end` é falso, então sem isto "Motoristas" acenderia junto com
+           "Cadastrar motorista": dois itens ativos ao mesmo tempo no menu. */
+        to: '/gestao/motoristas',
+        label: 'Motoristas',
+        hint: 'Ficha, score e advertências',
+        end: true,
+      },
+      {
+        to: '/gestao/motoristas/cadastro',
+        label: 'Cadastro',
+        hint: 'Quem a telemetria entrega, e quem já foi conferido por uma pessoa',
+        end: true,
+      },
       {
         to: '/gestao/seguranca',
         label: 'Segurança',

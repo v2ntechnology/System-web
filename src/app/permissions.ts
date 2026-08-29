@@ -105,6 +105,17 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 /** Perfis que passam pela hub de escolha (IA ou sistema) depois do login. */
 export const HUB_ROLES: UserRole[] = ['OWNER', 'MANAGER', 'SUPER_ADMIN'];
 
+/**
+ * Quem enxerga o atalho de troca de perfil e plano da demonstração.
+ *
+ * Decisão do usuário em 20/08/2026: quem trabalha no pátio não vê. Operador e
+ * manutenção entram no sistema para lançar documento e cuidar de veículo, e um
+ * seletor que troca o próprio perfil no meio disso só confunde.
+ */
+export function canUseDemoControls(role: UserRole): boolean {
+  return role !== 'OPERATOR' && role !== 'MAINTENANCE';
+}
+
 /** Perfis cujo sistema é o painel de gestão (`/gestao`), e não o operacional. */
 export function usesManagementPanel(role: UserRole): boolean {
   return role === 'OWNER' || role === 'MANAGER' || role === 'SUPER_ADMIN';

@@ -1,31 +1,28 @@
-import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
+import { lazy, type ComponentType, type ReactNode } from 'react';
 import { Navigate, type RouteObject } from 'react-router';
 
 import { ManagementLayout } from '@/management/components/layout/management-layout';
 import { useSession } from '@/management/features/auth/store';
 import type { Role } from '@/management/types';
-import { Spinner } from '@/management/ui';
 
 /* -------------------------------------------------------------------------- */
 /* Carregamento sob demanda                                                    */
 /* -------------------------------------------------------------------------- */
 
-function RouteFallback() {
-  return (
-    <div className="text-on-surface-muted flex min-h-dvh items-center justify-center">
-      <Spinner className="size-6" />
-    </div>
-  );
-}
-
-/** Igual ao `lazyElement` do router principal, mas com o fallback do painel. */
+/**
+ * ⚠️ **Sem `Suspense` aqui.** O limite é único e mora no `ManagementLayout`, em
+ * volta do `Outlet`.
+ *
+ * A diferença não é cosmética: um `Suspense` por rota é um limite **novo** a cada
+ * navegação, e limite novo obriga o React a pintar o fallback na hora, mesmo
+ * dentro da transição do React Router. A tela inteira sumia (banner, navegação e
+ * conteúdo) e voltava, o que se lia como um piscar branco. Com um limite só, que
+ * já existe antes da troca, o React segura a tela anterior até a próxima estar
+ * pronta — que é o comportamento do painel operacional.
+ */
 function lazyElement(factory: () => Promise<{ default: ComponentType }>) {
   const Component = lazy(factory);
-  return (
-    <Suspense fallback={<RouteFallback />}>
-      <Component />
-    </Suspense>
-  );
+  return <Component />;
 }
 
 /** Atalho para as telas do painel, que usam exportação nomeada. */
@@ -99,14 +96,7 @@ export const managementRoutes: RouteObject = {
   path: '/gestao',
   element: <ManagementLayout />,
   children: [
-    {
-      index: true,
-      element: (
-        <Suspense fallback={<RouteFallback />}>
-          <RoleHome />
-        </Suspense>
-      ),
-    },
+    { index: true, element: <RoleHome /> },
 
     /* Telas exclusivas do proprietário. */
     {
@@ -225,6 +215,23 @@ export const managementRoutes: RouteObject = {
       element: page(
         () => import('@/management/features/drivers/pages/drivers-page'),
         'DriversPage',
+      ),
+    },
+    {
+      /*
+       * Cadastro de pessoa, e não de veículo. A distinção está no
+       * `DriverRegistryService`. Fica na alçada do gestor, que é quem responde
+       * pelo quadro de motoristas; o backend aceita o proprietário também, para
+       * não trancar o dono fora do próprio cadastro de pessoal.
+       */
+      path: 'motoristas/cadastro',
+      element: (
+        <RoleRoute allow={OWNER_AND_MANAGER}>
+          {page(
+            () => import('@/management/features/drivers/pages/driver-registry-page'),
+            'DriverRegistryPage',
+          )}
+        </RoleRoute>
       ),
     },
     {

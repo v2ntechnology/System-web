@@ -1,16 +1,16 @@
 import {
-  Bell,
-  Building2,
-  MapPin,
-  Monitor,
-  Moon,
-  Palette,
-  ScrollText,
-  ShieldCheck,
-  Sun,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
+  BellIcon,
+  CompanyIcon,
+  MapPinIcon,
+  MonitorIcon,
+  MoonIcon,
+  PaletteIcon,
+  ReportIcon,
+  ShieldCheckIcon,
+  SunIcon,
+  UsersIcon,
+} from '@/components/icons';
+import type { IconType } from '@/components/icons';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -75,19 +75,19 @@ const ALERT_PREFERENCES = [
   { id: 'fuel', label: 'Anomalia de combustível', checked: true },
 ];
 
-const THEME_OPTIONS: { value: Theme; label: string; icon: typeof Sun }[] = [
-  { value: 'dark', label: 'Escuro', icon: Moon },
-  { value: 'light', label: 'Claro', icon: Sun },
+const THEME_OPTIONS: { value: Theme; label: string; icon: typeof SunIcon }[] = [
+  { value: 'dark', label: 'Escuro', icon: MoonIcon },
+  { value: 'light', label: 'Claro', icon: SunIcon },
 ];
 
-const SECTIONS: { value: string; label: string; icon: LucideIcon }[] = [
-  { value: 'company', label: 'Empresa', icon: Building2 },
-  { value: 'users', label: 'Usuários', icon: Users },
-  { value: 'units', label: 'Unidades', icon: MapPin },
-  { value: 'alerts', label: 'Alertas', icon: Bell },
-  { value: 'appearance', label: 'Aparência', icon: Palette },
-  { value: 'security', label: 'Segurança', icon: ShieldCheck },
-  { value: 'audit', label: 'Auditoria', icon: ScrollText },
+const SECTIONS: { value: string; label: string; icon: IconType }[] = [
+  { value: 'company', label: 'Empresa', icon: CompanyIcon },
+  { value: 'users', label: 'Usuários', icon: UsersIcon },
+  { value: 'units', label: 'Unidades', icon: MapPinIcon },
+  { value: 'alerts', label: 'Alertas', icon: BellIcon },
+  { value: 'appearance', label: 'Aparência', icon: PaletteIcon },
+  { value: 'security', label: 'Segurança', icon: ShieldCheckIcon },
+  { value: 'audit', label: 'Auditoria', icon: ReportIcon },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -308,7 +308,7 @@ export default function SettingsPage() {
                       );
                     })}
                     <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                      <Monitor className="h-5 w-5" />
+                      <MonitorIcon className="h-5 w-5" />
                       Sistema (em breve)
                     </div>
                   </div>
@@ -324,7 +324,7 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="text-sm">
                   <div className="flex items-start gap-3 rounded-md border border-border p-3">
-                    <ShieldCheck className="mt-0.5 h-4 w-4 text-success" />
+                    <ShieldCheckIcon className="mt-0.5 h-4 w-4 text-success" />
                     <div>
                       <p className="font-medium">Autenticação em duas etapas</p>
                       <p className="text-muted-foreground">

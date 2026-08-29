@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRightIcon } from '@/components/icons';
 import { Link } from 'react-router';
 
 import { SeverityBadge } from '@/components/shared/status-badge';
@@ -17,7 +17,7 @@ export function RecentAlerts({ alerts }: { alerts: OperationAlert[] }) {
           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
         >
           Ver todos
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRightIcon className="h-3.5 w-3.5" />
         </Link>
       </CardHeader>
       <CardContent className="flex-1 space-y-2">

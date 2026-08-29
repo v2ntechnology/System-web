@@ -1,5 +1,5 @@
+import { ChevronDownIcon, LockIcon } from '@/components/icons';
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
-import { CaretDownIcon, LockSimpleIcon } from '@phosphor-icons/react';
 import { cn } from '@/management/ui';
 import { NavLink, useLocation } from 'react-router';
 
@@ -11,7 +11,13 @@ const triggerClass =
   'rounded-pill text-body-md focus-visible:ring-secondary focus-visible:ring-offset-background flex items-center gap-1 px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 const activeClass = 'bg-primary-strong text-on-primary font-medium';
-const idleClass = 'text-on-surface-variant hover:text-on-surface hover:bg-white/10';
+
+/*
+ * A barra flutua sobre a foto do banner, que é escura nos dois temas: aqui o
+ * texto usa `on-media`, não `on-surface`. Com `on-surface` o item inativo virava
+ * cinza-escuro sobre a imagem no tema claro e sumia.
+ */
+const idleClass = 'text-on-media-variant hover:text-on-media hover:bg-white/10';
 
 /**
  * Navegação principal do painel.
@@ -57,9 +63,7 @@ export function AppNav() {
                     className={cn(triggerClass, active ? activeClass : idleClass)}
                   >
                     {entry.label}
-                    {isLocked(entry) ? (
-                      <LockSimpleIcon size={13} weight="fill" aria-label="Não contratado" />
-                    ) : null}
+                    {isLocked(entry) ? <LockIcon size={13} aria-label="Não contratado" /> : null}
                   </NavLink>
                 </NavigationMenu.Link>
               </NavigationMenu.Item>
@@ -75,9 +79,8 @@ export function AppNav() {
                 className={cn(triggerClass, groupActive ? activeClass : idleClass, 'group')}
               >
                 {entry.label}
-                <CaretDownIcon
+                <ChevronDownIcon
                   size={12}
-                  weight="bold"
                   aria-hidden="true"
                   className="transition-transform group-data-[state=open]:rotate-180"
                 />
@@ -101,7 +104,7 @@ export function AppNav() {
                             to={item.to}
                             className={cn(
                               'focus-visible:ring-secondary block rounded-md px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2',
-                              active ? 'bg-primary-strong' : 'hover:bg-white/8',
+                              active ? 'bg-primary-strong' : 'hover:bg-on-surface/8',
                             )}
                           >
                             <span
@@ -112,9 +115,8 @@ export function AppNav() {
                             >
                               {item.label}
                               {locked ? (
-                                <LockSimpleIcon
+                                <LockIcon
                                   size={13}
-                                  weight="fill"
                                   aria-label="Não contratado"
                                   className={active ? '' : 'text-warning'}
                                 />
@@ -156,7 +158,7 @@ export function AppNavMobile({ onNavigate }: { onNavigate: () => void }) {
       'focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-2',
       isActive
         ? 'bg-primary-strong text-on-primary font-medium'
-        : 'text-on-surface-variant hover:bg-white/8',
+        : 'text-on-surface-variant hover:bg-on-surface/8',
     );
 
   return (
@@ -169,9 +171,7 @@ export function AppNavMobile({ onNavigate }: { onNavigate: () => void }) {
               <NavLink key={item.to} to={item.to} onClick={onNavigate} className={linkClass}>
                 <span className="flex items-center gap-2">
                   {item.label}
-                  {isLocked(item) ? (
-                    <LockSimpleIcon size={13} weight="fill" aria-label="Não contratado" />
-                  ) : null}
+                  {isLocked(item) ? <LockIcon size={13} aria-label="Não contratado" /> : null}
                 </span>
               </NavLink>
             ))}

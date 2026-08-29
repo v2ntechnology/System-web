@@ -10,17 +10,23 @@ export interface LightCardProps extends ComponentPropsWithoutRef<'section'> {
 }
 
 /**
- * Painel claro do dashboard (Figma).
+ * Painel do dashboard (Figma).
  *
- * Inverte a lógica do login — claro sobre grafite — e por isso NÃO usa `.glass`.
- * Todo texto interno precisa usar os tokens `on-light-*`; `on-surface-*` é
- * praticamente invisível aqui.
+ * ⚠️ O nome é herança: era o painel **claro** sobre o grafite. Desde 19/08/2026
+ * ele acompanha o tema (ver `--color-light` em `palette.css`), então é o card
+ * escuro no tema escuro e o branco no claro. Não usa `.glass` de propósito: é
+ * superfície sólida, e o vidro pertence aos blocos de indicador.
+ *
+ * Todo texto interno usa os tokens `on-light-*`, que invertem junto.
  */
 export function LightCard({ title, action, children, className, ...props }: LightCardProps) {
   return (
     <section
       className={cn(
-        'bg-light rounded-xl p-5 shadow-[0_18px_50px_-30px_rgba(0,0,0,0.8)] sm:p-6',
+        /* `ring-light-edge` é transparente no tema escuro, onde o contraste com o
+           grafite já basta, e vira um traço no claro, onde o card branco encostaria
+           no fundo sem nenhuma divisa. */
+        'bg-light ring-light-edge rounded-xl p-5 ring-1 sm:p-6',
         // `min-w-0`: item de grid tem `min-width: auto` e se recusa a encolher abaixo
         // do conteúdo — sem isso o card estoura o viewport no mobile.
         // `flex flex-col`: permite que o conteúdo estique até o fim do card quando a

@@ -1,4 +1,4 @@
-import { ArrowLeft, Gauge, MapPin, Wrench } from 'lucide-react';
+import { ArrowLeftIcon, GaugeIcon, MaintenanceIcon, MapPinIcon } from '@/components/icons';
 import { type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -91,7 +91,7 @@ export default function VehicleDetailPage() {
           onClick={() => navigate('/app/veiculos')}
           aria-label="Voltar"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeftIcon className="h-4 w-4" />
         </Button>
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <div>
@@ -113,7 +113,7 @@ export default function VehicleDetailPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <Gauge className="h-5 w-5 text-primary" />
+            <GaugeIcon className="h-5 w-5 text-primary" />
             <div>
               <p className="font-display text-xl font-bold">{formatKm(vehicle.mileageKm)}</p>
               <p className="text-xs text-muted-foreground">Quilometragem atual</p>
@@ -122,7 +122,7 @@ export default function VehicleDetailPage() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <Wrench className="h-5 w-5 text-warning" />
+            <MaintenanceIcon className="h-5 w-5 text-warning" />
             <div>
               <p className="font-display text-xl font-bold">
                 {vehicle.nextMaintenanceDate ? formatDate(vehicle.nextMaintenanceDate) : '—'}
@@ -133,7 +133,7 @@ export default function VehicleDetailPage() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-3 pt-6">
-            <MapPin className="h-5 w-5 text-accent" />
+            <MapPinIcon className="h-5 w-5 text-accent" />
             <div>
               <p className="font-display text-xl font-bold">
                 {vehicle.lastPosition
@@ -209,7 +209,7 @@ export default function VehicleDetailPage() {
 
         <TabsContent value="telemetry">
           <EmptyState
-            icon={Gauge}
+            icon={GaugeIcon}
             title="Telemetria em tempo real"
             description="Os dados de telemetria (RPM, temperatura, freio motor, posição) serão exibidos aqui quando a integração de telemetria estiver conectada."
           />

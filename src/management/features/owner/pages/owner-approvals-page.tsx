@@ -1,4 +1,4 @@
-import { GavelIcon } from '@phosphor-icons/react';
+import { ApprovalIcon } from '@/components/icons';
 import type { OwnerApproval } from '@/management/types';
 import { GlassCard, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -75,12 +75,7 @@ export function OwnerApprovalsPage() {
         <h2 className="sr-only">Situação da fila</h2>
 
         <GlassCard className="flex flex-wrap items-center gap-4 p-5 sm:p-6">
-          <GavelIcon
-            size={28}
-            weight="duotone"
-            className="text-primary shrink-0"
-            aria-hidden="true"
-          />
+          <ApprovalIcon size={28} className="text-primary shrink-0" aria-hidden="true" />
 
           <div className="min-w-0 flex-1">
             <p className="text-on-surface text-body-lg">
@@ -137,7 +132,6 @@ export function OwnerApprovalsPage() {
                             <span className="flex items-start gap-2">
                               <kind.icon
                                 size={18}
-                                weight="duotone"
                                 aria-hidden="true"
                                 className={cn(
                                   'mt-0.5 shrink-0',

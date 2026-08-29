@@ -1,4 +1,4 @@
-import { CalendarDays, Search, X } from 'lucide-react';
+import { CalendarIcon, CloseIcon, SearchIcon } from '@/components/icons';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Input } from '@/components/ui/input';
@@ -57,7 +57,7 @@ export function SearchInput({
 
   return (
     <div className={cn('relative', className)}>
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={local}
         onChange={(e) => setLocal(e.target.value)}
@@ -75,7 +75,7 @@ export function SearchInput({
           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
           aria-label="Limpar busca"
         >
-          <X className="h-4 w-4" />
+          <CloseIcon className="h-4 w-4" />
         </button>
       )}
     </div>
@@ -101,7 +101,7 @@ export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as DateRangePreset)}>
       <SelectTrigger className="w-[190px]" aria-label="Selecionar período">
-        <CalendarDays className="h-4 w-4 text-muted-foreground" />
+        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

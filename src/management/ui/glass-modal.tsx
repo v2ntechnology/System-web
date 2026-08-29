@@ -1,6 +1,6 @@
+import { CloseIcon } from '@/components/icons';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { XIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { cn } from './lib/cn';
 
@@ -37,6 +37,20 @@ export function GlassModal({
         <DialogPrimitive.Overlay className="data-[state=open]:animate-in data-[state=open]:fade-in-0 fixed inset-0 z-[1100] bg-black/70 backdrop-blur-sm" />
         <DialogPrimitive.Content
           className={cn(
+            /*
+             * ⚠️ `management-theme` no próprio conteúdo, e não só num ancestral.
+             *
+             * O portal do Radix monta no `body`, FORA do escopo que a
+             * `ManagementLayout` abre. Sem esta classe, todo token redefinido
+             * pelo painel volta ao valor do painel operacional lá dentro: o
+             * `SpectrumButton` na variante `secondary` perdia o cyan e ficava
+             * com texto `#00212b` sobre cinza escuro, 1,43:1 (medido em
+             * 27/08/2026, relatado pelo usuário como "o texto some").
+             *
+             * Vale para tudo que o diálogo contém, e não para uma classe de
+             * botão: era o escopo que estava faltando, não a cor.
+             */
+            'management-theme',
             /* Acima da topbar (z-1000): um diálogo modal cobre a navegação, não o contrário. */
             'fixed left-1/2 top-1/2 z-[1101] -translate-x-1/2 -translate-y-1/2',
             'flex max-h-[85dvh] w-[calc(100vw-2rem)] max-w-3xl flex-col overflow-hidden',
@@ -45,7 +59,7 @@ export function GlassModal({
              * conteúdo da página atravessar o texto do diálogo. Um modal precisa de
              * base opaca — o blur fica para a borda e para o overlay.
              */
-            'bg-surface-low/95 border-white/12 rounded-lg border backdrop-blur-2xl',
+            'bg-surface-low/95 border-on-surface/12 rounded-lg border backdrop-blur-2xl',
             'shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)] focus:outline-none',
             className,
           )}
@@ -73,9 +87,9 @@ export function GlassModal({
 
             <DialogPrimitive.Close
               aria-label="Fechar"
-              className="text-on-surface-muted hover:text-on-surface rounded-pill focus-visible:ring-secondary ml-auto flex size-9 shrink-0 items-center justify-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2"
+              className="text-on-surface-muted hover:text-on-surface rounded-pill focus-visible:ring-secondary ml-auto flex size-9 shrink-0 items-center justify-center transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
             >
-              <XIcon size={20} />
+              <CloseIcon size={20} />
             </DialogPrimitive.Close>
           </div>
 

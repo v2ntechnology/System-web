@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from '@phosphor-icons/react';
+import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from '@/components/icons';
 import type { OperationalCostCategory } from '@/management/types';
 import { LightCard, cn } from '@/management/ui';
 
@@ -97,11 +97,11 @@ export function CostCategoriesCard({
                   )}
                 >
                   {category.deltaPercent === 0 ? (
-                    <MinusIcon size={12} weight="bold" aria-hidden="true" />
+                    <MinusIcon size={12} aria-hidden="true" />
                   ) : worse ? (
-                    <ArrowUpIcon size={12} weight="bold" aria-hidden="true" />
+                    <ArrowUpIcon size={12} aria-hidden="true" />
                   ) : (
-                    <ArrowDownIcon size={12} weight="bold" aria-hidden="true" />
+                    <ArrowDownIcon size={12} aria-hidden="true" />
                   )}
                   {signedPercent(category.deltaPercent)}
                 </span>

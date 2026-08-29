@@ -1,14 +1,14 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ArrowUpRightIcon,
+  BlockedIcon,
   CameraIcon,
   CheckIcon,
   ClockIcon,
-  LockKeyIcon,
-  ProhibitIcon,
+  LockIcon,
   TruckIcon,
   UserIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import type { ReleaseRequest } from '@/management/types';
 import { LightCard, SpectrumButton, Spinner, StatusChip, cn } from '@/management/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -141,9 +141,9 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
           surface="light"
           icon={
             release.kind === 'VEICULO' ? (
-              <TruckIcon size={14} weight="fill" aria-hidden="true" />
+              <TruckIcon size={14} aria-hidden="true" />
             ) : (
-              <UserIcon size={14} weight="fill" aria-hidden="true" />
+              <UserIcon size={14} aria-hidden="true" />
             )
           }
         >
@@ -169,7 +169,7 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
         <StatusChip
           tone={release.waitingHours >= 6 ? 'critical' : 'neutral'}
           surface="light"
-          icon={<ClockIcon size={14} weight="fill" aria-hidden="true" />}
+          icon={<ClockIcon size={14} aria-hidden="true" />}
         >
           {release.waitingHours}h parado
         </StatusChip>
@@ -184,9 +184,7 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
             : 'bg-error-on-light/10 text-error-on-light',
         )}
       >
-        {!canRelease ? (
-          <LockKeyIcon size={16} weight="fill" className="mr-1.5 inline" aria-hidden="true" />
-        ) : null}
+        {!canRelease ? <LockIcon size={16} className="mr-1.5 inline" aria-hidden="true" /> : null}
         {SEVERITY_RULE[release.severity]}
       </p>
 
@@ -216,7 +214,6 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
               {blocker.hasPhoto ? (
                 <CameraIcon
                   size={16}
-                  weight="fill"
                   className="text-on-light-muted shrink-0"
                   aria-label="Com foto"
                 />
@@ -253,7 +250,7 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
 
           {release.escalatedApprovalId ? (
             <p className="text-primary-on-light text-label-md mt-2 flex items-center gap-1.5 normal-case">
-              <ArrowUpRightIcon size={14} weight="bold" aria-hidden="true" />
+              <ArrowUpRightIcon size={14} aria-hidden="true" />
               Na fila do proprietário como {release.escalatedApprovalId}
             </p>
           ) : null}
@@ -278,7 +275,7 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
             aria-describedby={errors.note ? 'release-note-error' : undefined}
             placeholder="Ex.: lanterna substituída no pátio e conferida antes da saída."
             className={cn(
-              'text-body-md text-on-light placeholder:text-on-light-muted bg-light-container mt-3 w-full rounded-md border p-3',
+              'text-body-md text-on-light placeholder:text-placeholder bg-light-container mt-3 w-full rounded-md border p-3',
               'focus-visible:ring-primary-on-light focus:outline-none focus-visible:ring-2',
               'disabled:opacity-60',
               errors.note ? 'border-error-on-light' : 'border-light-outline',
@@ -319,7 +316,7 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
                   'Substituir o terminal de direção na Oficina Central\nReinspecionar antes da próxima saída'
                 }
                 className={cn(
-                  'text-body-md text-on-light placeholder:text-on-light-muted bg-light-container mt-3 w-full rounded-md border p-3',
+                  'text-body-md text-on-light placeholder:text-placeholder bg-light-container mt-3 w-full rounded-md border p-3',
                   'focus-visible:ring-primary-on-light focus:outline-none focus-visible:ring-2',
                   'disabled:opacity-60',
                   errors.actionPlan ? 'border-error-on-light' : 'border-light-outline',
@@ -350,7 +347,7 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
                 {busy ? (
                   <Spinner label="Registrando" />
                 ) : (
-                  <CheckIcon size={18} weight="bold" aria-hidden="true" />
+                  <CheckIcon size={18} aria-hidden="true" />
                 )}
                 {needsPlan ? 'Liberar com plano de ação' : 'Liberar saída'}
               </SpectrumButton>
@@ -364,7 +361,7 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
                 {busy ? (
                   <Spinner label="Enviando" />
                 ) : (
-                  <ArrowUpRightIcon size={18} weight="bold" aria-hidden="true" />
+                  <ArrowUpRightIcon size={18} aria-hidden="true" />
                 )}
                 Escalar ao proprietário
               </SpectrumButton>
@@ -379,7 +376,7 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
                  da borda e do texto escuros para não sumir. */
               className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
             >
-              <ProhibitIcon size={18} weight="bold" aria-hidden="true" />
+              <BlockedIcon size={18} aria-hidden="true" />
               Manter retido
             </SpectrumButton>
           </div>

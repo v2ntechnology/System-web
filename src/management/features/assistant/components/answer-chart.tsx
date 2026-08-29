@@ -67,7 +67,7 @@ export function AnswerChart({ chart }: { chart: NonNullable<AssistantAnswer['cha
               {/* Extremidade arredondada e ancorada na linha de base. */}
               <Bar
                 dataKey="y"
-                fill="var(--color-primary)"
+                fill="var(--primary)"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={44}
                 isAnimationActive={false}
@@ -100,9 +100,9 @@ export function AnswerChart({ chart }: { chart: NonNullable<AssistantAnswer['cha
               <Line
                 type="monotone"
                 dataKey="y"
-                stroke="var(--color-secondary)"
+                stroke="var(--secondary)"
                 strokeWidth={2}
-                dot={{ r: 4, fill: 'var(--color-secondary)', strokeWidth: 0 }}
+                dot={{ r: 4, fill: 'var(--secondary)', strokeWidth: 0 }}
                 activeDot={{ r: 6 }}
                 isAnimationActive={false}
               />

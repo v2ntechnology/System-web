@@ -1,4 +1,4 @@
-import { Menu } from 'lucide-react';
+import { MenuIcon } from '@/components/icons';
 
 import { Button } from '@/components/ui/button';
 import { useSidebarStore } from '@/stores/sidebar-store';
@@ -20,7 +20,7 @@ export function Topbar() {
         onClick={() => setMobileOpen(true)}
         aria-label="Abrir menu"
       >
-        <Menu className="h-5 w-5" />
+        <MenuIcon className="h-5 w-5" />
       </Button>
 
       <Breadcrumbs />

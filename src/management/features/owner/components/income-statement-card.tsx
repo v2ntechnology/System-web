@@ -1,4 +1,4 @@
-import { InfoIcon } from '@phosphor-icons/react';
+import { InfoIcon } from '@/components/icons';
 import type { IncomeStatement, IncomeStatementLine } from '@/management/types';
 import { LightCard, cn } from '@/management/ui';
 import { Fragment } from 'react';

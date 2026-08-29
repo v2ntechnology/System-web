@@ -1,5 +1,5 @@
+import { ArrowUpRightIcon, InfoIcon, SaveIcon } from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowUpRightIcon, FloppyDiskIcon, InfoIcon } from '@phosphor-icons/react';
 import type { Anomaly, Diagnosis, DiagnosisCategory } from '@/management/types';
 import { LightCard, SpectrumButton, Spinner, StatusChip, cn } from '@/management/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -153,7 +153,7 @@ export function DiagnosisDetailPanel({ anomaly, diagnosis }: DiagnosisDetailPane
 
       {mustEscalate ? (
         <p className="bg-error-on-light/10 text-error-on-light text-body-md mt-5 flex items-start gap-2 rounded-lg p-3">
-          <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden="true" />
+          <InfoIcon size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           Anomalia grave: o parecer precisa subir para o proprietário. Não há rascunho aqui.
         </p>
       ) : null}
@@ -177,7 +177,7 @@ export function DiagnosisDetailPanel({ anomaly, diagnosis }: DiagnosisDetailPane
           aria-describedby={errors.finding ? 'diagnosis-finding-error' : undefined}
           placeholder="Ex.: a alta de custo fixo vem do reajuste do seguro da frota, contratado em março e diluído em menos quilômetros por causa das duas semanas de chuva."
           className={cn(
-            'text-body-md text-on-light placeholder:text-on-light-muted bg-light-container mt-3 w-full rounded-md border p-3',
+            'text-body-md text-on-light placeholder:text-placeholder bg-light-container mt-3 w-full rounded-md border p-3',
             'focus-visible:ring-primary-on-light focus:outline-none focus-visible:ring-2',
             'disabled:opacity-60',
             errors.finding ? 'border-error-on-light' : 'border-light-outline',
@@ -211,7 +211,7 @@ export function DiagnosisDetailPanel({ anomaly, diagnosis }: DiagnosisDetailPane
             'Renegociar a apólice na renovação de setembro\nReavaliar o custo fixo por km ao fim do trimestre'
           }
           className={cn(
-            'text-body-md text-on-light placeholder:text-on-light-muted bg-light-container border-light-outline mt-3 w-full rounded-md border p-3',
+            'text-body-md text-on-light placeholder:text-placeholder bg-light-container border-light-outline mt-3 w-full rounded-md border p-3',
             'focus-visible:ring-primary-on-light focus:outline-none focus-visible:ring-2',
             'disabled:opacity-60',
           )}
@@ -223,7 +223,7 @@ export function DiagnosisDetailPanel({ anomaly, diagnosis }: DiagnosisDetailPane
             {busy ? (
               <Spinner label="Enviando" />
             ) : (
-              <ArrowUpRightIcon size={18} weight="bold" aria-hidden="true" />
+              <ArrowUpRightIcon size={18} aria-hidden="true" />
             )}
             Enviar ao proprietário
           </SpectrumButton>
@@ -236,7 +236,7 @@ export function DiagnosisDetailPanel({ anomaly, diagnosis }: DiagnosisDetailPane
               onClick={submit(false)}
               className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
             >
-              <FloppyDiskIcon size={18} weight="bold" aria-hidden="true" />
+              <SaveIcon size={18} aria-hidden="true" />
               Salvar rascunho
             </SpectrumButton>
           ) : null}

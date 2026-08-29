@@ -1,13 +1,13 @@
 import {
+  AlertCircleIcon,
   CheckCircleIcon,
-  LockSimpleIcon,
-  PlugsConnectedIcon,
+  IntegrationIcon,
+  LockIcon,
   PlusIcon,
+  ShieldAlertIcon,
   ShieldCheckIcon,
-  ShieldWarningIcon,
-  WarningCircleIcon,
   WarningIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { IntegrationHealth, Role } from '@/management/types';
 import { Avatar, GlassCard, LightCard, StatusChip, cn, type StatusTone } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -44,7 +44,7 @@ const HEALTH: Record<
 > = {
   OK: { label: 'Sincronizando', tone: 'positive', icon: CheckCircleIcon },
   ATRASADA: { label: 'Atrasada', tone: 'attention', icon: WarningIcon },
-  FALHA: { label: 'Com falha', tone: 'critical', icon: WarningCircleIcon },
+  FALHA: { label: 'Com falha', tone: 'critical', icon: AlertCircleIcon },
 };
 
 const dateTime = new Intl.DateTimeFormat('pt-BR', {
@@ -138,7 +138,7 @@ export function SettingsPage() {
                         }
                         className="bg-primary-strong text-on-primary text-label-md focus-visible:ring-primary-on-light inline-flex items-center gap-1.5 rounded-md px-4 py-2 normal-case transition-opacity hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
                       >
-                        <PlusIcon size={14} weight="bold" aria-hidden="true" />
+                        <PlusIcon size={14} aria-hidden="true" />
                         Convidar
                       </button>
                     }
@@ -172,17 +172,11 @@ export function SettingsPage() {
                               <StatusChip tone="info">{ROLE_LABELS[member.role]}</StatusChip>
 
                               {member.mfaEnabled ? (
-                                <StatusChip
-                                  tone="positive"
-                                  icon={<ShieldCheckIcon size={14} weight="fill" />}
-                                >
+                                <StatusChip tone="positive" icon={<ShieldCheckIcon size={14} />}>
                                   2FA ativa
                                 </StatusChip>
                               ) : member.active ? (
-                                <StatusChip
-                                  tone="attention"
-                                  icon={<ShieldWarningIcon size={14} weight="fill" />}
-                                >
+                                <StatusChip tone="attention" icon={<ShieldAlertIcon size={14} />}>
                                   Sem 2FA
                                 </StatusChip>
                               ) : null}
@@ -241,14 +235,12 @@ export function SettingsPage() {
                             {module.contracted ? (
                               <CheckCircleIcon
                                 size={18}
-                                weight="fill"
                                 className="text-success shrink-0"
                                 aria-label="Contratado"
                               />
                             ) : (
-                              <LockSimpleIcon
+                              <LockIcon
                                 size={18}
-                                weight="fill"
                                 className="text-warning shrink-0"
                                 aria-label="Não contratado"
                               />
@@ -270,7 +262,7 @@ export function SettingsPage() {
                                     description: 'Nosso time comercial entrará em contato.',
                                   })
                                 }
-                                className="border-warning/40 text-warning text-label-md focus-visible:ring-secondary rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2"
+                                className="border-warning/40 text-warning text-label-md focus-visible:ring-secondary rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
                               >
                                 Conhecer
                               </button>
@@ -313,11 +305,7 @@ export function SettingsPage() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <h3 className="text-on-surface flex items-center gap-2 font-semibold">
-                                  <PlugsConnectedIcon
-                                    size={16}
-                                    weight="duotone"
-                                    aria-hidden="true"
-                                  />
+                                  <IntegrationIcon size={16} aria-hidden="true" />
                                   {integration.provider}
                                 </h3>
                                 <p className="text-on-surface-muted text-label-md mt-0.5 normal-case">
@@ -325,10 +313,7 @@ export function SettingsPage() {
                                 </p>
                               </div>
 
-                              <StatusChip
-                                tone={health.tone}
-                                icon={<HealthIcon size={14} weight="fill" />}
-                              >
+                              <StatusChip tone={health.tone} icon={<HealthIcon size={14} />}>
                                 {health.label}
                               </StatusChip>
                             </div>

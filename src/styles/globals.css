@@ -1,10 +1,13 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* Paleta única dos dois painéis: rampa neutra grafite + marca indigo/cyan. */
+@import './palette.css';
+
 /*
- * Painel de gestão (`/gestao`), portado do monorepo System-mobile. Os tokens
- * próprios dele ficam escopados em `.management-theme` — ver o cabeçalho do
- * arquivo. Importado aqui para o Tailwind processar os dois `@theme` juntos.
+ * Painel de gestão (`/gestao`), portado do monorepo System-mobile. O que sobrou
+ * escopado em `.management-theme` é forma, não cor: raio, vidro e tipografia.
+ * Importado aqui para o Tailwind processar os `@theme` juntos.
  */
 @import '../management/styles/theme.css';
 @import '../management/styles/glass.css';
@@ -12,99 +15,46 @@
 /* Tema escuro é o padrão do produto, aplicado pela classe `.dark` no <html>. */
 @custom-variant dark (&:is(.dark *));
 
+/* Par do `dark:`, para o punhado de casos que só o tema claro precisa tratar —
+   a marca, por exemplo, é um SVG branco e precisa inverter sobre papel. */
+@custom-variant light (&:is(.light *));
+
 /*
- * Tema claro (preparado para o futuro). Os valores estão em OKLCH e são
- * equivalentes visuais exatos da paleta HSL original da marca.
+ * Tokens do painel operacional (família shadcn) apontando para a rampa única de
+ * `palette.css`.
+ *
+ * ⚠️ Um bloco só, sem par `:root` / `.dark`. Quem troca de tema é a paleta: os
+ * `--color-*` já mudam em `html.light`, e estes tokens só dão nome de papel ao
+ * cinza que a rampa entrega. Redeclarar aqui por tema é o que fazia os dois
+ * painéis divergirem — o operacional em azul-noite e a gestão em grafite.
+ *
+ * As cores de marca e as semânticas (`--primary`, `--accent`, `--success`…)
+ * também moram na paleta, porque mudam de valor entre claro e escuro.
  */
 :root {
-  --background: oklch(0.9838 0.0035 247.86);
-  --foreground: oklch(0.2179 0.0421 263.17);
+  --background: var(--color-surface);
+  --foreground: var(--color-on-surface);
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2179 0.0421 263.17);
+  --card: var(--color-surface-container);
+  --card-foreground: var(--color-on-surface);
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2179 0.0421 263.17);
+  --popover: var(--color-surface-low);
+  --popover-foreground: var(--color-on-surface);
 
-  --primary: oklch(0.5875 0.2039 277.36);
-  --primary-foreground: oklch(0.9838 0.0035 247.86);
+  --secondary: var(--color-fill);
 
-  --secondary: oklch(0.9679 0.0027 264.54);
-  --secondary-foreground: oklch(0.2959 0.0532 263.29);
+  --muted: var(--color-fill-subtle);
+  --muted-foreground: var(--color-on-surface-muted);
 
-  --muted: oklch(0.9518 0.0041 264.54);
-  --muted-foreground: oklch(0.5121 0.0292 264.27);
+  --border: var(--color-outline-variant);
+  --input: var(--color-outline-variant);
 
-  --accent: oklch(0.7207 0.1254 213.25);
-  --accent-foreground: oklch(0.1788 0.0296 263.41);
-
-  --destructive: oklch(0.5786 0.2137 27.17);
-  --destructive-foreground: oklch(0.9838 0.0035 247.86);
-
-  --success: oklch(0.6179 0.1338 157.54);
-  --success-foreground: oklch(0.9838 0.0035 247.86);
-
-  --warning: oklch(0.6688 0.1588 57.96);
-  --warning-foreground: oklch(0.9838 0.0035 247.86);
-
-  --info: oklch(0.6776 0.1481 238.1);
-  --info-foreground: oklch(0.9838 0.0035 247.86);
-
-  --border: oklch(0.9023 0.0096 264.52);
-  --input: oklch(0.9023 0.0096 264.52);
-  --ring: oklch(0.5875 0.2039 277.36);
-
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.2959 0.0532 263.29);
-  --sidebar-accent: oklch(0.9599 0.0034 264.54);
-  --sidebar-border: oklch(0.9188 0.0079 264.52);
+  --sidebar: var(--color-surface-low);
+  --sidebar-foreground: var(--color-on-surface);
+  --sidebar-accent: var(--color-fill-subtle);
+  --sidebar-border: var(--color-outline-variant);
 
   --radius: 0.75rem;
-}
-
-/* Tema escuro — fundo principal #0B1220, primária #6366F1, destaque #06B6D4. */
-.dark {
-  --background: oklch(0.1788 0.0296 263.41);
-  --foreground: oklch(0.9838 0.0035 247.86);
-
-  --card: oklch(0.2089 0.033 265.91);
-  --card-foreground: oklch(0.9838 0.0035 247.86);
-
-  --popover: oklch(0.1978 0.0334 265.78);
-  --popover-foreground: oklch(0.9838 0.0035 247.86);
-
-  --primary: oklch(0.5875 0.2039 277.36);
-  --primary-foreground: oklch(0.9838 0.0035 247.86);
-
-  --secondary: oklch(0.2667 0.0314 259.74);
-  --secondary-foreground: oklch(0.9676 0.007 247.9);
-
-  --muted: oklch(0.2784 0.0275 259.8);
-  --muted-foreground: oklch(0.7357 0.0315 256.78);
-
-  --accent: oklch(0.7207 0.1254 213.25);
-  --accent-foreground: oklch(0.1788 0.0296 263.41);
-
-  --destructive: oklch(0.5786 0.2137 27.17);
-  --destructive-foreground: oklch(0.9838 0.0035 247.86);
-
-  --success: oklch(0.6885 0.1457 157.94);
-  --success-foreground: oklch(0.1788 0.0296 263.41);
-
-  --warning: oklch(0.789 0.1592 74.08);
-  --warning-foreground: oklch(0.1788 0.0296 263.41);
-
-  --info: oklch(0.7364 0.1389 233.96);
-  --info-foreground: oklch(0.1788 0.0296 263.41);
-
-  --border: oklch(0.2881 0.0289 259.8);
-  --input: oklch(0.3073 0.0316 259.79);
-  --ring: oklch(0.5875 0.2039 277.36);
-
-  --sidebar: oklch(0.1871 0.0326 265.72);
-  --sidebar-foreground: oklch(0.9676 0.007 247.9);
-  --sidebar-accent: oklch(0.2569 0.0297 259.75);
-  --sidebar-border: oklch(0.2675 0.0293 259.77);
 }
 
 @theme inline {
@@ -139,11 +89,11 @@
   --color-sidebar-border: var(--sidebar-border);
 
   /*
-   * Azul-noite da marca (#0B1220), constante nos dois temas. Usado nos véus
-   * sobre a fotografia noturna do login, que precisam escurecer a imagem
-   * mesmo no tema claro — com `background` a foto ficava lavada de branco.
+   * Grafite profundo da marca, constante nos dois temas. Usado nos véus sobre a
+   * fotografia noturna do login e da hub, que precisam escurecer a imagem mesmo
+   * no tema claro — com `background` a foto ficava lavada de branco.
    */
-  --color-brand-night: oklch(0.1788 0.0296 263.41);
+  --color-brand-night: #141414;
 
   --font-sans: Inter, system-ui, sans-serif;
   --font-display: 'Space Grotesk', Inter, system-ui, sans-serif;
@@ -213,30 +163,25 @@
     @apply font-display tracking-tight;
   }
 
-  /* Barras de rolagem discretas e coerentes com o tema */
+  /*
+   * Rolagem sem barra visível em todo o sistema (decisão do usuário em
+   * 19/08/2026). O conteúdo continua rolando por roda, gesto, teclado e
+   * arraste: só a barra deixa de ser pintada, em telas, caixas, listas de
+   * select, modais e qualquer área rolável.
+   */
   * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-border) transparent;
+    scrollbar-width: none;
   }
 
   *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    display: none;
+    width: 0;
+    height: 0;
   }
 
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  *::-webkit-scrollbar-thumb {
-    background-color: var(--color-border);
-    border-radius: 9999px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: color-mix(in oklch, var(--color-muted-foreground) 50%, transparent);
+  /* O ScrollArea do Radix desenha a própria barra em DOM, fora do ::-webkit-scrollbar. */
+  [data-radix-scroll-area-scrollbar] {
+    display: none;
   }
 
   /*

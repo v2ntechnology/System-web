@@ -1,11 +1,11 @@
 import {
   ArrowRightIcon,
-  IdentificationCardIcon,
+  IdCardIcon,
   PhoneIcon,
-  ShieldWarningIcon,
+  ShieldAlertIcon,
   TruckIcon,
   WarningIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { DriverStatus, TeamPerson } from '@/management/types';
 import { Avatar, StatusChip, cn, type StatusTone } from '@/management/ui';
 import { Link } from 'react-router';
@@ -107,12 +107,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
 
             {person.currentVehiclePlate ? (
               <div className="flex items-center gap-1.5">
-                <TruckIcon
-                  size={14}
-                  weight="duotone"
-                  className="text-on-light-muted"
-                  aria-hidden="true"
-                />
+                <TruckIcon size={14} className="text-on-light-muted" aria-hidden="true" />
                 <dd className="tabular text-on-light-variant text-label-md normal-case">
                   {person.currentVehiclePlate}
                 </dd>
@@ -130,7 +125,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
                   : 'text-on-light-muted',
             )}
           >
-            <IdentificationCardIcon size={14} weight="duotone" aria-hidden="true" />
+            <IdCardIcon size={14} aria-hidden="true" />
             CNH {person.cnhCategory} ·{' '}
             {cnhExpired
               ? `vencida há ${Math.abs(cnhDays!)} dias`
@@ -141,7 +136,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
 
           {person.criticalEvents > 0 ? (
             <p className="text-error-on-light text-label-md mt-1.5 flex items-center gap-1.5 normal-case">
-              <WarningIcon size={14} weight="fill" aria-hidden="true" />
+              <WarningIcon size={14} aria-hidden="true" />
               {person.criticalEvents === 1
                 ? '1 evento crítico no período'
                 : `${person.criticalEvents} eventos críticos no período`}
@@ -150,7 +145,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
 
           {person.phone ? (
             <p className="text-on-light-muted text-label-md mt-1.5 flex items-center gap-1.5 normal-case">
-              <PhoneIcon size={14} weight="duotone" aria-hidden="true" />
+              <PhoneIcon size={14} aria-hidden="true" />
               <span className="tabular">{person.phone}</span>
             </p>
           ) : null}
@@ -160,7 +155,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
             className="text-primary-on-light text-label-md focus-visible:ring-primary-on-light mt-3 inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
           >
             {canAct ? 'Abrir ficha e advertências' : 'Ver ficha completa'}
-            <ArrowRightIcon size={14} weight="bold" aria-hidden="true" />
+            <ArrowRightIcon size={14} aria-hidden="true" />
           </Link>
         </>
       ) : (
@@ -181,7 +176,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
            */}
           {person.active && !person.mfaEnabled ? (
             <p className="text-warning-on-light text-label-md mt-2 flex items-center gap-1.5 normal-case">
-              <ShieldWarningIcon size={14} weight="fill" aria-hidden="true" />
+              <ShieldAlertIcon size={14} aria-hidden="true" />
               Sem verificação em duas etapas
             </p>
           ) : null}
@@ -191,7 +186,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
             className="text-primary-on-light text-label-md focus-visible:ring-primary-on-light mt-3 inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
           >
             Gerenciar acesso
-            <ArrowRightIcon size={14} weight="bold" aria-hidden="true" />
+            <ArrowRightIcon size={14} aria-hidden="true" />
           </Link>
         </>
       )}

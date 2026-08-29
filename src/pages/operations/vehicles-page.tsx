@@ -1,4 +1,4 @@
-import { ChevronRight, Plus } from 'lucide-react';
+import { ChevronRightIcon, PlusIcon } from '@/components/icons';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -132,7 +132,7 @@ export default function VehiclesPage() {
       id: 'actions',
       header: '',
       align: 'right',
-      cell: () => <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />,
+      cell: () => <ChevronRightIcon className="ml-auto h-4 w-4 text-muted-foreground" />,
     },
   ];
 
@@ -146,7 +146,7 @@ export default function VehiclesPage() {
             <DateRangeSelector value="30d" onChange={() => {}} />
             {hasPermission('vehicles.create') && (
               <Button variant="brand" onClick={() => setFormOpen(true)}>
-                <Plus className="h-4 w-4" />
+                <PlusIcon className="h-4 w-4" />
                 Cadastrar veículo
               </Button>
             )}

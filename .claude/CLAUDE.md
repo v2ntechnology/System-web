@@ -25,12 +25,27 @@
 - Telas consomem `src/services` pelos hooks de dados, **nunca** os mocks diretamente. Array grande
   de mock nunca dentro de componente React.
 - Tabela: usar o `DataTable` de `components/shared` — não recriar tabela por módulo.
-- Cor literal nunca no componente: usar os tokens do `@theme` em `src/styles/globals.css`.
+- Ícone: importar **sempre** de `@/components/icons`, nunca de `react-icons` direto. Aquele arquivo
+  é a fonte única dos quatro painéis (decisão do usuário em 19/08/2026): mesmo conceito, mesmo
+  desenho, em `/app` e em `/gestao`. Conceito novo entra lá com nome semântico (`ApprovalIcon`, e
+  não `LuGavel`). A família é a Lucide, via `react-icons/lu`.
+- Cor literal nunca no componente: usar os tokens de `src/styles/palette.css`, que é a paleta única
+  dos dois painéis (grafite no escuro, papel no claro, marca indigo/cyan). Véu translúcido usa
+  `bg-on-surface/N`, nunca `bg-white/N`: branco fixo some no tema claro. A exceção é o que fica
+  **sobre fotografia** (topbar e navegação do painel de gestão), que usa `on-media` e branco nos
+  dois temas.
+- **Barra de rolagem nunca visível** (decisão do usuário em 19/08/2026): vale para o sistema
+  inteiro, nos dois painéis, em telas, caixas, inputs, listas de select, modais e drawers. A
+  rolagem continua funcionando normalmente; só a barra não aparece. As regras globais ficam no
+  `@layer base` de `src/styles/globals.css`. Não repor `scrollbar-width: thin`, estilo de
+  `::-webkit-scrollbar-thumb`/`-track` nem barra própria de componente (o
+  `[data-radix-scroll-area-scrollbar]` está oculto).
 - ⚠️ `src/management/` é o **painel de gestão portado** do `System-mobile` (rota `/gestao`,
   proprietário e gestor) e segue as convenções **de origem**: organização por feature,
-  exportação nomeada, primitivos próprios em `management/ui`, tokens de vidro escopados em
-  `.management-theme`. Não aplicar ali as regras do painel operacional nem misturar os dois
-  conjuntos de tokens — ver `Painel de gestão` na memória antes de editar.
+  exportação nomeada, primitivos próprios em `management/ui`. O que continua escopado em
+  `.management-theme` é **forma**, não cor: raio de canto, vidro, Sora e o gradiente Spectrum.
+  A cor é comum aos dois painéis desde 19/08/2026. Ver `Painel de gestão` na memória antes de
+  editar.
 - Antes de fechar um marco, rodar e deixar limpo:
   `npm run format:check && npm run typecheck && npm run lint && npm run test && npm run build`.
 
@@ -39,7 +54,10 @@
 - `.env` na raiz (gitignored) é a única cópia de valores reais. Só variáveis `VITE_*` chegam ao
   bundle do navegador.
 - `GEMINI_API_KEY` e `ELEVENLABS_API_KEY` são **server-side**: nunca com prefixo `VITE_`, nunca
-  lidas por código do navegador. A chave da ElevenLabs vive só no processo Node do proxy do Vite.
+  lidas por código do navegador. Desde 26/08/2026 quem as usa é o `Backend-web`: a IA e a síntese de
+  voz (`/v1/voice/synthesize`) rodam lá, com o mesmo token e controle de acesso do resto da API. O
+  plugin Node de voz saiu do `vite.config.ts` e não deve voltar, porque só existia em
+  desenvolvimento e a rota sumia no build publicado.
 - Nunca pôr o literal de um segredo em comando de shell (a harness grava comandos como permissão no
   `settings.local.json`); buscar pelo nome da variável.
 - Não recriar `.env.example` nem documentar nomes de chaves no `README.md` — os dois foram removidos

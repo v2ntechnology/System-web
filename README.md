@@ -58,17 +58,28 @@ e relatórios analíticos.
 
 ### O que existe hoje neste repositório
 
-Este é o **frontend**, na **Fase 1 (MVP)**, e o objetivo dela é deliberadamente estreito:
-provar a experiência de ponta a ponta antes de existir backend. A aplicação está navegável,
-responsiva e visualmente fechada, rodando com **dados simulados**.
+Este é o **frontend**. A Fase 1 entregou a experiência inteira com dados simulados, e desde
+agosto de 2026 a aplicação **também fala com a API real** do `Backend-web` (Java 21 com Spring,
+PostgreSQL com TimescaleDB, Redis). O estado atual é misto, de propósito, e o `.env` decide qual
+lado responde:
 
-O ponto central da arquitetura é que as telas **nunca conversam com os dados simulados**.
-Elas dependem de contratos de serviço (`src/services`); a simulação é só a implementação
-atual desses contratos. Quando a API real entrar, na Fase 2, troca-se a implementação, e
-nenhuma tela precisa ser reescrita.
+| Já vem do backend real                                                                  | Ainda é simulado                                              |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Autenticação, com JWT e refresh em cookie `httpOnly` (`services/auth.ts`)               | Serviços do painel operacional (`services/api.ts`)            |
+| Frota, mapa, motoristas e segurança do painel de gestão (`management/lib/fleet-api.ts`) | Rotina de pátio e liberações (`management/mocks/operator.ts`) |
+| Assistente de IA e notificações (`management/features/*/api.ts`)                        | Custos, manutenção, multas e checklists                       |
+| Síntese de voz (`services/voice.ts`)                                                    |                                                               |
 
-O que **não** faz parte desta fase: backend, banco de dados, autenticação real, cobrança,
-telemetria de verdade e chamadas a modelos de IA.
+O ponto central da arquitetura continua valendo: as telas **nunca conversam com os dados
+simulados**. Elas dependem de contratos de serviço (`src/services`), e a simulação é apenas uma
+implementação desses contratos. Foi isso que permitiu ligar a API real módulo a módulo, sem
+reescrever tela.
+
+Alternar entre a API real e a aplicação inteiramente simulada é questão de duas linhas no `.env` da
+raiz. O `README.md` do `Backend-web`, na seção "Ligar o frontend nesta API", traz essas linhas
+prontas junto com o passo de subir a API.
+
+O que **ainda não existe**: cobrança, paginação server-side e testes E2E.
 
 ### Destaques
 
@@ -78,51 +89,60 @@ telemetria de verdade e chamadas a modelos de IA.
 - Painel de gestão do proprietário e do gestor, com resultado consolidado, liberações e pareceres
 - Controle de acesso por perfil e liberação de módulos conforme o plano do cliente
 - Assistente de inteligência artificial e área de administração da plataforma
-- Camada de dados simulada, isolada atrás de contratos de serviço
-- Interface responsiva com **tema escuro** por padrão e tema claro preparado
+- Camada de dados isolada atrás de contratos de serviço, com a API real já ligada em parte dos módulos
+- Interface responsiva com **tema escuro** por padrão e tema claro completo
 
 ### Duas áreas, dois sistemas visuais
 
 O produto tem duas casas, e cada perfil entra na sua:
 
-- **Painel operacional** (`/app`): operador e manutenção. Visual shadcn/ui sobre tokens OKLCH.
+- **Painel operacional** (`/app`): operação, manutenção e motorista. Visual shadcn/ui sobre
+  tokens OKLCH.
 - **Painel de gestão** (`/gestao`): proprietário e gestor. Telas trazidas do monorepo
-  `System-mobile`, com o design de vidro sobre grafite que já tinham. Elas vivem em
-  `src/management/` e carregam os próprios tokens, escopados na classe `.management-theme`
-  para não vazarem para o resto da aplicação.
+  `System-mobile`, com o design de vidro sobre grafite que já tinham, e que vivem em
+  `src/management/`.
+
+O que a classe `.management-theme` escopa é **forma**, não cor: raio de canto, vidro, a fonte Sora
+e o gradiente Spectrum. Desde 19/08/2026 a **paleta é uma só** para os dois painéis
+(`src/styles/palette.css`), assim como os ícones (`src/components/icons.ts`).
 
 ---
 
 ## Tecnologias utilizadas
 
-| Categoria     | Ferramenta                                                                         | Versão                  |
-| ------------- | ---------------------------------------------------------------------------------- | ----------------------- |
-| Execução      | [Node.js LTS](https://nodejs.org/pt-br/download)                                   | 24.18.0                 |
-| Gerenciador   | npm                                                                                | 11.16.0                 |
-| Biblioteca UI | [React](https://react.dev/)                                                        | 19.2.8                  |
-| Linguagem     | [TypeScript](https://www.typescriptlang.org/)                                      | 6.0.3                   |
-| Empacotador   | [Vite](https://vitejs.dev/)                                                        | 8.1.5                   |
-| Estilização   | [Tailwind CSS](https://tailwindcss.com/)                                           | 4.3.3                   |
-| Componentes   | [shadcn/ui](https://ui.shadcn.com/) (`new-york`) sobre Radix UI                    | n/a                     |
-| Roteamento    | [React Router](https://reactrouter.com/)                                           | 8.2.0                   |
-| Dados e cache | [TanStack Query](https://tanstack.com/query)                                       | 5.101.4                 |
-| Estado global | [Zustand](https://zustand.docs.pmnd.rs/)                                           | 5.0.14                  |
-| Formulários   | [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/)          | 7.82.0 / 4.4.3          |
-| Gráficos      | [Recharts](https://recharts.org/)                                                  | 3.10.0                  |
-| Mapas         | [MapLibre GL](https://maplibre.org/) + [OpenFreeMap](https://openfreemap.org/)     | 5.24.0                  |
-| Ícones        | [Lucide](https://lucide.dev/) · [Phosphor](https://phosphoricons.com/) (`/gestao`) | 1.25.0 / 2.1.10         |
-| Testes        | [Vitest](https://vitest.dev/) + Testing Library + jsdom                            | 4.1.10                  |
-| Qualidade     | ESLint / typescript-eslint / Prettier                                              | 10.7.0 / 8.65.0 / 3.9.6 |
+| Categoria     | Ferramenta                                                                                          | Versão                  |
+| ------------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
+| Execução      | [Node.js LTS](https://nodejs.org/pt-br/download)                                                    | 24.18.0                 |
+| Gerenciador   | npm                                                                                                 | 11.16.0                 |
+| Biblioteca UI | [React](https://react.dev/)                                                                         | 19.2.8                  |
+| Linguagem     | [TypeScript](https://www.typescriptlang.org/)                                                       | 6.0.3                   |
+| Empacotador   | [Vite](https://vitejs.dev/)                                                                         | 8.1.5                   |
+| Estilização   | [Tailwind CSS](https://tailwindcss.com/)                                                            | 4.3.3                   |
+| Componentes   | [shadcn/ui](https://ui.shadcn.com/) (`new-york`) sobre Radix UI                                     | n/a                     |
+| Roteamento    | [React Router](https://reactrouter.com/)                                                            | 8.2.0                   |
+| Dados e cache | [TanStack Query](https://tanstack.com/query)                                                        | 5.101.4                 |
+| Estado global | [Zustand](https://zustand.docs.pmnd.rs/)                                                            | 5.0.14                  |
+| Formulários   | [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/)                           | 7.82.0 / 4.4.3          |
+| Gráficos      | [Recharts](https://recharts.org/)                                                                   | 3.10.0                  |
+| Mapas         | [MapLibre GL](https://maplibre.org/) + [OpenFreeMap](https://openfreemap.org/)                      | 5.24.0                  |
+| Ícones        | [Lucide](https://lucide.dev/) via [react-icons](https://react-icons.github.io/react-icons/) (`/lu`) | 5.7.0                   |
+| Testes        | [Vitest](https://vitest.dev/) + Testing Library + jsdom                                             | 4.1.10                  |
+| Qualidade     | ESLint / typescript-eslint / Prettier                                                               | 10.7.0 / 8.65.0 / 3.9.6 |
 
 > **TypeScript fixado em 6.0.3 de propósito.** A 7.0.2 já é estável, mas o `typescript-eslint@8.65.0` declara peer `typescript >=4.8.4 <6.1.0` e subir agora quebraria o lint. O projeto já está preparado para o TS 7 (sem `baseUrl`, sem `ignoreDeprecations`).
+
+> **Ícone vem sempre de `@/components/icons`**, nunca de `react-icons` direto. Aquele arquivo é a
+> fonte única dos dois painéis. `lucide-react` e `@phosphor-icons/react` foram desinstalados em
+> 19/08/2026 e não devem voltar.
 
 ---
 
 ## Estrutura do projeto
 
 ```
-Rookhub/
+System-web/
 ├── docs/
+│   ├── pdf/                    # Arquitetura e integração, versionados de propósito
 │   ├── referencias/            # Referências visuais do produto (não remover)
 │   └── ARQUITETURA_FRONTEND.md # Decisões técnicas
 ├── public/
@@ -132,6 +152,7 @@ Rookhub/
 │   ├── app/                    # Rotas, provedores, navegação, permissões e planos
 │   ├── pages/                  # Telas agrupadas pelas categorias do menu
 │   │   ├── login/              # Acesso: entrar, recuperar senha, convite
+│   │   ├── hub/                # Porta de escolha do dono e do gestor (/painel)
 │   │   ├── dashboard/          # Painel inicial
 │   │   ├── operations/         # Frota, veículos, motoristas, viagens, rastreamento
 │   │   ├── costs/              # Abastecimentos, manutenções, multas, checklists
@@ -170,7 +191,7 @@ Os testes ficam ao lado do código que exercitam (`*.test.ts` / `*.test.tsx`).
 
 ## Arquitetura
 
-As telas nunca acessam os dados simulados diretamente: elas dependem apenas dos contratos em `services`. Trocar a simulação pela API real, na Fase 2, não exige reescrever nenhuma tela.
+As telas nunca acessam os dados simulados diretamente: elas dependem apenas dos contratos em `services`. Foi esse isolamento que permitiu ligar a API real módulo a módulo, sem reescrever tela. Os dois caminhos convivem hoje, e o que ainda não foi ligado continua atendido pela simulação.
 
 ```mermaid
 flowchart TD
@@ -180,19 +201,19 @@ flowchart TD
         Rotas["Rotas e provedores"] --> Guardas["Guardas de perfil e plano"]
     end
 
-    subgraph Telas["Telas (src/pages)"]
+    subgraph Telas["Telas (src/pages e src/management)"]
         Paginas["Páginas por categoria do menu"] --> Componentes["Componentes compartilhados"]
         Componentes --> Mapa["Mapa da operação<br/>MapLibre GL"]
     end
 
     subgraph Dados["Camada de dados (src/services)"]
-        Contratos["Contratos de serviço"] --> Simulados["Dados simulados<br/>Fase 1"]
-        Contratos -.-> Http["Cliente HTTP"]
+        Contratos["Contratos de serviço"] --> Simulados["Dados simulados<br/>módulos ainda não ligados"]
+        Contratos --> Http["Cliente HTTP"]
     end
 
     subgraph Externo["Fora da aplicação"]
         Tiles[("OpenFreeMap<br/>tiles vetoriais")]
-        API[("API real<br/>Fase 2")]
+        API[("Backend-web<br/>API REST")]
     end
 
     Usuario --> Rotas
@@ -203,7 +224,7 @@ flowchart TD
     Simulados --> Rotas2["Traçados rodoviários<br/>pré-calculados no OSRM"]
     Rotas2 --> Mapa
     Mapa --> Tiles
-    Http -.-> API
+    Http --> API
 ```
 
 Consulte [`docs/ARQUITETURA_FRONTEND.md`](docs/ARQUITETURA_FRONTEND.md) para as decisões técnicas.
@@ -226,19 +247,22 @@ A versão do Node está fixada no `.nvmrc` e exigida por `engines.node`.
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/v2ntechnology/Rookhub.git
-cd Rookhub
+git clone https://github.com/v2ntechnology/System-web.git
+cd System-web
 
 # 2. Instalar dependências
 npm install
 
-# 3. Criar o arquivo .env na raiz (ignorado pelo Git). Veja a seção abaixo
+# 3. Criar o arquivo .env na raiz (ignorado pelo Git), pedindo os valores ao time
 
 # 4. Rodar em ambiente de desenvolvimento
 npm run dev
 ```
 
 Acesse em [http://localhost:5173](http://localhost:5173).
+
+Sem `.env`, a aplicação sobe com os dados simulados e continua navegável por inteiro. O arquivo só
+é necessário para falar com a API real ou usar a síntese de voz.
 
 ### Scripts disponíveis
 
@@ -259,9 +283,14 @@ Acesse em [http://localhost:5173](http://localhost:5173).
 
 ## Acesso (ambiente de demonstração)
 
-Não há backend nesta fase: o login valida a credencial contra as contas simuladas e nenhum
-token real é gerado ou persistido. O **e-mail define o perfil**. A senha é a mesma para
-todos, `rookhub123`, e a tela oferece o atalho "Acessar com uma conta de demonstração".
+As contas abaixo são as do **modo simulado**, e valem quando a aplicação sobe sem apontar para a
+API. O login valida a credencial contra os dados de `src/mocks/session.ts`, nenhum token é gerado e
+a sessão não sobrevive ao recarregar. O **e-mail define o perfil**. A senha é a mesma para todos,
+`rookhub123`, e a tela oferece o atalho "Acessar com uma conta de demonstração".
+
+⚠️ **Com a API real ligada, estas contas não existem.** O `Backend-web` tem o próprio conjunto de
+contas de desenvolvimento, com outros endereços e outra senha, carregado pelo Flyway apenas quando
+o perfil `dev` está ativo. Elas estão listadas em `Backend-web/docs/INFRAESTRUTURA.md`.
 
 | Conta                       | Perfil       | Entra em                                      |
 | --------------------------- | ------------ | --------------------------------------------- |

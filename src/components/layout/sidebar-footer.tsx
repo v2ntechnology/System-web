@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react';
+import { SettingsIcon } from '@/components/icons';
 import { Link } from 'react-router';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -25,7 +25,7 @@ export function SidebarFooter({ collapsed = false }: { collapsed?: boolean }) {
             </div>
             <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
               <Link to="/app/configuracoes" aria-label="Configurações">
-                <Settings className="h-4 w-4" />
+                <SettingsIcon className="h-4 w-4" />
               </Link>
             </Button>
           </>

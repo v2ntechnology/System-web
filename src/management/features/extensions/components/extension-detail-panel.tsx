@@ -2,12 +2,12 @@ import {
   ArrowRightIcon,
   CheckIcon,
   InfoIcon,
-  LockSimpleIcon,
-  PlugsConnectedIcon,
+  IntegrationIcon,
+  LockIcon,
   PowerIcon,
   ShieldCheckIcon,
   WarningIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { Extension, IntegrationHealth } from '@/management/types';
 import {
   GlassInput,
@@ -154,7 +154,7 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
 
       {extension.healthNote ? (
         <p className="bg-warning-on-light/10 text-warning-on-light text-body-md mt-3 flex items-start gap-2 rounded-lg p-3">
-          <WarningIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden="true" />
+          <WarningIcon size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           {extension.healthNote}
         </p>
       ) : null}
@@ -165,7 +165,6 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
           <li key={item} className="text-on-light text-body-md flex items-start gap-2">
             <CheckIcon
               size={16}
-              weight="bold"
               className="text-success-on-light mt-1 shrink-0"
               aria-hidden="true"
             />
@@ -208,9 +207,8 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
       {locked ? (
         <div className="border-light-outline mt-6 rounded-lg border p-4">
           <p className="text-on-light text-body-md flex items-start gap-2">
-            <LockSimpleIcon
+            <LockIcon
               size={18}
-              weight="fill"
               className="text-warning-on-light mt-0.5 shrink-0"
               aria-hidden="true"
             />
@@ -222,7 +220,7 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
             className="text-primary-on-light text-label-md mt-3 inline-flex items-center gap-1.5 normal-case underline-offset-4 hover:underline"
           >
             Ver plano e cobrança
-            <ArrowRightIcon size={14} weight="bold" aria-hidden="true" />
+            <ArrowRightIcon size={14} aria-hidden="true" />
           </Link>
         </div>
       ) : extension.status === 'DISPONIVEL' ? (
@@ -231,7 +229,7 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
             {activate.isPending ? (
               <Spinner label="Contratando" />
             ) : (
-              <PlugsConnectedIcon size={18} weight="fill" aria-hidden="true" />
+              <IntegrationIcon size={18} aria-hidden="true" />
             )}
             {monthly > 0 ? `Ativar por ${brl.format(monthly)}/mês` : 'Ativar'}
           </SpectrumButton>
@@ -293,12 +291,7 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
 
             {extension.configuredHint ? (
               <p className="text-on-light-variant text-label-md mt-4 flex items-center gap-1.5 normal-case">
-                <ShieldCheckIcon
-                  size={14}
-                  weight="fill"
-                  className="text-success-on-light"
-                  aria-hidden="true"
-                />
+                <ShieldCheckIcon size={14} className="text-success-on-light" aria-hidden="true" />
                 Já configurada — {extension.configuredHint}. Preencha de novo só para substituir.
               </p>
             ) : null}
@@ -308,7 +301,7 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
                 {configure.isPending ? (
                   <Spinner label="Conectando" />
                 ) : (
-                  <PlugsConnectedIcon size={18} weight="fill" aria-hidden="true" />
+                  <IntegrationIcon size={18} aria-hidden="true" />
                 )}
                 {extension.configuredHint ? 'Substituir credenciais' : 'Conectar'}
               </SpectrumButton>
@@ -341,7 +334,7 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
                     {deactivate.isPending ? (
                       <Spinner label="Desativando" />
                     ) : (
-                      <PowerIcon size={18} weight="fill" aria-hidden="true" />
+                      <PowerIcon size={18} aria-hidden="true" />
                     )}
                     Confirmar desativação
                   </SpectrumButton>
@@ -364,7 +357,7 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
                    da borda e do texto escuros para não sumir. */
                 className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
               >
-                <PowerIcon size={18} weight="fill" aria-hidden="true" />
+                <PowerIcon size={18} aria-hidden="true" />
                 Desativar extensão
               </SpectrumButton>
             )}

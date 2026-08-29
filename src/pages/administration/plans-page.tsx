@@ -1,4 +1,4 @@
-import { Check, Sparkles } from 'lucide-react';
+import { CheckIcon, SparklesIcon } from '@/components/icons';
 
 import { PLAN_DEFINITIONS } from '@/app/plans';
 import { PageHeader } from '@/components/layout/page-header';
@@ -93,14 +93,14 @@ export default function PlansPage() {
               return (
                 <Card
                   key={planType}
-                  className={cn('flex flex-col', def.highlighted && 'border-primary/50 shadow-lg')}
+                  className={cn('flex flex-col', def.highlighted && 'border-primary/50')}
                 >
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">{def.name}</CardTitle>
                       {def.highlighted && (
                         <Badge variant="info">
-                          <Sparkles className="h-3 w-3" />
+                          <SparklesIcon className="h-3 w-3" />
                           Popular
                         </Badge>
                       )}
@@ -114,7 +114,7 @@ export default function PlansPage() {
                     <ul className="flex-1 space-y-2 text-sm">
                       {MODULE_HIGHLIGHTS[planType].map((feature) => (
                         <li key={feature} className="flex items-start gap-2">
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                          <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-success" />
                           {feature}
                         </li>
                       ))}

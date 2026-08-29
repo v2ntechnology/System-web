@@ -15,19 +15,27 @@ const buttonVariants = cva(
     variants: {
       variant: {
         /**
-         * Ação primária das telas de autenticação — pill claro (Figma).
+         * Ação primária das telas de autenticação com pill de contraste máximo
+         * (Figma): claro sobre o grafite, grafite sobre o papel.
          *
          * Sem sombra: o halo branco que a variante trazia da origem lia como
-         * brilho em volta do botão, e não como elevação. A resposta ao ponteiro
-         * fica no `hover:bg-white` e no afundar do `active`.
+         * brilho em volta do botão, e não como elevação. A resposta padrão ao
+         * ponteiro é feita por opacidade porque o par `bright`/`on-bright`
+         * inverte com o tema.
          */
-        bright: ['bg-bright text-on-bright', 'hover:bg-white', 'active:translate-y-px'],
-        /** Ação primária do painel. O Spectrum Gradient aparece no hover. */
+        bright: ['bg-bright text-on-bright', 'hover:opacity-90', 'active:translate-y-px'],
+        /**
+         * Ação primária do painel.
+         *
+         * O hover **escurece a própria cor** e nada mais (decisão do usuário em
+         * 20/08/2026, vale nos quatro perfis): o Spectrum Gradient que aparecia
+         * aqui trocava o indigo por uma faixa rosa e cyan, e o botão parecia
+         * outro elemento a cada passada do ponteiro.
+         */
         primary: [
           /* `primary-strong`, não `primary`: o âncora reprova AA com texto branco. */
-          'bg-primary-strong text-on-primary shadow-[0_8px_24px_-12px_rgba(99,102,241,0.9)]',
-          'hover:shadow-[0_10px_32px_-10px_rgba(99,102,241,0.9)]',
-          'hover:[background-image:var(--spectrum-gradient)]',
+          'bg-primary-strong text-on-primary',
+          'hover:bg-[color-mix(in_oklab,var(--color-primary-strong)_86%,black)]',
           'active:translate-y-px',
         ],
         /**
@@ -38,15 +46,18 @@ const buttonVariants = cva(
          * é o outro caminho. O par `secondary`/`on-secondary` dá 6,8:1.
          */
         secondary: [
-          'bg-secondary text-on-secondary shadow-[0_8px_24px_-12px_rgba(6,182,212,0.9)]',
-          'hover:bg-[color-mix(in_oklab,var(--color-secondary)_88%,white)]',
-          'hover:shadow-[0_10px_32px_-10px_rgba(6,182,212,0.9)]',
+          'bg-secondary text-on-secondary',
+          /* `--secondary`, e não `--color-secondary`: o segundo vem do `@theme
+             inline` e não existe como variável CSS fora do utilitário. */
+          'hover:bg-[color-mix(in_oklab,var(--secondary)_86%,black)]',
           'active:translate-y-px',
         ],
         /** Ação secundária sobre vidro. */
         ghost: [
-          'border border-outline-variant bg-white/[0.04] text-on-surface',
-          'hover:border-outline hover:bg-white/[0.08]',
+          /* `on-surface` e não branco: o véu precisa clarear no escuro e escurecer
+             no claro, senão o botão some sobre o papel. */
+          'border border-outline-variant bg-on-surface/[0.04] text-on-surface',
+          'hover:border-outline hover:bg-on-surface/[0.08]',
         ],
         /** Link textual. */
         link: 'text-secondary underline-offset-4 hover:underline',

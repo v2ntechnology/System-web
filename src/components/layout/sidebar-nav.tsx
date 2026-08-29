@@ -1,4 +1,4 @@
-import { Lock } from 'lucide-react';
+import { LockIcon } from '@/components/icons';
 import { NavLink } from 'react-router';
 
 import { type NavGroup } from '@/app/navigation';
@@ -70,7 +70,7 @@ export function SidebarNav({
                         </span>
                         {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
                         {!collapsed && locked && (
-                          <Lock
+                          <LockIcon
                             className="h-3.5 w-3.5 text-muted-foreground/60"
                             aria-label="Recurso do plano"
                           />

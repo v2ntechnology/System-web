@@ -1,4 +1,4 @@
-import { ArrowRightIcon, InfoIcon, SparkleIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon, InfoIcon, SparklesIcon } from '@/components/icons';
 import type { AssistantTurn as Turn } from '@/management/types';
 import { Spinner } from '@/management/ui';
 import { Link } from 'react-router';
@@ -16,7 +16,7 @@ export function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: ()
       {/* Resposta */}
       <div className="flex gap-3">
         <span className="bg-primary/20 text-primary rounded-pill mt-0.5 flex size-8 shrink-0 items-center justify-center">
-          <SparkleIcon size={16} weight="duotone" />
+          <SparklesIcon size={16} />
         </span>
 
         <div className="min-w-0 flex-1">
@@ -94,7 +94,7 @@ export function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: ()
                         key={action.label}
                         to={action.to}
                         onClick={onNavigate}
-                        className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border bg-white/5 px-3 py-1.5 normal-case transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2"
+                        className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                       >
                         {action.label}
                         <ArrowRightIcon size={14} />

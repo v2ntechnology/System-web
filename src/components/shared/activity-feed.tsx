@@ -1,4 +1,4 @@
-import { ArrowRight, Gauge } from 'lucide-react';
+import { ArrowRightIcon, GaugeIcon } from '@/components/icons';
 import { Link } from 'react-router';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +24,7 @@ export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
         >
           Ver todos
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRightIcon className="h-3.5 w-3.5" />
         </Link>
       </CardHeader>
       <CardContent className="flex-1 space-y-1">
@@ -43,7 +43,7 @@ export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
             <div className="text-right">
               <p className="flex items-center justify-end gap-1 text-xs font-medium">
                 {event.speedKmh !== undefined && (
-                  <Gauge className="h-3 w-3 text-muted-foreground" />
+                  <GaugeIcon className="h-3 w-3 text-muted-foreground" />
                 )}
                 {event.status}
               </p>

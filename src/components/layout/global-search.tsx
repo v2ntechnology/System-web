@@ -1,4 +1,4 @@
-import { Lock, Search } from 'lucide-react';
+import { LockIcon, SearchIcon } from '@/components/icons';
 import { useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -91,7 +91,7 @@ export function GlobalSearch({ className }: { className?: string }) {
       }}
     >
       <div role="search">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
           value={query}
@@ -146,7 +146,7 @@ export function GlobalSearch({ className }: { className?: string }) {
                         </span>
                       </span>
                       {locked && (
-                        <Lock
+                        <LockIcon
                           className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60"
                           aria-label="Recurso do plano"
                         />

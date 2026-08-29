@@ -1,0 +1,205 @@
+/**
+ * Paleta RookHub — fonte única de cor dos dois painéis.
+ *
+ * ÂNCORAS DE PRODUTO
+ *   #212121  Grafite  — fundo do tema escuro, nos dois painéis
+ *   #6366F1  Indigo   — marca primária
+ *   #06B6D4  Cyan     — marca secundária (foco, destaque)
+ *
+ * COMO OS TEMAS SE ORGANIZAM
+ *
+ * O `@theme` abaixo declara a rampa **escura**, que é o padrão do produto e vale
+ * quando nenhuma classe de tema está no `<html>`. O bloco `html.light` redefine
+ * as mesmas variáveis com a rampa clara. Como o Tailwind gera utilitários que
+ * leem `var(--color-*)` em tempo de uso, trocar a variável na raiz troca a tela
+ * inteira, nos dois painéis, sem nenhum `dark:` espalhado nos componentes.
+ *
+ * `html.light` fica fora de `@layer` e tem especificidade maior que o `:root` do
+ * `@theme`, então vence independentemente da ordem dos arquivos.
+ *
+ * A rampa neutra é cinza puro de propósito: o azul-noite que o painel operacional
+ * usava puxava a tela inteira para o roxo e não casava com o grafite da gestão.
+ */
+
+@theme {
+  /* ------------------------------------------------------------------------
+   * Superfícies — rampa neutra ancorada em #212121 (tema escuro)
+   * ---------------------------------------------------------------------- */
+  --color-surface: #212121; /* fundo da aplicação */
+  --color-surface-lowest: #171717; /* poços: campos de entrada, áreas recuadas */
+  --color-surface-low: #262626; /* menus, popovers, vidro sobre o fundo */
+  --color-surface-container: #2e2e2e; /* card padrão (base do glass 0.04) */
+  --color-surface-high: #383838; /* card elevado */
+  --color-surface-highest: #434343; /* modais (base do glass 0.08) */
+
+  /*
+   * Preenchimentos neutros de controle. Existem separados da rampa porque as
+   * duas rampas invertem: no escuro o botão neutro é mais **claro** que o fundo,
+   * no claro é mais **escuro**. Sem este par, `bg-secondary` viraria um poço
+   * preto no escuro ou um branco invisível no claro.
+   */
+  --color-fill: #383838; /* botão neutro, chip, aba inativa */
+  --color-fill-subtle: #2a2a2a; /* faixa de apoio, linha zebrada */
+
+  /* ------------------------------------------------------------------------
+   * Texto e traço — contraste medido sobre #212121
+   * ---------------------------------------------------------------------- */
+  --color-on-surface: #f0f0f2; /* 14.1:1 — AAA */
+  --color-on-surface-variant: #b4b4bc; /*  7.8:1 — AAA */
+  --color-on-surface-muted: #9a9aa4; /* calibrado para o card #2E2E2E */
+  --color-placeholder: #8a8a94; /* cinza discreto para campos vazios */
+  --color-outline: #6e6e76; /*  3.2:1 — traço de componente */
+  --color-outline-variant: #3a3a3e; /* divisórias sutis */
+
+  /* ------------------------------------------------------------------------
+   * Sobre mídia — texto e véus que vivem em cima de fotografia.
+   *
+   * Não acompanham o tema: o banner escurece a foto com um gradiente preto nos
+   * dois temas, então inverter estas cores no claro deixaria o título ilegível
+   * sobre a própria imagem.
+   * ---------------------------------------------------------------------- */
+  --color-on-media: #f5f5f7;
+  --color-on-media-variant: #d5d5db;
+
+  /* ------------------------------------------------------------------------
+   * Marca — constante nos dois temas
+   * ---------------------------------------------------------------------- */
+  --color-primary-strong: #5457ee; /* 5.3:1 com branco — AA em botão e chip */
+  --color-primary-container: #3730a3;
+  --color-on-primary: #ffffff;
+  --color-secondary-container: #0e7490;
+  --color-on-secondary: #00212b;
+  --color-tertiary: #212121;
+
+  /* Vermelho claro da faixa do painel: #DC2626 reprova AA sobre vidro escuro. */
+  --color-error: #fb7185;
+  /* Texto sobre o vermelho. Vira branco no claro, onde o `error` escurece. */
+  --color-on-error: #2d0410;
+
+  /* ------------------------------------------------------------------------
+   * Contraste máximo — ação principal das telas de autenticação (Figma).
+   *
+   * O par inverte junto com o tema: pill claro sobre o grafite, pill grafite
+   * sobre o papel. Fixá-lo no branco deixaria o botão "Entrar" invisível no
+   * tema claro, que é exatamente onde ele é a única ação da tela.
+   * ---------------------------------------------------------------------- */
+  --color-bright: #f8fafc;
+  --color-on-bright: #171717;
+
+  /* ------------------------------------------------------------------------
+   * SUPERFÍCIE DE PAINEL — o `LightCard` do painel de gestão.
+   *
+   * ⚠️ O nome é herança do Figma, onde era um painel branco sobre o grafite. Por
+   * decisão do usuário em 19/08/2026 ele **acompanha o tema**: no escuro é o card
+   * escuro comum, no claro é o branco de sempre. Um bloco branco no meio de uma
+   * tela escura era o que mais destoava depois da unificação da paleta.
+   * ---------------------------------------------------------------------- */
+  --color-light: #2e2e2e; /* mesmo cinza de `surface-container` */
+  --color-light-container: #262626; /* poço dentro do painel */
+  --color-on-light: #f0f0f2;
+  --color-on-light-variant: #b4b4bc;
+  --color-on-light-muted: #9a9aa4;
+  --color-light-outline: #3a3a3e;
+  --color-light-edge: transparent; /* traço externo (só o tema claro precisa) */
+  --color-primary-on-light: #a5b4fc;
+  --color-error-on-light: #fb7185;
+  --color-warning-on-light: #fbbf24;
+  --color-success-on-light: #34d399;
+
+  /* ------------------------------------------------------------------------
+   * Paleta categórica de gráficos, que vivem dentro do painel.
+   * Validada no claro: deutan ΔE 15.5 · tritan 11.6 · visão normal 22.0 · ≥3:1.
+   * A ordem é FIXA — série nunca troca de cor quando um filtro muda a contagem.
+   * Aqui estão as versões claras das mesmas três matizes, para o fundo escuro.
+   * ---------------------------------------------------------------------- */
+  --color-chart-1: #818cf8;
+  --color-chart-2: #22d3ee;
+  --color-chart-3: #fb7185;
+}
+
+/* --------------------------------------------------------------------------
+ * Variáveis-fonte do tema escuro consumidas pelo `@theme inline` do painel
+ * operacional (`globals.css`). Ficam aqui para que as duas famílias de token
+ * saiam do mesmo lugar: `--card` é o mesmo cinza que `--color-surface-container`.
+ * ----------------------------------------------------------------------- */
+:root {
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #f0f0f2;
+  --accent: #06b6d4;
+  --accent-foreground: #00212b;
+
+  --success: #34d399;
+  --success-foreground: #05271b;
+  --warning: #fbbf24;
+  --warning-foreground: #2b1c00;
+  --info: #38bdf8;
+  --info-foreground: #002031;
+  --destructive: #fb7185;
+  --destructive-foreground: #2d0410;
+
+  --ring: #06b6d4;
+}
+
+/* --------------------------------------------------------------------------
+ * TEMA CLARO
+ *
+ * Mesma estrutura, mesmas âncoras de marca, neutros invertidos. Os cinzas
+ * continuam puros: o claro é a versão de papel do grafite, não um azul lavado.
+ * ----------------------------------------------------------------------- */
+html.light {
+  --color-surface: #f2f2f3;
+  --color-surface-lowest: #e7e7e9;
+  --color-surface-low: #ffffff;
+  --color-surface-container: #ffffff;
+  /* `high` não vira branco: no claro ele é o trilho das barras de progresso e o
+     fundo do avatar, que precisam ficar **abaixo** do card, não acima dele. */
+  --color-surface-high: #e4e4e7;
+  --color-surface-highest: #ffffff;
+
+  --color-fill: #e7e7e9;
+  --color-fill-subtle: #ededef;
+
+  --color-on-surface: #1b1b1f; /* 16.3:1 sobre branco — AAA */
+  --color-on-surface-variant: #4b4b54; /*  8.6:1 — AAA */
+  --color-on-surface-muted: #63636d; /*  5.8:1 — AA  */
+  --color-placeholder: #73737d; /* visível sem competir com o valor digitado */
+  --color-outline: #9c9ca5;
+  --color-outline-variant: #dedee2;
+
+  /* O painel vira branco e ganha traço no lugar da sombra pesada. */
+  --color-light: #ffffff;
+  --color-light-container: #f2f2f3;
+  --color-on-light: #1b1b1f;
+  --color-on-light-variant: #4b4b54;
+  --color-on-light-muted: #63636d;
+  --color-light-outline: #dedee2;
+  --color-light-edge: #e4e4e7;
+  --color-primary-on-light: #4338ca;
+  --color-error-on-light: #9f1239;
+  --color-warning-on-light: #6b3f0a;
+  --color-success-on-light: #065f46;
+
+  /* Versões escuras das três matizes, para os gráficos sobre o painel branco. */
+  --color-chart-1: #4f46e5;
+  --color-chart-2: #0e8fa8;
+  --color-chart-3: #e11d48;
+
+  /* Semânticas escurecidas para manter AA sobre superfície clara. */
+  --color-error: #e11d48;
+  --color-on-error: #ffffff;
+  --success: #047857;
+  --success-foreground: #ffffff;
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
+  --info: #0284c7;
+  --info-foreground: #ffffff;
+  --destructive: #e11d48;
+  --destructive-foreground: #ffffff;
+
+  --secondary-foreground: #1b1b1f;
+  --accent-foreground: #ffffff;
+
+  --color-bright: #212121;
+  --color-on-bright: #f5f5f7;
+}

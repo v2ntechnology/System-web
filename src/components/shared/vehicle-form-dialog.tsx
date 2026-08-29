@@ -1,5 +1,5 @@
+import { SpinnerIcon } from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
@@ -237,7 +237,7 @@ export function VehicleFormDialog({ open, onOpenChange }: VehicleFormDialogProps
                 Cancelar
               </Button>
               <Button type="submit" variant="brand" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isSubmitting && <SpinnerIcon className="h-4 w-4 animate-spin" />}
                 Salvar veículo
               </Button>
             </DialogFooter>

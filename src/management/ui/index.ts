@@ -1,10 +1,12 @@
 export { cn } from './lib/cn';
+export { POPOVER_LAYER, PORTAL_FOCUS_RING } from './lib/field-surfaces';
 
 export { AuroraBackdrop, type AuroraBackdropProps } from './aurora-backdrop';
 export { Avatar, type AvatarProps } from './avatar';
 export { BlindsBackdrop, type BlindsBackdropProps } from './blinds-backdrop';
 export { DataTable, type DataTableProps, type Column } from './data-table';
 export { GlassCard, type GlassCardProps } from './glass-card';
+export { GlassDateField, type GlassDateFieldProps } from './glass-date-field';
 export {
   GlassInput,
   GlassSelect,

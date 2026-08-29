@@ -1,10 +1,10 @@
 import {
-  ArrowSquareOutIcon,
-  CreditCardIcon,
-  DownloadSimpleIcon,
+  BillingIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
   InfoIcon,
   WarningIcon,
-} from '@phosphor-icons/react';
+} from '@/components/icons';
 import type { Invoice, InvoiceStatus, PlanQuota, Subscription } from '@/management/types';
 import {
   DataTable,
@@ -186,7 +186,7 @@ export function BillingPage() {
           aria-label={`Baixar a fatura ${row.number}`}
           className="border-light-outline text-on-light-variant hover:bg-light-container focus-visible:ring-primary-on-light inline-flex size-8 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2"
         >
-          <DownloadSimpleIcon size={16} />
+          <DownloadIcon size={16} />
         </button>
       ),
     },
@@ -289,7 +289,7 @@ export function BillingPage() {
                       }
                     >
                       Ver fatura
-                      <ArrowSquareOutIcon size={16} weight="bold" aria-hidden="true" />
+                      <ExternalLinkIcon size={16} aria-hidden="true" />
                     </SpectrumButton>
                   </div>
                 ) : null}
@@ -434,7 +434,6 @@ export function BillingPage() {
                               <p className="text-on-light flex items-center gap-2 font-medium">
                                 <WarningIcon
                                   size={14}
-                                  weight="fill"
                                   className="text-warning-on-light"
                                   aria-hidden="true"
                                 />
@@ -452,9 +451,8 @@ export function BillingPage() {
                 ) : (
                   <LightCard title="Forma de pagamento">
                     <div className="bg-light-container flex flex-wrap items-center gap-4 rounded-lg p-4">
-                      <CreditCardIcon
+                      <BillingIcon
                         size={32}
-                        weight="duotone"
                         className="text-primary-on-light shrink-0"
                         aria-hidden="true"
                       />

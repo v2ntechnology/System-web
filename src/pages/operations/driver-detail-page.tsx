@@ -1,4 +1,4 @@
-import { ArrowLeft, ShieldAlert } from 'lucide-react';
+import { ArrowLeftIcon, ShieldAlertIcon } from '@/components/icons';
 import { type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -39,7 +39,7 @@ export default function DriverDetailPage() {
           onClick={() => navigate('/app/motoristas')}
           aria-label="Voltar"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeftIcon className="h-4 w-4" />
         </Button>
         <Avatar className="h-12 w-12">
           <AvatarFallback>{getInitials(driver.name)}</AvatarFallback>
@@ -66,7 +66,7 @@ export default function DriverDetailPage() {
         <InfoCard
           label="Alertas de segurança"
           value={driver.safetyAlerts}
-          icon={ShieldAlert}
+          icon={ShieldAlertIcon}
           accent={driver.safetyAlerts > 0 ? 'destructive' : 'default'}
         />
       </div>

@@ -1,4 +1,4 @@
-import { LockSimpleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
+import { LockIcon, SearchIcon } from '@/components/icons';
 import type { ReportCategory, ReportDefinition, AnalyticsPeriod } from '@/management/types';
 import { cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -136,7 +136,7 @@ export function ReportsPage() {
                 </div>
 
                 <div className="rounded-pill focus-within:border-primary-on-light bg-light-container border-light-outline flex min-w-0 items-center gap-2 border px-4 xl:w-72">
-                  <MagnifyingGlassIcon
+                  <SearchIcon
                     size={18}
                     className="text-on-light-muted shrink-0"
                     aria-hidden="true"
@@ -150,7 +150,7 @@ export function ReportsPage() {
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Nome do relatório"
-                    className="text-body-md text-on-light placeholder:text-on-light-muted h-11 w-full bg-transparent focus:outline-none"
+                    className="text-body-md text-on-light placeholder:text-placeholder h-11 w-full bg-transparent focus:outline-none"
                   />
                 </div>
               </div>
@@ -188,9 +188,8 @@ export function ReportsPage() {
                                   {report.title}
                                 </span>
                                 {locked ? (
-                                  <LockSimpleIcon
+                                  <LockIcon
                                     size={16}
-                                    weight="fill"
                                     aria-label="Módulo não contratado"
                                     className={cn(
                                       'mt-0.5 shrink-0',

@@ -1,4 +1,4 @@
-import { InfoIcon, LockSimpleIcon, PuzzlePieceIcon } from '@phosphor-icons/react';
+import { ExtensionIcon, InfoIcon, LockIcon } from '@/components/icons';
 import type { Extension, ExtensionCategory } from '@/management/types';
 import { GlassCard, LightCard, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -100,7 +100,7 @@ export function ExtensionsPage() {
             <div className="grid gap-5 xl:grid-cols-[1fr_1.55fr]">
               <GlassCard className="flex min-w-0 flex-col p-5 sm:p-6">
                 <h3 className="text-on-surface-variant text-body-md flex items-center gap-2">
-                  <PuzzlePieceIcon size={18} weight="duotone" aria-hidden="true" />
+                  <ExtensionIcon size={18} aria-hidden="true" />
                   Extensões contratadas
                 </h3>
 
@@ -211,9 +211,8 @@ export function ExtensionsPage() {
 
                               {/* RN-004 — módulo fora do plano aparece bloqueado. */}
                               {locked ? (
-                                <LockSimpleIcon
+                                <LockIcon
                                   size={16}
-                                  weight="fill"
                                   aria-label="Módulo não contratado"
                                   className={cn(
                                     'mt-0.5 shrink-0',
@@ -225,7 +224,7 @@ export function ExtensionsPage() {
                                   className={cn(
                                     'rounded-pill text-label-md shrink-0 px-2 py-0.5 normal-case',
                                     active
-                                      ? 'text-on-primary bg-white/20'
+                                      ? 'text-on-primary bg-on-surface/20'
                                       : item.status === 'ATIVA'
                                         ? 'bg-success-on-light/12 text-success-on-light'
                                         : 'bg-warning-on-light/12 text-warning-on-light',

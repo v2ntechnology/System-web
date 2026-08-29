@@ -1,4 +1,4 @@
-import { MedalIcon } from '@phosphor-icons/react';
+import { MedalIcon } from '@/components/icons';
 import type { RankingPeriod } from '@/management/types';
 import { Avatar, Spinner, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -95,7 +95,7 @@ export function DriverRankingCard({
                   aria-label={`${entry.position}º — ${entry.name}, score ${entry.score}`}
                   className={cn(
                     'focus-visible:ring-secondary flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
-                    active ? 'bg-white/8' : 'hover:bg-white/5',
+                    active ? 'bg-on-surface/8' : 'hover:bg-on-surface/5',
                   )}
                 >
                   <span className="tabular text-on-surface-muted text-label-md w-4 shrink-0 normal-case">
@@ -132,12 +132,7 @@ export function DriverRankingCard({
                       </span>
                     </span>
                     {medal ? (
-                      <MedalIcon
-                        size={22}
-                        weight="fill"
-                        className={medal.color}
-                        aria-label={medal.label}
-                      />
+                      <MedalIcon size={22} className={medal.color} aria-label={medal.label} />
                     ) : (
                       <span className="w-5.5" aria-hidden="true" />
                     )}

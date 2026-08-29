@@ -1,4 +1,5 @@
-import { Info, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
+import { InfoIcon, TrendDownIcon, TrendUpIcon } from '@/components/icons';
+import type { IconType } from '@/components/icons';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,7 +29,7 @@ export function MetricCard({ label, value, hint, trend, loading }: MetricCardPro
     );
   }
 
-  const TrendIcon = trend?.direction === 'down' ? TrendingDown : TrendingUp;
+  const TrendIcon = trend?.direction === 'down' ? TrendDownIcon : TrendUpIcon;
 
   return (
     <Card className="transition-colors hover:border-primary/40">
@@ -43,7 +44,7 @@ export function MetricCard({ label, value, hint, trend, loading }: MetricCardPro
                   className="text-muted-foreground/70 transition-colors hover:text-foreground"
                   aria-label={`Sobre ${label}`}
                 >
-                  <Info className="h-4 w-4" />
+                  <InfoIcon className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{hint}</TooltipContent>
@@ -73,7 +74,7 @@ export function MetricCard({ label, value, hint, trend, loading }: MetricCardPro
 interface InfoCardProps {
   label: string;
   value: string | number;
-  icon?: LucideIcon;
+  icon?: IconType;
   accent?: 'default' | 'success' | 'warning' | 'info' | 'destructive';
   className?: string;
 }

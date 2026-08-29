@@ -1,30 +1,27 @@
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
-  CaretRightIcon,
+  BillingIcon,
   CheckIcon,
-  CreditCardIcon,
-  GearSixIcon,
-  ListIcon,
+  CloseIcon,
+  ExtensionIcon,
+  HomeIcon,
+  LogoutIcon,
+  MenuIcon,
   PaletteIcon,
-  PuzzlePieceIcon,
-  SignOutIcon,
-  SparkleIcon,
-  XIcon,
-} from '@phosphor-icons/react';
+  SettingsIcon,
+} from '@/components/icons';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Avatar, cn } from '@/management/ui';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { RookhubLogo } from '@/management/components/brand/rookhub-logo';
 import { NotificationsBell } from '@/management/features/notifications/components/notifications-bell';
-import {
-  THEME_AVAILABILITY,
-  useAppearanceStore,
-  type ThemeChoice,
-} from '@/management/features/appearance/store';
+import { ThemeSwitch } from '@/management/features/appearance/components/theme-switch';
+import { useAppearanceStore } from '@/management/features/appearance/store';
 import { useSession } from '@/management/features/auth/store';
 import { HUB_ROLES, ROLE_LABELS } from '@/app/permissions';
 import { useSessionStore } from '@/stores/session-store';
+import { useThemeStore } from '@/stores/theme-store';
 
 import { AppNav, AppNavMobile } from './app-nav';
 
@@ -32,15 +29,12 @@ import { AppNav, AppNavMobile } from './app-nav';
  * Linha do menu. Extraído porque já são sete itens repetindo a mesma string.
  *
  * `opacity-60` e não menos no item desabilitado: a 45% o texto cai para 3,8:1
- * sobre `surface-low`. A WCAG isenta controle inativo, mas quem lê "Claro — em
- * breve" precisa **conseguir ler** o aviso; a 60% dá 5,8:1 e continua
- * visivelmente apagado ao lado dos ativos.
+ * sobre `surface-low`. A WCAG isenta controle inativo, mas o aviso de um item
+ * travado precisa **poder ser lido**; a 60% dá 5,8:1 e continua visivelmente
+ * apagado ao lado dos ativos.
  */
 const itemClass =
-  'text-on-surface text-body-md data-[highlighted]:bg-white/8 flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 outline-none transition-colors data-[disabled]:cursor-default data-[disabled]:opacity-60';
-
-/** Item de escolha: abre espaço à esquerda para a marca de selecionado. */
-const choiceClass = `${itemClass} relative pl-8`;
+  'text-on-surface text-body-md data-[highlighted]:bg-on-surface/8 flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 outline-none transition-colors data-[disabled]:cursor-default data-[disabled]:opacity-60';
 
 /**
  * Barra superior do painel, sobreposta ao banner.
@@ -58,8 +52,9 @@ export function AppTopbar() {
   /* Quem escolheu entrar pela hub precisa da porta de volta para ela. */
   const usesHub = session ? HUB_ROLES.includes(session.user.role) : false;
 
-  const theme = useAppearanceStore((state) => state.theme);
-  const setTheme = useAppearanceStore((state) => state.setTheme);
+  /* O tema é do produto inteiro, não do painel: mesma store do painel operacional. */
+  const theme = useThemeStore((state) => state.theme);
+  const toggleTheme = useThemeStore((state) => state.toggleTheme);
   const highPerformance = useAppearanceStore((state) => state.highPerformance);
   const setHighPerformance = useAppearanceStore((state) => state.setHighPerformance);
 
@@ -93,6 +88,7 @@ export function AppTopbar() {
                 aria-label={`Conta de ${session?.user.name ?? 'usuário'}`}
                 className="rounded-pill focus-visible:ring-secondary focus-visible:ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               >
+                {/* Sobre a foto do banner: o anel é branco nos dois temas. */}
                 <Avatar
                   name={session?.user.name ?? 'Usuário'}
                   className="size-10 ring-2 ring-white/20"
@@ -115,13 +111,13 @@ export function AppTopbar() {
 
                 {/*
                  * A hub é a antessala de quem escolhe entre IA e gestão (dono e
-                 * gestor). Sem a porta de volta, quem entrou no sistema ficaria
-                 * preso no painel até deslogar.
+                 * gestor). Única porta de volta: por decisão do usuário em
+                 * 19/08/2026 o atalho saiu da barra e vive só aqui.
                  */}
                 {usesHub ? (
                   <DropdownMenu.Item asChild>
                     <Link to="/painel" className={itemClass}>
-                      <SparkleIcon size={16} weight="duotone" aria-hidden="true" />
+                      <HomeIcon size={16} aria-hidden="true" />
                       Painel de escolha
                     </Link>
                   </DropdownMenu.Item>
@@ -132,111 +128,93 @@ export function AppTopbar() {
                   <>
                     <DropdownMenu.Item asChild>
                       <Link to="/gestao/cobranca" className={itemClass}>
-                        <CreditCardIcon size={16} weight="duotone" aria-hidden="true" />
+                        <BillingIcon size={16} aria-hidden="true" />
                         Plano e cobrança
                       </Link>
                     </DropdownMenu.Item>
 
                     <DropdownMenu.Item asChild>
                       <Link to="/gestao/extensoes" className={itemClass}>
-                        <PuzzlePieceIcon size={16} weight="duotone" aria-hidden="true" />
+                        <ExtensionIcon size={16} aria-hidden="true" />
                         Extensões
                       </Link>
                     </DropdownMenu.Item>
                   </>
                 ) : null}
 
-                {/* ---------------------------------------------------------
-                 * Aparência — submenu, para não empurrar Sair para baixo da
-                 * dobra num menu que já tem sete linhas.
-                 * ------------------------------------------------------- */}
-                <DropdownMenu.Sub>
-                  <DropdownMenu.SubTrigger className={itemClass}>
-                    <PaletteIcon size={16} weight="duotone" aria-hidden="true" />
-                    Aparência
-                    <CaretRightIcon
-                      size={12}
-                      weight="bold"
-                      className="ml-auto"
-                      aria-hidden="true"
-                    />
-                  </DropdownMenu.SubTrigger>
-
-                  <DropdownMenu.Portal>
-                    <DropdownMenu.SubContent
-                      sideOffset={6}
-                      className="bg-surface-low ring-outline-variant z-[1000] min-w-60 rounded-lg p-2 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)] ring-1"
-                    >
-                      <p className="text-on-surface-muted text-label-md px-3 py-1.5 normal-case">
-                        Tema
-                      </p>
-
-                      <DropdownMenu.RadioGroup
-                        value={theme}
-                        onValueChange={(next) => setTheme(next as ThemeChoice)}
-                      >
-                        <DropdownMenu.RadioItem value="dark" className={choiceClass}>
-                          <DropdownMenu.ItemIndicator className="absolute left-3">
-                            <CheckIcon size={14} weight="bold" />
-                          </DropdownMenu.ItemIndicator>
-                          Escuro
-                        </DropdownMenu.RadioItem>
-
-                        {/*
-                         * Claro aparece desabilitado, não escondido: o grafite é
-                         * âncora de produto (regra 1) e o tema claro exige
-                         * rederivar a rampa e revisar os componentes que hoje
-                         * misturam as duas famílias. Esconder viraria a pergunta
-                         * "cadê o tema claro?"; mostrar travado responde antes.
-                         */}
-                        <DropdownMenu.RadioItem
-                          value="light"
-                          disabled={!THEME_AVAILABILITY.light}
-                          className={choiceClass}
-                        >
-                          <DropdownMenu.ItemIndicator className="absolute left-3">
-                            <CheckIcon size={14} weight="bold" />
-                          </DropdownMenu.ItemIndicator>
-                          Claro
-                          <span className="text-on-surface-muted text-label-sm ml-auto normal-case">
-                            em breve
-                          </span>
-                        </DropdownMenu.RadioItem>
-                      </DropdownMenu.RadioGroup>
-
-                      <DropdownMenu.Separator className="bg-outline-variant my-2 h-px" />
-
-                      <DropdownMenu.CheckboxItem
-                        checked={highPerformance}
-                        onCheckedChange={setHighPerformance}
-                        className={choiceClass}
-                      >
-                        <DropdownMenu.ItemIndicator className="absolute left-3">
-                          <CheckIcon size={14} weight="bold" />
-                        </DropdownMenu.ItemIndicator>
-                        Alto desempenho
-                      </DropdownMenu.CheckboxItem>
-
-                      <p className="text-on-surface-muted text-label-sm px-3 pb-1 pt-1.5 normal-case">
-                        Desliga o efeito de vidro. Ajuda em aparelho mais simples.
-                      </p>
-                    </DropdownMenu.SubContent>
-                  </DropdownMenu.Portal>
-                </DropdownMenu.Sub>
+                {/*
+                 * Alto desempenho saiu do submenu "Aparência" e virou linha
+                 * direta: com o tema no rodapé, o submenu ficaria com uma única
+                 * opção dentro, e um nível a mais para chegar num interruptor.
+                 */}
+                <DropdownMenu.CheckboxItem
+                  checked={highPerformance}
+                  onCheckedChange={setHighPerformance}
+                  /* Mesmo `itemClass` dos demais: o ícone fica na mesma coluna e a
+                     marca de ligado vai para a direita, sem recuo extra. */
+                  className={itemClass}
+                >
+                  <PaletteIcon size={16} aria-hidden="true" />
+                  Alto desempenho
+                  <DropdownMenu.ItemIndicator className="ml-auto">
+                    <CheckIcon size={14} />
+                  </DropdownMenu.ItemIndicator>
+                </DropdownMenu.CheckboxItem>
 
                 <DropdownMenu.Item asChild>
                   <Link to="/gestao/configuracoes" className={itemClass}>
-                    <GearSixIcon size={16} weight="duotone" aria-hidden="true" />
+                    <SettingsIcon size={16} aria-hidden="true" />
                     Configurações
                   </Link>
                 </DropdownMenu.Item>
 
                 <DropdownMenu.Separator className="bg-outline-variant my-2 h-px" />
 
-                <DropdownMenu.Item onSelect={signOut} className={itemClass}>
-                  <SignOutIcon size={16} weight="duotone" aria-hidden="true" />
-                  Sair
-                </DropdownMenu.Item>
+                {/*
+                 * Rodapé: tema à esquerda, sair à direita.
+                 *
+                 * O item que embrulha o seletor é o caminho de teclado: a seta
+                 * para nele, o rótulo diz em que tema se está e Enter alterna.
+                 * `preventDefault` mantém o menu aberto, porque quem compara os
+                 * dois temas alterna algumas vezes seguidas.
+                 */}
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <DropdownMenu.Item
+                    asChild
+                    aria-label={
+                      theme === 'dark'
+                        ? 'Tema escuro. Ativar tema claro'
+                        : 'Tema claro. Ativar tema escuro'
+                    }
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      toggleTheme();
+                    }}
+                    className="outline-none data-[highlighted]:bg-transparent"
+                  >
+                    <div>
+                      <ThemeSwitch />
+                    </div>
+                  </DropdownMenu.Item>
+
+                  <DropdownMenu.Item
+                    asChild
+                    onSelect={signOut}
+                    className="outline-none data-[highlighted]:bg-transparent"
+                  >
+                    <button
+                      type="button"
+                      aria-label="Sair"
+                      title="Sair"
+                      /* Gêmeo do botão de sair do painel operacional (decisão do
+                         usuário em 19/08/2026): quadrado de canto arredondado, e o
+                         hover mostra só o contorno vermelho, sem preencher o fundo. */
+                      className="text-error hover:ring-error/60 focus-visible:ring-error flex size-9 cursor-pointer items-center justify-center rounded-[10px] ring-1 ring-inset ring-transparent transition-colors focus-visible:outline-none focus-visible:ring-2"
+                    >
+                      <LogoutIcon size={18} />
+                    </button>
+                  </DropdownMenu.Item>
+                </div>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
@@ -247,10 +225,10 @@ export function AppTopbar() {
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
             className={cn(
-              'text-on-surface rounded-pill focus-visible:ring-secondary flex size-10 items-center justify-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 lg:hidden',
+              'text-on-media rounded-pill focus-visible:ring-secondary flex size-10 items-center justify-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 lg:hidden',
             )}
           >
-            {menuOpen ? <XIcon size={22} /> : <ListIcon size={22} />}
+            {menuOpen ? <CloseIcon size={22} /> : <MenuIcon size={22} />}
           </button>
         </div>
       </div>

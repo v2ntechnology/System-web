@@ -1,6 +1,12 @@
 import { permissionsForRole } from '@/app/permissions';
 import { env } from '@/app/environment';
-import { BLOCKED_EMAIL, buildDemoUser, DEMO_CREDENTIALS, DEMO_PASSWORD, DEMO_TENANT } from '@/mocks/session';
+import {
+  BLOCKED_EMAIL,
+  buildDemoUser,
+  DEMO_CREDENTIALS,
+  DEMO_PASSWORD,
+  DEMO_TENANT,
+} from '@/mocks/session';
 import { ApiError, networkDelay } from '@/services/http';
 import { clearAccessToken, setAccessToken } from '@/services/token-store';
 import type { AuthUser, PlanType, Tenant, TenantStatus, UserRole } from '@/types';

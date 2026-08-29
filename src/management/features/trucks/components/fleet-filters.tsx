@@ -1,5 +1,5 @@
-import { FunnelSimpleIcon, MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react';
-import { cn } from '@/management/ui';
+import { CloseIcon, FilterIcon, SearchIcon } from '@/components/icons';
+import { cn, GlassSelect } from '@/management/ui';
 
 export interface FleetFiltersValue {
   brand: string;
@@ -24,8 +24,10 @@ export function countActiveFilters(value: FleetFiltersValue) {
   );
 }
 
-const selectClass =
-  'border-outline-variant bg-surface-lowest text-on-surface text-body-md focus-visible:ring-secondary h-11 rounded-pill border px-4 focus-visible:outline-none focus-visible:ring-2';
+/* Piso comum para os três filtros: sem ele cada um encolhe até o tamanho do
+   próprio texto e a barra fica desalinhada. Acima disso, cada um cresce com o
+   rótulo selecionado, que pode ser longo ("Vence em menos de 1.000 km"). */
+const selectClass = 'w-auto min-w-52';
 
 /**
  * Barra de filtros da frota (Figma).
@@ -50,7 +52,7 @@ export function FleetFilters({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <p className="text-on-surface-variant text-body-md flex items-center gap-2">
-        <FunnelSimpleIcon size={18} weight="duotone" aria-hidden="true" />
+        <FilterIcon size={18} aria-hidden="true" />
         Filtros
         {active > 0 ? (
           <span className="bg-primary-strong text-on-primary rounded-pill tabular text-label-sm flex size-5 items-center justify-center">
@@ -59,59 +61,55 @@ export function FleetFilters({
         ) : null}
       </p>
 
-      <label className="sr-only" htmlFor="filter-brand">
-        Marca
-      </label>
-      <select
+      <GlassSelect
         id="filter-brand"
+        label="Marca"
+        hideLabel
+        variant="outline"
+        pill
+        className={selectClass}
         value={value.brand}
-        onChange={(event) => set('brand', event.target.value)}
-        className={selectClass}
-      >
-        <option value="TODAS">Todas as marcas</option>
-        {brands.map((brand) => (
-          <option key={brand} value={brand}>
-            {brand}
-          </option>
-        ))}
-      </select>
+        onValueChange={(next) => set('brand', next)}
+        options={[
+          { value: 'TODAS', label: 'Todas as marcas' },
+          ...brands.map((brand) => ({ value: brand, label: brand })),
+        ]}
+      />
 
-      <label className="sr-only" htmlFor="filter-maintenance">
-        Manutenção
-      </label>
-      <select
+      <GlassSelect
         id="filter-maintenance"
+        label="Manutenção"
+        hideLabel
+        variant="outline"
+        pill
+        className={selectClass}
         value={value.maintenance}
-        onChange={(event) =>
-          set('maintenance', event.target.value as FleetFiltersValue['maintenance'])
-        }
-        className={selectClass}
-      >
-        <option value="TODAS">Qualquer manutenção</option>
-        <option value="VENCIDA">Manutenção vencida</option>
-        <option value="PROXIMA">Vence em menos de 1.000 km</option>
-      </select>
+        onValueChange={(next) => set('maintenance', next as FleetFiltersValue['maintenance'])}
+        options={[
+          { value: 'TODAS', label: 'Qualquer manutenção' },
+          { value: 'VENCIDA', label: 'Manutenção vencida' },
+          { value: 'PROXIMA', label: 'Vence em menos de 1.000 km' },
+        ]}
+      />
 
-      <label className="sr-only" htmlFor="filter-sync">
-        Sincronização
-      </label>
-      <select
+      <GlassSelect
         id="filter-sync"
-        value={value.sync}
-        onChange={(event) => set('sync', event.target.value as FleetFiltersValue['sync'])}
+        label="Sincronização"
+        hideLabel
+        variant="outline"
+        pill
         className={selectClass}
-      >
-        <option value="TODOS">Qualquer sincronização</option>
-        <option value="DESATUALIZADO">Sem sincronizar há 30 min</option>
-      </select>
+        value={value.sync}
+        onValueChange={(next) => set('sync', next as FleetFiltersValue['sync'])}
+        options={[
+          { value: 'TODOS', label: 'Qualquer sincronização' },
+          { value: 'DESATUALIZADO', label: 'Sem sincronizar há 30 min' },
+        ]}
+      />
 
       {/* Linha inteira no mobile: dividindo espaço com os selects, sobrava "Pl…". */}
       <div className="border-outline-variant bg-surface-lowest rounded-pill focus-within:border-secondary flex min-w-0 basis-full items-center gap-2 border px-4 sm:max-w-72 sm:flex-1 sm:basis-auto">
-        <MagnifyingGlassIcon
-          size={18}
-          className="text-on-surface-muted shrink-0"
-          aria-hidden="true"
-        />
+        <SearchIcon size={18} className="text-on-surface-muted shrink-0" aria-hidden="true" />
         <label htmlFor="filter-search" className="sr-only">
           Buscar por placa, modelo ou motorista
         </label>
@@ -121,7 +119,7 @@ export function FleetFilters({
           value={value.search}
           onChange={(event) => set('search', event.target.value)}
           placeholder="Placa, modelo ou motorista"
-          className="text-body-md text-on-surface placeholder:text-on-surface-muted h-11 w-full bg-transparent focus:outline-none"
+          className="text-body-md text-on-surface placeholder:text-placeholder h-11 w-full bg-transparent focus:outline-none"
         />
       </div>
 
@@ -130,10 +128,10 @@ export function FleetFilters({
           type="button"
           onClick={() => onChange(EMPTY_FILTERS)}
           className={cn(
-            'text-on-surface-variant hover:text-on-surface text-label-md focus-visible:ring-secondary rounded-pill hover:bg-white/8 inline-flex items-center gap-1.5 px-3 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+            'text-on-surface-variant hover:text-on-surface text-label-md focus-visible:ring-secondary rounded-pill hover:bg-on-surface/8 inline-flex items-center gap-1.5 px-3 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
           )}
         >
-          <XIcon size={14} weight="bold" aria-hidden="true" />
+          <CloseIcon size={14} aria-hidden="true" />
           Limpar
         </button>
       ) : null}

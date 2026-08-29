@@ -1,4 +1,4 @@
-import { FlaskConical } from 'lucide-react';
+import { DemoIcon } from '@/components/icons';
 
 import { PLAN_LABELS } from '@/app/plans';
 import { ROLE_LABELS } from '@/app/permissions';
@@ -34,7 +34,7 @@ export function DemoMenu() {
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger>
-        <FlaskConical />
+        <DemoIcon />
         Modo demonstração
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>

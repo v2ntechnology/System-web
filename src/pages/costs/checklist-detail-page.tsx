@@ -1,4 +1,11 @@
-import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, MinusCircle, XCircle } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  CameraIcon,
+  CheckCircleIcon,
+  MinusCircleIcon,
+  WarningIcon,
+  XCircleIcon,
+} from '@/components/icons';
 import { useNavigate, useParams } from 'react-router';
 
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -14,12 +21,12 @@ import { type ChecklistItem } from '@/types';
 
 const ITEM_STYLE: Record<
   ChecklistItem['status'],
-  { icon: typeof CheckCircle2; className: string; label: string }
+  { icon: typeof CheckCircleIcon; className: string; label: string }
 > = {
-  ok: { icon: CheckCircle2, className: 'text-success', label: 'OK' },
-  attention: { icon: AlertTriangle, className: 'text-warning', label: 'Atenção' },
-  critical: { icon: XCircle, className: 'text-destructive', label: 'Crítico' },
-  not_applicable: { icon: MinusCircle, className: 'text-muted-foreground', label: 'N/A' },
+  ok: { icon: CheckCircleIcon, className: 'text-success', label: 'OK' },
+  attention: { icon: WarningIcon, className: 'text-warning', label: 'Atenção' },
+  critical: { icon: XCircleIcon, className: 'text-destructive', label: 'Crítico' },
+  not_applicable: { icon: MinusCircleIcon, className: 'text-muted-foreground', label: 'N/A' },
 };
 
 export default function ChecklistDetailPage() {
@@ -41,7 +48,7 @@ export default function ChecklistDetailPage() {
           onClick={() => navigate('/app/checklists')}
           aria-label="Voltar"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeftIcon className="h-4 w-4" />
         </Button>
         <div className="flex-1">
           <h1 className="font-display text-2xl font-bold tracking-tight">
@@ -60,7 +67,7 @@ export default function ChecklistDetailPage() {
           <Badge variant="warning">{data.irregularItems} irregularidades</Badge>
         )}
         <Badge variant="info">
-          <Camera className="h-3 w-3" />
+          <CameraIcon className="h-3 w-3" />
           {data.photosCount} evidências
         </Badge>
       </div>

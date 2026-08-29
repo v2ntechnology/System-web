@@ -11,7 +11,7 @@ import type {
   VehiclePosition,
   VehicleStatus,
 } from '@/management/types';
-import { httpRequest } from '@/services/http';
+import { httpBlob, httpRequest } from '@/services/http';
 
 /**
  * Ponte entre o backend e as telas do painel.
@@ -1024,4 +1024,122 @@ export async function fetchTeam(days = 30): Promise<TeamOverview> {
       lastSeenAt: row.lastSeenAt ?? undefined,
     })),
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cadastro de motorista                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * O motorista que a operação cadastra.
+ *
+ * ⚠️ Existe criação de motorista, e não existe de veículo. Não é incoerência:
+ * um caminhão só existe para a plataforma porque tem rastreador, e uma placa
+ * digitada à mão nunca reportaria posição. Uma pessoa é contratada antes de
+ * qualquer equipamento, e o CPF e a CNH dela nunca vieram da telemetria.
+ */
+
+export interface FleetSite {
+  id: string;
+  name: string;
+}
+
+export interface NewDriverInput {
+  name: string;
+  document: string;
+  phone: string | null;
+  email: string | null;
+  license: string | null;
+  cnhCategory: string;
+  cnhExpiresAt: string;
+  hiredAt: string | null;
+  siteId: string | null;
+  employeeNumber: string | null;
+  manualNotes: string | null;
+  active: boolean;
+  /**
+   * Data URL da foto, já reduzida a um quadrado pequeno pelo navegador.
+   * Nula quando ninguém escolheu foto.
+   */
+  photo: string | null;
+}
+
+export interface DriverRegistry {
+  id: string;
+  name: string;
+  document: string | null;
+  phone: string | null;
+  email: string | null;
+  license: string | null;
+  cnhCategory: string | null;
+  cnhExpiresAt: string | null;
+  hiredAt: string | null;
+  siteName: string | null;
+  employeeNumber: string | null;
+  manualNotes: string | null;
+  active: boolean;
+  createdByOperation: boolean;
+}
+
+/** Filiais da empresa. Vazio numa empresa que ainda não sincronizou. */
+export async function fetchFleetSites(): Promise<FleetSite[]> {
+  return httpRequest<FleetSite[]>('/v1/fleet/sites');
+}
+
+export async function createDriver(input: NewDriverInput): Promise<DriverRegistry> {
+  return httpRequest<DriverRegistry>('/v1/drivers', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lista da tela de cadastro                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Uma linha da tela de cadastro de motoristas.
+ *
+ * ⚠️ Vem de `/v1/drivers/registry`, que NÃO filtra nada. A rota `/v1/drivers`,
+ * usada pelo ranking e pela operação, esconde conta de sistema e inativo de
+ * propósito. Esta tela existe para mostrar o que está sujo, então recebe tudo.
+ */
+export interface DriverListEntry {
+  id: string;
+  name: string;
+  document: string | null;
+  cnhCategory: string | null;
+  cnhExpiresAt: string | null;
+  siteName: string | null;
+  employeeNumber: string | null;
+  phone: string | null;
+  origin: 'ROOKHUB' | 'TELEMETRIA';
+  /** Atividade medida, e só ela. */
+  situation: 'ATIVO' | 'PARADO' | 'NAO_E_PESSOA';
+  /**
+   * A filial no fornecedor tem nome de arquivo morto (DESLIGADOS, INATIVOS).
+   *
+   * ⚠️ Separado da situação de propósito: quem está marcado assim e mesmo
+   * assim rodou é o caso que precisa de alguém olhando, e juntar as duas
+   * informações apagaria exatamente esse caso.
+   */
+  markedInactive: boolean;
+  lastJourneyAt: string | null;
+  distance30d: number | null;
+  currentVehiclePlate: string | null;
+  active: boolean;
+  hasPhoto: boolean;
+}
+
+export async function fetchDriverRegistry(): Promise<DriverListEntry[]> {
+  return httpRequest<DriverListEntry[]>('/v1/drivers/registry');
+}
+
+/**
+ * A foto do motorista, como URL de objeto para um `<img>`.
+ *
+ * Quem chama é dono da URL e precisa revogá-la ao desmontar. Ver `httpBlob`.
+ */
+export async function fetchDriverPhoto(driverId: string): Promise<string> {
+  return httpBlob(`/v1/drivers/${driverId}/photo`);
 }

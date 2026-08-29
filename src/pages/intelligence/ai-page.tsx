@@ -1,4 +1,4 @@
-import { Bot, Info, Mic, Plus, Send, Sparkles } from 'lucide-react';
+import { BotIcon, InfoIcon, MicIcon, PlusIcon, SendIcon, SparklesIcon } from '@/components/icons';
 import { useRef, useState } from 'react';
 
 import { PageHeader } from '@/components/layout/page-header';
@@ -78,7 +78,7 @@ export default function AIPage() {
                 className="w-full justify-start"
                 onClick={() => setMessages([])}
               >
-                <Plus className="h-4 w-4" />
+                <PlusIcon className="h-4 w-4" />
                 Nova conversa
               </Button>
               <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -104,7 +104,7 @@ export default function AIPage() {
               {messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-gradient text-primary-foreground">
-                    <Sparkles className="h-7 w-7" />
+                    <SparklesIcon className="h-7 w-7" />
                   </div>
                   <div className="space-y-1">
                     <p className="font-display text-lg font-semibold">
@@ -136,14 +136,14 @@ export default function AIPage() {
                     >
                       {message.role === 'assistant' && (
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-gradient text-primary-foreground">
-                          <Bot className="h-4 w-4" />
+                          <BotIcon className="h-4 w-4" />
                         </div>
                       )}
                       <div
                         className={cn(
                           'max-w-[80%] space-y-2 rounded-lg px-4 py-3 text-sm',
                           message.role === 'user'
-                            ? 'bg-primary text-primary-foreground'
+                            ? 'bg-primary-strong text-on-primary'
                             : 'border border-border bg-muted/40',
                         )}
                       >
@@ -163,8 +163,8 @@ export default function AIPage() {
                   ))}
                   {thinking && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Bot className="h-4 w-4 animate-pulse text-primary" />A IA está analisando os
-                      dados…
+                      <BotIcon className="h-4 w-4 animate-pulse text-primary" />A IA está analisando
+                      os dados…
                     </div>
                   )}
                 </div>
@@ -193,7 +193,7 @@ export default function AIPage() {
                   aria-label="Mensagem para a IA"
                 />
                 <Button type="button" variant="outline" size="icon" aria-label="Entrada por voz">
-                  <Mic className="h-4 w-4" />
+                  <MicIcon className="h-4 w-4" />
                 </Button>
                 <Button
                   type="submit"
@@ -202,11 +202,11 @@ export default function AIPage() {
                   disabled={!input.trim() || thinking}
                   aria-label="Enviar"
                 >
-                  <Send className="h-4 w-4" />
+                  <SendIcon className="h-4 w-4" />
                 </Button>
               </form>
               <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Info className="h-3.5 w-3.5" />
+                <InfoIcon className="h-3.5 w-3.5" />
                 As respostas são recomendações de apoio à decisão e podem conter imprecisões.
               </p>
             </div>

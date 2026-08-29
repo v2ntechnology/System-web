@@ -1,7 +1,13 @@
-import { CreditCard, LogOut, Settings, ShieldCheck, UserCog } from 'lucide-react';
+import {
+  BillingIcon,
+  LogoutIcon,
+  SettingsIcon,
+  ShieldCheckIcon,
+  UserSettingsIcon,
+} from '@/components/icons';
 import { useNavigate } from 'react-router';
 
-import { ROLE_LABELS } from '@/app/permissions';
+import { ROLE_LABELS, canUseDemoControls } from '@/app/permissions';
 import { usePermissions, useSession } from '@/hooks/use-session';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -15,17 +21,22 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getInitials } from '@/lib/format';
 import { useSessionStore } from '@/stores/session-store';
+import { useThemeStore } from '@/stores/theme-store';
 
 import { DemoMenu } from './demo-controls';
-import { ThemeMenuItem } from './theme-toggle';
+import { ThemeSwitch } from './theme-toggle';
 
 export function UserMenu() {
   const { user } = useSession();
   const { hasPermission } = usePermissions();
   const logout = useSessionStore((s) => s.logout);
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const navigate = useNavigate();
 
   if (!user) return null;
+
+  const showDemoControls = canUseDemoControls(user.role);
 
   return (
     <DropdownMenu>
@@ -47,40 +58,84 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/app/configuracoes')}>
-          <Settings />
+          <SettingsIcon />
           Configurações
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/app/configuracoes')}>
-          <UserCog />
+          <UserSettingsIcon />
           Perfil e conta
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/app/planos')}>
-          <CreditCard />
-          Plano e cobrança
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <ThemeMenuItem />
-        <DemoMenu />
+        {/* Contrato e fatura são do proprietário: o menu segue a mesma permissão
+            que já governa a tela `/app/planos` na navegação lateral. */}
+        {hasPermission('billing.manage') && (
+          <DropdownMenuItem onClick={() => navigate('/app/planos')}>
+            <BillingIcon />
+            Plano e cobrança
+          </DropdownMenuItem>
+        )}
+        {showDemoControls && (
+          <>
+            <DropdownMenuSeparator />
+            <DemoMenu />
+          </>
+        )}
         {hasPermission('saas.manage') && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate('/admin-saas/dashboard')}>
-              <ShieldCheck />
+              <ShieldCheckIcon />
               Administração SaaS
             </DropdownMenuItem>
           </>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => {
-            logout();
-            navigate('/');
-          }}
-          className="text-destructive focus:text-destructive"
-        >
-          <LogOut />
-          Sair
-        </DropdownMenuItem>
+
+        {/*
+         * Rodapé do menu: tema à esquerda, sair à direita. As duas ações que não
+         * levam a lugar nenhum ficam fora da lista de destinos.
+         *
+         * O item que embrulha o seletor é o caminho de teclado: as setas param
+         * nele, o rótulo diz em que tema se está e Enter alterna. `preventDefault`
+         * mantém o menu aberto, porque quem compara claro e escuro alterna duas
+         * ou três vezes seguidas.
+         */}
+        <div className="flex items-center justify-between gap-2 px-1 py-0.5">
+          <DropdownMenuItem
+            asChild
+            aria-label={
+              theme === 'dark' ? 'Tema escuro. Ativar tema claro' : 'Tema claro. Ativar tema escuro'
+            }
+            onSelect={(event) => {
+              event.preventDefault();
+              toggleTheme();
+            }}
+            className="p-0 focus:bg-transparent"
+          >
+            <div>
+              <ThemeSwitch />
+            </div>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            asChild
+            onClick={() => {
+              logout();
+              navigate('/');
+            }}
+            /* Mesmo desenho e mesmo hover do botão de sair do painel de gestão
+               (decisão do usuário em 19/08/2026, hover revisto em 20/08/2026):
+               quadrado de 36px com canto de 10px, ícone de 18px, e ao passar o
+               mouse aparece só o contorno vermelho, sem preencher o fundo.
+               As classes ficam no item, e não no `<button>`: com `asChild` o
+               Slot só concatena as duas listas, então o raio e o tamanho do
+               ícone da base venceriam. Aqui elas passam pelo `cn` do item. */
+            className="size-9 justify-center rounded-[10px] p-0 text-destructive ring-1 ring-inset ring-transparent hover:ring-destructive/60 focus:bg-transparent focus:text-destructive focus-visible:ring-2 focus-visible:ring-destructive [&_svg]:size-[18px]"
+          >
+            <button type="button" aria-label="Sair" title="Sair">
+              <LogoutIcon />
+            </button>
+          </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

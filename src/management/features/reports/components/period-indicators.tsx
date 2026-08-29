@@ -1,4 +1,4 @@
-import { TrendDownIcon, TrendUpIcon } from '@phosphor-icons/react';
+import { TrendDownIcon, TrendUpIcon } from '@/components/icons';
 import type { AnalyticsPeriod } from '@/management/types';
 import { GlassCard, Spinner, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -64,7 +64,7 @@ export function PeriodIndicators({ period }: { period: AnalyticsPeriod }) {
         <span
           className={cn('flex items-center gap-1', costFalling ? 'text-success' : 'text-error')}
         >
-          <TrendIcon size={12} weight="bold" aria-hidden="true" />
+          <TrendIcon size={12} aria-hidden="true" />
           {data.costDelta > 0 ? '+' : ''}
           {data.costDelta.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%
         </span>
@@ -90,8 +90,8 @@ export function PeriodIndicators({ period }: { period: AnalyticsPeriod }) {
             <AreaChart data={data.availability} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="availability-dark" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-secondary)" stopOpacity={0.32} />
-                  <stop offset="100%" stopColor="var(--color-secondary)" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="var(--secondary)" stopOpacity={0.32} />
+                  <stop offset="100%" stopColor="var(--secondary)" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -133,10 +133,10 @@ export function PeriodIndicators({ period }: { period: AnalyticsPeriod }) {
               <Area
                 type="monotone"
                 dataKey="availability"
-                stroke="var(--color-secondary)"
+                stroke="var(--secondary)"
                 strokeWidth={2}
                 fill="url(#availability-dark)"
-                dot={{ r: 3, fill: 'var(--color-secondary)', strokeWidth: 0 }}
+                dot={{ r: 3, fill: 'var(--secondary)', strokeWidth: 0 }}
                 isAnimationActive={false}
               />
             </AreaChart>
