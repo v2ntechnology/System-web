@@ -1,3 +1,4 @@
+import { CheckIcon, MinusIcon } from '@/components/icons';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as LabelPrimitive from '@radix-ui/react-label';
 import { useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
@@ -103,21 +104,21 @@ export function Checkbox({
           )}
           {...props}
         >
+          {/*
+           * ⚠️ Os dois desenhos vêm do pacote de ícones, e não de `<path>`
+           * escrito à mão (alinhado em 30/08/2026).
+           *
+           * Antes o visto e o traço eram SVG inline com coordenadas próprias:
+           * um segundo desenho de "certo" convivendo com o `CheckIcon` que a
+           * lista de opções usa logo ao lado, com traço e proporção diferentes.
+           * A regra do projeto é uma só (ver `components/icons.ts`): o mesmo
+           * conceito é o mesmo desenho nos quatro perfis.
+           */}
           <CheckboxPrimitive.Indicator className="text-on-primary">
             {props.checked === 'indeterminate' ? (
-              <svg viewBox="0 0 12 12" className="size-3" fill="none" aria-hidden="true">
-                <path d="M2.5 6H9.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+              <MinusIcon size={12} strokeWidth={3} aria-hidden="true" />
             ) : (
-              <svg viewBox="0 0 12 12" className="size-3" fill="none" aria-hidden="true">
-                <path
-                  d="M1.5 6.5L4.5 9.5L10.5 2.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <CheckIcon size={12} strokeWidth={3} aria-hidden="true" />
             )}
           </CheckboxPrimitive.Indicator>
         </CheckboxPrimitive.Root>

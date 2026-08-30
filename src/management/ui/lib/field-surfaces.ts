@@ -8,9 +8,23 @@
  * detalhe que ninguém reporta e todo mundo percebe. Antes isso morava dentro do
  * `glass-input.tsx`, e o campo de data nasceria com uma segunda cópia.
  */
+/**
+ * ⚠️ `well` usa `focus-within` porque o `GlassInput` e o `GlassDateField`
+ * desenham o poço num **invólucro** e o elemento focável é o `<input>` lá
+ * dentro. `wellTrigger` existe para quem é focável por si só, que é o gatilho do
+ * `GlassSelect`: ali `focus-within` acenderia o anel em situações em que o
+ * `focus-visible` não acenderia.
+ *
+ * Nenhum dos dois resolve sozinho o anel que reaparecia ao fechar a lista
+ * clicando fora: aquilo é o Radix devolvendo o foco ao gatilho por código, e o
+ * navegador tratando foco programático como foco de teclado. A correção mora no
+ * `GlassSelect`, em `onCloseAutoFocus`.
+ */
 export const FIELD_SURFACES = {
   dark: {
     well: 'glass-well focus-within:border-secondary focus-within:ring-secondary/60 focus-within:ring-1',
+    wellTrigger:
+      'glass-well focus-visible:border-secondary focus-visible:ring-secondary/60 focus-visible:ring-1 focus-visible:outline-none',
     wellFocus: '',
     wellError:
       'border-error focus-within:border-error focus-within:ring-error/60 ring-1 ring-error/60',
@@ -22,6 +36,8 @@ export const FIELD_SURFACES = {
   },
   light: {
     well: 'light-well focus-within:border-primary-on-light focus-within:ring-primary-on-light/50 focus-within:ring-1',
+    wellTrigger:
+      'light-well focus-visible:border-primary-on-light focus-visible:ring-primary-on-light/50 focus-visible:ring-1 focus-visible:outline-none',
     wellFocus: '',
     wellError:
       'border-error-on-light focus-within:border-error-on-light focus-within:ring-error-on-light/50 ring-1 ring-error-on-light/50',

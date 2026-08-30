@@ -211,7 +211,7 @@ export function DatePicker({
             type="button"
             disabled={disabled}
             aria-label="Abrir calendário"
-            className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            className="acao-neutra absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
           >
             <CalendarIcon className="size-4" />
           </button>

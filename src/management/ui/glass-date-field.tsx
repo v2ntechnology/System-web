@@ -99,14 +99,12 @@ export function GlassDateField({
               type="button"
               disabled={disabled}
               aria-label="Abrir calendário"
-              className={cn(
-                'focus-visible:ring-secondary flex size-8 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2',
-                styles.muted,
-                /* Realce forte de propósito: a 8% o botão sumia sob o cursor. */
-                surface === 'light'
-                  ? 'hover:bg-on-light/12 hover:text-on-light'
-                  : 'hover:bg-on-surface/15 hover:text-on-surface',
-              )}
+              /* ⚠️ Sem véu de fundo: botão que é só um ícone move a cor do
+                 traço (ver `.acao-*` em `globals.css`). O realce a 12% e 15%
+                 existia porque a 8% o botão sumia sob o cursor, mas o problema
+                 era o véu ser fraco demais, e não faltar véu: com a cor andando
+                 para o texto cheio o botão responde sem tapar o desenho. */
+              className="acao-neutra focus-visible:ring-secondary flex size-8 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2"
             >
               <CalendarIcon size={16} aria-hidden="true" />
             </button>
@@ -317,7 +315,7 @@ function StepButton({
       type="button"
       onClick={onClick}
       aria-label={STEP_LABELS[view][direction === -1 ? 0 : 1]}
-      className="text-on-surface-muted hover:bg-on-surface/12 hover:text-on-surface focus-visible:ring-primary-strong grid size-8 shrink-0 place-items-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2"
+      className="acao-neutra focus-visible:ring-primary-strong grid size-8 shrink-0 place-items-center rounded-md focus-visible:outline-none focus-visible:ring-2"
     >
       {direction === -1 ? (
         <ChevronLeftIcon size={16} aria-hidden="true" />

@@ -87,7 +87,10 @@ export function GlassModal({
 
             <DialogPrimitive.Close
               aria-label="Fechar"
-              className="text-on-surface-muted hover:text-on-surface rounded-pill focus-visible:ring-secondary ml-auto flex size-9 shrink-0 items-center justify-center transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
+              /* `acao-neutra`: fechar não tem papel próprio, então fica no cinza
+                 de texto secundário e o hover anda para o texto cheio, sem véu
+                 de fundo. Ver `.acao-*` em `globals.css`. */
+              className="acao-neutra rounded-pill focus-visible:ring-secondary ml-auto flex size-9 shrink-0 items-center justify-center focus-visible:outline-none focus-visible:ring-2"
             >
               <CloseIcon size={20} />
             </DialogPrimitive.Close>

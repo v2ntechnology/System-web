@@ -9,6 +9,20 @@
  */
 
 @layer components {
+  /*
+   * ⚠️ O nome ficou, o material mudou (redesign de 30/08/2026).
+   *
+   * No tema claro `--glass-blur` é `0px` e as duas paradas do traço em gradiente
+   * são transparentes: o resultado é uma **placa branca sólida com sombra**, e
+   * não vidro. A estrutura continua escrita em termos de gradiente porque a
+   * rampa escura ainda usa e volta quando o escuro voltar; trocar por
+   * `background: #fff` aqui obrigaria a reescrever o arquivo duas vezes.
+   *
+   * `--glass-shadow` só existe no claro. No escuro a variável não é declarada e
+   * a propriedade cai para o valor inicial (`none`), que é o comportamento
+   * antigo: lá a separação vinha do traço claro, e sombra preta sobre grafite
+   * não aparece.
+   */
   .glass {
     background: var(--glass-surface);
     backdrop-filter: blur(var(--glass-blur));
@@ -20,6 +34,7 @@
       linear-gradient(135deg, var(--glass-border-from), var(--glass-border-to));
     background-origin: border-box;
     background-clip: padding-box, border-box;
+    box-shadow: var(--glass-shadow);
   }
 
   /* Modais e superfícies de foco — DESIGN.md */
@@ -30,6 +45,33 @@
     background-image:
       linear-gradient(var(--glass-surface-elevated), var(--glass-surface-elevated)),
       linear-gradient(135deg, var(--glass-border-from), var(--glass-border-to));
+    box-shadow: var(--glass-shadow-elevated);
+  }
+
+  /**
+   * Bloco de indicador: rótulo pequeno, número grande, dica embaixo.
+   *
+   * ⚠️ Nasceu no redesign de 30/08/2026 para consertar uma hierarquia
+   * invertida. O mesmo desenho estava copiado em **16 telas** como
+   * `bg-surface-lowest min-w-0 rounded-lg p-4`, e `surface-lowest` é o token do
+   * **poço**: no claro ele é mais escuro que o papel. O resultado é que todo
+   * indicador da aplicação aparecia afundado no fundo, quando ele é justamente
+   * o dado que a tela existe para mostrar.
+   *
+   * Aqui ele é uma placa branca que sobe do papel, com a mesma sombra do card.
+   * Uma classe só porque eram 16 cópias da mesma string: a próxima mudança de
+   * indicador é uma linha, e não uma varredura.
+   *
+   * Campo de entrada continua no poço, e é `.glass-well` logo abaixo. Os dois
+   * casos pareciam o mesmo enquanto o tema era escuro, onde poço e placa são
+   * ambos mais claros que o fundo.
+   */
+  .metric-tile {
+    min-width: 0;
+    padding: 1.25rem;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-container);
+    box-shadow: var(--glass-shadow);
   }
 
   /* Poço — inputs e áreas de entrada */

@@ -54,7 +54,10 @@
   --sidebar-accent: var(--color-fill-subtle);
   --sidebar-border: var(--color-outline-variant);
 
-  --radius: 0.75rem;
+  /* Subiu de 0.75rem no redesign de 30/08/2026, para casar com os 20px do
+     painel de gestão. É o raio que substitui a borda dos cards: com o card
+     branco sobre papel e sem traço, é o canto que diz onde o bloco começa. */
+  --radius: 1.25rem;
 }
 
 @theme inline {
@@ -210,6 +213,90 @@
 
 @utility bg-brand-gradient {
   background-image: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+}
+
+/* ==========================================================================
+ * Botão que é SÓ um ícone
+ *
+ * Alinhado com o outro sistema do usuário a pedido dele em 30/08/2026, e vale
+ * nos dois painéis do RookHub.
+ *
+ * ⚠️ **Nunca pinta fundo.** O véu no hover brigava com a linha da tabela e
+ * escondia o próprio desenho, que é a única coisa que o botão tem. O que muda é
+ * a cor do traço, e **a cor é o rótulo**: sem texto, ela é a única pista do que
+ * aquele botão faz.
+ *
+ * Cada papel **nasce na sua cor**, e o hover é a mesma cor um degrau adiante, na
+ * direção de mais contraste contra o fundo. Isso também resolve um problema que
+ * o desenho antigo tinha: com todos os ícones em cinza no repouso, a linha da
+ * lista não dizia qual ação era destrutiva antes do cursor chegar nela.
+ *
+ * As matizes são as do RookHub, não as do outro sistema: indigo para o que
+ * altera, o vermelho da paleta para o que tira, o verde para o que devolve.
+ * ========================================================================== */
+@layer components {
+  .acao-editar,
+  .acao-excluir,
+  .acao-sair,
+  .acao-ativar,
+  .acao-neutra {
+    transition: color 150ms ease;
+  }
+
+  /* Alterar o que está gravado. Indigo porque é a cor do que é acionável. */
+  .acao-editar {
+    color: var(--color-primary-strong);
+  }
+
+  .acao-editar:hover:not(:disabled),
+  .acao-editar:focus-visible:not(:disabled) {
+    color: color-mix(in oklab, var(--color-primary-strong) 72%, black);
+  }
+
+  /* Excluir e sair andam juntos: os dois tiram alguma coisa, e nunca aparecem
+     na mesma tela. */
+  .acao-excluir,
+  .acao-sair {
+    color: var(--color-error);
+  }
+
+  .acao-excluir:hover:not(:disabled),
+  .acao-excluir:focus-visible:not(:disabled),
+  .acao-sair:hover:not(:disabled),
+  .acao-sair:focus-visible:not(:disabled) {
+    color: color-mix(in oklab, var(--color-error) 72%, black);
+  }
+
+  /* Devolver alguém à operação. */
+  .acao-ativar {
+    color: var(--success);
+  }
+
+  .acao-ativar:hover:not(:disabled),
+  .acao-ativar:focus-visible:not(:disabled) {
+    color: color-mix(in oklab, var(--success) 72%, black);
+  }
+
+  /* Sem papel próprio: fechar, sino, menu, lupa, olho da senha. Fica no cinza
+     de texto secundário e anda para o texto cheio. */
+  .acao-neutra {
+    color: var(--color-on-surface-variant);
+  }
+
+  .acao-neutra:hover:not(:disabled),
+  .acao-neutra:focus-visible:not(:disabled) {
+    color: var(--color-on-surface);
+  }
+
+  /* Desabilitado não muda de cor no hover e não recebe o cursor de clique. */
+  .acao-editar:disabled,
+  .acao-excluir:disabled,
+  .acao-sair:disabled,
+  .acao-ativar:disabled,
+  .acao-neutra:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
 }
 
 /*

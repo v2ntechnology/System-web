@@ -123,13 +123,15 @@ export function UserMenu() {
               navigate('/');
             }}
             /* Mesmo desenho e mesmo hover do botão de sair do painel de gestão
-               (decisão do usuário em 19/08/2026, hover revisto em 20/08/2026):
-               quadrado de 36px com canto de 10px, ícone de 18px, e ao passar o
-               mouse aparece só o contorno vermelho, sem preencher o fundo.
+               (decisão do usuário em 19/08/2026, hover revisto em 30/08/2026):
+               quadrado de 36px com canto de 10px e ícone de 18px. O hover era um
+               contorno vermelho aparecendo, e virou a própria cor um degrau mais
+               fechada, que é a mecânica de todo botão só-ícone do sistema (ver
+               `.acao-*` em `globals.css`). Mexeu num, espelhe no outro.
                As classes ficam no item, e não no `<button>`: com `asChild` o
                Slot só concatena as duas listas, então o raio e o tamanho do
                ícone da base venceriam. Aqui elas passam pelo `cn` do item. */
-            className="size-9 justify-center rounded-[10px] p-0 text-destructive ring-1 ring-inset ring-transparent hover:ring-destructive/60 focus:bg-transparent focus:text-destructive focus-visible:ring-2 focus-visible:ring-destructive [&_svg]:size-[18px]"
+            className="acao-sair size-9 justify-center rounded-[10px] p-0 focus:bg-transparent focus-visible:ring-2 focus-visible:ring-destructive [&_svg]:size-[18px]"
           >
             <button type="button" aria-label="Sair" title="Sair">
               <LogoutIcon />

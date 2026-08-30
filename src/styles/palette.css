@@ -86,6 +86,12 @@
   --color-bright: #f8fafc;
   --color-on-bright: #171717;
 
+  /*
+   * O degrau do hover da tinta. Aqui a tinta é clara, então o degrau ESCURECE.
+   * Ver a nota no par do tema claro, que é onde a decisão foi tomada.
+   */
+  --color-bright-hover: #e9edf2;
+
   /* ------------------------------------------------------------------------
    * SUPERFÍCIE DE PAINEL — o `LightCard` do painel de gestão.
    *
@@ -105,6 +111,7 @@
   --color-error-on-light: #fb7185;
   --color-warning-on-light: #fbbf24;
   --color-success-on-light: #34d399;
+  --color-info-on-light: #38bdf8;
 
   /* ------------------------------------------------------------------------
    * Paleta categórica de gráficos, que vivem dentro do painel.
@@ -142,43 +149,72 @@
 }
 
 /* --------------------------------------------------------------------------
- * TEMA CLARO
+ * TEMA CLARO — o desenho de 30/08/2026
  *
- * Mesma estrutura, mesmas âncoras de marca, neutros invertidos. Os cinzas
- * continuam puros: o claro é a versão de papel do grafite, não um azul lavado.
+ * ⚠️ Este bloco foi retonalizado no redesign. O que mudou e por quê:
+ *
+ * O cinza puro saiu. A rampa clara agora é **papel morno**, com um grão de
+ * amarelo no neutro (#F4F2EF contra o antigo #F2F2F3). A razão é física, e não
+ * de gosto: a tela fica aberta o turno inteiro num escritório de expedição sob
+ * luz fluorescente, e o cinza neutro sob luz fria lê como monitor apagado. O
+ * papel morno separa o fundo do branco do card sem precisar de traço, que é o
+ * que permite o card perder a borda e ganhar respiro.
+ *
+ * A hierarquia passou a ser de **superfície**, e não de linha. Fundo papel,
+ * card branco, poço papel mais fechado. Antes o fundo e o card eram
+ * praticamente o mesmo cinza e a separação vinha de um traço de 1px, o que
+ * achatava a tela inteira e obrigava cada bloco a se defender com borda.
  * ----------------------------------------------------------------------- */
 html.light {
-  --color-surface: #f2f2f3;
-  --color-surface-lowest: #e7e7e9;
+  /* Papel morno: o chão da aplicação. */
+  --color-surface: #f4f2ef;
+  /* Poço: campo de entrada, faixa recuada, trilho. Mais fechado que o chão. */
+  --color-surface-lowest: #eae7e2;
+  /* Branco puro: card, menu, popover. O que está ACIMA do chão. */
   --color-surface-low: #ffffff;
   --color-surface-container: #ffffff;
   /* `high` não vira branco: no claro ele é o trilho das barras de progresso e o
      fundo do avatar, que precisam ficar **abaixo** do card, não acima dele. */
-  --color-surface-high: #e4e4e7;
+  --color-surface-high: #e2ded8;
   --color-surface-highest: #ffffff;
 
-  --color-fill: #e7e7e9;
-  --color-fill-subtle: #ededef;
+  --color-fill: #eae7e2;
+  --color-fill-subtle: #f0ede9;
 
-  --color-on-surface: #1b1b1f; /* 16.3:1 sobre branco — AAA */
-  --color-on-surface-variant: #4b4b54; /*  8.6:1 — AAA */
-  --color-on-surface-muted: #63636d; /*  5.8:1 — AA  */
-  --color-placeholder: #73737d; /* visível sem competir com o valor digitado */
-  --color-outline: #9c9ca5;
-  --color-outline-variant: #dedee2;
+  /*
+   * Texto quase preto, com a mesma temperatura morna do papel. Preto puro sobre
+   * papel morno vibra na borda das letras; #191817 assenta.
+   */
+  --color-on-surface: #191817; /* 16.8:1 sobre o card branco — AAA */
+  --color-on-surface-variant: #4a4741; /*  8.9:1 — AAA */
+  --color-on-surface-muted: #6b665e; /*  5.4:1 — AA  */
+  --color-placeholder: #857f75; /* visível sem competir com o valor digitado */
+  --color-outline: #a8a29a;
+  /* Traço quase invisível: existe para dividir linha de tabela, não para
+     contornar card. Card se separa por superfície. */
+  --color-outline-variant: #e5e1db;
 
-  /* O painel vira branco e ganha traço no lugar da sombra pesada. */
+  /* O painel de conteúdo é o branco sobre o papel. Sem traço externo: a
+     diferença de superfície já resolve, e a borda somada à diferença de
+     superfície é o que fazia a tela parecer um formulário. */
   --color-light: #ffffff;
-  --color-light-container: #f2f2f3;
-  --color-on-light: #1b1b1f;
-  --color-on-light-variant: #4b4b54;
-  --color-on-light-muted: #63636d;
-  --color-light-outline: #dedee2;
-  --color-light-edge: #e4e4e7;
+  --color-light-container: #f4f2ef;
+  --color-on-light: #191817;
+  --color-on-light-variant: #4a4741;
+  --color-on-light-muted: #6b665e;
+  --color-light-outline: #e5e1db;
+  --color-light-edge: transparent;
   --color-primary-on-light: #4338ca;
   --color-error-on-light: #9f1239;
   --color-warning-on-light: #6b3f0a;
   --color-success-on-light: #065f46;
+  /*
+   * ⚠️ Esta família existe para TEXTO sobre a matiz diluída, e não para o
+   * fundo cheio. `--info` (#0284C7) tem 4,4:1 contra o branco puro e cai para
+   * 2,9:1 quando o fundo é ele mesmo a 15%, que é exatamente como o chip de
+   * status é montado. #075985 devolve 6,3:1 no mesmo chip.
+   */
+  --color-info-on-light: #075985;
 
   /* Versões escuras das três matizes, para os gráficos sobre o painel branco. */
   --color-chart-1: #4f46e5;
@@ -197,9 +233,37 @@ html.light {
   --destructive: #e11d48;
   --destructive-foreground: #ffffff;
 
-  --secondary-foreground: #1b1b1f;
+  --secondary-foreground: #191817;
   --accent-foreground: #ffffff;
 
-  --color-bright: #212121;
-  --color-on-bright: #f5f5f7;
+  /*
+   * A TINTA. É com ela que se escreve o estado ativo.
+   *
+   * ⚠️ Este par é o que carrega o desenho novo: item de menu ativo, aba ativa e
+   * ação de maior peso são uma pastilha **preta**, e não indigo. Vem das três
+   * referências que o usuário fixou em 30/08/2026, e as três fazem a mesma
+   * coisa pelo mesmo motivo: num painel onde a marca já está no logo e o indigo
+   * já marca dado e gráfico, usar indigo TAMBÉM no estado ativo gasta a cor até
+   * ela parar de significar. Preto não compete com nada e é o contraste mais
+   * alto que a tela tem.
+   *
+   * Não é preto puro: #1C1A18 tem a mesma temperatura morna do papel e do
+   * texto, e não abre um buraco frio no meio da tela.
+   */
+  --color-bright: #1c1a18;
+  --color-on-bright: #faf8f5;
+
+  /*
+   * O degrau do hover da tinta, e ele CLAREIA.
+   *
+   * ⚠️ Existe porque a alternativa que estava no ar era pior: o item ativo do
+   * menu perdia a pastilha preta no hover e voltava a ser papel, o que fazia o
+   * ícone (que é claro dentro da pastilha) desaparecer no meio do movimento.
+   * A pastilha nunca deve sair no hover: ela é o "você está aqui".
+   *
+   * Escurecer não serve como resposta ao cursor: #1C1A18 já está a um passo do
+   * preto, e o olho não vê a diferença. Clarear até #2A2724 dá o degrau visível
+   * mantendo 14:1 contra o texto, bem acima do mínimo AA.
+   */
+  --color-bright-hover: #2a2724;
 }

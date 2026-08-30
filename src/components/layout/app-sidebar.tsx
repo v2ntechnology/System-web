@@ -35,7 +35,14 @@ export function AppSidebar({ navigation }: { navigation: NavGroup[] }) {
       <Button
         variant="ghost"
         size="icon"
-        className="absolute -right-3 top-8 z-20 h-7 w-7 -translate-y-1/2 rounded-full border border-sidebar-border bg-sidebar text-muted-foreground transition-colors duration-200 hover:bg-sidebar-accent hover:text-foreground"
+        /* ⚠️ Este é o único botão só-ícone que MANTÉM fundo no hover, e não é
+           exceção à regra: ele monta em cima da borda da barra, e sem um fundo
+           opaco o traço da divisa passa por dentro do desenho. O que a regra
+           proíbe é o fundo APARECER no hover como realce; aqui ele já existe em
+           repouso e só precisa continuar existindo. O hover:bg-sidebar anula o
+           hover:bg-transparent que o botão herda de ghost + icon. Quem responde
+           ao cursor continua sendo a cor do traço, via .acao-neutra. */
+        className="absolute -right-3 top-8 z-20 h-7 w-7 -translate-y-1/2 rounded-full border border-sidebar-border bg-sidebar hover:bg-sidebar transition-colors duration-200"
         onClick={toggleCollapsed}
         aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
         title={collapsed ? 'Expandir menu' : 'Recolher menu'}

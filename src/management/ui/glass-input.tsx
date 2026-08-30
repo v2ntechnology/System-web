@@ -1,14 +1,10 @@
-import { CheckIcon, ChevronDownIcon } from '@/components/icons';
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from '@/components/icons';
 import * as LabelPrimitive from '@radix-ui/react-label';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { forwardRef, useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { usePointerClose } from '@/hooks/use-pointer-close';
 import { cn } from './lib/cn';
-import {
-  FIELD_SURFACES,
-  HIGHLIGHT_ITEM,
-  POPOVER_LAYER,
-  PORTAL_FOCUS_RING,
-} from './lib/field-surfaces';
+import { FIELD_SURFACES, HIGHLIGHT_ITEM, POPOVER_LAYER } from './lib/field-surfaces';
 
 export interface GlassInputProps extends Omit<ComponentPropsWithoutRef<'input'>, 'id'> {
   label: string;
@@ -171,6 +167,16 @@ export function GlassSelect({
   const describedBy = error ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined;
   const styles = FIELD_SURFACES[surface];
 
+  /*
+   * ⚠️ A mecânica de "quem fechou a lista" mora no hook, e não aqui.
+   *
+   * Ela nasceu neste arquivo e ficou só nele, então o select do painel do
+   * operador e da manutenção continuou acendendo o anel depois do clique.
+   * Componente compartilhado pelos quatro perfis tem uma implementação só:
+   * o que muda entre os painéis é a pele.
+   */
+  const pointer = usePointerClose();
+
   return (
     <div className="flex flex-col gap-1.5">
       <LabelPrimitive.Root
@@ -180,16 +186,24 @@ export function GlassSelect({
         {label}
       </LabelPrimitive.Root>
 
-      <SelectPrimitive.Root value={value} onValueChange={onValueChange} disabled={disabled}>
+      <SelectPrimitive.Root
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        onOpenChange={pointer.onOpenChange}
+      >
         <SelectPrimitive.Trigger
           id={selectId}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           className={cn(
             /* O giro vive no gatilho porque é ele que carrega `data-state`. */
-            'text-body-md flex h-11 w-full items-center justify-between gap-2 whitespace-nowrap transition-colors data-[state=open]:[&>svg]:rotate-180 disabled:pointer-events-none disabled:opacity-50',
+            'text-body-md flex h-11 w-full items-center justify-between gap-2 overflow-hidden transition-colors data-[state=open]:[&>svg]:rotate-180 disabled:pointer-events-none disabled:opacity-50',
+            /* `wellTrigger`, e não `well`: o gatilho é focável por si só, e o
+               `focus-within` do poço acenderia o anel em mais casos do que o
+               teclado justifica. Ver a nota em `field-surfaces.ts`. */
             variant === 'well'
-              ? styles.well
+              ? styles.wellTrigger
               : 'border-outline-variant bg-surface-lowest focus-visible:ring-secondary border focus-visible:outline-none focus-visible:ring-2',
             styles.text,
             pill ? 'rounded-pill px-4' : 'px-3',
@@ -197,7 +211,24 @@ export function GlassSelect({
             className,
           )}
         >
-          <SelectPrimitive.Value />
+          {/*
+           * ⚠️ O invólucro com `min-w-0 flex-1 truncate` é o que segura o texto
+           * dentro do campo.
+           *
+           * O gatilho é `flex`, e item de flex tem `min-width: auto`: ele se
+           * recusa a encolher abaixo do próprio conteúdo. Com um nome longo como
+           * "SERVIOESTE - RJ CAMPOS DOS GOYTACAZES", o valor empurrava a seta
+           * para fora e vazava por cima da borda do poço. `whitespace-nowrap` no
+           * gatilho piorava: impedia a quebra sem permitir o corte.
+           *
+           * `min-w-0` libera o encolhimento, `truncate` corta com reticências, e
+           * o `overflow-hidden` do gatilho é a rede de segurança para o que
+           * escapar. `text-left` porque o `<button>` centraliza o texto por
+           * padrão, e um valor centralizado desalinha da coluna do rótulo.
+           */}
+          <span className="min-w-0 flex-1 truncate text-left">
+            <SelectPrimitive.Value />
+          </span>
           {/* A seta gira no próprio eixo ao abrir e desfaz o giro ao fechar. */}
           <SelectPrimitive.Icon asChild>
             <ChevronDownIcon
@@ -211,13 +242,42 @@ export function GlassSelect({
         <SelectPrimitive.Portal>
           <SelectPrimitive.Content
             position="popper"
-            sideOffset={8}
+            /* Perto do gatilho: 6px lê como "esta lista é daquele campo". Com os
+               8px anteriores e a sombra pesada, a caixa parecia solta na tela. */
+            sideOffset={6}
+            /* Sem folga, a lista encostava na borda da janela e o Radix a virava
+               para cima, cobrindo os indicadores acima do filtro. */
+            collisionPadding={16}
+            {...pointer.contentProps}
             className={cn(
-              'bg-surface-low ring-outline-variant min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg p-2 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)] ring-1',
+              'bg-surface-low ring-outline-variant min-w-[var(--radix-select-trigger-width)] max-w-[min(30rem,calc(100vw-2rem))] overflow-hidden rounded-md p-1.5 ring-1',
+              /* Sombra de papel: deslocamento e desfoque de verdade, no lugar
+                 dos 90% de preto de antes. Sombra quase opaca sobre papel é
+                 mancha, e ela só existia para destacar a lista contra a foto
+                 escura do banner, que saiu no redesign de 30/08/2026. */
+              'shadow-[0_2px_6px_rgba(28,26,24,0.05),0_20px_40px_-16px_rgba(28,26,24,0.18)]',
+              /* Abre a partir da borda do gatilho, e não do centro da tela: o
+                 movimento diz de onde a lista saiu. */
+              'origin-[var(--radix-select-content-transform-origin)]',
+              'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+              'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
               POPOVER_LAYER,
             )}
           >
-            <SelectPrimitive.Viewport className="max-h-72">
+            {/*
+             * ⚠️ Os botões de rolagem não são enfeite: a barra de rolagem é
+             * invisível no sistema inteiro (decisão do usuário em 19/08/2026), e
+             * numa lista cortada sem pista nenhuma o corte lê como fim da lista.
+             * Com vinte filiais, a pessoa concluía que a dela não estava ali.
+             *
+             * O Radix só os monta quando há de fato o que rolar, então em lista
+             * curta eles não ocupam espaço.
+             */}
+            <SelectPrimitive.ScrollUpButton className="text-on-surface-muted flex h-6 cursor-default items-center justify-center">
+              <ChevronUpIcon size={14} aria-hidden="true" />
+            </SelectPrimitive.ScrollUpButton>
+
+            <SelectPrimitive.Viewport className="max-h-[min(18rem,var(--radix-select-content-available-height))]">
               {options.map((option) => (
                 <SelectPrimitive.Item
                   key={option.value}
@@ -226,22 +286,47 @@ export function GlassSelect({
                      sai de `.management-theme`, onde esse token vira o cinza de
                      controle do painel operacional. */
                   className={cn(
-                    'text-on-surface text-body-md flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 outline-none transition-colors',
+                    'text-on-surface text-body-md rounded-sm relative flex cursor-pointer select-none items-center gap-3 py-2 pl-3 pr-2 outline-none transition-colors',
                     HIGHLIGHT_ITEM,
-                    /* A escolha atual ganha fundo além do peso e do check: só
-                       peso de fonte é fraco demais para achar a linha certa numa
-                       lista de vinte filiais. */
-                    'data-[state=checked]:bg-primary-strong/15 data-[state=checked]:font-medium',
-                    PORTAL_FOCUS_RING,
+                    /* A escolha atual: peso, e o visto em indigo à direita. O
+                       fundo saiu. Com fundo indigo a 15% em toda linha marcada,
+                       a lista tinha duas cores de realce disputando (a da linha
+                       escolhida e a da linha sob o cursor) e ficava difícil
+                       enxergar para onde o cursor estava indo. O visto é o sinal
+                       de escolha; o fundo é o sinal de cursor. */
+                    'data-[state=checked]:font-medium',
+                    /* ⚠️ Sem anel de foco no item. O Radix foca a opção
+                       escolhida por código assim que a lista abre, e o anel
+                       aparecia por cima do realce logo na abertura, mesmo quando
+                       a lista foi aberta com o mouse: duas marcas disputando a
+                       mesma linha.
+                       Numa lista de opções quem indica a posição do teclado é o
+                       realce de fundo (`data-[highlighted]`), que o Radix move
+                       com as setas. É o padrão de `listbox`, e é suficiente. */
                   )}
                 >
-                  <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
-                  <SelectPrimitive.ItemIndicator className="text-primary-strong ml-auto">
-                    <CheckIcon size={14} aria-hidden="true" />
-                  </SelectPrimitive.ItemIndicator>
+                  {/* `min-w-0` e `truncate`: nomes de empresa como
+                      "SERVIOESTE - RJ CAMPOS DOS GOYTACAZES" estouravam a
+                      largura e empurravam o visto para fora da caixa. */}
+                  <SelectPrimitive.ItemText>
+                    <span className="block min-w-0 truncate">{option.label}</span>
+                  </SelectPrimitive.ItemText>
+
+                  {/* Largura reservada mesmo sem o visto: sem ela, a linha
+                      escolhida ficava alguns pixels mais estreita que as outras
+                      e o texto da lista dançava ao trocar de opção. */}
+                  <span className="ml-auto flex size-4 shrink-0 items-center justify-center">
+                    <SelectPrimitive.ItemIndicator>
+                      <CheckIcon size={15} className="text-primary-strong" aria-hidden="true" />
+                    </SelectPrimitive.ItemIndicator>
+                  </span>
                 </SelectPrimitive.Item>
               ))}
             </SelectPrimitive.Viewport>
+
+            <SelectPrimitive.ScrollDownButton className="text-on-surface-muted flex h-6 cursor-default items-center justify-center">
+              <ChevronDownIcon size={14} aria-hidden="true" />
+            </SelectPrimitive.ScrollDownButton>
           </SelectPrimitive.Content>
         </SelectPrimitive.Portal>
       </SelectPrimitive.Root>

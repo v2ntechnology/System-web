@@ -67,13 +67,17 @@ export function AppTopbar() {
     /* z-[1000]: o menu suspenso vive dentro desta barra, e um contexto de
        empilhamento baixo aqui prenderia o z-index dele. */
     <div className="relative z-[1000]">
-      <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-4 sm:px-6">
+      <div className="flex items-center gap-4 px-4 py-4 sm:px-6 xl:px-10">
         <Link
           to="/gestao"
           aria-label="RookHub — ir para a visão geral"
           className="focus-visible:ring-secondary shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2"
         >
-          <RookhubLogo variant="lockup" className="h-7 sm:h-8" />
+          {/* ⚠️ `adaptive`, e não o `media` padrão. A marca deixou de flutuar
+              sobre a foto escura do banner (redesign de 30/08/2026) e passou a
+              viver sobre papel: a arte branca ficava invisível. O tom adaptativo
+              leva o branco a preto com `brightness(0)`, sem um segundo ativo. */}
+          <RookhubLogo variant="lockup" tone="adaptive" className="h-7 sm:h-8" />
         </Link>
 
         <AppNav />
@@ -91,7 +95,7 @@ export function AppTopbar() {
                 {/* Sobre a foto do banner: o anel é branco nos dois temas. */}
                 <Avatar
                   name={session?.user.name ?? 'Usuário'}
-                  className="size-10 ring-2 ring-white/20"
+                  className="size-10 ring-2 ring-on-surface/10"
                 />
               </button>
             </DropdownMenu.Trigger>
@@ -100,7 +104,7 @@ export function AppTopbar() {
               <DropdownMenu.Content
                 align="end"
                 sideOffset={8}
-                className="bg-surface-low ring-outline-variant z-[1000] min-w-56 rounded-lg p-2 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)] ring-1"
+                className="bg-surface-low ring-outline-variant z-[1000] min-w-56 rounded-lg p-2 shadow-[0_2px_6px_rgba(28,26,24,0.05),0_24px_48px_-20px_rgba(28,26,24,0.18)] ring-1"
               >
                 <div className="border-outline-variant mb-1 border-b px-3 pb-3 pt-1">
                   <p className="text-on-surface truncate font-medium">{session?.user.name}</p>
@@ -207,9 +211,13 @@ export function AppTopbar() {
                       aria-label="Sair"
                       title="Sair"
                       /* Gêmeo do botão de sair do painel operacional (decisão do
-                         usuário em 19/08/2026): quadrado de canto arredondado, e o
-                         hover mostra só o contorno vermelho, sem preencher o fundo. */
-                      className="text-error hover:ring-error/60 focus-visible:ring-error flex size-9 cursor-pointer items-center justify-center rounded-[10px] ring-1 ring-inset ring-transparent transition-colors focus-visible:outline-none focus-visible:ring-2"
+                         usuário em 19/08/2026). O hover mudou em 30/08/2026: era
+                         um contorno vermelho aparecendo, virou a própria cor um
+                         degrau mais fechada, que é a mecânica de todo botão
+                         só-ícone do sistema (ver `.acao-*` em `globals.css`).
+                         O anel era o único hover que desenhava uma forma nova em
+                         vez de mover a cor. Mexeu num, espelhe no outro. */
+                      className="acao-sair focus-visible:ring-error flex size-9 cursor-pointer items-center justify-center rounded-[10px] focus-visible:outline-none focus-visible:ring-2"
                     >
                       <LogoutIcon size={18} />
                     </button>
@@ -225,7 +233,7 @@ export function AppTopbar() {
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
             className={cn(
-              'text-on-media rounded-pill focus-visible:ring-secondary flex size-10 items-center justify-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 lg:hidden',
+              'acao-neutra rounded-pill focus-visible:ring-secondary flex size-10 items-center justify-center focus-visible:outline-none focus-visible:ring-2 lg:hidden',
             )}
           >
             {menuOpen ? <CloseIcon size={22} /> : <MenuIcon size={22} />}

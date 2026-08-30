@@ -36,7 +36,7 @@ export function SidebarNav({
         return (
           <div key={group.label} className="px-3">
             {!collapsed && (
-              <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {group.label}
               </p>
             )}
@@ -51,9 +51,28 @@ export function SidebarNav({
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       cn(
-                        'group flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
-                        'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground',
-                        isActive && 'bg-sidebar-accent text-foreground',
+                        'group flex items-center gap-3 rounded-pill px-3 py-2.5 text-sm font-medium transition-colors',
+                        /*
+                         * ⚠️ Pastilha PRETA, igual à do menu superior do painel
+                         * de gestão (redesign de 30/08/2026).
+                         *
+                         * É o que faz as duas cascas lerem como um sistema só: o
+                         * dono navega no topo, o operador navega na lateral, e o
+                         * "você está aqui" é o mesmo objeto nos dois. Com o
+                         * cinza de antes, a lateral parecia de outro produto.
+                         *
+                         * ⚠️ Os dois estados são EXCLUSIVOS, e não somados
+                         * (corrigido em 30/08/2026). Antes o hover claro era
+                         * incondicional e vencia a pastilha por especificidade:
+                         * ao passar o mouse no item ativo, o preto virava papel a
+                         * 6% e o ícone, que continua claro por estar dentro da
+                         * pastilha, sumia contra o fundo. Medido em 1,03:1, ou
+                         * seja, invisível. Um item de menu não pode piscar e
+                         * apagar justamente quando a pessoa aponta para ele.
+                         */
+                        isActive
+                          ? 'bg-bright text-on-bright hover:bg-bright-hover'
+                          : 'text-muted-foreground hover:bg-on-surface/[0.06] hover:text-foreground',
                         collapsed && 'justify-center',
                       )
                     }
@@ -63,7 +82,10 @@ export function SidebarNav({
                         <span
                           className={cn(
                             'relative flex h-5 w-5 shrink-0 items-center justify-center',
-                            isActive && 'text-primary',
+                            /* Dentro da pastilha preta o ícone é tinta sobre
+                               papel, não indigo: indigo sobre preto reprova AA
+                               e some. Fora dela ele herda a cor do texto. */
+                            isActive && 'text-on-bright',
                           )}
                         >
                           <Icon className="h-[18px] w-[18px]" />

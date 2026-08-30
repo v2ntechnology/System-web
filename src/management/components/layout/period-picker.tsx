@@ -46,7 +46,7 @@ export function PeriodPicker({
               className={cn(
                 'rounded-pill text-label-md focus-visible:ring-secondary px-3.5 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
                 active
-                  ? 'bg-primary-strong text-on-primary'
+                  ? 'bg-bright text-on-bright'
                   : 'text-on-surface-variant hover:text-on-surface',
               )}
             >

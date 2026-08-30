@@ -77,16 +77,24 @@
   --ring: #06b6d4;
 
   /*
-   * Raio (FE-02): container 16px, elemento interno 12px. `--radius` alimenta
-   * `rounded-lg` do System-web; `--radius-md` e `--radius-lg` são lidos direto
-   * pelo `glass.css`; `--radius-xl` vem do tema padrão do Tailwind e aceita a
-   * troca por escopo.
+   * Raio. Subiu no redesign de 30/08/2026: container 20px, elemento interno
+   * 14px, bloco grande 28px.
+   *
+   * O canto grande não é enfeite, é o que substitui a borda. Com o card branco
+   * sobre papel morno e sem traço, é o raio que diz onde o bloco começa e
+   * termina; a 16px o card ainda lia como caixa de formulário. A escala
+   * acompanha o tamanho: quanto maior a superfície, maior o canto, senão um
+   * painel de 900px com canto de 20px parece um retângulo com as pontas lixadas.
+   *
+   * `--radius` alimenta `rounded-lg` do System-web; `--radius-md` e
+   * `--radius-lg` são lidos direto pelo `glass.css`; `--radius-xl` vem do tema
+   * padrão do Tailwind e aceita a troca por escopo.
    */
-  --radius: 16px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius: 20px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
 
   /* Spectrum Gradient — variação magenta (aprovada). Uso PARCIMONIOSO. */
   --spectrum-gradient: linear-gradient(
@@ -121,20 +129,35 @@
 }
 
 /*
- * Vidro no tema claro.
+ * O vidro morreu no claro.
  *
- * O véu branco a 5% desaparece sobre papel: no claro o vidro precisa ser quase
- * opaco e o traço tem de inverter para preto translúcido, senão o card fica
- * sem contorno nenhum e a hierarquia some.
+ * ⚠️ Redesign de 30/08/2026. Antes o `.glass` no claro era branco a 86% com um
+ * traço preto: um card branco quase opaco com borda, ou seja, exatamente o
+ * mesmo objeto que o `LightCard`, só que com `backdrop-filter` ligado por cima.
+ * O painel tinha dois containers com nomes diferentes e aparência idêntica, e o
+ * `blur` custava composição de GPU para não produzir efeito visível nenhum.
+ *
+ * Agora o `.glass` é **branco sólido, sem traço e sem blur**, e a diferença
+ * para o `LightCard` é de papel, não de material: `GlassCard` é o bloco que
+ * flutua sobre o papel; `LightCard` é o painel de conteúdo com título. Quem
+ * separa os dois é o raio e a sombra, e não uma camada translúcida.
+ *
+ * A sombra tem deslocamento e desfoque de verdade, porque halo colorido sem
+ * deslocamento é decoração, não profundidade.
  */
 html.light .management-theme {
-  --glass-surface: rgba(255, 255, 255, 0.86);
-  --glass-surface-elevated: rgba(255, 255, 255, 0.94);
-  --glass-border-from: rgba(0, 0, 0, 0.12);
-  --glass-border-to: rgba(0, 0, 0, 0.04);
-  --glow-indigo: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
-  --glow-cyan: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
-  --backdrop-deep: #e9e9eb;
+  --glass-surface: #ffffff;
+  --glass-surface-elevated: #ffffff;
+  --glass-blur: 0px;
+  --glass-blur-elevated: 0px;
+  --glass-border-from: transparent;
+  --glass-border-to: transparent;
+  --glass-shadow: 0 1px 2px rgba(28, 26, 24, 0.04), 0 8px 24px -12px rgba(28, 26, 24, 0.14);
+  --glass-shadow-elevated: 0 2px 4px rgba(28, 26, 24, 0.05),
+    0 24px 48px -20px rgba(28, 26, 24, 0.22);
+  --glow-indigo: none;
+  --glow-cyan: none;
+  --backdrop-deep: #eae7e2;
 }
 
 /*

@@ -35,6 +35,40 @@ const buttonVariants = cva(
         icon: 'h-9 w-9',
       },
     },
+
+    /*
+     * ⚠️ Botão que é SÓ um ícone nunca pinta fundo no hover.
+     *
+     * Regra do sistema inteiro (ver as classes .acao-* em styles/globals.css),
+     * aplicada ao painel de gestão em 30/08/2026 e estendida ao operacional e ao
+     * de manutenção logo depois, quando o usuário notou que só metade do produto
+     * tinha recebido: o hover move a COR DO TRAÇO, e não desenha um retângulo
+     * atrás do desenho.
+     *
+     * O véu escondia justamente a única coisa que o botão tem. E, pior que o
+     * véu, o mesmo ícone respondia de um jeito para o dono e de outro para o
+     * operador, dentro do mesmo produto.
+     *
+     * ⚠️ Vale só para ghost + icon. O ghost com texto continua pintando fundo,
+     * que ali é o que dá alvo de clique; outline e default têm moldura ou
+     * preenchimento próprios, e não são "só um ícone".
+     */
+    compoundVariants: [
+      {
+        variant: 'ghost',
+        size: 'icon',
+        /* ⚠️ O `hover:text-on-surface` é obrigatório aqui, e não é redundância
+           com a classe.
+           O `ghost` traz `hover:text-secondary-foreground`, e o tailwind-merge
+           não tem como saber que `.acao-neutra` conflita com ele: a classe some
+           do conflito e o utilitário sobrevive. Como utilitário do Tailwind vem
+           depois de `@layer components` na cascata, ele vencia a regra e o hover
+           simplesmente não acontecia. Repetir a cor como utilitário é o que faz
+           o merge enxergar o conflito e descartar o do ghost. */
+        className: 'acao-neutra hover:bg-transparent hover:text-on-surface',
+      },
+    ],
+
     defaultVariants: {
       variant: 'default',
       size: 'default',

@@ -6,7 +6,25 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('rounded-lg border border-border bg-card text-card-foreground', className)}
+      /*
+       * ⚠️ A borda saiu no redesign de 30/08/2026, e a sombra entrou.
+       *
+       * O card branco sobre papel morno já se separa do fundo pela superfície.
+       * Somar um traço de 1px a essa diferença é o que fazia a tela inteira
+       * parecer uma malha de campos de formulário, com cada bloco se defendendo
+       * do vizinho. A sombra tem deslocamento e desfoque de verdade, e não é
+       * halo: ela diz que o bloco está acima do papel, que é a única coisa que
+       * a borda precisava dizer.
+       *
+       * Gêmeo do `.glass` e do `LightCard` do painel de gestão. A sombra é a
+       * mesma nos três, de propósito: é o que faz os dois painéis lerem como um
+       * sistema só apesar de terem cascas diferentes.
+       */
+      className={cn(
+        'rounded-xl bg-card text-card-foreground',
+        'shadow-[0_1px_2px_rgba(28,26,24,0.04),0_8px_24px_-12px_rgba(28,26,24,0.14)]',
+        className,
+      )}
       {...props}
     />
   ),

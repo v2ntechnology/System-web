@@ -8,16 +8,36 @@ import { useSession } from '@/management/features/auth/store';
 import { isGroup, navForRole, type NavLeaf } from './nav-items';
 
 const triggerClass =
-  'rounded-pill text-body-md focus-visible:ring-secondary focus-visible:ring-offset-background flex items-center gap-1 px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
-
-const activeClass = 'bg-primary-strong text-on-primary font-medium';
+  'rounded-pill text-body-md focus-visible:ring-secondary focus-visible:ring-offset-surface flex items-center gap-1.5 px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /*
- * A barra flutua sobre a foto do banner, que é escura nos dois temas: aqui o
- * texto usa `on-media`, não `on-surface`. Com `on-surface` o item inativo virava
- * cinza-escuro sobre a imagem no tema claro e sumia.
+ * ⚠️ A pastilha do item ativo é PRETA, e não indigo (redesign de 30/08/2026).
+ *
+ * O indigo já trabalha em três lugares nesta tela: é a marca no logo, é a cor
+ * de ação nos botões e é a primeira série de todo gráfico. Somar o estado ativo
+ * do menu a essa lista gasta a cor até ela parar de significar coisa alguma, e
+ * o item ativo passa a competir com o botão de ação em vez de se distinguir
+ * dele. Preto não disputa com nada e é o contraste mais alto disponível sobre
+ * papel.
+ *
+ * `--color-bright` / `--color-on-bright` é o par que já existia para "contraste
+ * máximo", e no claro ele é justamente tinta sobre papel.
  */
-const idleClass = 'text-on-media-variant hover:text-on-media hover:bg-white/10';
+/*
+ * ⚠️ O hover do ativo CLAREIA a pastilha, e não a remove.
+ *
+ * Este par é exclusivo do `idleClass` de baixo: os dois nunca entram juntos.
+ * Somar os dois foi o que quebrou a lateral do painel operacional, onde o
+ * hover claro vencia a pastilha por especificidade e apagava o ícone.
+ */
+const activeClass = 'bg-bright text-on-bright hover:bg-bright-hover font-medium';
+
+/*
+ * ⚠️ Saiu o `on-media`. A barra deixou de flutuar sobre a foto do banner e
+ * agora mora sobre o papel, então o texto volta a ser `on-surface`. Manter o
+ * `on-media` aqui deixaria o menu branco sobre fundo branco.
+ */
+const idleClass = 'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]';
 
 /**
  * Navegação principal do painel.
@@ -92,7 +112,10 @@ export function AppNav() {
                * uns 370px à esquerda do próprio botão que o abriu.
                */}
               <NavigationMenu.Content className="absolute left-0 top-full z-[1000] mt-2 w-max">
-                <ul className="bg-surface-low ring-outline-variant min-w-64 rounded-lg p-2 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)] ring-1">
+                {/* A sombra caiu de 90% para 18% de preto. Sombra quase opaca
+                    sobre papel não é elevação, é mancha: ela existia para
+                    destacar o menu contra a foto escura do banner. */}
+                <ul className="bg-surface-low ring-outline-variant min-w-64 rounded-lg p-2 shadow-[0_2px_6px_rgba(28,26,24,0.05),0_24px_48px_-20px_rgba(28,26,24,0.18)] ring-1">
                   {entry.items.map((item) => {
                     const locked = isLocked(item);
                     const active = isItemActive(item);
@@ -104,13 +127,15 @@ export function AppNav() {
                             to={item.to}
                             className={cn(
                               'focus-visible:ring-secondary block rounded-md px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2',
-                              active ? 'bg-primary-strong' : 'hover:bg-on-surface/8',
+                              active
+                                ? 'bg-bright hover:bg-bright-hover'
+                                : 'hover:bg-on-surface/[0.06]',
                             )}
                           >
                             <span
                               className={cn(
                                 'text-body-md flex items-center gap-2',
-                                active ? 'text-on-primary font-medium' : 'text-on-surface',
+                                active ? 'text-on-bright font-medium' : 'text-on-surface',
                               )}
                             >
                               {item.label}
@@ -125,7 +150,10 @@ export function AppNav() {
                             <span
                               className={cn(
                                 'text-label-md mt-0.5 block normal-case',
-                                active ? 'text-on-primary' : 'text-on-surface-muted',
+                                /* Tinta a 70%, e não cinza: texto secundário
+                                   sobre superfície colorida se tinge da própria
+                                   cor de frente, senão descola do primário. */
+                                active ? 'text-on-bright/70' : 'text-on-surface-muted',
                               )}
                             >
                               {locked ? 'Não incluído no seu plano' : item.hint}
@@ -157,7 +185,7 @@ export function AppNavMobile({ onNavigate }: { onNavigate: () => void }) {
       'block rounded-md px-3 py-2.5 text-body-md transition-colors',
       'focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-2',
       isActive
-        ? 'bg-primary-strong text-on-primary font-medium'
+        ? 'bg-bright text-on-bright font-medium'
         : 'text-on-surface-variant hover:bg-on-surface/8',
     );
 

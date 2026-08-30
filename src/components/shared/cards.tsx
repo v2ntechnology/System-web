@@ -41,7 +41,10 @@ export function MetricCard({ label, value, hint, trend, loading }: MetricCardPro
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="text-muted-foreground/70 transition-colors hover:text-foreground"
+                  /* Mesma classe do resto do sistema em vez de um par de cores
+                     próprio: o comportamento já era o certo (só a cor anda), mas
+                     escrito à mão ele saía de outro tom no repouso. */
+                  className="acao-neutra"
                   aria-label={`Sobre ${label}`}
                 >
                   <InfoIcon className="h-4 w-4" />
