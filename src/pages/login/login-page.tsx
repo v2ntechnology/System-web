@@ -53,7 +53,12 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
             onClick={() => setVisible((current) => !current)}
             aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
             aria-pressed={visible}
-            className="rounded-pill text-on-surface-muted hover:text-on-surface focus-visible:ring-secondary -mr-1 shrink-0 p-2 transition-colors hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2"
+            /* Só o traço responde ao cursor, como todo botão que é apenas um
+               ícone. A cor de repouso acompanha o cadeado do outro lado do
+               campo (o `leading` do GlassInput, que é `on-surface-muted`), e por
+               isso ela é escrita aqui em vez de vir da `.acao-neutra`, que
+               nasce um degrau mais escura. */
+            className="rounded-pill text-on-surface-muted hover:text-on-surface focus-visible:ring-secondary -mr-1 shrink-0 p-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
           >
             {visible ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
           </button>
