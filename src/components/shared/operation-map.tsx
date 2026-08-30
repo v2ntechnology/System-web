@@ -2,8 +2,9 @@ import { MapPinIcon } from '@/components/icons';
 import type { FeatureCollection } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { LoadingState } from '@/components/shared/states';
 import { cn } from '@/lib/utils';
 import { VEHICLE_STATUS_LABEL } from '@/mocks/fleet/vehicles';
 import { useThemeStore } from '@/stores/theme-store';
@@ -152,6 +153,9 @@ export function OperationMap({
 }: OperationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+
+  /* A base terminou de carregar. Enquanto for falso, o spinner cobre o mapa. */
+  const [pronto, setPronto] = useState(false);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   // Mantido em ref porque as camadas são recriadas a cada troca de estilo,
   // fora do ciclo de render do React.
@@ -210,6 +214,7 @@ export function OperationMap({
     };
 
     map.on('load', addRouteLayers);
+    map.on('load', () => setPronto(true));
 
     /* ⚠️ Também em `styledata`, e não só em `load`. `setStyle` descarta fonte e
        camada, e `load` dispara uma vez na vida do mapa: sem isto, trocar de
@@ -262,6 +267,21 @@ export function OperationMap({
   return (
     <div className={cn('relative overflow-hidden rounded-lg border border-border', className)}>
       <div ref={containerRef} className={cn('w-full', heightClassName)} />
+
+      {/*
+       * A tampa enquanto a base carrega (pedido do usuário em 30/08/2026).
+       *
+       * ⚠️ O mapa é montado desde o primeiro render, e o spinner cobre: o
+       * MapLibre precisa de um elemento com tamanho para se instalar, então
+       * adiar a montagem até o fim do carregamento seria esperar por algo que
+       * nunca começa. O que incomodava era ver a base branca e os tiles entrando
+       * em bloco, e é isso que a tampa esconde.
+       */}
+      {pronto ? null : (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-card">
+          <LoadingState label="Carregando o mapa" className="py-0" />
+        </div>
+      )}
 
       <div className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap gap-x-3 gap-y-1 rounded-md border border-border bg-background/80 px-3 py-2 backdrop-blur">
         {LEGEND.map((status) => (

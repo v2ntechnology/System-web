@@ -35,15 +35,29 @@ export const VEHICLE_STATUS_LABELS = Object.fromEntries(
 export function VehicleStatusChip({
   status,
   surface = 'light',
+  className,
 }: {
   status: VehicleStatus;
   surface?: 'light' | 'dark' | undefined;
+  /**
+   * Ajuste de superfície para fundos que não são os dois previstos.
+   *
+   * Existe para o cartão SELECIONADO da lista do mapa, que é indigo cheio: as
+   * duas superfícies do chip contam com um fundo neutro por baixo, e as duas
+   * somem ali.
+   */
+  className?: string | undefined;
 }) {
   const config = STATUS[status];
   const Icon = config.icon;
 
   return (
-    <StatusChip tone={config.tone} surface={surface} icon={<Icon size={14} />}>
+    <StatusChip
+      tone={config.tone}
+      surface={surface}
+      icon={<Icon size={14} />}
+      className={className}
+    >
       {config.label}
     </StatusChip>
   );

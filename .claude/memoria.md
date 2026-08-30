@@ -407,6 +407,137 @@ aptidão, contato e endereço, vínculo), acompanhando o que já tinha sido feit
   `GlassInput` já aplica. São 22 no caminhão e 19 no motorista.
 - O formulário do caminhão não tinha placeholder nenhum até esta rodada.
 
+### O assistente virou drawer, com histórico (30/08/2026)
+
+Decisão do usuário. O assistente abria num `GlassModal` centralizado, que cobre justamente a tela
+sobre a qual a pergunta é feita, e esquecia tudo ao recarregar a página.
+
+- **Drawer pela direita, e o painel de conversas abre ao LADO dele**, pelos três pontinhos do
+  cabeçalho (`MoreIcon`, novo em `components/icons.ts`). O conjunto cresce para a esquerda: o chat
+  tem largura própria e a lista anima de 0 até `min(18rem,45vw)`.
+- ⚠️ **A animação é do Radix, pelo `data-state`, e não uma classe ligada por estado do React.** Quem
+  desmonta o conteúdo é o Radix; sem o par `animate-out`/`slide-out-to-right` a entrada fica suave e
+  a saída seca, porque o nó some antes de a transição rodar.
+- ⚠️ **O painel de conversas não é desmontado quando fecha, a largura é que anima.** Com
+  `open && <Painel />` a lista pisca e some no primeiro quadro, antes de a faixa encolher.
+- **As quatro sugestões de pergunta saíram** (decisão do usuário). Elas prometiam custo e
+  manutenção, que este sistema não tem: a primeira coisa que a tela fazia era oferecer exatamente o
+  que o assistente não sabe responder. No lugar ficou "Bem-vindo, {primeiro nome}" e "Como posso
+  ajudar você hoje?", como num chat novo do ChatGPT. Só o primeiro nome, porque "Bem-vindo, Fulano
+  de Tal Santos" não é como se cumprimenta alguém.
+- **O histórico é do backend, nunca de `localStorage`**: são até 10 conversas por usuário, com
+  renomear e excluir. Guardar no navegador deixaria pergunta sobre a operação de um cliente na
+  máquina de quem abriu o painel, e sumiria ao trocar de computador.
+- ⚠️ **Renomear é otimista, excluir confirma na própria linha.** Esperar o servidor para renomear
+  faria o texto piscar de volta ao nome antigo; e um diálogo de confirmação por cima do drawer
+  empilharia duas camadas de foco preso para uma decisão de dois cliques.
+- ⚠️ **A tela de voz do hub usa a MESMA rota e precisa de `{ save: false }`.** Sem isso, cada
+  pergunta falada abriria uma conversa e as 10 da pessoa acabariam em dez perguntas. Foi o que o
+  `npm run build` pegou: o `tsc -b` alcança `src/pages`, que o `tsc --noEmit` do typecheck rápido
+  não estava cobrindo naquele momento.
+- **`MAX_ASSISTANT_CONVERSATIONS` mora em `management/types.ts`**, e não na fronteira de API. Se
+  vivesse em `features/assistant/api.ts`, o mock teria de importar da API que importa o mock, e o
+  ciclo é real porque a constante é valor, não tipo.
+- **A procedência ganhou duas origens** (RN-121): "Telemetria MiX" para os blocos agregados e
+  "Cadastro RookHub" para o que veio das funções de cadastro. Atribuir os dois à mesma origem
+  apagaria o trabalho de conferência que a V16 em diante representa.
+- O estado do assistente é do store, com ações assíncronas, e não `useEffect` nos componentes:
+  carregar conversa é consequência de um clique, não de uma renderização.
+
+### A tela de voz virou conversa de verdade (30/08/2026)
+
+Pedido do usuário. A tela `/assistente` já falava, mas por comando solto: uma pergunta, uma
+resposta, e a captação cortava na primeira pausa.
+
+- **Um botão só, e ele é o interruptor da conversa.** "Concluir comando" saiu: quem decide que a
+  fala acabou passou a ser o silêncio, e um botão para encerrar o que já se encerra sozinho faz a
+  pessoa duvidar se precisa apertar. Depois de responder, o microfone reabre sozinho até alguém
+  encerrar.
+- ⚠️ **O fim da fala é decidido AQUI, e não pelo navegador.** O `use-speech-recognition` passou a
+  `continuous = true`: com `false`, a Web Speech encerra na primeira pausa e a pergunta chega pela
+  metade, que é exatamente o defeito relatado (a pessoa respira no meio da frase). O corte agora é
+  **2,4 segundos** de silêncio. Errar para o lado da espera custa dois segundos; errar para o lado
+  da pressa custa a pergunta inteira.
+- ⚠️ **Duas fontes de "ainda está falando", e as duas são necessárias**: o volume do microfone, que
+  a tela já media para animar a esfera, e a transcrição chegando (`onSpeech`). Só o volume
+  confundiria ar condicionado com voz; só a transcrição perderia a pausa curta entre duas frases,
+  porque ela chega em blocos.
+- ⚠️ **A transcrição ACUMULA, não substitui.** Com a sessão contínua o reconhecimento entrega a fala
+  em vários trechos finais, e sobrescrever deixava só o último pedaço.
+- ⚠️ **O `onend` do navegador não significa que acabou.** O Chrome encerra a sessão sozinho depois de
+  um tempo de silêncio, mesmo com `continuous`. Sem religar, a transcrição morre no meio da conversa
+  sem erro nenhum aparecer.
+- **As frases de espera são da TELA, e não do modelo** (`voice-phrases.ts`). "Só um segundo, estou
+  verificando" precisa ser dito ENQUANTO a consulta corre; vinda do modelo, sairia junto com a
+  resposta, que é justamente quando ela não serve mais. Só entram depois de 900 ms, porque resposta
+  rápida não precisa de aviso. Há várias de cada tipo e o sorteio nunca repete a anterior: ouvir a
+  mesma frase toda vez denuncia a gravação.
+- **O áudio dessas frases é sintetizado uma vez e guardado na sessão.** São sempre as mesmas dez, e
+  sem o cache cada "só um segundo" gastaria créditos da ElevenLabs de novo e ainda somaria a
+  latência da síntese ao silêncio que a frase existe para preencher.
+- **A conversa falada não é gravada** (decisão do usuário): o fio vive num ref e some ao sair da
+  tela, com os 10 últimos turnos indo ao backend a cada pergunta. Cada pergunta falada abrindo uma
+  conversa gastaria as dez do histórico do chat em dez perguntas.
+- ⚠️ **Falha do microfone precisa FECHAR a conversa.** Sem isso o botão ficava em "Encerrar
+  conversa" para uma conversa que nunca começou. Foi a suíte que pegou (`hub-flow.test.tsx`), e é o
+  tipo de defeito que passa despercebido no teste manual, porque quem testa tem microfone.
+- ⚠️ **Não usar `lastAnswerRef` para decidir dentro de uma função assíncrona.** O ref é preenchido
+  por efeito, que só roda depois do render: lido no meio de um `await`, ele ainda traz a resposta
+  ANTERIOR. Vale para qualquer ref espelhado de estado.
+
+#### A tela acompanha a conversa, e o aviso só sai quando há consulta (30/08/2026)
+
+Ajustes pedidos pelo usuário depois de conversar com a assistente de voz.
+
+- **A frase "só um segundo, estou consultando" agora é disparada por EVENTO do backend**
+  (`converse` recebe um `onConsulting`), e não por um relógio de 900 ms. Um "oi" não chama função
+  nenhuma e passa direto para a resposta. Ver a seção correspondente na memória do `Backend-web`.
+- **As falas da própria tela põem a esfera em "falando"** (`sayPhrase` marca o estado e roda a
+  animação sintética). Antes a assistente falava com a tela parada no desenho de repouso, e a voz
+  parecia vir de outro lugar: quem conversa lê a esfera antes de ler o texto.
+- ⚠️ **Com a conversa aberta, o repouso não é "Pronto para conversar".** Entre a resposta e a
+  reabertura do microfone a tela passava por `idle` e voltava a dizer "ative o microfone e fale",
+  no meio de uma conversa em andamento, o que se lê como "ela desligou". Agora esse intervalo diz
+  "Conversa aberta".
+- ⚠️ **`httpStream` em `services/http.ts` é para resposta lida enquanto ainda está chegando.** O
+  `httpRequest` só devolve com o corpo inteiro, e aqui o meio do caminho é o que importa. Ele
+  devolve a `Response` crua: o formato do fluxo é problema de quem pediu.
+- ⚠️ **NDJSON se corta no `\n`, nunca no pedaço recebido.** Um pedaço da rede não respeita fronteira
+  de linha: pode trazer meia linha ou duas e meia. O leitor guarda o resto entre uma leitura e
+  outra.
+
+#### Placa falada, eco do alto-falante e modo de consulta (30/08/2026)
+
+Três correções tiradas de uma conversa real do usuário com a assistente, e as três só apareceram
+porque a auditoria guarda a pergunta como ela chegou.
+
+- ⚠️ **A placa soletrada não achava o caminhão.** A transcrição de "QJC8352" chega como "a placa
+  que JC 83 52": quem fala uma placa soletra, e o "Q" dito em português vira a palavra "que".
+  Normalizado a letras e dígitos isso é QUEJC8352, a duas edições da placa real. `locate_vehicle` e
+  `find_vehicle` passaram a aceitar distância de edição 2 (`levenshtein`, V25), e só quando o termo
+  tem cara de placa: cinco a doze caracteres, com letra E dígito. Sem esse corte, uma frase
+  qualquer viraria "placa" e a comparação traria um caminhão ao acaso.
+- ⚠️ **A tolerância é da BUSCA, nunca da gravação.** Placa continua sendo gravada exatamente como
+  é: aproximar na escrita trocaria um caminhão por outro no cadastro.
+- ⚠️ **A voz dela entrava no microfone e virava pergunta.** Sem fone, o alto-falante volta para a
+  captação: a pergunta chegou ao backend como "Oi tudo bem Eu gostaria de que você visse aonde está
+  a placa...", com o "oi tudo bem" que ela mesma tinha acabado de dizer grudado na frente, e o
+  modelo respondeu ao próprio cumprimento. Duas defesas: meio segundo de pausa antes de reabrir o
+  microfone, e o `semEco` da tela, que corta do começo da transcrição o que ela falou por último. O
+  corte exige três palavras seguidas: com uma, "onde" ou "está" roubariam o começo de perguntas
+  legítimas.
+- **O prompt cumprimenta uma vez por conversa** e ignora o "oi" quando ele vem colado numa pergunta.
+- **Modo de consulta na tela** (pedido do usuário): enquanto ela busca o dado, a esfera fica indigo
+  com pulso próprio, mais lento e mais amplo que o de processamento, e volta ao normal para falar. O
+  estado dura até a resposta chegar, e não só enquanto a frase "só um segundo" toca: a busca é o que
+  demora, e uma esfera congelada no meio da espera parece conversa travada.
+- ⚠️ **O `StreamingResponseBody` NÃO transmite, mesmo com `flush` a cada linha.** Medido em
+  30/08/2026: os cabeçalhos chegavam ao cliente aos 3,3 segundos, junto do corpo inteiro, e o aviso
+  de consulta perdia a razão de existir. Com `ResponseBodyEmitter` o aviso chega 1,1 segundo antes
+  da resposta. ⚠️ E cada `send` vai como `APPLICATION_JSON`: pedir `application/x-ndjson` no envio
+  derruba com "No suitable converter", porque o conversor do Jackson é registrado para JSON. O
+  ndjson descreve o fluxo; cada pedaço continua sendo um JSON comum.
+
 ### Mapa ao vivo como central de comando (`/gestao/mapa`)
 
 Redesenhada em **30/08/2026**, e revista no mesmo dia depois que o usuário usou a tela. A regra
@@ -438,6 +569,40 @@ entra: é decisão de menu, não de permissão.
   voltaria para o veículo escolhido toda vez, arrancando o mapa da mão de quem estivesse
   arrastando. Centraliza na posição DESENHADA, não na do dado: com o deslize em curso o crachá
   está a caminho.
+- **A câmera SEGUE o veículo escolhido enquanto ele anda** (pedido do usuário em 30/08/2026). O
+  seguimento acontece dentro do laço de animação, com `setCenter` na MESMA posição interpolada do
+  caminhão, quadro a quadro: o veículo fica parado no centro e o território desliza por baixo.
+  ⚠️ Seguir com `easeTo` a cada leitura daria um solavanco por ciclo, porque a câmera correria
+  até o destino e pararia esperando o próximo.
+- ⚠️ **Só o ARRASTO desliga o seguimento. Zoom, giro e inclinação, não.** A diferença é de
+  intenção: arrastar é "quero olhar outro lugar"; inclinar ou girar é "quero ver o MESMO lugar de
+  outro ângulo". A primeira versão desligava no `pitchstart` e no `rotatestart`, e o usuário
+  apontou que inclinar o mapa custava o seguimento, que é o oposto do que se pede ao inclinar.
+  Religa quando uma placa é escolhida de novo.
+- **O ângulo escolhido sobrevive sozinho no seguimento:** `setCenter` mexe só no centro, e
+  `bearing` e `pitch` seguem intactos. ⚠️ Mas os dois `fitBounds` (enquadramento inicial e
+  abertura do trajeto) PRECISAM receber `bearing` e `pitch` atuais explicitamente: sem eles o
+  MapLibre calcula a câmera como se o mapa estivesse achatado e devolve a visão para o de cima,
+  desfazendo a inclinação que a pessoa escolheu.
+- ⚠️ A guarda do `originalEvent` separa o gesto da pessoa do movimento que o próprio código pede:
+  `easeTo`, `fitBounds` e o `setCenter` do laço também disparam esses eventos, e sem ela o
+  seguimento se desligaria sozinho no primeiro quadro que ele mesmo produzisse.
+- ⚠️ **`isEasing()` protege a animação de foco.** Sem essa guarda, o `setCenter` do laço cortaria
+  o `easeTo` que roda ao escolher a placa, e o enquadramento chegaria de repente.
+- ⚠️ **O chip de status aparece TAMBÉM no cartão selecionado da lista.** Ele era escondido ali
+  (`active ? null : <chip/>`), e o efeito era perder a única informação que diz o estado do
+  veículo justamente no cartão que a pessoa está olhando. A razão de esconder era boa (as duas
+  superfícies do `StatusChip` contam com fundo neutro e somem sobre o indigo cheio), mas a
+  solução era errada: em vez de tirar o chip, dar a ele um fundo. Usa `surface="light"` com
+  `className="bg-surface-container"`, que mede 8,97:1. ⚠️ Sólido, e não translúcido: um véu deixa
+  o indigo atravessar e derruba o contraste da cor semântica, que é o que separa "em viagem" de
+  "sem sinal". O `VehicleStatusChip` ganhou `className` só para isso.
+- ⚠️ **A legenda é DERIVADA de `CORES_DA_GESTAO` e `VEHICLE_STATUS_LABELS`, nunca escrita à mão.**
+  A versão fixa tinha três itens e mentia por omissão: os caminhões cinza (sem sinal) e vermelhos
+  (bloqueado) apareciam no mapa sem nada que os explicasse, e "sem sinal" é o segundo estado mais
+  comum desta frota. Ela também dizia "Atenção" onde o sistema diz "Manutenção", que é o tipo de
+  sinônimo que faz a pessoa procurar um filtro que não existe. Derivando, status novo aparece
+  sozinho.
 - ⚠️ **A rota só desce para o `FleetMap` com o painel de trajeto aberto**, e isso não é economia:
   é o `FleetMap` que enquadra o trajeto ao recebê-lo. Mandando sempre, escolher uma placa
   afastaria a câmera para caber o dia todo e desfaria o foco que acabou de ser pedido.
@@ -510,6 +675,64 @@ entra: é decisão de menu, não de permissão.
   não promete o contrário. Vale registrar como pendência: hoje um gestor que filtra por
   "Manutenção" vê a lista encolher e o mapa igual.
 
+### Carregamento das telas: a tampa dos mapas (30/08/2026)
+
+- ⚠️ **`desenharConteudo` tem trava de reentrância, e sem ela há CORRIDA.** Ela é assíncrona:
+  espera a rasterização dos ícones antes de montar. Nessa espera o `styledata` dispara, passa
+  pela guarda e entra em paralelo; as duas execuções chegam em `montarCamadas`, a primeira
+  adiciona a fonte "heat" e a segunda estoura com `Source "heat" already exists`. O mapa cai e o
+  erro se repete a cada disparo (27 vezes no relato do usuário em 30/08/2026). O defeito era
+  antigo e só ficou visível quando o par de imagens do replay entrou em `loadVehicleIcons` e
+  alargou a janela.
+- ⚠️ **A guarda do `styledata` pergunta por `SOURCE_HEAT`, a PRIMEIRA fonte montada.** Perguntar
+  pela última (`SOURCE_ID`) deixava passar qualquer montagem incompleta, e a tentativa seguinte
+  estourava na fonte que já existia.
+- ⚠️ **`montarCamadas` é idempotente**: `addSource` e `addLayer` lançam quando o id já existe, e a
+  função roda de novo a cada troca de base. As duas guardas locais (`fonte` e `camada`) impedem
+  que uma montagem morta no meio vire um laço de erro que nunca sai sozinho.
+- ⚠️ **O evento `error` do MapLibre NUNCA derruba a tela. Duas versões erradas já moraram nessa
+  linha**, as duas quebrando a tela em 30/08/2026:
+  1. `setFailed(true)` em qualquer `error`. O MapLibre emite esse evento por muita coisa que não
+     impede o mapa de funcionar: tile que não veio, faixa de glifo com 404, sprite ausente.
+  2. Derrubar só quando `isStyleLoaded()` fosse falso. Parecia mais preciso e era PIOR: erro de
+     tile chega cedo, enquanto o estilo ainda carrega, então a condição era verdadeira justamente
+     no pior momento. A base do OpenFreeMap emite "Expected value to be of type number, but found
+     null" ao processar certos tiles, e isso sozinho matava a tela.
+- **As duas provas reais de falha** são o `catch` de `desenharConteudo` (não conseguimos montar as
+  camadas) e `ESPERA_MAXIMA_MS`, um relógio de 15s para a base chegar. Nenhum erro assíncrono
+  isolado é prova de que o mapa é inutilizável.
+- ⚠️ **Todo caminho de falha LOGA antes de derrubar.** Os dois `catch` engoliam o erro em
+  silêncio, e o resultado era a tela de falha sem uma linha no console dizendo por quê: o pior
+  estado possível para quem precisa consertar. Os prefixos são `[mapa]` e `[mapa 3D]`.
+- ⚠️ **A camada 3D não pode derrubar o mapa.** `onAdd` e `render` são embrulhados em `try`, e o
+  primeiro erro liga uma bandeira que desliga a camada para sempre. Sem isso, um erro dentro do
+  `render` se repetiria a sessenta quadros por segundo. É a peça mais nova e mais arriscada do
+  mapa: ela falha sozinha, e o território, a lista e o trajeto continuam.
+- ⚠️ **Nada de raio de canto no elemento do mapa.** O container da página tem `rounded-2xl` e o
+  mapa tinha raio próprio, menor: a diferença entre os dois deixava quatro lascas do fundo do
+  container aparecendo nos cantos e, com o fundo escuro que havia ali, elas liam como bordas
+  pretas enquanto a base carregava (relatado pelo usuário em 30/08/2026). Quem arredonda é o
+  container, pelo `overflow-hidden`, e o fundo dele agora é papel (`bg-surface-lowest`).
+
+Decisão do usuário: nenhuma tela pode travar enquanto monta. Onde o custo é de DADO, isso já
+existia; o que faltava era onde o custo é de RENDERIZAÇÃO, que são os três mapas.
+
+- **Dados já estavam cobertos.** As páginas do painel de gestão usam `QueryState`
+  (`management/components/layout/query-state.tsx`), e as do operacional usam `LoadingState` ou
+  `Skeleton` de `components/shared/states.tsx`. Conferido arquivo por arquivo: nenhuma tela ficou
+  de fora. Os componentes internos que não usam (painel de detalhe, cartão, modal) carregam
+  dentro de uma tela que já está visível, que é outro caso.
+- ⚠️ **A tampa COBRE o mapa, e não adia a montagem dele.** O MapLibre precisa de um elemento com
+  tamanho para se instalar: montar só depois do carregamento é esperar por algo que nunca começa.
+  O spinner é um irmão posicionado por cima, e o container fica montado desde o primeiro render.
+- **O que travava era ver o mapa em construção:** base branca, tiles entrando em bloco e a frota
+  surgindo depois. A montagem continua custando o mesmo; o que muda é acontecer atrás da tampa.
+- ⚠️ **No mapa ao vivo a tampa espera DOIS sinais**, `ready` (camadas montadas) e
+  `modelo3dPronto` (o GLB baixado). Se fossem o mesmo, o mapa apareceria sem os caminhões e eles
+  surgiriam de uma vez, que é o pisca-pisca que a tampa existe para evitar.
+- ⚠️ **O erro do GLTFLoader também avisa que terminou.** Quem espera esse retorno é a tampa: sem
+  avisar, um 404 no modelo deixaria a tela em "Carregando o mapa" para sempre, sem erro visível.
+
 ### A frota em 3D no mapa ao vivo (30/08/2026)
 
 ⚠️ **NÃO FOI VISTO NA TELA.** Escrito com o navegador do Playwright bloqueado, então nada aqui
@@ -520,7 +743,7 @@ pode estar errado está no fim desta seção.
   Pizza. **CC0 1.0**: domínio público, uso comercial liberado, sem exigir crédito. ⚠️ Isso foi
   verificado antes de baixar, e importa: dos cinco caminhões que apareceram na busca, só este era
   CC0, os outros quatro eram CC-BY, que obriga a exibir o nome do autor dentro do produto. São
-  7.474 triângulos e 197 KB.
+  7.474 triângulos e 319 KB.
 - **O `three` já era dependência do projeto** (`three@0.185.1`, usado por `globe`, `time-vortex` e
   `voice-sphere`), e o `GLTFLoader` vem no pacote. O que muda é que o mapa passa a carregar o
   chunk do three: 569 KB, 142 KB comprimido.
@@ -533,6 +756,59 @@ pode estar errado está no fim desta seção.
 - **Uma camada só, N caminhões.** O exemplo oficial do MapLibre cria uma custom layer por modelo,
   com a coordenada fixa na matriz; aqui seriam 33 renderers. `fleet-3d-layer.ts` é uma camada
   única com um clone por veículo na mesma cena.
+- ⚠️ **O que virava os caminhões de cabeça para baixo era a ORDEM DO EULER, e não o sinal.** O
+  `rotation.set(PI/2, 0, PI)` parece girar o caminhão no próprio eixo, e na prática ele capota: a
+  matriz do Euler XYZ do three é `Rx · Ry · Rz`, então o **Z é aplicado ao vetor PRIMEIRO**, com o
+  modelo ainda de pé no eixo antigo. O `PI` em Z inverte o +Y do modelo (a altura) antes de o X
+  entrar, e o que era o teto termina apontando para baixo. ⚠️ **Nunca combinar X e Z na mesma
+  chamada de `rotation.set` neste modelo.** O meio-giro que endireita a frente mora no GRUPO
+  (`rotation.z = PI - heading`), onde é a única rotação e não há ordem para atrapalhar.
+- ⚠️ **Cheguei a "corrigir" isso trocando o sinal do X para `-PI/2`, e estava errado.** A teoria
+  era que o `scale(upm, -upm, upm)` da matriz local espelharia as rotações. Ele espelha, mas em
+  Y, e o caminhão fica de pé em Z: o espelhamento troca frente e trás, nunca cima e baixo. Ficou
+  duas rodadas errado até eu medir em vez de deduzir.
+- **Os eixos do modelo foram MEDIDOS, não deduzidos** (carregando o GLB e lendo as caixas
+  envolventes): o modelo assenta em Y=0 e cresce até 2,884, então a ALTURA é +Y; os faróis ficam
+  em Z=+2,0 e as lanternas em Z=-3,05, então a FRENTE é +Z. Daí sai tudo: `PI/2` em X leva a
+  altura para +Z (o para cima do mapa) e a frente para -Y (sul), e o `PI - heading` do grupo
+  devolve a frente ao norte no heading 0.
+- **A conferência é reprodutível sem olhar a tela:** carregar o GLB no navegador com o three do
+  próprio Vite (`/node_modules/.vite/deps/three.js`), montar grupo e clone como a camada faz, e
+  ver para onde vão os vetores (0,0,1) e (0,1,0) com heading 0/90/180/270. O esperado é
+  norte/leste/sul/oeste com o topo sempre para cima.
+- **A camada 3D existe só no mapa ao vivo da gestão.** Os outros dois mapas (`operation-map` e
+  `stops-map`) desenham marcadores próprios e não passam por aqui.
+- ⚠️ **O status é a COR DA LATARIA, e não um disco no chão** (decisão do usuário em 30/08/2026).
+  A primeira versão punha um círculo colorido embaixo do caminhão, e ele tapava o modelo: quem
+  olhava via a bolinha, não o veículo. Pintar o próprio caminhão diz a mesma coisa sem cobrir
+  nada.
+- ⚠️ **Pintar exige DUAS peneiras, porque o modelo não dá uma só.** As RODAS compartilham o
+  material "Atlas" com a carroceria: tingir por material pintaria as rodas junto e o caminhão
+  viraria um borrão de uma cor só, então elas se separam por MALHA (`FrontWheel_R`,
+  `FrontWheel_L`, `BackWheels` são nós irmãos de `Truck`). Já os FARÓIS e as LANTERNAS vivem
+  dentro da malha `Truck` como primitivas e herdam nomes como "Truck_1": pelo nome da malha são
+  indistinguíveis da lataria, e o que os separa é o nome do MATERIAL ("Headlights", "BrakeLight").
+  Sem a segunda peneira o caminhão fica com os faróis da cor do status.
+- ⚠️ **A textura da carroceria é descartada (`map = null`).** O "Atlas" é uma paleta de cores já
+  assadas: mantê-la faria a cor do status multiplicar por uma cor existente, e azul sobre
+  vermelho dá quase preto. Sem ela a cor sai exata, e quem desenha o volume passa a ser a
+  iluminação. Por isso a luz virou três pontos: sem textura, é a diferença de luz entre as faces
+  que faz o caminhão parecer um caminhão, e com uma fonte só ele lê como bloco chapado.
+- ⚠️ **Os materiais são CLONADOS por caminhão.** O `clone(true)` do three copia a hierarquia mas
+  COMPARTILHA os materiais: pintar sem clonar mudaria a cor dos trinta e três de uma vez, e o
+  defeito só apareceria quando dois veículos estivessem em estados diferentes. Farol e lanterna
+  são a exceção deliberada: como nunca mudam de cor, seguem compartilhados.
+- **A paleta entra por PARÂMETRO** (`CORES_DA_GESTAO` é só o padrão). O painel do operador tem
+  cores próprias em `operation-map.tsx`, e o usuário pediu que o 3D respeite a paleta de cada
+  painel: o dia em que a camada for para lá, ela entra com as cores de lá.
+- ⚠️ **A matriz é `defaultProjectionData.mainMatrix`, e NUNCA `modelViewProjectionMatrix`.** As
+  duas chegam no mesmo objeto do `render` e os nomes enganam. A `mainMatrix` projeta coordenada
+  MERCATOR (0..1, que é o que `MercatorCoordinate` devolve) para a tela, e é a do exemplo oficial.
+  A outra parte de outro espaço: usá-la projeta tudo para fora do campo de visão, e o sintoma é
+  cruel, porque o mapa desenha normalmente e os caminhões simplesmente não aparecem, sem uma
+  linha de erro no console. Foi o que aconteceu em 30/08/2026.
+- ⚠️ **A câmera é `Camera` crua, e não `PerspectiveCamera`.** A projeção inteira vem da matriz do
+  MapLibre; uma câmera com projeção própria recalcularia por cima dela.
 - ⚠️ **A origem do sistema de coordenadas acompanha o centro do mapa.** Coordenada Mercator vive
   entre 0 e 1 e um metro vale ~1e-8 nessa escala: com origem em (0,0) o `float32` da GPU perde a
   diferença entre dois caminhões da mesma cidade e eles tremem na tela.
@@ -673,6 +949,37 @@ aprendeu a arrumar as pessoas já sabe arrumar os caminhões.
   cleanup e `prefers-reduced-motion`. `WebGLRenderer` deve ficar em `try/catch`, pois lança em jsdom
   ou máquinas sem WebGL. A esfera recebe estado e nível por `ref` para não recriar as partículas.
 - `ogl` é dependência intencional dos fundos `Grainient`/`GradientBlinds` do painel de gestão.
+- ⚠️ **A linha de FONTE saiu da resposta da IA** (decisão do usuário em 30/08/2026). Era o rodapé
+  "Telemetria MiX · frota, operação... | Cadastro RookHub · cadastro de motoristas" abaixo de cada
+  resposta, e existia por **RN-121**: o gestor saber sobre que dado o número foi calculado antes
+  de decidir. A regra continua no documento de produto; quem quiser repor tem o `turn.answer.source`
+  ainda chegando do backend, é só voltar a renderizar em `assistant-turn.tsx`.
+- ⚠️ **O botão das conversas fica ANTES da marca, e é um HAMBÚRGUER** (`MenuIcon`), decidido pelo
+  usuário em 30/08/2026 com referência de tela. As duas coisas andam juntas: três pontos
+  (`MoreIcon`) é o desenho de "mais ações sobre este item" e, à direita junto do fechar, lia como
+  um menu de opções do painel; três barras é o desenho de "abrir a lista lateral", e à esquerda
+  ele fica do lado do painel que abre, apontando para onde a coisa acontece. A ordem do cabeçalho
+  é hambúrguer, marca, título, e o fechar sozinho na direita.
+- ⚠️ **O drawer do assistente escurecia a tela por DOIS caminhos, e os dois saíram** (usuário em
+  30/08/2026). Quem procurar "o sombreamento" precisa saber que são dois, porque tirar um só
+  deixa o sintoma quase igual:
+  1. O **véu** do `Overlay` (`bg-black/60 backdrop-blur-sm`), que cobria a tela inteira.
+  2. A **sombra projetada** do painel (`shadow-[-40px_0_120px_-40px_rgba(0,0,0,0.9)]`): preto a
+     90% espalhado por 120px para a esquerda. Numa tela clara isso não lê como profundidade, lê
+     como sujeira, e comia a primeira coluna do painel.
+- ⚠️ **O `Overlay` continua existindo, só que sem cor.** Apagá-lo seria pior: é ele que o Radix
+  usa para fechar ao clicar fora e para prender o foco dentro do painel.
+- O que separa o drawer da página é o `border-l`, que já existia e basta: o painel tem fundo
+  próprio e encosta na borda da janela. E o assistente não é um modal: a pessoa abre para
+  perguntar SOBRE o que está vendo, então apagar o que está atrás derruba o contexto da pergunta.
+- ⚠️ **O atalho do assistente é Ctrl+K, e só ele.** O Ctrl+K é o padrão de mercado para paleta de
+  comando e é o que o PRD pede em RF-033.
+- ⚠️ **O Ctrl+R foi REMOVIDO em 30/08/2026, a pedido do usuário. Não repor.** Ele existia em
+  paralelo e sobrescrevia o "recarregar página" do navegador. O problema não era técnico
+  (`preventDefault` funciona): é um atalho que a pessoa tem memorizado para outra coisa há anos,
+  e não há como avisá-la de que mudou. Quem apertava esperando recarregar recebia um painel de
+  conversa. A dica do botão flutuante (`assistant-fab.tsx`) também dizia Ctrl+R e foi corrigida:
+  são dois arquivos, mexeu num, confira o outro.
 - O assistente **já chama LLM de verdade**, sempre pelo `Backend-web`, que monta o contexto depois
   de aplicar o filtro de tenant e de perfil. Chave de provedor no navegador seria chave publicada,
   e contexto montado no cliente permitiria pedir dado de outro nível pelo DevTools.

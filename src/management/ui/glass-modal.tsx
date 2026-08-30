@@ -9,6 +9,14 @@ export interface GlassModalProps {
   onOpenChange: (open: boolean) => void;
   /** Sempre obrigatório — leitor de tela anuncia o diálogo por ele. */
   title: string;
+  /**
+   * Marca ao lado do título.
+   *
+   * ⚠️ Decorativa: quem a passa deve marcar `aria-hidden`, porque o título já
+   * diz o que o ícone repete. Um leitor de tela anunciando "imagem" antes do
+   * nome do diálogo só atrasa quem ouve.
+   */
+  icon?: ReactNode | undefined;
   /** Quando falso, o título fica só para tecnologia assistiva. */
   showTitle?: boolean | undefined;
   description?: string | undefined;
@@ -26,6 +34,7 @@ export function GlassModal({
   open,
   onOpenChange,
   title,
+  icon,
   showTitle = true,
   description,
   children,
@@ -67,7 +76,8 @@ export function GlassModal({
           <div className="flex items-start justify-between gap-4 p-5 sm:p-6">
             {showTitle ? (
               <div className="min-w-0">
-                <DialogPrimitive.Title className="font-sora text-on-surface text-headline-md">
+                <DialogPrimitive.Title className="font-sora text-on-surface text-headline-md flex items-center gap-2.5">
+                  {icon}
                   {title}
                 </DialogPrimitive.Title>
                 {description ? (

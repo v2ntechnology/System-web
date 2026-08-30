@@ -1,5 +1,5 @@
 import type { FrequentStop } from '@/management/lib/fleet-api';
-import { cn } from '@/management/ui';
+import { Spinner, cn } from '@/management/ui';
 import type { FeatureCollection } from 'geojson';
 import { type GeoJSONSource, Map as MapLibreMap, NavigationControl, Popup } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
@@ -298,12 +298,28 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
   }
 
   return (
-    <div
-      ref={container}
-      className={cn('overflow-hidden rounded-xl', className)}
-      role="region"
-      aria-label="Mapa das paradas frequentes"
-    />
+    <div className={cn('relative isolate', className)}>
+      <div
+        ref={container}
+        className="h-full w-full overflow-hidden rounded-xl"
+        role="region"
+        aria-label="Mapa das paradas frequentes"
+      />
+
+      {/* A tampa enquanto a base carrega. Mesmo motivo do mapa ao vivo: o
+          elemento precisa existir para o MapLibre se instalar, então o spinner
+          cobre em vez de adiar a montagem. */}
+      {ready ? null : (
+        <div
+          className="bg-surface-lowest absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl"
+          role="status"
+          aria-live="polite"
+        >
+          <Spinner className="text-on-surface-muted size-6" label="Carregando o mapa" />
+          <p className="text-on-surface-muted text-label-md normal-case">Carregando o mapa</p>
+        </div>
+      )}
+    </div>
   );
 }
 

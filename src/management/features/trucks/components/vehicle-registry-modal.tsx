@@ -1,4 +1,4 @@
-import { GlassModal } from '@/management/ui';
+import { GlassModal, cn } from '@/management/ui';
 
 import { VehicleRegistryForm } from './vehicle-registry-form';
 
@@ -51,7 +51,24 @@ export function VehicleRegistryModal({
           ? 'Para o caminhão que a telemetria ainda não conhece. Ele entra na frota sem rastreador.'
           : 'Ficha técnica, documentação, propriedade e o que a operação preenche.'
       }
-      className="w-[calc(100vw-2rem)] max-w-[760px]"
+      className={cn(
+        'w-[calc(100vw-2rem)] max-w-[760px]',
+        /*
+         * ⚠️ Altura FIXA, e não mínima.
+         *
+         * Decisão do usuário em 30/08/2026. Com o diálogo acompanhando o
+         * conteúdo, trocar de etapa fazia a caixa crescer e encolher a cada
+         * clique: a barra de etapas e a de ações saltavam de lugar, e o botão
+         * que a pessoa ia clicar mudava de posição embaixo do cursor.
+         *
+         * `min-h` não resolveria: a etapa mais longa continuaria esticando a
+         * caixa. É o `h` que faz a altura parar de responder ao conteúdo.
+         *
+         * O `calc` é o teto em tela baixa; o `max-h-[85dvh]` do GlassModal
+         * continua valendo por cima.
+         */
+        'h-[min(46rem,calc(100dvh-4rem))]',
+      )}
     >
       {/* Só monta quando o diálogo está aberto. Sem a guarda, fechar dispararia
           uma consulta durante a animação de saída. */}

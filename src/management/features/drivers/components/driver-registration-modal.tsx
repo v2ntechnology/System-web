@@ -461,7 +461,12 @@ export function DriverRegistrationModal({
        * a carteira de pré-visualização à direita; sem ela, a largura antiga
        * deixava cada campo com o dobro da medida confortável de leitura.
        */
-      className="w-[calc(100vw-2rem)] max-w-[720px]"
+      className={cn(
+        'w-[calc(100vw-2rem)] max-w-[720px]',
+        /* Altura fixa pelo mesmo motivo do cadastro de caminhão: sem ela,
+           trocar de etapa move a barra de ações embaixo do cursor. */
+        'h-[min(46rem,calc(100dvh-4rem))]',
+      )}
     >
       <form
         className="flex min-h-0 flex-1 flex-col"

@@ -1,6 +1,6 @@
 import type { VehiclePosition, VehicleStatus } from '@/management/types';
 import type { FeatureCollection, Point } from 'geojson';
-import { cn } from '@/management/ui';
+import { Spinner, cn } from '@/management/ui';
 import {
   type GeoJSONSource,
   Map as MapLibreMap,
@@ -8,14 +8,22 @@ import {
   NavigationControl,
   Popup,
 } from 'maplibre-gl';
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { MAP_STYLE, mapStyleUrlNow } from '@/components/shared/map-style';
 import { useThemeStore } from '@/stores/theme-store';
 
-import { SETA_ESCALA, headingIdFor, iconIdFor, loadVehicleIcons } from './vehicle-icons';
+import { criarFleet3dLayer, type Fleet3dLayer } from './fleet-3d-layer';
+import {
+  REPLAY_ARROW,
+  REPLAY_BADGE,
+  SETA_ESCALA,
+  headingIdFor,
+  iconIdFor,
+  loadVehicleIcons,
+} from './vehicle-icons';
 
 /*
  * A base saiu daqui e virou `@/components/shared/map-style`, comum aos três
@@ -36,6 +44,8 @@ const LAYER_HALO = 'fleet-halo';
 const LAYER_HEADING = 'fleet-heading';
 const LAYER_ICON = 'fleet-icon';
 const LAYER_LABEL = 'fleet-label';
+/* A frota em 3D, numa custom layer com three.js. Ver `fleet-3d-layer.ts`. */
+const LAYER_3D = 'fleet-3d';
 
 /**
  * Tamanho do marcador conforme o zoom, em fração da imagem de 64 pixels.
@@ -85,7 +95,9 @@ const LAYER_TRACK_ENDS = 'track-ends-circle';
 const SOURCE_HEAT = 'heat';
 const LAYER_HEAT = 'heat-layer';
 const SOURCE_PLAYHEAD = 'playhead';
-const LAYER_PLAYHEAD = 'playhead-circle';
+/* Duas camadas, pelo mesmo motivo dos veículos: a seta gira, o crachá não. */
+const LAYER_PLAYHEAD_ARROW = 'playhead-arrow';
+const LAYER_PLAYHEAD_BADGE = 'playhead-badge';
 
 /**
  * Duração do deslize entre uma leitura e a seguinte.
@@ -95,6 +107,29 @@ const LAYER_PLAYHEAD = 'playhead-circle';
  * permanentemente atrasado em relação ao dado.
  */
 const DESLIZE_MS = 1600;
+
+/**
+ * Zoom mínimo ao focar um veículo escolhido na lista.
+ *
+ * 13 é zoom de bairro: a placa aparece com rua ao redor, que é o que responde
+ * "onde ele está". Mais perto perde a referência da cidade, mais longe deixa o
+ * crachá no meio de um borrão de outros treze.
+ *
+ * ⚠️ Entra como PISO, e não como valor fixo: quem já estava com o mapa no zoom
+ * de rua não pode ser jogado para trás só por clicar em outra placa.
+ */
+const ZOOM_DE_FOCO = 13;
+
+/**
+ * Quanto se espera pela base antes de desistir dela.
+ *
+ * ⚠️ É o ÚNICO caminho que declara o mapa perdido por demora, e existe porque
+ * o contrário (derrubar no primeiro evento de erro) quebrou a tela duas vezes.
+ * Erro de tile é ruído; base que nunca chega é falha. Quinze segundos é folgado
+ * para uma conexão ruim e curto o bastante para não deixar a pessoa olhando um
+ * spinner sem fim.
+ */
+const ESPERA_MAXIMA_MS = 15_000;
 
 const STATUS_COLOR: Record<VehicleStatus, string> = {
   EM_VIAGEM: '#38BDF8',
@@ -110,6 +145,27 @@ interface Desenhado {
   heading: number;
 }
 
+/** Onde o caminhão do replay está agora, já interpolado entre duas leituras. */
+export interface ReplayPose {
+  lng: number;
+  lat: number;
+  /** Graus a partir do norte, no sentido horário. */
+  heading: number;
+}
+
+/**
+ * O que o replay pode pedir ao mapa.
+ *
+ * ⚠️ É imperativo de propósito, e não uma prop. O trajeto avança a 60 quadros
+ * por segundo: passar a posição por estado do React re-renderizaria a página
+ * inteira (lista de 33 veículos, ficha e mapa) a cada quadro, e era isso que
+ * fazia o play engasgar. Escrevendo direto na fonte do MapLibre, o React não
+ * roda nenhuma vez durante a reprodução.
+ */
+export interface FleetMapHandle {
+  setReplayPose: (pose: ReplayPose | null) => void;
+}
+
 export interface FleetMapProps {
   positions: VehiclePosition[];
   selectedId: string | null;
@@ -117,8 +173,6 @@ export interface FleetMapProps {
   track?: [number, number][] | undefined;
   /** Células do mapa de calor. Vazio ou ausente esconde a camada. */
   heat?: { coordinates: [number, number]; total: number }[] | undefined;
-  /** Onde o replay está agora. Nulo esconde o marcador. */
-  playhead?: [number, number] | null | undefined;
   /**
    * Veículo sob o cursor na lista ao lado.
    *
@@ -253,20 +307,24 @@ function toTrackEnds(track: [number, number][]): FeatureCollection<Point> {
  * dado. A cada leitura nova o componente anima da posição desenhada até a
  * recebida, e o resultado é um veículo que anda.
  */
-export function FleetMap({
-  positions,
-  selectedId,
-  onSelect,
-  track,
-  heat,
-  playhead,
-  hoveredId,
-  className,
-}: FleetMapProps) {
+export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function FleetMap(
+  { positions, selectedId, onSelect, track, heat, hoveredId, className },
+  ref,
+) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  /*
+   * O GLB da frota, que chega depois das camadas.
+   *
+   * ⚠️ Separado do `ready`, que significa "camadas montadas". Se os dois fossem
+   * o mesmo sinal, o mapa apareceria com os caminhões faltando pelo tempo do
+   * download e eles surgiriam de uma vez, que é exatamente o pisca-pisca que o
+   * spinner existe para evitar.
+   */
+  const [modelo3dPronto, setModelo3dPronto] = useState(false);
 
   /* Handler em ref: trocar de veículo selecionado não pode recriar o listener. */
   const onSelectRef = useRef(onSelect);
@@ -277,6 +335,24 @@ export function FleetMap({
   /* O que está desenhado agora, que não é o que chegou do backend enquanto a
      animação corre. */
   const desenhadoRef = useRef<Map<string, Desenhado>>(new Map());
+
+  /* A camada 3D. Ela lê a frota por chamada direta, e não por prop: o laço de
+     desenho dela roda a 60 quadros por segundo, fora do ciclo do React. */
+  const layer3d = useRef<Fleet3dLayer | null>(null);
+
+  /**
+   * A câmera acompanha o veículo escolhido enquanto ele anda.
+   *
+   * Pedido do usuário em 30/08/2026: com uma placa selecionada e o caminhão em
+   * viagem, o mapa deve ir atrás dele a cada leitura nova, sem que a pessoa
+   * precise clicar de novo.
+   *
+   * ⚠️ Desliga no primeiro gesto de quem está olhando. Arrastar, dar zoom ou
+   * girar o mapa é dizer "quero ver outra coisa", e uma câmera que insiste em
+   * voltar para o caminhão torna a tela impossível de usar. Volta a seguir
+   * quando uma placa é escolhida de novo.
+   */
+  const seguindo = useRef(false);
   const animacaoRef = useRef<number | null>(null);
   const selectedRef = useRef<string | null>(selectedId);
   useEffect(() => {
@@ -297,10 +373,22 @@ export function FleetMap({
       style: mapStyleUrlNow(),
       center: [-43.25, -22.88],
       zoom: 9.4,
-      attributionControl: { compact: true },
+      /* Sempre aberta, nunca em botão: a atribuição do OpenStreetMap é
+         obrigatória, e no modo compacto ela saltava para cima a cada clique.
+         O desenho e o motivo completo ficam em `styles/globals.css`. */
+      attributionControl: { compact: false },
     });
 
-    instance.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+    /*
+     * ⚠️ O zoom desceu para o canto inferior direito em 30/08/2026.
+     *
+     * O topo direito passou a ser dos controles da tela (o mapa de calor foi
+     * para lá a pedido do usuário), e os dois no mesmo canto se sobrepunham:
+     * era o defeito já registrado quando o botão morava ali da primeira vez.
+     * Embaixo ele empilha acima da atribuição, que é o arranjo padrão da
+     * maioria dos mapas.
+     */
+    instance.addControl(new NavigationControl({ showCompass: false }), 'bottom-right');
 
     const popup = new Popup({
       closeButton: false,
@@ -320,21 +408,55 @@ export function FleetMap({
      * descarta fonte, camada E imagem registradas: sem esta segunda passada,
      * mudar de tema deixaria a base nova sem caminhão nenhum em cima.
      */
+    /*
+     * ⚠️ Uma montagem por vez. Sem esta trava há CORRIDA, e ela derruba o mapa.
+     *
+     * `desenharConteudo` é assíncrona: ela espera a rasterização dos ícones antes
+     * de montar. Nessa espera o `styledata` dispara, passa pela guarda (que
+     * testa a ÚLTIMA fonte montada, ainda inexistente) e entra aqui em paralelo.
+     * As duas execuções chegam em `montarCamadas`, a primeira adiciona a fonte
+     * "heat" e a segunda estoura com "Source heat already exists". O mapa cai.
+     *
+     * O defeito é antigo e ficou visível em 30/08/2026, quando o par de imagens
+     * do replay entrou em `loadVehicleIcons` e alargou a janela da corrida.
+     */
+    let montando = false;
+
     async function desenharConteudo() {
-      const imagens = await loadVehicleIcons();
-      for (const [id, imagem] of Object.entries(imagens)) {
-        if (!instance.hasImage(id)) instance.addImage(id, imagem, { pixelRatio: 2 });
+      if (montando) return;
+      montando = true;
+
+      try {
+        const imagens = await loadVehicleIcons();
+        for (const [id, imagem] of Object.entries(imagens)) {
+          if (!instance.hasImage(id)) instance.addImage(id, imagem, { pixelRatio: 2 });
+        }
+        montarCamadas(instance);
+      } finally {
+        montando = false;
       }
-      montarCamadas(instance);
     }
 
+    /* Disparado no `load`; se ele nunca vier, a base não chegou. */
+    const relogio = window.setTimeout(() => {
+      console.error('[mapa] a base não respondeu em', ESPERA_MAXIMA_MS / 1000, 'segundos');
+      setFailed(true);
+    }, ESPERA_MAXIMA_MS);
+
     instance.on('load', () => {
+      window.clearTimeout(relogio);
       void desenharConteudo()
         .then(() => {
           ligarInteracoes(instance);
           setReady(true);
         })
-        .catch(() => setFailed(true));
+        .catch((erro: unknown) => {
+          /* ⚠️ Loga ANTES de derrubar. Este `catch` engolia o erro em silêncio, e
+             o resultado era a tela de falha sem uma linha no console dizendo por
+             quê: o pior estado possível para quem precisa consertar. */
+          console.error('[mapa] falha ao montar as camadas:', erro);
+          setFailed(true);
+        });
     });
 
     /*
@@ -346,20 +468,44 @@ export function FleetMap({
      * carregamento de tile: sem ela, o desenho seria refeito a cada rolagem.
      */
     instance.on('styledata', () => {
-      if (!instance.isStyleLoaded() || instance.getSource(SOURCE_ID)) return;
+      /* ⚠️ `SOURCE_HEAT` é a PRIMEIRA fonte que `montarCamadas` adiciona, e é por
+         ela que se pergunta. Perguntar pela última (`SOURCE_ID`) deixava passar
+         qualquer montagem incompleta, e a próxima tentativa estourava na fonte
+         que já existia. */
+      if (!instance.isStyleLoaded() || instance.getSource(SOURCE_HEAT)) return;
       setReady(false);
       void desenharConteudo()
         .then(() => setReady(true))
-        .catch(() => setFailed(true));
+        .catch((erro: unknown) => {
+          console.error('[mapa] falha ao remontar depois da troca de base:', erro);
+          setFailed(true);
+        });
     });
 
     function montarCamadas(mapa: MapLibreMap) {
       /* Lido aqui, e não capturado do render: `montarCamadas` roda de novo a
          cada troca de base, e precisa do tema do momento. */
       const claro = useThemeStore.getState().theme === 'light';
+
+      /*
+       * ⚠️ Nada é adicionado duas vezes, e isso é rede de segurança, não estilo.
+       *
+       * `addSource` e `addLayer` LANÇAM se o id já existe, e esta função roda de
+       * novo a cada troca de base. Uma montagem que morra no meio deixa metade
+       * das peças no mapa, e sem estas guardas a tentativa seguinte estoura na
+       * primeira peça que sobreviveu, sempre no mesmo ponto, para sempre. Foi
+       * exatamente esse laço que apareceu em 30/08/2026 com "Source heat already
+       * exists" repetido vinte e sete vezes.
+       */
+      const fonte = (id: string, spec: Parameters<MapLibreMap['addSource']>[1]) => {
+        if (!mapa.getSource(id)) mapa.addSource(id, spec);
+      };
+      const camada = (spec: Parameters<MapLibreMap['addLayer']>[0]) => {
+        if (!mapa.getLayer(spec.id)) mapa.addLayer(spec);
+      };
       /* O calor entra por baixo de tudo: ele é fundo, não informação pontual. */
-      mapa.addSource(SOURCE_HEAT, { type: 'geojson', data: vazio() });
-      mapa.addLayer({
+      fonte(SOURCE_HEAT, { type: 'geojson', data: vazio() });
+      camada({
         id: LAYER_HEAT,
         type: 'heatmap',
         source: SOURCE_HEAT,
@@ -390,25 +536,25 @@ export function FleetMap({
 
       /* A rota entra antes dos veículos: o MapLibre desenha na ordem de
          inserção, e a linha por cima passaria em cima do caminhão. */
-      mapa.addSource(SOURCE_TRACK, { type: 'geojson', data: vazio() });
-      mapa.addSource(SOURCE_TRACK_ENDS, { type: 'geojson', data: vazio() });
-      mapa.addSource(SOURCE_PLAYHEAD, { type: 'geojson', data: vazio() });
+      fonte(SOURCE_TRACK, { type: 'geojson', data: vazio() });
+      fonte(SOURCE_TRACK_ENDS, { type: 'geojson', data: vazio() });
+      fonte(SOURCE_PLAYHEAD, { type: 'geojson', data: vazio() });
 
-      mapa.addLayer({
+      camada({
         id: LAYER_TRACK_GLOW,
         type: 'line',
         source: SOURCE_TRACK,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': '#38BDF8', 'line-width': 8, 'line-opacity': 0.18 },
       });
-      mapa.addLayer({
+      camada({
         id: LAYER_TRACK,
         type: 'line',
         source: SOURCE_TRACK,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': '#38BDF8', 'line-width': 2.5, 'line-opacity': 0.9 },
       });
-      mapa.addLayer({
+      camada({
         id: LAYER_TRACK_ENDS,
         type: 'circle',
         source: SOURCE_TRACK_ENDS,
@@ -419,23 +565,45 @@ export function FleetMap({
           'circle-stroke-color': claro ? '#FFFFFF' : '#0B0B0E',
         },
       });
-      mapa.addLayer({
-        id: LAYER_PLAYHEAD,
-        type: 'circle',
+      /*
+       * O marcador do replay é um CAMINHÃO, e não um ponto (pedido do usuário em
+       * 30/08/2026). Um círculo âmbar correndo sobre a linha não dizia o que
+       * era: podia ser um evento, uma parada ou o cursor. O crachá diz.
+       *
+       * ⚠️ Duas camadas pelo mesmo motivo da frota: a seta gira com a direção, o
+       * crachá não. Girar o crachá deixaria o caminhão de cabeça para baixo em
+       * todo trecho rumo ao oeste.
+       */
+      camada({
+        id: LAYER_PLAYHEAD_ARROW,
+        type: 'symbol',
         source: SOURCE_PLAYHEAD,
-        paint: {
-          'circle-radius': 7,
-          'circle-color': '#FBBF24',
-          'circle-stroke-width': 3,
-          'circle-stroke-color': claro ? '#FFFFFF' : '#0B0B0E',
+        layout: {
+          'icon-image': REPLAY_ARROW,
+          'icon-size': TAMANHO_DA_SETA,
+          'icon-rotate': ['get', 'heading'],
+          'icon-rotation-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+      });
+      camada({
+        id: LAYER_PLAYHEAD_BADGE,
+        type: 'symbol',
+        source: SOURCE_PLAYHEAD,
+        layout: {
+          'icon-image': REPLAY_BADGE,
+          'icon-size': TAMANHO_POR_ZOOM,
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
         },
       });
 
-      mapa.addSource(SOURCE_ID, { type: 'geojson', data: vazio() });
+      fonte(SOURCE_ID, { type: 'geojson', data: vazio() });
 
       /* Halo do selecionado: um anel por baixo do marcador. Destacar mudando a
          cor do próprio veículo apagaria o status, que é o que a cor significa. */
-      mapa.addLayer({
+      camada({
         id: LAYER_HALO,
         type: 'circle',
         source: SOURCE_ID,
@@ -455,7 +623,7 @@ export function FleetMap({
       /* Seta de direção, por baixo do crachá. Só para quem está andando: com
          velocidade zero o GPS oscila a direção, e a seta ficaria rodopiando no
          pátio apontando para lugar nenhum. */
-      mapa.addLayer({
+      camada({
         id: LAYER_HEADING,
         type: 'symbol',
         source: SOURCE_ID,
@@ -468,10 +636,13 @@ export function FleetMap({
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
         },
-        paint: { 'icon-opacity': ['get', 'opacidade'] },
+        /* ⚠️ INVISÍVEL desde 30/08/2026: quem aponta a direção passou a ser o
+           próprio caminhão 3D, que gira. A camada fica porque ela ainda alimenta
+           o `filter` de "parado" e some junto se alguém desligar o 3D. */
+        paint: { 'icon-opacity': 0 },
       });
 
-      mapa.addLayer({
+      camada({
         id: LAYER_ICON,
         type: 'symbol',
         source: SOURCE_ID,
@@ -488,13 +659,30 @@ export function FleetMap({
           'icon-ignore-placement': true,
         },
         paint: {
-          /* Quem não reporta há um dia não pode ter o mesmo peso visual de quem
-             está rodando agora. O olho precisa cair no que está acontecendo. */
-          'icon-opacity': ['get', 'opacidade'],
+          /*
+           * ⚠️ INVISÍVEL: quem desenha o veículo é a camada 3D, e esta ficou
+           * como alvo de clique.
+           *
+           * Os três handlers da tela (clique, popup ao passar o cursor e a
+           * troca do ponteiro) estão ligados a ela por id, e uma custom layer
+           * do three não responde a `queryRenderedFeatures`: sem este símbolo
+           * no lugar, clicar num caminhão deixaria de funcionar. `icon-opacity`
+           * é propriedade de PINTURA, então o símbolo continua sendo colocado e
+           * consultado normalmente.
+           */
+          'icon-opacity': 0,
         },
       });
 
-      mapa.addLayer({
+      /*
+       * A frota em 3D entra DEPOIS dos símbolos e ANTES do rótulo: assim o
+       * caminhão cobre o crachá invisível e a placa continua legível por cima
+       * do caminhão.
+       */
+      layer3d.current = criarFleet3dLayer(LAYER_3D, () => setModelo3dPronto(true));
+      camada(layer3d.current);
+
+      camada({
         id: LAYER_LABEL,
         type: 'symbol',
         source: SOURCE_ID,
@@ -572,12 +760,57 @@ export function FleetMap({
       });
     }
 
-    /* Sem tiles a tela cai para a lista, em vez de mostrar um retângulo cinza. */
-    instance.on('error', () => setFailed(true));
+    /*
+     * ⚠️ **O evento `error` NUNCA derruba a tela.** Ele só registra.
+     *
+     * Duas versões erradas moram nesta linha, e as duas quebraram a tela de
+     * formas diferentes em 30/08/2026:
+     *
+     *   1. `setFailed(true)` em qualquer `error`. O MapLibre emite esse evento
+     *      por muita coisa que não impede o mapa de funcionar: tile que não veio,
+     *      faixa de glifo com 404, sprite ausente. Um deles bastava para a tela
+     *      virar "Não foi possível carregar o mapa" com o mapa utilizável por
+     *      baixo.
+     *   2. Derrubar só quando `isStyleLoaded()` fosse falso. Parecia mais
+     *      preciso e era pior: erro de tile chega CEDO, enquanto o estilo ainda
+     *      carrega, então a condição era verdadeira justamente no pior momento.
+     *      A base do OpenFreeMap emite "Expected value to be of type number, but
+     *      found null" ao processar certos tiles, e isso sozinho matava a tela.
+     *
+     * Nenhum erro assíncrono é prova de que o mapa é inutilizável. As duas
+     * provas reais são o `catch` de `desenharConteudo` (não conseguimos montar)
+     * e o relógio de {@link ESPERA_MAXIMA_MS} (a base nunca chegou).
+     */
+    /*
+     * ⚠️ Só o ARRASTO desliga o seguimento. Zoom, giro e inclinação, não.
+     *
+     * A diferença é de intenção, e o usuário apontou isso em 30/08/2026: arrastar
+     * é dizer "quero olhar outro lugar"; inclinar ou girar é dizer "quero ver o
+     * MESMO lugar de outro ângulo". Desligar no `pitchstart` fazia com que
+     * inclinar o mapa custasse o seguimento, que é o oposto do que a pessoa
+     * pediu ao inclinar.
+     *
+     * O ângulo escolhido sobrevive sozinho: `setCenter` mexe só no centro, e
+     * `bearing` e `pitch` seguem intactos. Por isso o seguimento respeita a
+     * visão em diagonal sem uma linha a mais.
+     *
+     * ⚠️ A guarda do `originalEvent` separa o gesto da pessoa do movimento que o
+     * próprio código pede: `easeTo`, `fitBounds` e o `setCenter` do laço também
+     * disparam esses eventos, e sem ela o seguimento se desligaria sozinho no
+     * primeiro quadro que ele mesmo produzisse.
+     */
+    instance.on('dragstart', (evento) => {
+      if ('originalEvent' in evento && evento.originalEvent) seguindo.current = false;
+    });
+
+    instance.on('error', (evento) => {
+      console.warn('[mapa] erro do MapLibre:', evento.error?.message ?? evento.error);
+    });
 
     map.current = instance;
 
     return () => {
+      window.clearTimeout(relogio);
       if (animacaoRef.current !== null) cancelAnimationFrame(animacaoRef.current);
       popup.remove();
       instance.remove();
@@ -649,6 +882,25 @@ export function FleetMap({
 
       desenhadoRef.current = atual;
       fonte.setData(toGeoJson(positions, atual, selectedRef.current, hoveredRef.current));
+      layer3d.current?.atualizar(positions, atual, selectedRef.current);
+
+      /*
+       * A câmera anda junto, e é AQUI que ela fica fluida.
+       *
+       * Seguir com `easeTo` a cada leitura daria um solavanco a cada ciclo: a
+       * câmera correria até o destino e pararia, esperando o próximo. Aqui ela
+       * usa a MESMA posição interpolada do caminhão, quadro a quadro, com a
+       * mesma curva de suavização. O veículo fica parado no centro e o
+       * território é que desliza por baixo dele.
+       *
+       * ⚠️ `isEasing()` protege a animação de foco que roda ao escolher a placa:
+       * sem essa guarda, o `setCenter` daqui cortaria aquele movimento no
+       * primeiro quadro e o enquadramento chegaria de repente.
+       */
+      const alvoDaCamera = selectedRef.current ? atual.get(selectedRef.current) : undefined;
+      if (seguindo.current && alvoDaCamera && !map.current?.isEasing()) {
+        map.current?.setCenter([alvoDaCamera.lng, alvoDaCamera.lat]);
+      }
 
       if (fracao < 1) {
         animacaoRef.current = requestAnimationFrame(passo);
@@ -665,6 +917,7 @@ export function FleetMap({
     if (!ready || !map.current) return;
     const fonte = map.current.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     fonte?.setData(toGeoJson(positions, desenhadoRef.current, selectedId, hoveredId));
+    layer3d.current?.atualizar(positions, desenhadoRef.current, selectedId);
   }, [selectedId, hoveredId, ready, positions]);
 
   /**
@@ -681,8 +934,57 @@ export function FleetMap({
 
     const limites = envolver(positions.map((v) => v.coordinates));
     enquadrado.current = true;
-    map.current.fitBounds(limites, { padding: 64, maxZoom: 12, duration: 0 });
+    map.current.fitBounds(limites, {
+      padding: 64,
+      maxZoom: 12,
+      duration: 0,
+      /* ⚠️ Sem estes dois o `fitBounds` calcula a câmera como se o mapa
+         estivesse achatado e devolve a visão para o de cima, desfazendo a
+         inclinação que a pessoa tinha escolhido. */
+      bearing: map.current.getBearing(),
+      pitch: map.current.getPitch(),
+    });
   }, [positions, ready]);
+
+  /**
+   * Escolher uma placa leva a câmera até ela.
+   *
+   * Pedido do usuário em 30/08/2026, e o que existia antes não cumpria: o mapa
+   * só se mexia quando a ROTA chegava, o que dependia de uma segunda requisição
+   * e enquadrava o trajeto inteiro do dia, não o veículo. Quem clicava numa
+   * placa ficava alguns segundos olhando a mesma tela sem saber se algo tinha
+   * acontecido.
+   *
+   * ⚠️ Só quando o alvo MUDA. O polling reescreve `positions` a cada dez
+   * segundos, e sem esta guarda a câmera voltaria para o veículo escolhido toda
+   * vez, arrancando o mapa da mão de quem estivesse arrastando.
+   */
+  const focado = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    if (selectedId === focado.current) return;
+    focado.current = selectedId;
+
+    /* Escolher uma placa religa o seguimento, inclusive depois de a pessoa ter
+       arrastado o mapa: o clique é o pedido de "volte para este". */
+    seguindo.current = Boolean(selectedId);
+    if (!selectedId) return;
+
+    const alvo = positions.find((vehicle) => vehicle.vehicleId === selectedId);
+    if (!alvo) return;
+
+    /* A posição desenhada, e não a do dado: com a animação de deslize em curso,
+       o crachá está a caminho e centralizar no destino deixaria ele fora do
+       centro por um segundo e meio. */
+    const atual = desenhadoRef.current.get(selectedId);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    map.current.easeTo({
+      center: atual ? [atual.lng, atual.lat] : alvo.coordinates,
+      zoom: Math.max(map.current.getZoom(), ZOOM_DE_FOCO),
+      duration: reduced ? 0 : 650,
+    });
+  }, [selectedId, positions, ready]);
 
   /* Rota do veículo selecionado, enquadrada ao aparecer. */
   useEffect(() => {
@@ -707,6 +1009,10 @@ export function FleetMap({
       padding: 72,
       maxZoom: 15,
       duration: reduced ? 0 : 700,
+      /* Mesmo motivo do enquadramento inicial: abrir o trajeto não pode
+         endireitar um mapa que a pessoa deixou inclinado. */
+      bearing: map.current.getBearing(),
+      pitch: map.current.getPitch(),
     });
   }, [track, ready]);
 
@@ -731,17 +1037,29 @@ export function FleetMap({
    * Não move a câmera junto, de propósito: seguir o ponto faria o mapa correr
    * sozinho enquanto o gestor tenta olhar um cruzamento específico.
    */
-  useEffect(() => {
-    if (!ready || !map.current) return;
-    const fonte = map.current.getSource(SOURCE_PLAYHEAD) as GeoJSONSource | undefined;
+  useImperativeHandle(
+    ref,
+    () => ({
+      setReplayPose: (pose) => {
+        const fonte = map.current?.getSource(SOURCE_PLAYHEAD) as GeoJSONSource | undefined;
+        if (!fonte) return;
 
-    fonte?.setData({
-      type: 'FeatureCollection',
-      features: playhead
-        ? [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: playhead } }]
-        : [],
-    });
-  }, [playhead, ready]);
+        fonte.setData({
+          type: 'FeatureCollection',
+          features: pose
+            ? [
+                {
+                  type: 'Feature',
+                  properties: { heading: pose.heading },
+                  geometry: { type: 'Point', coordinates: [pose.lng, pose.lat] },
+                },
+              ]
+            : [],
+        });
+      },
+    }),
+    [],
+  );
 
   if (failed) {
     return (
@@ -758,15 +1076,47 @@ export function FleetMap({
     );
   }
 
+  /*
+   * ⚠️ O mapa é montado desde o primeiro render, e não depois do spinner.
+   *
+   * O MapLibre precisa de um elemento com tamanho para se instalar: montá-lo só
+   * quando o carregamento termina cria uma dependência circular (ele não carrega
+   * porque não existe). O spinner é uma TAMPA por cima, e é ela que sai quando
+   * tudo está pronto.
+   *
+   * É isso que remove a trava de tela que o usuário relatou em 30/08/2026: o que
+   * travava era ver o mapa em construção, com a base branca, os tiles entrando
+   * em bloco e a frota surgindo depois. A montagem continua custando o mesmo;
+   * o que muda é que ela acontece atrás da tampa.
+   */
+  const carregando = !ready || !modelo3dPronto;
+
   return (
-    <div
-      ref={container}
-      /* Estado exposto no DOM: serve para teste E2E sem precisar da instância. */
-      data-map-ready={ready ? 'true' : 'false'}
-      className={cn('overflow-hidden rounded-xl', className)}
-    />
+    <div className={cn('relative isolate', className)}>
+      <div
+        ref={container}
+        /* Estado exposto no DOM: serve para teste E2E sem precisar da instância. */
+        data-map-ready={ready ? 'true' : 'false'}
+        /* Sem raio próprio: quem arredonda é o container da página, e dois
+           raios diferentes deixam o fundo aparecendo nos cantos. */
+        className="h-full w-full"
+      />
+
+      {carregando ? (
+        <div
+          /* `bg-surface-lowest` opaco, e não um véu: metade da tela é justamente
+             o mapa meio pronto que não se quer mostrar. */
+          className="bg-surface-lowest absolute inset-0 z-10 flex flex-col items-center justify-center gap-3"
+          role="status"
+          aria-live="polite"
+        >
+          <Spinner className="text-on-surface-muted size-6" label="Carregando o mapa" />
+          <p className="text-on-surface-muted text-label-md normal-case">Carregando o mapa</p>
+        </div>
+      ) : null}
+    </div>
   );
-}
+});
 
 /* -------------------------------------------------------------------------- */
 /* Apoio                                                                       */

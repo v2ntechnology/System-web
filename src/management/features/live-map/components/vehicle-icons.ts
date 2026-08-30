@@ -54,6 +54,20 @@ const STATUS_COLOR: Record<VehicleStatus, string> = {
   SEM_SINAL: '#94A3B8',
 };
 
+/**
+ * A cor do caminhão que refaz o trajeto.
+ *
+ * Âmbar, e não a cor do status: o marcador do replay não é o veículo, é onde
+ * ele ESTAVA. Pintá-lo de status faria dois caminhões da mesma cor na tela, um
+ * no passado e outro no presente, e a diferença entre os dois é justamente o
+ * que a ferramenta existe para mostrar.
+ */
+const REPLAY_COLOR = '#FBBF24';
+
+/** Identificadores do par de imagens do replay: o crachá e a seta. */
+export const REPLAY_BADGE = 'replay-badge';
+export const REPLAY_ARROW = 'replay-arrow';
+
 /** Traço escuro do desenho e do contorno. Precisa ser bem escuro: o preenchimento
     do crachá é saturado, e cinza médio sobre ele vira borrão. */
 const TINTA = '#0A0E16';
@@ -154,6 +168,11 @@ export async function loadVehicleIcons(): Promise<Record<string, ImageData>> {
 
     imagens[headingIdFor(status)] = await rasterizar(seta(cor));
   }
+
+  /* O par do replay. Mesmo crachá e mesma seta dos veículos, em âmbar: quem
+     refaz o trajeto precisa reconhecer na hora que aquilo é o caminhão dele. */
+  imagens[REPLAY_BADGE] = await rasterizar(cracha(SILHUETAS.truck as string, REPLAY_COLOR));
+  imagens[REPLAY_ARROW] = await rasterizar(seta(REPLAY_COLOR));
 
   return imagens;
 }

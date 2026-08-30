@@ -603,19 +603,12 @@ function Campos({
         {/* ------------------------------------------------------------------ */}
         {etapa === 'identificacao' ? (
           <>
-            <Secao
-              semTitulo={dentroDoDialogo}
-              titulo="Identificação"
-              hint={
-                criando
-                  ? 'A placa não pode ser alterada depois: é por ela que a telemetria reconhece o caminhão.'
-                  : undefined
-              }
-            >
+            <Secao semTitulo={dentroDoDialogo} titulo="Identificação">
               {criando ? (
                 <GlassInput
                   label="Placa"
-                  hint="ABC1D23 ou ABC1234"
+                  placeholder="ABC1D23"
+                  hint="Mercosul ou o formato antigo"
                   value={form.plate}
                   onChange={(e) => alterar('plate', e.target.value.toUpperCase().slice(0, 8))}
                   autoFocus
