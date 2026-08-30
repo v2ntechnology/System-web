@@ -23,6 +23,10 @@ próximos passos · Gotchas
   (repositório irmão, Java 21 com Spring). O estado é **misto de propósito**: autenticação, frota,
   mapa, motoristas, segurança, assistente e notificações vêm do backend; o painel operacional,
   custos, manutenção e multas seguem simulados. O `.env` alterna os dois lados.
+- ⚠️ **A tese do produto é ser integrador, e desde 30/08/2026 isso é regra de código.** Várias
+  fontes externas desaguam aqui e **nenhuma é fonte de verdade sozinha**. O cadastro do fornecedor
+  de telemetria é ponto de partida: quem responde quem é motorista, se está ativo e a que caminhão
+  está ligado é o RookHub. Ver `Cadastro de motoristas` mais abaixo e a memória do `Backend-web`.
 - Não criar cobrança nem provedor externo novo sem pedido explícito.
 - As telas consomem contratos e hooks de `src/services`; mocks são uma implementação desses
   contratos e podem ser substituídos por HTTP sem reescrever as páginas. Foi o que permitiu ligar
@@ -113,6 +117,75 @@ próximos passos · Gotchas
   contexto enviado ao modelo trouxer o número. `operatorSeesFinancials` precisa valer nos dois.
 
 ## Temas e identidade visual
+
+### Redesign de 30/08/2026 — o desenho atual
+
+O usuário recusou o desenho anterior e fixou a direção com três referências de
+painel. Decisões confirmadas por ele antes do trabalho começar: **indigo da marca
+como cor de destaque** (e não o coral das referências, para o painel continuar
+casando com o logo e o site), **densidade equilibrada** (respiro grande nos
+resumos, densidade atual em tabela e lista) e **redesign tela por tela nos dois
+painéis**.
+
+- ⚠️ **O tema escuro está desligado.** `DARK_MODE_ENABLED = false` em
+  `stores/theme-store.ts`. A rampa escura continua inteira em `palette.css` e
+  volta trocando a constante; **não apagar**. Os três seletores de tema
+  (`components/layout/theme-toggle.tsx`, `management/features/appearance/`,
+  `pages/administration/settings-page.tsx`) mostram a lua desabilitada com
+  `aria-disabled` e a dica "Tema escuro em breve". São três: mexeu num, mexa nos
+  outros dois.
+- ⚠️ **Rotas sem casca ficam claras para sempre**, mesmo quando o escuro voltar:
+  login, esqueci minha senha, convite, sessão expirada, 404 e as duas do hub. O
+  mecanismo é o `ThemeLock` aplicado no `router.tsx` pela função `lockLight`, e
+  é de **rota**, não de componente.
+- ⚠️ **A foto do caminhão saiu do `PageBanner`**, revertendo a decisão de
+  19/08/2026. Sai junto tudo que existia por causa dela: a faixa `bg-brand-night`,
+  o gradiente preto, a `drop-shadow` do título, o degrau `rounded-t-4xl`, o
+  `-mt-12` do `PageContent`, o `-mt-14` do `PageTabs` e todo o uso de `on-media`
+  no menu, na topbar e no sino. O motivo é de ferramenta: 440px de foto em toda
+  tela, inclusive nas que são uma tabela de 150 linhas.
+- ⚠️ **O `eyebrow` do `PageBanner` não renderiza mais nada.** A prop continua
+  aceita para não quebrar 25 telas de uma vez. Rótulo acima de título é proibido
+  no piso de qualidade do projeto: o título carrega o próprio peso.
+- **A pastilha do item ativo é preta** (`bg-bright text-on-bright`), no menu
+  superior da gestão E na lateral do operacional. É o que faz as duas cascas
+  lerem como um sistema só. Indigo ficou para ação, link e primeira série de
+  gráfico: usá-lo também no estado ativo gastava a cor até parar de significar.
+- **A hierarquia é de superfície, não de linha.** Papel morno `#F4F2EF` no
+  fundo, branco no card, papel mais fechado no poço. Card não tem borda: tem
+  raio grande e sombra com deslocamento e desfoque. `--color-light-edge` virou
+  transparente também no claro, e o `border` saiu do `ui/card.tsx`.
+- ⚠️ **O vidro morreu no claro.** `--glass-blur: 0px` e traço transparente: o
+  `.glass` é placa branca sólida. Antes ele era branco a 86% com borda, ou seja,
+  o mesmo objeto que o `LightCard`, com `backdrop-filter` custando GPU para não
+  produzir efeito visível.
+- ⚠️ **`.metric-tile` substituiu `bg-surface-lowest min-w-0 rounded-lg p-4`**, que
+  estava copiado em 16 telas. `surface-lowest` é o token do **poço**, mais escuro
+  que o papel: todo indicador da aplicação aparecia afundado no fundo. A classe
+  fica em `management/styles/glass.css`. Campo de entrada continua no poço, que é
+  o `.glass-well`.
+- **Título de `LightCard` deixou de ser indigo.** Em tinta dá 16.8:1 contra 3.7:1
+  e devolve o indigo para quem precisa dele.
+- ⚠️ **A marca troca de arquivo, e nunca é pintada por filtro.**
+  `components/shared/brand-assets.ts` é o mapa único dos dois painéis, e é a
+  mesma regra do `components/icons.ts`: um conceito, um desenho, nos quatro
+  perfis. O painel de gestão pintava a arte branca de preto com
+  `light:brightness-0`, o que resolvia o "Rook" (branco chapado) e **matava a
+  torre**, que é gradiente indigo: a marca saía toda preta no papel. O `tone`
+  do `RookhubLogo` continua existindo: `media` é sempre a arte branca (sobre
+  fotografia e sobre o painel indigo do login), `adaptive` acompanha o tema.
+- ⚠️ **O sufixo do arquivo é a cor da arte, não o nome do tema.** `-white` vai
+  sobre fundo escuro, `-dark` vai sobre papel. Ler ao contrário inverte os dois,
+  e o erro não aparece em revisão de código: só na tela, como um logo sumido.
+- **As artes do robô saíram em 30/08/2026**, a pedido do usuário
+  (`logo-robot-dark.svg` e `logo-robot-white.svg`). O `RobotMark` que as usava
+  estava definido e nunca importado. O mascote do assistente continua vivo: é o
+  `logoOfficialBranca.svg` do `@imgs/`, usado pelo `AiLauncher` e pelo
+  `AssistantFab` sobre o botão indigo.
+- **Raio**: 20px no container, 14px no elemento interno, 28px no bloco grande,
+  nos dois painéis (`.management-theme` e o `--radius` do `globals.css`).
+- `PRODUCT.md` na raiz guarda a verdade de produto que orienta o design. Ele foi
+  escrito no redesign e não descreve visual: visual mora aqui.
 
 ### Paleta única (19/08/2026)
 
@@ -258,6 +331,133 @@ próximos passos · Gotchas
   o `rounded-[10px]` e o ícone de 18px escritos no `<button>` filho. Classe que precisa vencer a
   base vai na prop `className` do item, que é a única que passa pelo `cn`.
 
+### Cadastro de motoristas (`/gestao/motoristas/cadastro`)
+
+Reescrita em **30/08/2026** a pedido do usuário. Deixou de ser um mostruário da bagunça que veio da
+telemetria e virou lista de cadastro de verdade, no padrão das telas do outro sistema dele
+(`Nação de Talentos/System-web`): tabela com coluna de Ações, atalho de ativar/inativar com
+confirmação, e o mesmo diálogo servindo criação e edição.
+
+- **A empresa substituiu a filial em toda a tela.** O seletor listava as 20 linhas de `fleet_sites`,
+  com quatro "Default Site" e cinco "DESLIGADOS / INATIVOS" indistinguíveis. Agora são 5 empresas, e
+  quem está em qualquer subgrupo de uma conta como sendo dela. A consolidação é do backend, em
+  `fleet_companies` e `fleet_site_company`. `GET /v1/fleet/sites` manteve o caminho e trocou o
+  conteúdo, porque o `System-mobile` consome a mesma rota.
+- ⚠️ **O quadro "Como esta pessoa vai ficar" saiu do diálogo, e o `driver-id-card.tsx` continua no
+  repositório de propósito.** O usuário pediu para tirar **por enquanto**. O cabeçalho do arquivo
+  explica como devolvê-lo. Varredura de importação acusa como código morto: não apagar.
+- O diálogo cria e edita com o mesmo formulário. O que muda é o depois: cadastrar mantém aberto e
+  limpo para a próxima pessoa (o caso normal é em lote), editar fecha e devolve a lista.
+- ⚠️ **`values` do react-hook-form, e não `useEffect` + `reset`.** Sincronizar dado externo com
+  efeito é justamente o padrão que as regras do React Compiler recusam neste projeto.
+  `resetOptions: { keepDirtyValues: true }` protege quem já está digitando.
+- ⚠️ **`values: loaded` não compila com `exactOptionalPropertyTypes`.** Passar `undefined` explícito
+  em campo opcional é erro de tipo. Espalhar: `...(loaded ? { values: loaded } : {})`.
+- ⚠️ **Numa tabela de largura automática, `truncate` sozinho não encolhe coluna.** A coluna nunca
+  fica menor que o texto mais longo dela, e o nome do motorista empurrava Status e Ações para fora
+  da tela. O que resolve é `w-full max-w-0` no `<td>` do nome: `max-w-0` zera a largura mínima e
+  `w-full` faz aquela coluna ficar com toda a sobra. As colunas de Empresa, CPF e Atividade levam
+  `whitespace-nowrap`, senão "SERVIOESTE - RJ CAMPOS DOS GOYTACAZES" quebra em quatro linhas e cada
+  linha da tabela passa de 65px para 100px.
+- Ativar/inativar tem rota própria (`PATCH /v1/drivers/{id}/active`) e **não** grava conferência:
+  ligar e desligar é operação do dia a dia, e congelar a sincronização por causa disso deixaria o
+  cadastro velho para sempre. Salvar a ficha inteira é que congela.
+- O chip "Conferido" e o filtro de conferência saem de `registry_updated_at`. É o placar do trabalho
+  que a tela existe para fazer: 150 pessoas importadas, 0 conferidas no começo.
+
+### Mapa ao vivo como central de comando (`/gestao/mapa`)
+
+Redesenhado em **30/08/2026**. A tela dividia atenção entre uma lista fixa de frota e o mapa; agora
+o mapa é o protagonista, com painel de monitoramento recolhido à direita, controles sobrepostos ao
+território (mapa de calor, legenda, veículo selecionado) e o trajeto logo abaixo.
+
+- ⚠️ **Os quatro números vêm DEPOIS do mapa, e não antes.** Numa tela de notebook, que é o hardware
+  do gestor (RNF-006), eles empilhavam em duas linhas e empurravam o mapa para fora da primeira
+  dobra: quem abria a central de comando via cartão, não território. Foi o ajuste que faltava
+  quando o trabalho parou pela metade, e é a razão de o resumo estar no fim do arquivo.
+- ⚠️ **A lista fica à ESQUERDA e o mapa à direita, com a MESMA altura** (decisão do usuário em
+  30/08/2026). A leitura vai do painel para o território: quem opera procura uma placa na lista e
+  confirma onde ela está, e não o contrário. A altura é da LINHA do grid (`items-stretch` mais
+  `h-full` nos dois filhos), e não de cada peça: antes o mapa tinha altura própria e a lista tinha
+  `max-h-[620px]`, então uma sobrava enquanto a outra faltava.
+- A altura usa `clamp(32rem, calc(100dvh - 26rem), 52rem)`. O desconto de 26rem cobre o cabeçalho,
+  o aviso de dessincronizados e o respiro; o piso e o teto seguram o resultado quando a medida não
+  bate. Com 15rem o mapa passava da primeira dobra.
+- O bloco de trajeto saiu de dentro da coluna do mapa e foi para baixo, em largura total: com as
+  colunas de altura casada, qualquer coisa embaixo do mapa esticaria a linha e desfaria o
+  casamento.
+- ⚠️ **Os dois cartões sobrepostos empilham à ESQUERDA.** O botão de mapa de calor ficava no canto
+  superior direito e passava por baixo do controle de zoom do MapLibre, que mora no mesmo canto:
+  metade do rótulo ficava escondida.
+- **Atualização a cada 10 segundos** (era 4). O número sai de `REFETCH_MS` e não de dois lugares:
+  ele aparece escrito na tela, e com o valor repetido a legenda passaria a mentir na primeira vez
+  que alguém mexesse no outro.
+- Réplica e mapa de calor são **modos do mapa**, e não blocos separados acima dele.
+- ⚠️ **O filtro do painel lateral filtra a LISTA, não os marcadores.** Continua assim, e a tela não
+  promete o contrário. Vale registrar como pendência: hoje um gestor que filtra por "Manutenção" vê
+  a lista encolher e o mapa igual.
+
+### A base cartográfica dos três mapas (30/08/2026)
+
+Decisão do usuário: mapa mais detalhado e mais realista, com alternância por tema. A base saiu
+de dentro de cada componente e virou `src/components/shared/map-style.ts`, comum aos três mapas
+(operacional, frota ao vivo e paradas de viagem). Antes eram duas bases diferentes: CARTO
+dark-matter em dois deles e OpenFreeMap positron no terceiro.
+
+- **Liberty no claro, `dark` no escuro**, os dois do OpenFreeMap, gratuitos e sem chave. O
+  `positron` e o `dark-matter` são bases de fundo, feitas para sumir atrás do dado: quase sem nome
+  de rua, sem área verde, sem construção. Numa central de comando isso tira contexto de quem mais
+  precisa dele.
+- ⚠️ **Não existe "Liberty escuro".** O par escuro é menos detalhado que o claro, e isso é do
+  provedor, não descuido. Quem religar o modo escuro precisa saber que a base muda de caráter
+  junto, e não só de cor.
+- ⚠️ **`setStyle` descarta fonte, camada E imagem registradas.** Trocar de tema deixava o mapa
+  novo sem caminhão, sem trajeto e sem rota desenhada. A montagem virou função reexecutável e é
+  chamada de novo no evento `styledata` (não em `load`, que dispara uma vez na vida do mapa). A
+  guarda `getSource(...)` evita redesenhar a cada tile que chega. Valia para os três: o
+  `operation-map` já alternava tema e perdia a camada de rota desde sempre.
+- ⚠️ **Ouvinte de ponteiro NÃO entra na função de montagem.** Ouvinte é do mapa e sobrevive à
+  troca de estilo; remontá-lo faria um clique valer dois. Ficam em `ligarInteracoes`, chamada uma
+  vez.
+- ⚠️ **Camada de texto PRECISA declarar `text-font`.** Sem ela o MapLibre usa o padrão da
+  especificação, que é a família do CARTO ("Open Sans Regular, Arial Unicode MS Regular"), e o
+  OpenFreeMap não a serve: cada faixa de glifo virava um 404. O rótulo ainda aparecia pelo recurso
+  alternativo, que é o que torna o defeito fácil de não ver. A família publicada é `Noto Sans`.
+- **Halo é sempre o oposto do texto.** As cores estavam fixas no escuro (texto claro, contorno
+  preto) e sobre a base clara liam como adesivo mal recortado. Vale para o rótulo e para o
+  contorno dos discos de trajeto.
+
+### Cadastro de frota (`/gestao/caminhoes/cadastro`)
+
+Criada em **30/08/2026**, logo depois da de motoristas e deliberadamente igual a ela: mesmo
+cabeçalho de números, mesmos filtros, mesma tabela com largura em porcentagem, mesma paginação de
+30, mesma rolagem no hover para texto longo, mesmo diálogo de confirmação antes de apagar. Quem
+aprendeu a arrumar as pessoas já sabe arrumar os caminhões.
+
+- ⚠️ **Não há botão de cadastrar, ao contrário da tela de motoristas.** Caminhão só existe para a
+  plataforma porque tem rastreador: placa criada à mão nunca reportaria posição e ficaria para
+  sempre como "sem sinal" no mapa, ao lado de caminhões de verdade que perderam sinal, sem
+  ninguém conseguir separar os dois casos. A tela corrige e confere o que chegou.
+- ⚠️ **Também não há atalho de ligar/desligar na linha.** Tirar de serviço pede o motivo, e motivo
+  se escreve no formulário. Um atalho de um clique gravaria caminhão parado sem explicação, que é
+  exatamente o que a ficha existe para evitar. As ações da linha são só editar e excluir.
+- O diálogo **embrulha o `VehicleRegistryCard`** em vez de duplicá-lo. É o mesmo formulário do
+  painel de detalhe do caminhão, com a mesma regra de "ausente preserva, nulo apaga". Uma segunda
+  cópia divergiria na primeira vez que alguém acrescentasse um campo em um lado só. O card ganhou
+  a invalidação de `vehicle-registry-list` para o chip "Conferido" atualizar na lista.
+- ⚠️ **Não há coluna de motorista, e não é esquecimento.** A lotação que a MiX entrega é uma conta
+  de sistema em 100% dos ativos desta frota, e as contas de sistema foram apagadas: a coluna vinha
+  vazia nas 40 linhas. Conferido no banco antes de decidir, e não por suposição.
+- **"Sem sinal" usa janela de 7 dias, e não de 30.** É o teto do histórico retroativo da MiX por
+  token de sincronização: uma janela maior classificaria de "sem sinal" caminhão que a plataforma
+  simplesmente ainda não teve tempo de ver. Hoje são 7 dos 40.
+- O chip do estado do fornecedor **só aparece quando não é `Available`**. Repetir "Disponível" em
+  38 linhas verdes seria ruído; `Unavailable` aqui quase sempre é resto de transferência, e é o
+  que vale olhar.
+- ⚠️ **`end: true` no item "Caminhões" do menu**, e não só no filho. `isItemActive` casa por
+  prefixo quando `end` é falso, e sem isto "Caminhões" acenderia junto com "Cadastro". Mesma
+  armadilha que já tinha aparecido em Motoristas.
+
 ### Marca e artes
 
 - No painel operacional, usar `BrandLogo`, `RookMark` e `RobotMark`. O sufixo do arquivo indica a
@@ -390,8 +590,13 @@ não lendo documentação:
   `Backend-web/docs/INFRAESTRUTURA.md`: ele diz OpenAI (existem chaves de Gemini também), diz AWS
   (fomos de Oracle e Cloudflare por custo) e não menciona TimescaleDB, que está no schema desde a
   `V1__baseline.sql`. Consulte o código e os READMEs para o agora.
-- PDFs e vídeos em `docs/` são versionados de propósito. Não sugerir removê-los ou migrá-los para
-  LFS sem solicitação.
+- Os PDFs em `docs/pdf/` são versionados de propósito. Não sugerir removê-los ou migrá-los para LFS
+  sem solicitação.
+- ⚠️ **`docs/referencias/` não existe mais** (removida a pedido do usuário em 30/08/2026): eram 4
+  vídeos de WhatsApp e 2 PNGs de referência visual, 13 MB. Saíram junto do `public/images/` as
+  capturas `truck-login`, `dashboard-preview-dark/light` e `assistant-preview-dark/light`, 2,9 MB
+  que **nenhum código importava**. Sobraram em `public/images/` só `hub-robot.png` e `hub-rook.png`,
+  que são as artes dos dois cartões do hub. Não recriar.
 - Pendências principais: ligar `services/api` (painel operacional) na API real; tela de Viagens,
   que depende de decidir entre cadastro próprio e TMS do cliente; origem de custo; encadear a voz
   com a resposta do assistente; autorização revalidada no backend; integrações de multas e câmeras;
@@ -400,6 +605,136 @@ não lendo documentação:
 
 ## Gotchas
 
+- ⚠️ **Não** reintroduzir a foto do banner, a borda dos cards nem o vidro no tema claro. Os três
+  saíram no redesign de 30/08/2026 e cada um deixou rastro em vários arquivos. Ver
+  `Redesign de 30/08/2026`.
+- ⚠️ **Não** usar `bg-surface-lowest` para bloco de indicador: é o token do **poço**, mais escuro
+  que o papel, e o indicador afunda no fundo. Usar `.metric-tile`. Campo de entrada continua no
+  poço, que é o `.glass-well`.
+- ⚠️ **Não** pintar estado ativo de indigo. A pastilha ativa é preta nos dois painéis; o indigo é de
+  ação, link e série de gráfico.
+- ⚠️ **Não** ligar `DARK_MODE_ENABLED` de volta sem refazer as telas no escuro: a rampa escura
+  continua inteira, mas nunca foi revisada contra o desenho novo.
+- ⚠️ **Não** pintar a marca com filtro (`brightness-0`, `invert`) para adaptá-la ao fundo: o "Rook" é
+  branco chapado e obedece, mas a torre é gradiente indigo e vira preta. Trocar de arquivo pelo mapa
+  de `components/shared/brand-assets.ts`.
+- ⚠️ **Não** tentar consertar anel de foco de conteúdo Radix trocando `focus-within` por
+  `focus-visible`. Medido no navegador em 30/08/2026: com a lista do `GlassSelect` fechada por
+  clique, **os dois casavam**. A causa é o Radix devolver o foco ao gatilho por código em
+  `onCloseAutoFocus`, e o navegador tratar foco programático como foco de teclado. A correção é
+  rastrear a modalidade (`onPointerDown` e `onPointerDownOutside` marcam ponteiro, `onKeyDown`
+  desmarca) e só deixar o foco voltar quando foi teclado. O caminho mais comum não é o clique fora:
+  é **escolher uma opção com o mouse**, que fecha a lista do mesmo jeito.
+- ⚠️ **Não** pôr anel de foco em item de `listbox` que o Radix percorre. Ele foca a opção escolhida
+  por código ao abrir, e o anel aparecia por cima do realce mesmo quando a lista foi aberta com o
+  mouse. Quem indica a posição do teclado numa lista é o realce de fundo (`data-[highlighted]`).
+- ⚠️ **Item de flex não encolhe sozinho: `truncate` sem `min-w-0` não corta nada.** Item de flex tem
+  `min-width: auto` e se recusa a ficar menor que o conteúdo. No gatilho do `GlassSelect`, um nome
+  como "SERVIOESTE - RJ CAMPOS DOS GOYTACAZES" vazava por cima da borda do campo e empurrava a seta
+  para fora. O conserto é `min-w-0 flex-1 truncate` no invólucro do valor, mais `overflow-hidden` no
+  gatilho como rede. `whitespace-nowrap` sozinho **piora**: impede a quebra sem permitir o corte.
+- ⚠️ **`secondary` do `SpectrumButton` não é "botão secundário".** É cyan cheio, e existe para telas
+  com duas escolhas equivalentes. Usá-lo em ação opcional inverte a hierarquia: no diálogo de
+  cadastro, "Adicionar foto" ficava mais forte que "Cadastrar motorista". Ação de apoio é `ghost`.
+- **O rodapé do diálogo é só decisão: fechar ou gravar** (decisão do usuário em 30/08/2026). Ação
+  sobre o formulário, como limpar, mora no corpo, junto do que ela afeta. Antes o mesmo canto do
+  rodapé era "Limpar" no cadastro e "Cancelar" na edição, e quem cadastrava em lote não tinha como
+  fechar o diálogo pelo rodapé.
+- ⚠️ **Botão que é SÓ um ícone nunca pinta fundo.** Alinhado com o outro sistema do usuário em
+  30/08/2026. Ele **nasce na cor do seu papel** e o hover é a mesma cor um degrau adiante: a cor é o
+  rótulo, porque não há texto. As classes são `.acao-editar` (indigo), `.acao-excluir` e
+  `.acao-sair` (vermelho), `.acao-ativar` (verde) e `.acao-neutra` (cinza), em `styles/globals.css`,
+  e valem nos dois painéis. Isso substituiu o `hover:bg-on-surface/[0.06]`, que escondia o desenho,
+  e o anel vermelho que os dois botões de sair desenhavam no hover.
+- ⚠️ **A regra do ícone sozinho vale nos DOIS painéis, e o operacional chega nela por outro
+  caminho.** Na gestão as classes `.acao-*` são escritas à mão em cada botão. No operacional os
+  botões são `<Button variant="ghost" size="icon">`, e um `compoundVariant` em `ui/button.tsx`
+  aplica a regra a todos de uma vez: sino, menu da topbar, engrenagem, todos os "voltar", a
+  navegação do calendário e o retorno do assistente de voz. Alinhado em 30/08/2026, depois de o
+  usuário notar que a técnica tinha ficado só na gestão.
+- ⚠️ **Um `hover:text-*` que sobre no elemento MATA a classe `.acao-*` em silêncio, e o código
+  parece certo.** São duas coisas ao mesmo tempo: as `.acao-*` moram em `@layer components`, e no
+  Tailwind 4 qualquer utilitário vence a camada de componente; e o `tailwind-merge` não desfaz o
+  conflito porque não conhece `.acao-neutra`, então ele deixa o `hover:text-secondary-foreground`
+  do `ghost` passar junto. Por isso o `compoundVariant` **repete a cor do hover como utilitário**
+  (`hover:text-on-surface`): é o que faz o merge enxergar o conflito e derrubar a cor do `ghost`.
+  Não dá para confiar na leitura do código aqui, tem que medir a cor computada no hover.
+- ⚠️ **Uma exceção, e ela não é sobre realce:** o botão de recolher a barra lateral mantém
+  `hover:bg-sidebar`. Ele monta em cima da borda da barra e precisa de fundo opaco em repouso,
+  senão o traço da divisa atravessa o desenho. O que a regra proíbe é o fundo APARECER no hover;
+  ali ele só continua existindo, e quem responde ao cursor é a cor do traço.
+- ⚠️ **Estado ativo e hover são EXCLUSIVOS, nunca somados** (corrigido em 30/08/2026, a pedido do
+  usuário). Escrever o hover na string base e o ativo num `&&` depois parece certo e não é: no
+  hover a regra `:hover` vence a base por especificidade, então ela apaga a pastilha do item
+  ativo. Na lateral do painel operacional o preto virava papel a 6% e o ícone, que é claro por
+  estar dentro da pastilha, sumia: medido em **1,03:1**. O item de menu piscava e apagava
+  justamente quando a pessoa apontava para ele. Vale para menu, aba, lista lateral e cartão
+  selecionável; a mesma soma estava em `pages/operations/tracking-page.tsx`.
+- **`--color-bright-hover` é o degrau do hover da tinta**, e ele CLAREIA (`#2A2724`). Escurecer
+  não responde ao cursor, porque `#1C1A18` já está a um passo do preto. Os dois menus usam o
+  mesmo token: o superior da gestão e o lateral do operacional.
+- ⚠️ **A tinta de um chip não é o token do fundo dele.** As variantes tingidas do `ui/badge.tsx`
+  eram a matiz a 15% com a MESMA matiz por cima. Cada token semântico foi escolhido para dar
+  4,5:1 contra o papel BRANCO, mas o papel do chip é ele mesmo diluído, que já subiu meio caminho
+  na direção da tinta: "Bloqueia" ficava em 2,99:1, "Alta" em 3,34, "Média" em 3,68 e o indigo do
+  avatar em 3,34. A família `-on-light`, que o painel de gestão já usava, existe exatamente para
+  isso. Entrou junto o `--color-info-on-light`, que faltava.
+- **Como medir contraste aqui:** `getComputedStyle` não serve para o fundo, porque o elemento com
+  a cor quase nunca é o que pinta atrás dele, e somar os ancestrais à mão erra na composição de
+  alfa. O caminho certo é o CDP: `CSS.getBackgroundColors` devolve o que o DevTools mostra, e daí
+  a conversão sai exata pintando fundo e tinta num canvas 1x1 (resolve `oklab` e alfa de uma vez).
+  Com esse método, as 15 telas dos dois painéis fecharam sem nenhuma reprovação de AA.
+- ⚠️ **Comportamento de componente compartilhado mora num lugar só, e a pele é que muda.**
+  Os quatro perfis usam dois conjuntos: `components/ui` no operador e na manutenção,
+  `management/ui` no dono e no gestor. O conserto do anel de foco do select nasceu dentro do
+  `GlassSelect` e ficou só lá, então o painel operacional passou um dia inteiro com o campo
+  contornado depois de cada clique. Virou `hooks/use-pointer-close.ts`, e os dois selects o
+  chamam. O `ui/select.tsx` precisou de um contexto para isso: quem usa escreve o `Content` longe
+  do `Root`, e passar os handlers à mão em cada uma das oito telas seria a mesma armadilha.
+  Mesma passagem alinhou o `ui/checkbox.tsx` ao da gestão: `primary-strong` (o âncora dá 4,32:1
+  contra o branco do visto e reprova AA), 20px, raio de 6px e o estado indeterminado, que aqui
+  nem existia.
+- **O calendário do operador não tinha o mesmo defeito, e foi medido antes de mexer.** O Popover
+  do Radix devolve o foco de um jeito que o navegador não trata como teclado: depois de escolher
+  um dia com o mouse, `:focus-visible` dá `false`. Não recebeu o hook porque não há o que
+  consertar ali, e o dia selecionado já era exclusivo do hover (`!isSelected && hover:...`).
+- ⚠️ **`EditIcon` é `LuPencil`, e não `LuSquarePen`.** Corrigido em 30/08/2026 para bater com o
+  outro sistema do usuário, que documenta o motivo: em 16px a moldura do quadrado vira ruído ao
+  lado da lixeira, que é um desenho aberto. `DeleteIcon` é `LuTrash`.
+- ⚠️ **As telas de `/gestao` usam a largura inteira da janela** desde 30/08/2026. O
+  `max-w-[1600px] mx-auto` saiu das 21 telas e dos três arquivos de layout: em monitor menor ele não
+  fazia nada, e em monitor grande sobrava tarja dos dois lados enquanto a tabela apertava colunas. O
+  respiro lateral virou `px-4 sm:px-6 xl:px-10`, que é o que evita o conteúdo encostar na borda.
+- ⚠️ **Coluna de tabela leva largura em porcentagem, não deixa o conteúdo mandar.** Com só uma
+  coluna declarada (`w-full`), ela engole toda a folga e as outras se espremem numa ponta. As
+  porcentagens somam 100 e o navegador distribui a sobra, o que mantém o espaçamento regular em
+  qualquer largura de tela. ⚠️ `whitespace-nowrap` numa célula **anula** a porcentagem: o texto mais
+  longo força a coluna. Quem tem texto longo usa a rolagem abaixo, e não `nowrap`.
+- ⚠️ **Nome longo em lista ROLA no hover, e não é cortado com reticências.** Técnica trazida do
+  outro sistema do usuário em 30/08/2026: `max-w-0` no `<td>` e
+  `overflow-x-auto overscroll-x-contain whitespace-nowrap` no texto. A barra já é invisível pelo
+  `@layer base`, então não precisa de classe extra. O motivo de não usar `truncate`: nesta frota o
+  cliente escreve instrução dentro do próprio nome, e a reticência cortava justamente a explicação.
+  `overscroll-x-contain` impede que a rolagem vaze para a página ao chegar no fim do texto.
+- ⚠️ **Não renderizar lista inteira: usar `Pagination` de `management/ui`**, 30 por página
+  (`PAGE_SIZE`). O corte é no cliente e o `total` que entra é o **de depois dos filtros**; passar o
+  total da base faria a barra prometer páginas que o filtro esvaziou. A página atual é fixada dentro
+  do total em vez de zerada a cada filtro, senão filtrar estando na página 5 deixa a tela vazia.
+- ⚠️ **`httpRequest` trata 204 e corpo vazio.** Antes chamava `response.json()` sempre, e uma
+  exclusão bem-sucedida (204 sem corpo) estourava com `SyntaxError: Unexpected end of JSON input`. O
+  sintoma engana: a operação funcionou no servidor e a tela mostra erro.
+- ⚠️ **Excluir grava lápide no backend e é definitivo mesmo com o registro vivo na MiX** (V18). Sem
+  ela a exclusão se desfazia sozinha na sincronização seguinte. Ver a memória do `Backend-web`.
+- ⚠️ **Excluir e inativar não são o mesmo botão.** Inativar guarda o histórico de quem saiu da
+  empresa; excluir remove o cadastro que nunca deveria ter existido, e o backend **recusa com 409**
+  quando há viagem, evento, posição ou caminhão apontando para a pessoa. A mensagem do backend vai
+  inteira para a tela: é ela que diz o que prende e sugere inativar.
+- ⚠️ **`react-icons` é o único pacote de ícone, e `components/icons.ts` o único ponto de import.**
+  Verificado em 30/08/2026: zero imports de `react-icons` fora dele. A **única exceção sancionada**
+  é o `TRUCK_SVG` de `components/shared/operation-map.tsx`, porque o marcador do MapLibre recebe DOM
+  e não componente React; se o `TruckIcon` mudar, aquele precisa mudar à mão.
+- ⚠️ **Não** usar `RookhubLogo` sem `tone="adaptive"` fora de fotografia: o padrão é a arte branca, e
+  sobre papel ela some.
 - **Não** deixar ID da MiX passar por `JSON.parse` do JavaScript nem chegar ao navegador como
   número: 19 dígitos não cabem em `Number` e o arredondamento se manifesta como `401 Not
 Authorised`, não como erro de tipo. Ver `Telemetria MiX`.

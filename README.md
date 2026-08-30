@@ -143,8 +143,7 @@ e o gradiente Spectrum. Desde 19/08/2026 a **paleta é uma só** para os dois pa
 System-web/
 ├── docs/
 │   ├── pdf/                    # Arquitetura e integração, versionados de propósito
-│   ├── referencias/            # Referências visuais do produto (não remover)
-│   └── ARQUITETURA_FRONTEND.md # Decisões técnicas
+│   └── referencias/            # Decisões técnicas e referências visuais
 ├── public/
 │   ├── images/                 # Imagens da interface
 │   └── logo/                   # Logotipo e ícone da marca
@@ -227,7 +226,7 @@ flowchart TD
     Http --> API
 ```
 
-Consulte [`docs/ARQUITETURA_FRONTEND.md`](docs/ARQUITETURA_FRONTEND.md) para as decisões técnicas.
+Consulte [`docs/referencias/ARQUITETURA_FRONTEND.md`](docs/referencias/ARQUITETURA_FRONTEND.md) para as decisões técnicas.
 
 ---
 
