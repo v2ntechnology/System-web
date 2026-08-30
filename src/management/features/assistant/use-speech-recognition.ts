@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Tipos mínimos da Web Speech API.
  *
  * O TypeScript não traz os tipos de `SpeechRecognition` porque a API nunca saiu
- * de rascunho no W3C. Declaramos só o que usamos — melhor que espalhar `any`
+ * de rascunho no W3C. Declaramos só o que usamos: melhor que espalhar `any`
  * pelo hook e perder a checagem no resto dele.
  */
 interface SpeechAlternative {
@@ -60,38 +60,63 @@ function getConstructor(): SpeechRecognitionConstructor | undefined {
 const ERROR_MESSAGES: Record<string, string> = {
   'not-allowed': 'Permissão de microfone negada. Libere o acesso no navegador para falar.',
   'service-not-allowed': 'O navegador bloqueou o reconhecimento de voz nesta página.',
-  'no-speech': 'Não ouvi nada. Toque no microfone e fale de novo.',
   'audio-capture': 'Nenhum microfone encontrado neste dispositivo.',
   network: 'Sem conexão para transcrever o áudio. Você pode digitar a pergunta.',
 };
 
 export interface UseSpeechRecognitionOptions {
-  /** Chamado quando a fala termina e há uma transcrição final. */
+  /** Chamado a cada trecho final. Em conversa longa vem mais de uma vez. */
   onResult: (transcript: string) => void;
+  /**
+   * Chamado sempre que o reconhecimento produz alguma coisa, parcial ou final.
+   *
+   * É o sinal de "ainda está falando" que a tela usa para adiar o fim da fala.
+   * Sem ele, a decisão dependeria só do volume do microfone, e voz baixa no fim
+   * da frase seria confundida com silêncio.
+   */
+  onSpeech?: (() => void) | undefined;
 }
 
 /**
  * Ditado por voz sobre a Web Speech API.
  *
- * ⚠️ `supported` é falso em boa parte dos navegadores — a API é de rascunho e
- * o Firefox não a implementa. Quem consome **precisa** oferecer o caminho por
- * texto: um microfone que não faz nada é pior que microfone nenhum.
+ * ⚠️ `supported` é falso em boa parte dos navegadores: a API é de rascunho e o
+ * Firefox não a implementa. Quem consome **precisa** oferecer o caminho por
+ * texto, porque um microfone que não faz nada é pior que microfone nenhum.
+ *
+ * <h2>Quem decide que a fala acabou é a tela, e não o navegador</h2>
+ *
+ * ⚠️ `continuous = true` desde 30/08/2026, a pedido do usuário. Com `false`, a
+ * Web Speech encerra sozinha na primeira pausa, e o resultado é o defeito que
+ * ele descreveu: a pessoa respira no meio da frase, o reconhecimento fecha, e a
+ * pergunta chega pela metade. Agora a sessão fica aberta e quem decide o fim é a
+ * tela, que também mede o volume do microfone.
+ *
+ * ⚠️ **O `onend` do navegador não significa que acabou.** O Chrome encerra a
+ * sessão por conta própria depois de um tempo de silêncio, mesmo com
+ * `continuous`. Por isso ele é religado enquanto a escuta estiver ativa: sem
+ * isso a transcrição morre no meio da conversa sem erro nenhum aparecer.
  *
  * O reconhecimento roda no navegador; para o backend chega texto, exatamente
  * como uma pergunta digitada.
  */
-export function useSpeechRecognition({ onResult }: UseSpeechRecognitionOptions) {
+export function useSpeechRecognition({ onResult, onSpeech }: UseSpeechRecognitionOptions) {
   const [supported] = useState(() => Boolean(getConstructor()));
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  /* Ref para o callback: trocar de `onResult` não pode reiniciar a escuta. */
+  /** A escuta ainda é desejada? É o que separa o fim nosso do fim do navegador. */
+  const wantedRef = useRef(false);
+
+  /* Refs para os callbacks: trocá-los não pode reiniciar a escuta. */
   const onResultRef = useRef(onResult);
+  const onSpeechRef = useRef(onSpeech);
   useEffect(() => {
     onResultRef.current = onResult;
-  }, [onResult]);
+    onSpeechRef.current = onSpeech;
+  }, [onResult, onSpeech]);
 
   useEffect(() => {
     const Constructor = getConstructor();
@@ -99,7 +124,7 @@ export function useSpeechRecognition({ onResult }: UseSpeechRecognitionOptions) 
 
     const recognition = new Constructor();
     recognition.lang = 'pt-BR';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
 
     recognition.onresult = (event) => {
@@ -115,6 +140,7 @@ export function useSpeechRecognition({ onResult }: UseSpeechRecognitionOptions) 
       }
 
       setInterim(partial);
+      if (partial.trim() || finalText.trim()) onSpeechRef.current?.();
 
       if (finalText.trim()) {
         setInterim('');
@@ -123,20 +149,32 @@ export function useSpeechRecognition({ onResult }: UseSpeechRecognitionOptions) 
     };
 
     recognition.onerror = (event) => {
-      /* `aborted` é o nosso próprio stop() — não é erro para mostrar. */
-      if (event.error === 'aborted') return;
+      /* `aborted` é o nosso próprio stop(), e `no-speech` acontece o tempo todo
+         numa sessão contínua: nenhum dos dois é erro para mostrar. */
+      if (event.error === 'aborted' || event.error === 'no-speech') return;
       setError(ERROR_MESSAGES[event.error] ?? 'Não consegui captar o áudio. Tente novamente.');
+      wantedRef.current = false;
       setListening(false);
     };
 
     recognition.onend = () => {
-      setListening(false);
       setInterim('');
+      if (!wantedRef.current) {
+        setListening(false);
+        return;
+      }
+      // O navegador encerrou por conta própria e a conversa continua: religa.
+      try {
+        recognition.start();
+      } catch {
+        setListening(false);
+      }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
+      wantedRef.current = false;
       recognition.onresult = null;
       recognition.onerror = null;
       recognition.onend = null;
@@ -150,15 +188,18 @@ export function useSpeechRecognition({ onResult }: UseSpeechRecognitionOptions) 
     if (!recognition) return;
 
     setError(null);
+    wantedRef.current = true;
     try {
       recognition.start();
       setListening(true);
     } catch {
-      /* `start()` numa sessão já ativa lança — estado já é o desejado. */
+      /* `start()` numa sessão já ativa lança: o estado já é o desejado. */
+      setListening(true);
     }
   }, []);
 
   const stop = useCallback(() => {
+    wantedRef.current = false;
     recognitionRef.current?.stop();
     setListening(false);
   }, []);

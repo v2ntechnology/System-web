@@ -32,9 +32,18 @@ const COLOR_BACK = new THREE.Color('#0B1220');
 const COLOR_FRONT = new THREE.Color('#06B6D4');
 /** Falando: laranja, para separar bem a voz da IA da escuta do usuário. */
 const COLOR_FRONT_SPEAKING = new THREE.Color('#F97316');
+/*
+ * Indigo do produto para o modo de consulta (decisão do usuário em 30/08/2026).
+ *
+ * Quem está conversando precisa VER que ela foi buscar o dado, e não só ouvir.
+ * A cor é a da marca, e não um cinza de espera: consultar é o que o produto faz
+ * de mais próprio, e o momento merece a cor dele.
+ */
+const COLOR_FRONT_CONSULTING = new THREE.Color('#6366F1');
 const COLOR_FRONT_ERROR = new THREE.Color('#EF4444');
 
-export type VoiceSphereStatus = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
+export type VoiceSphereStatus =
+  'idle' | 'listening' | 'processing' | 'consulting' | 'speaking' | 'error';
 
 interface VoiceSphereProps {
   /** Nível do microfone (0–1), atualizado a cada quadro fora do React. */
@@ -126,9 +135,11 @@ export function VoiceSphere({ levelRef, status, className }: VoiceSphereProps) {
       const front =
         current === 'speaking'
           ? COLOR_FRONT_SPEAKING
-          : current === 'error'
-            ? COLOR_FRONT_ERROR
-            : COLOR_FRONT;
+          : current === 'consulting'
+            ? COLOR_FRONT_CONSULTING
+            : current === 'error'
+              ? COLOR_FRONT_ERROR
+              : COLOR_FRONT;
 
       for (let i = 0; i < POINT_COUNT; i += 1) {
         const index = i * 3;
@@ -173,7 +184,16 @@ export function VoiceSphere({ levelRef, status, className }: VoiceSphereProps) {
 
       // Processando não tem áudio de entrada, mas a esfera precisa mostrar
       // atividade: um pulso próprio substitui o nível do microfone.
-      const pulse = current === 'processing' ? 0.35 + Math.sin(time * 6) * 0.15 : 0;
+      /* Consulta e processamento não têm áudio de entrada, e a esfera precisa
+         mostrar atividade: um pulso próprio substitui o nível do microfone. O
+         da consulta é mais lento e mais amplo, para ler como "procurando" e não
+         como "pensando". */
+      const pulse =
+        current === 'processing'
+          ? 0.35 + Math.sin(time * 6) * 0.15
+          : current === 'consulting'
+            ? 0.45 + Math.sin(time * 3.2) * 0.3
+            : 0;
       // Falando, a esfera apenas infla e desinfla junto com as palavras; nos
       // outros estados ela abre bem mais, acompanhando o microfone.
       const spread = speaking

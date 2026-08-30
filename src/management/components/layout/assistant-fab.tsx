@@ -7,7 +7,7 @@ import { useAssistantStore } from '@/management/features/assistant/store';
 
 /**
  * Atalho flutuante do "Pergunte à sua frota" (RF-033), no canto inferior direito
- * conforme o Figma. Ctrl+R e Ctrl+K abrem o mesmo painel.
+ * conforme o Figma. Ctrl+K abre o mesmo painel.
  *
  * Compartilha `useBotAnimation` com o atalho do painel operacional: os dois são
  * o mesmo botão para quem usa, e precisam se mexer igual.
@@ -26,7 +26,7 @@ export function AssistantFab() {
       aria-label="Abrir o assistente — Pergunte à sua frota"
       aria-haspopup="dialog"
       aria-expanded={open}
-      title="Pergunte à sua frota (Ctrl+R)"
+      title="Pergunte à sua frota (Ctrl+K)"
       className="bg-primary-strong focus-visible:ring-secondary focus-visible:ring-offset-background fixed bottom-5 right-5 z-30 flex size-14 items-center justify-center rounded-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:bottom-8 sm:right-8"
     >
       <span className={cn('flex', animation)} onAnimationEnd={handleAnimationEnd}>

@@ -1,9 +1,10 @@
-import { ArrowRightIcon, InfoIcon, SparklesIcon } from '@/components/icons';
+import { ArrowRightIcon } from '@/components/icons';
 import type { AssistantTurn as Turn } from '@/management/types';
 import { Spinner } from '@/management/ui';
 import { Link } from 'react-router';
 
 import { AnswerChart } from './answer-chart';
+import { RookMark } from './rook-mark';
 
 export function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: () => void }) {
   return (
@@ -15,8 +16,11 @@ export function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: ()
 
       {/* Resposta */}
       <div className="flex gap-3">
-        <span className="bg-primary/20 text-primary rounded-pill mt-0.5 flex size-8 shrink-0 items-center justify-center">
-          <SparklesIcon size={16} />
+        {/* ⚠️ A marca, e não a estrelinha genérica de "IA" (decisão do usuário
+            em 30/08/2026). Numa tela em que o sistema AFIRMA coisas sobre a
+            operação, quem assina a resposta importa. */}
+        <span className="bg-primary/12 rounded-pill mt-0.5 flex size-8 shrink-0 items-center justify-center">
+          <RookMark className="size-5" />
         </span>
 
         <div className="min-w-0 flex-1">
@@ -26,8 +30,12 @@ export function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: ()
               Consultando os dados da sua frota…
             </p>
           ) : turn.status === 'error' ? (
+            /* A mensagem do servidor vai inteira para a tela quando existe.
+               "Tente novamente em instantes" está errado para o limite de
+               conversas e para a pergunta longa demais: nos dois casos tentar
+               de novo dá exatamente o mesmo resultado. */
             <p className="text-error">
-              Não consegui consultar agora. Tente novamente em instantes.
+              {turn.error ?? 'Não consegui consultar agora. Tente novamente em instantes.'}
             </p>
           ) : turn.answer ? (
             <>
@@ -72,17 +80,6 @@ export function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: ()
                     </tbody>
                   </table>
                 </div>
-              ) : null}
-
-              {/*
-               * RN-121 — fonte e período. O gestor precisa saber sobre que dado o
-               * número foi calculado ANTES de decidir com base nele.
-               */}
-              {turn.answer.source ? (
-                <p className="text-on-surface-muted text-label-md mt-3 flex items-start gap-1.5 normal-case">
-                  <InfoIcon size={14} className="mt-0.5 shrink-0" />
-                  {turn.answer.source}
-                </p>
               ) : null}
 
               {/* RN-116 — ação contextual embutida na resposta. */}

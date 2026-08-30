@@ -127,6 +127,9 @@ export {
   LuCircle as CircleIcon,
   LuPlus as PlusIcon,
   LuMinus as MinusIcon,
+  /* Menu de ações de um item. Vertical, e não horizontal: os três pontinhos
+     deitados são fáceis de confundir com reticências de texto cortado. */
+  LuEllipsisVertical as MoreIcon,
 
   /* Mídia, arquivos e IA --------------------------------------------------- */
   LuCamera as CameraIcon,

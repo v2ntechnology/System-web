@@ -66,3 +66,6 @@ rookhub_frontend_kit/
 
 # MCP settings (contém tokens de API)
 .agents/settings.json
+
+# Relatorio com a frota real do cliente: este repositorio e publico.
+docs/pdf/relatorio_frota_servioeste.pdf

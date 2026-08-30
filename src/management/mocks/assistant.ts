@@ -1,4 +1,12 @@
-import type { AssistantAnswer } from '@/management/types';
+import type {
+  AssistantAnswer,
+  AssistantAskResult,
+  AssistantConversation,
+  AssistantMessage,
+} from '@/management/types';
+
+import { MAX_ASSISTANT_CONVERSATIONS } from '@/management/types';
+import { ApiError } from '@/services/http';
 
 import { delay } from './latency';
 
@@ -135,15 +143,7 @@ const INTENTS: {
   },
 ];
 
-/** Sugestões exibidas quando a conversa está vazia. */
-export const ASSISTANT_SUGGESTIONS = [
-  'Qual o custo por km da frota?',
-  'Quem são os motoristas com melhor score?',
-  'Quais manutenções estão atrasadas?',
-  'Como está a situação da frota agora?',
-];
-
-export async function mockAsk(question: string): Promise<AssistantAnswer> {
+async function mockAsk(question: string): Promise<AssistantAnswer> {
   await delay(1100);
 
   const normalized = question
@@ -172,3 +172,109 @@ export async function mockAsk(question: string): Promise<AssistantAnswer> {
 
   return { id, ...intent.build() };
 }
+
+/* -------------------------------------------------------------------------- */
+/* Conversas simuladas                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * O histórico do modo simulado.
+ *
+ * ⚠️ Vive em memória, e some ao recarregar a página. É de propósito: o
+ * histórico de verdade é do backend, atrelado ao usuário do token, e gravar
+ * conversa em `localStorage` guardaria pergunta sobre a operação de um cliente
+ * na máquina de quem abriu a demonstração.
+ */
+interface StoredConversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: AssistantMessage[];
+}
+
+const conversations = new Map<string, StoredConversation>();
+
+function title(question: string): string {
+  const limpo = question.trim().replace(/\s+/g, ' ');
+  if (limpo.length <= 48) return limpo || 'Nova conversa';
+  const cortado = limpo.slice(0, 48);
+  const ultimoEspaco = cortado.lastIndexOf(' ');
+  return `${ultimoEspaco > 20 ? cortado.slice(0, ultimoEspaco) : cortado}…`;
+}
+
+function resumo(conversa: StoredConversation): AssistantConversation {
+  return {
+    id: conversa.id,
+    title: conversa.title,
+    createdAt: conversa.createdAt,
+    updatedAt: conversa.updatedAt,
+    messages: conversa.messages.length,
+  };
+}
+
+export const mockAssistant = {
+  async ask(question: string, conversationId?: string, save = true): Promise<AssistantAskResult> {
+    const answer = await mockAsk(question);
+    // A voz pergunta sem guardar conversa: devolve a resposta e mais nada.
+    if (!save) return { answer, conversationId: '', conversationTitle: '' };
+    const agora = new Date().toISOString();
+
+    let conversa = conversationId ? conversations.get(conversationId) : undefined;
+    if (!conversa) {
+      if (conversations.size >= MAX_ASSISTANT_CONVERSATIONS) {
+        throw new ApiError(
+          `Você chegou ao limite de ${MAX_ASSISTANT_CONVERSATIONS} conversas. Exclua uma antes de começar outra.`,
+          409,
+        );
+      }
+      conversa = {
+        id: crypto.randomUUID(),
+        title: title(question),
+        createdAt: agora,
+        updatedAt: agora,
+        messages: [],
+      };
+      conversations.set(conversa.id, conversa);
+    }
+
+    conversa.messages.push(
+      { id: crypto.randomUUID(), role: 'user', content: question, sources: [], createdAt: agora },
+      {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: answer.text,
+        sources: answer.source ? [answer.source] : [],
+        createdAt: agora,
+      },
+    );
+    conversa.updatedAt = agora;
+
+    return { answer, conversationId: conversa.id, conversationTitle: conversa.title };
+  },
+
+  async list(): Promise<AssistantConversation[]> {
+    await delay(200);
+    return [...conversations.values()]
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map(resumo);
+  },
+
+  async messages(conversationId: string): Promise<AssistantMessage[]> {
+    await delay(200);
+    return conversations.get(conversationId)?.messages ?? [];
+  },
+
+  async rename(conversationId: string, novoTitulo: string): Promise<AssistantConversation> {
+    await delay(150);
+    const conversa = conversations.get(conversationId);
+    if (!conversa) throw new ApiError('Esta conversa não existe.', 404);
+    conversa.title = novoTitulo.trim().slice(0, 120) || conversa.title;
+    return resumo(conversa);
+  },
+
+  async remove(conversationId: string): Promise<void> {
+    await delay(150);
+    conversations.delete(conversationId);
+  },
+};

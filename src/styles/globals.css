@@ -476,6 +476,23 @@
     opacity: 0.38;
   }
 
+  /* Modo de consulta: a assistente foi buscar o dado no sistema.
+     Decisão do usuário em 30/08/2026, para dar de ver o que hoje só se ouvia.
+     O anel fica mais forte que o de processamento e gira no indigo da marca. */
+  .voice-orbit--consulting {
+    opacity: 0.62;
+    color: var(--color-primary);
+  }
+
+  .voice-orbit--consulting .voice-orbit-arc {
+    opacity: 0.66;
+    animation-duration: 2.4s;
+  }
+
+  .voice-orbit--consulting .voice-orbit-bar {
+    box-shadow: 0 0 10px color-mix(in oklch, currentColor 40%, transparent);
+  }
+
   .voice-orbit--speaking {
     opacity: 0.94;
     color: var(--color-warning);

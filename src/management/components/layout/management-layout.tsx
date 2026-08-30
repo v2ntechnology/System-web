@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { Outlet } from 'react-router';
 
-import { AssistantDialog } from '@/management/features/assistant/components/assistant-dialog';
+import { AssistantDrawer } from '@/management/features/assistant/components/assistant-drawer';
 import { useAssistantShortcut } from '@/management/features/assistant/use-assistant-shortcut';
 import { Spinner } from '@/management/ui';
 
@@ -34,7 +34,7 @@ export function ManagementLayout() {
         <Outlet />
       </Suspense>
       <AssistantFab />
-      <AssistantDialog />
+      <AssistantDrawer />
     </div>
   );
 }

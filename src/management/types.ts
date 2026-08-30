@@ -874,6 +874,50 @@ export interface AssistantTurn {
   question: string;
   answer?: AssistantAnswer | undefined;
   status: 'pending' | 'done' | 'error';
+  /**
+   * O motivo da falha, quando o servidor explicou.
+   *
+   * "Tente novamente em instantes" está errado para o limite de conversas e
+   * para a pergunta longa demais: nos dois casos tentar de novo dá o mesmo
+   * resultado, e quem lê precisa saber o que fazer diferente.
+   */
+  error?: string | undefined;
+}
+
+/**
+ * Teto de conversas por pessoa (decisão do usuário em 30/08/2026).
+ *
+ * Mora aqui, e não na fronteira de API, porque a regra é a mesma para a API real
+ * e para o modo simulado: se ela vivesse em `features/assistant/api.ts`, o mock
+ * teria de importar da API que importa o mock.
+ *
+ * ⚠️ Quem recusa a 11ª conversa é o backend, com 409. Isto aqui é o que a tela
+ * usa para desabilitar o botão antes de a pessoa tentar.
+ */
+export const MAX_ASSISTANT_CONVERSATIONS = 10;
+
+export interface AssistantConversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Quantas mensagens a conversa tem, contando pergunta e resposta. */
+  messages: number;
+}
+
+export interface AssistantMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  /** Procedência já pronta para a tela. Vazio na mensagem do usuário. */
+  sources: string[];
+  createdAt: string;
+}
+
+export interface AssistantAskResult {
+  answer: AssistantAnswer;
+  conversationId: string;
+  conversationTitle: string;
 }
 
 /* -------------------------------------------------------------------------- */

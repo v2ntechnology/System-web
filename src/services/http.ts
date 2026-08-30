@@ -102,6 +102,39 @@ export async function httpRequest<T>(path: string, init: RequestInit = {}): Prom
 }
 
 /**
+ * Uma resposta que chega em pedaços, para ser lida enquanto ainda está vindo.
+ *
+ * ⚠️ Existe porque `httpRequest` só devolve quando o corpo TERMINOU de chegar, e
+ * há resposta em que o meio do caminho importa: a conversa por voz precisa saber
+ * a hora em que o assistente foi consultar o banco, e essa hora acontece antes
+ * de a resposta existir. Quem chama lê o corpo linha a linha.
+ *
+ * Devolve a `Response` crua de propósito: o formato do fluxo é problema de quem
+ * pediu, e não deste arquivo.
+ */
+export async function httpStream(path: string, init: RequestInit = {}): Promise<Response> {
+  const token = getAccessToken();
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${env.apiBaseUrl}${path}`, { ...init, headers });
+
+  if (response.status === 401) {
+    onUnauthorized();
+    throw new ApiError('Sessão expirada.', 401);
+  }
+  if (!response.ok) {
+    throw new ApiError(await motivoDoErro(response), response.status);
+  }
+  if (!response.body) {
+    throw new ApiError('A resposta veio sem corpo.', 500);
+  }
+
+  return response;
+}
+
+/**
  * Um binário da API, como URL de objeto para `<img>` ou `<a download>`.
  *
  * ⚠️ Existe porque `<img src>` não manda cabeçalho, e as rotas de mídia exigem
