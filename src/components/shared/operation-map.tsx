@@ -170,7 +170,10 @@ export function OperationMap({
       zoom: INITIAL_ZOOM,
       pitch: 45,
       bearing: -12,
-      attributionControl: { compact: true },
+      /* Sempre aberta, nunca em botão: a atribuição do OpenStreetMap é
+         obrigatória, e no modo compacto ela saltava para cima a cada clique.
+         O desenho e o motivo completo ficam em `styles/globals.css`. */
+      attributionControl: { compact: false },
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');

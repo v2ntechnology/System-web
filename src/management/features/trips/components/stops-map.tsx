@@ -62,7 +62,10 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
       style: mapStyleUrlNow(),
       center: [-43.25, -22.88],
       zoom: 8.6,
-      attributionControl: { compact: true },
+      /* Sempre aberta, nunca em botão: a atribuição do OpenStreetMap é
+         obrigatória, e no modo compacto ela saltava para cima a cada clique.
+         O desenho e o motivo completo ficam em `styles/globals.css`. */
+      attributionControl: { compact: false },
     });
 
     instance.addControl(new NavigationControl({ showCompass: false }), 'top-right');

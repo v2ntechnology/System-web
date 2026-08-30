@@ -799,6 +799,60 @@ export interface VehicleRegistry {
   nextMaintenanceDate?: string | undefined;
   /** Quilômetros até a revisão. Negativo significa vencida. */
   kmToMaintenance?: number | undefined;
+
+  /**
+   * De onde o veículo veio.
+   *
+   * ⚠️ `ROOKHUB` significa cadastrado a mão, e portanto SEM RASTREADOR: ele
+   * nunca vai reportar posição. A tela precisa dizer "sem rastreador" e não
+   * "sem sinal", porque a primeira é uma escolha de cadastro e a segunda é um
+   * problema para alguém investigar.
+   */
+  origin: 'TELEMETRIA' | 'ROOKHUB';
+  /**
+   * O veículo faz parte da frota.
+   *
+   * ⚠️ Não confundir com `outOfService`. Fora de serviço é o caminhão parado
+   * agora, com motivo, e ele volta. Inativo é o que saiu da frota: vendido,
+   * devolvido, fim de contrato.
+   */
+  active: boolean;
+  inactiveSource?: 'TELEMETRIA' | 'OPERACAO' | undefined;
+
+  /* Identificação */
+  renavam?: string | undefined;
+  /** Chassi. A MiX tem o campo e entrega vazio nos 40 ativos desta frota. */
+  vin?: string | undefined;
+  fleetNumber?: string | undefined;
+  manufacturer?: string | undefined;
+  model?: string | undefined;
+  /** Ano de FABRICAÇÃO, o primeiro número do "2023/2024" do documento. */
+  year?: number | undefined;
+  modelYear?: number | undefined;
+  color?: string | undefined;
+
+  /* Ficha técnica */
+  bodyClass?: string | undefined;
+  bodyType?: string | undefined;
+  axles?: number | undefined;
+  fuelType?: string | undefined;
+  tareWeightKg?: number | undefined;
+  payloadKg?: number | undefined;
+  cargoVolumeM3?: number | undefined;
+  tankCapacityL?: number | undefined;
+  referenceKmpl?: number | undefined;
+
+  /* Documentação */
+  licensingDueDate?: string | undefined;
+  rntrc?: string | undefined;
+  tachographDueDate?: string | undefined;
+
+  /* Propriedade */
+  ownership?: string | undefined;
+  ownerName?: string | undefined;
+  ownerDocument?: string | undefined;
+  acquiredAt?: string | undefined;
+  acquisitionKind?: string | undefined;
   outOfService: boolean;
   outOfServiceReason?: string | undefined;
   outOfServiceSince?: string | undefined;
@@ -814,6 +868,34 @@ interface VehicleRegistryDto {
   nextMaintenanceKm: number | null;
   nextMaintenanceDate: string | null;
   kmToMaintenance: number | null;
+  origin: 'TELEMETRIA' | 'ROOKHUB';
+  active: boolean;
+  inactiveSource: 'TELEMETRIA' | 'OPERACAO' | null;
+  renavam: string | null;
+  vin: string | null;
+  fleetNumber: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  year: number | null;
+  modelYear: number | null;
+  color: string | null;
+  bodyClass: string | null;
+  bodyType: string | null;
+  axles: number | null;
+  fuelType: string | null;
+  tareWeightKg: number | null;
+  payloadKg: number | null;
+  cargoVolumeM3: number | null;
+  tankCapacityL: number | null;
+  referenceKmpl: number | null;
+  licensingDueDate: string | null;
+  rntrc: string | null;
+  tachographDueDate: string | null;
+  ownership: string | null;
+  ownerName: string | null;
+  ownerDocument: string | null;
+  acquiredAt: string | null;
+  acquisitionKind: string | null;
   outOfService: boolean;
   outOfServiceReason: string | null;
   outOfServiceSince: string | null;
@@ -829,6 +911,34 @@ const toRegistry = (dto: VehicleRegistryDto): VehicleRegistry => ({
   nextMaintenanceKm: dto.nextMaintenanceKm ?? undefined,
   nextMaintenanceDate: dto.nextMaintenanceDate ?? undefined,
   kmToMaintenance: dto.kmToMaintenance ?? undefined,
+  origin: dto.origin,
+  active: dto.active,
+  inactiveSource: dto.inactiveSource ?? undefined,
+  renavam: dto.renavam ?? undefined,
+  vin: dto.vin ?? undefined,
+  fleetNumber: dto.fleetNumber ?? undefined,
+  manufacturer: dto.manufacturer ?? undefined,
+  model: dto.model ?? undefined,
+  year: dto.year ?? undefined,
+  modelYear: dto.modelYear ?? undefined,
+  color: dto.color ?? undefined,
+  bodyClass: dto.bodyClass ?? undefined,
+  bodyType: dto.bodyType ?? undefined,
+  axles: dto.axles ?? undefined,
+  fuelType: dto.fuelType ?? undefined,
+  tareWeightKg: dto.tareWeightKg ?? undefined,
+  payloadKg: dto.payloadKg ?? undefined,
+  cargoVolumeM3: dto.cargoVolumeM3 ?? undefined,
+  tankCapacityL: dto.tankCapacityL ?? undefined,
+  referenceKmpl: dto.referenceKmpl ?? undefined,
+  licensingDueDate: dto.licensingDueDate ?? undefined,
+  rntrc: dto.rntrc ?? undefined,
+  tachographDueDate: dto.tachographDueDate ?? undefined,
+  ownership: dto.ownership ?? undefined,
+  ownerName: dto.ownerName ?? undefined,
+  ownerDocument: dto.ownerDocument ?? undefined,
+  acquiredAt: dto.acquiredAt ?? undefined,
+  acquisitionKind: dto.acquisitionKind ?? undefined,
   outOfService: dto.outOfService,
   outOfServiceReason: dto.outOfServiceReason ?? undefined,
   outOfServiceSince: dto.outOfServiceSince ?? undefined,
@@ -849,6 +959,31 @@ export async function fetchVehicleRegistry(vehicleId: string): Promise<VehicleRe
  * apagaria o que o usuário nem abriu.
  */
 export interface VehicleRegistryPatch {
+  renavam?: string | null;
+  vin?: string | null;
+  fleetNumber?: string | null;
+  manufacturer?: string | null;
+  model?: string | null;
+  year?: number | null;
+  modelYear?: number | null;
+  color?: string | null;
+  bodyClass?: string | null;
+  bodyType?: string | null;
+  axles?: number | null;
+  fuelType?: string | null;
+  tareWeightKg?: number | null;
+  payloadKg?: number | null;
+  cargoVolumeM3?: number | null;
+  tankCapacityL?: number | null;
+  referenceKmpl?: number | null;
+  licensingDueDate?: string | null;
+  rntrc?: string | null;
+  tachographDueDate?: string | null;
+  ownership?: string | null;
+  ownerName?: string | null;
+  ownerDocument?: string | null;
+  acquiredAt?: string | null;
+  acquisitionKind?: string | null;
   internalCode?: string | null;
   manualNotes?: string | null;
   nextMaintenanceKm?: number | null;
@@ -864,6 +999,48 @@ export async function saveVehicleRegistry(
   const dto = await httpRequest<VehicleRegistryDto>(`/v1/vehicles/${vehicleId}/registry`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
+  });
+  return toRegistry(dto);
+}
+
+/**
+ * Cadastra um caminhão que a telemetria não conhece.
+ *
+ * ⚠️ O veículo nasce marcado como cadastrado aqui, e nunca vai reportar
+ * posição, porque não tem rastreador. A tela mostra "sem rastreador" no lugar
+ * de "sem sinal": a primeira é uma escolha de cadastro e não pede nada de
+ * ninguém, a segunda é um problema que leva alguém a ligar para a filial.
+ *
+ * A placa é a chave de reconciliação com o fornecedor. Se este caminhão
+ * ganhar rastreador depois, a sincronização casa pela placa e passa a
+ * alimentar este registro em vez de criar um segundo.
+ */
+export async function createVehicle(
+  plate: string,
+  patch: VehicleRegistryPatch,
+): Promise<VehicleRegistry> {
+  const dto = await httpRequest<VehicleRegistryDto>(`/v1/vehicles`, {
+    method: 'POST',
+    body: JSON.stringify({ plate, ...patch }),
+  });
+  return toRegistry(dto);
+}
+
+/**
+ * Liga ou desliga um veículo sem abrir o formulário.
+ *
+ * ⚠️ Não é o mesmo que tirar de serviço. Fora de serviço é o caminhão parado
+ * agora, com motivo, e ele volta; inativo é o que saiu da frota. Rota separada
+ * da edição porque salvar a ficha congela o veículo para a sincronização, e
+ * ligar e desligar é operação do dia a dia.
+ */
+export async function setVehicleActive(
+  vehicleId: string,
+  active: boolean,
+): Promise<VehicleRegistry> {
+  const dto = await httpRequest<VehicleRegistryDto>(`/v1/vehicles/${vehicleId}/active`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active }),
   });
   return toRegistry(dto);
 }
@@ -925,6 +1102,18 @@ export interface VehicleListEntry {
   odometerKm: number | null;
   /** Última posição conhecida. Nulo quando não houve sinal na janela coletada. */
   lastSeenAt: string | null;
+  /** A classificação que o pátio usa: cavalo, truck, toco, VUC. */
+  bodyClass: string | null;
+  /**
+   * O veículo faz parte da frota.
+   *
+   * ⚠️ Diferente de `outOfService`, que é parada temporária com motivo.
+   * Inativo é o caminhão que saiu da frota e não volta.
+   */
+  active: boolean;
+  inactiveSource: 'TELEMETRIA' | 'OPERACAO' | null;
+  /** ROOKHUB não tem rastreador: é "sem rastreador", e não "sem sinal". */
+  origin: 'TELEMETRIA' | 'ROOKHUB';
   /** Uma pessoa já salvou esta ficha, e a sincronização respeita o que ela escreveu. */
   reviewed: boolean;
 }

@@ -367,37 +367,75 @@ confirmação, e o mesmo diálogo servindo criação e edição.
 
 ### Mapa ao vivo como central de comando (`/gestao/mapa`)
 
-Redesenhado em **30/08/2026**. A tela dividia atenção entre uma lista fixa de frota e o mapa; agora
-o mapa é o protagonista, com painel de monitoramento recolhido à direita, controles sobrepostos ao
-território (mapa de calor, legenda, veículo selecionado) e o trajeto logo abaixo.
+Redesenhada em **30/08/2026**, e revista no mesmo dia depois que o usuário usou a tela. A regra
+que ficou: **o que é do mapa mora no mapa**, e a página em volta guarda só o que não cabe lá.
 
-- ⚠️ **Os quatro números vêm DEPOIS do mapa, e não antes.** Numa tela de notebook, que é o hardware
-  do gestor (RNF-006), eles empilhavam em duas linhas e empurravam o mapa para fora da primeira
-  dobra: quem abria a central de comando via cartão, não território. Foi o ajuste que faltava
-  quando o trabalho parou pela metade, e é a razão de o resumo estar no fim do arquivo.
-- ⚠️ **A lista fica à ESQUERDA e o mapa à direita, com a MESMA altura** (decisão do usuário em
-  30/08/2026). A leitura vai do painel para o território: quem opera procura uma placa na lista e
-  confirma onde ela está, e não o contrário. A altura é da LINHA do grid (`items-stretch` mais
-  `h-full` nos dois filhos), e não de cada peça: antes o mapa tinha altura própria e a lista tinha
-  `max-h-[620px]`, então uma sobrava enquanto a outra faltava.
-- A altura usa `clamp(32rem, calc(100dvh - 26rem), 52rem)`. O desconto de 26rem cobre o cabeçalho,
-  o aviso de dessincronizados e o respiro; o piso e o teto seguram o resultado quando a medida não
-  bate. Com 15rem o mapa passava da primeira dobra.
-- O bloco de trajeto saiu de dentro da coluna do mapa e foi para baixo, em largura total: com as
-  colunas de altura casada, qualquer coisa embaixo do mapa esticaria a linha e desfaria o
-  casamento.
-- ⚠️ **Os dois cartões sobrepostos empilham à ESQUERDA.** O botão de mapa de calor ficava no canto
-  superior direito e passava por baixo do controle de zoom do MapLibre, que mora no mesmo canto:
-  metade do rótulo ficava escondida.
+⚠️ **O dono NÃO tem esta tela.** Ela está no menu do gestor e do administrador; o `OWNER_NAV` de
+`nav-items.ts` é curto de propósito (a visão do dono existe para avaliar lucratividade sem
+distração operacional). A rota `/gestao/mapa` não tem `RoleRoute`, então quem digitar o endereço
+entra: é decisão de menu, não de permissão.
+
+- ⚠️ **Os quatro números saíram** (em movimento, prontos para operar, pedem atenção, sem sinal),
+  a pedido do usuário. Eles ficavam abaixo do mapa depois de já terem sido tirados de cima por
+  empurrarem o território para fora da primeira dobra. A contagem que importa já está nos chips
+  de filtro da lista, com a vantagem de serem clicáveis.
+- ⚠️ **A lista fica à ESQUERDA e o mapa à direita, com a MESMA altura.** A leitura vai do painel
+  para o território: quem opera procura uma placa na lista e confirma onde ela está, e não o
+  contrário. A altura é da LINHA do grid (`items-stretch` mais `h-full` nos dois filhos), e não
+  de cada peça: antes o mapa tinha altura própria e a lista tinha `max-h-[620px]`, então uma
+  sobrava enquanto a outra faltava.
+- ⚠️ **A ficha do veículo é uma TERCEIRA COLUNA, e ela só existe com algo escolhido.** Antes
+  morava dentro da lista, entre os filtros e as placas: cada clique empurrava a lista para baixo
+  e a placa recém-escolhida saía do campo de visão no instante em que era escolhida. Sem seleção
+  a coluna não ocupa espaço e o mapa recebe a largura de volta
+  (`320px_300px_1fr` contra `360px_1fr`).
+- **Escolher uma placa leva a câmera até ela** (`ZOOM_DE_FOCO`, piso de 13). O que existia antes
+  não cumpria: o mapa só se mexia quando a ROTA chegava, o que dependia de uma segunda
+  requisição e enquadrava o dia inteiro, não o veículo. ⚠️ O efeito compara com o alvo anterior
+  antes de agir: o polling reescreve `positions` a cada dez segundos e, sem essa guarda, a câmera
+  voltaria para o veículo escolhido toda vez, arrancando o mapa da mão de quem estivesse
+  arrastando. Centraliza na posição DESENHADA, não na do dado: com o deslize em curso o crachá
+  está a caminho.
+- ⚠️ **A rota só desce para o `FleetMap` com o painel de trajeto aberto**, e isso não é economia:
+  é o `FleetMap` que enquadra o trajeto ao recebê-lo. Mandando sempre, escolher uma placa
+  afastaria a câmera para caber o dia todo e desfaria o foco que acabou de ser pedido.
+- **O trajeto (janelas de 6h/24h/72h e o replay 1x/2x/4x) foi para DENTRO do mapa**, atrás de um
+  botão só-ícone no canto inferior esquerdo. Fechado, ele é um ícone; aberto, um cartão sobre o
+  território. Trocar de veículo fecha o painel, e isso é feito no handler `select`, nunca num
+  `useEffect`: sincronizar estado com prop em efeito é erro de lint aqui.
+- **A legenda de cores subiu para o topo do mapa.** Ela explica o crachá, então mora onde o olho
+  entra no território. ⚠️ Os três literais são os mesmos de `STATUS_COLOR` no `fleet-map.tsx`:
+  legenda que mente é pior que legenda nenhuma.
+- **Saíram o cartão "Visão territorial" e o "Veículo selecionado".** O primeiro repetia a
+  contagem que a lista já dá; o segundo repetia a placa que a ficha ao lado mostra em corpo
+  maior. Os dois cobriam território, que é o que a tela existe para mostrar.
+- ⚠️ **O aviso de dessincronizados virou aviso FLUTUANTE** (`sonner`, 8s). Era uma faixa fixa
+  ocupando uma linha inteira acima do mapa o tempo todo. A guarda pelo número anterior é o que
+  torna isso usável: a tela repergunta a cada dez segundos e, sem ela, o mesmo aviso apareceria
+  seis vezes por minuto até virar ruído que se aprende a ignorar. Ele volta quando a CONTAGEM
+  muda. O `id` fixo troca o conteúdo do aviso em cartaz em vez de empilhar um segundo.
+- ⚠️ **Os cartões sobrepostos empilham à ESQUERDA.** O canto superior direito é do controle de
+  zoom do MapLibre, e o que for posto lá fica meio escondido embaixo dele.
 - **Atualização a cada 10 segundos** (era 4). O número sai de `REFETCH_MS` e não de dois lugares:
   ele aparece escrito na tela, e com o valor repetido a legenda passaria a mentir na primeira vez
   que alguém mexesse no outro.
-- Réplica e mapa de calor são **modos do mapa**, e não blocos separados acima dele.
-- ⚠️ **O filtro do painel lateral filtra a LISTA, não os marcadores.** Continua assim, e a tela não
-  promete o contrário. Vale registrar como pendência: hoje um gestor que filtra por "Manutenção" vê
-  a lista encolher e o mapa igual.
+- ⚠️ **O filtro do painel lateral filtra a LISTA, não os marcadores.** Continua assim, e a tela
+  não promete o contrário. Vale registrar como pendência: hoje um gestor que filtra por
+  "Manutenção" vê a lista encolher e o mapa igual.
 
 ### A base cartográfica dos três mapas (30/08/2026)
+
+- ⚠️ **A atribuição do mapa não pode ser removida, e a pergunta já foi feita** (usuário em
+  30/08/2026). A base vem do OpenFreeMap com dados do OpenStreetMap, e a licença ODbL exige o
+  crédito visível. `attributionControl: false` limparia a tela e criaria um problema de licença
+  nos três mapas de uma vez. O que dava para resolver era o comportamento.
+- **Os três mapas usam `compact: false`.** No modo compacto a atribuição virava um botão "i" que
+  abria um painel ao clique, e como o container do MapLibre é ancorado pelo rodapé
+  (`bottom: 0`), o bloco crescia PARA CIMA: um salto no canto do mapa a cada clique. Aberta não
+  há estado, não há clique e não há salto. O `compact: false` também apaga o botão, porque o CSS
+  da biblioteca só o mostra dentro de `.maplibregl-compact`. O desenho (10px, discreta, encostada
+  no canto) fica em `styles/globals.css`, com uma regra que esconde o botão como rede de
+  segurança para quem devolver `compact: true` sem ler a nota.
 
 Decisão do usuário: mapa mais detalhado e mais realista, com alternância por tema. A base saiu
 de dentro de cada componente e virou `src/components/shared/map-style.ts`, comum aos três mapas
@@ -434,13 +472,29 @@ cabeçalho de números, mesmos filtros, mesma tabela com largura em porcentagem,
 30, mesma rolagem no hover para texto longo, mesmo diálogo de confirmação antes de apagar. Quem
 aprendeu a arrumar as pessoas já sabe arrumar os caminhões.
 
-- ⚠️ **Não há botão de cadastrar, ao contrário da tela de motoristas.** Caminhão só existe para a
-  plataforma porque tem rastreador: placa criada à mão nunca reportaria posição e ficaria para
-  sempre como "sem sinal" no mapa, ao lado de caminhões de verdade que perderam sinal, sem
-  ninguém conseguir separar os dois casos. A tela corrige e confere o que chegou.
-- ⚠️ **Também não há atalho de ligar/desligar na linha.** Tirar de serviço pede o motivo, e motivo
-  se escreve no formulário. Um atalho de um clique gravaria caminhão parado sem explicação, que é
-  exatamente o que a ficha existe para evitar. As ações da linha são só editar e excluir.
+- **Cadastrar e inativar passaram a existir em 30/08/2026**, a pedido do usuário, e as duas
+  objeções que os impediam foram resolvidas em vez de ignoradas:
+  - ⚠️ Caminhão criado a mão não tem rastreador e nunca reporta. Ele nasce com `origin = ROOKHUB`,
+    e a lista mostra **"sem rastreador"** no lugar de "sem sinal". A diferença é o que faz a
+    distinção continuar existindo: sem sinal é problema para investigar, sem rastreador é escolha
+    de cadastro.
+  - ⚠️ Inativar **não é** tirar de serviço, e o diálogo de confirmação diz isso na cara. Fora de
+    serviço pede o motivo e mora no formulário; inativar é sair da frota e fica no botão da linha.
+    O erro provável aqui custa caro: quem inativa um caminhão que só está na oficina tira da
+    escala um veículo que volta na semana que vem.
+- ⚠️ **O chip "Inativo" cala os outros.** Um caminhão que saiu da frota não está "sem sinal": ele
+  está fora, e dizer as duas coisas manda alguém procurar um rastreador que não deveria reportar.
+  Pela mesma razão os cartões do topo contam só a frota ativa.
+- A ficha tem **25 campos em cinco seções** (identificação, ficha técnica, documentação,
+  propriedade, operação), e **o mesmo formulário cadastra e edita**. O painel de detalhe do
+  caminhão usa esse mesmo componente: o `vehicle-registry-card` foi apagado justamente para não
+  existirem duas versões.
+- ⚠️ **A diferença contra o original percorre uma lista**, e não trinta `if` escritos à mão. Com
+  este número de campos, o `if` repetido produz o erro mais difícil de achar: um campo comparado
+  com o vizinho grava o valor errado sem nada falhar.
+- ⚠️ **"Não informado" é apagado ao carregar o formulário.** O literal vem gravado assim no banco
+  em 16 dos 40 ativos, e se chegasse ao campo a pessoa teria de apagá-lo antes de escrever o
+  modelo de verdade. Quem não apagasse gravaria a frase como se fosse o modelo.
 - O diálogo **embrulha o `VehicleRegistryCard`** em vez de duplicá-lo. É o mesmo formulário do
   painel de detalhe do caminhão, com a mesma regra de "ausente preserva, nulo apaga". Uma segunda
   cópia divergiria na primeira vez que alguém acrescentasse um campo em um lado só. O card ganhou

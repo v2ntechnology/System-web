@@ -1079,6 +1079,45 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * A atribuição dos mapas
+ *
+ * ⚠️ Ela NÃO pode ser removida. A base vem do OpenFreeMap com dados do
+ * OpenStreetMap, e a licença ODbL exige o crédito visível: desligar o controle
+ * (`attributionControl: false`) resolveria a tela e criaria um problema de
+ * licença nos três mapas de uma vez.
+ *
+ * O que dava para resolver era o COMPORTAMENTO. Em modo compacto ela virava um
+ * botão "i" que abria um painel ao clique, e como o container do MapLibre é
+ * ancorado pelo rodapé (`bottom: 0`), o bloco crescia PARA CIMA: um salto no
+ * canto do mapa a cada clique (relatado pelo usuário em 30/08/2026). Com a
+ * atribuição sempre aberta não há estado, não há clique e não há salto. O
+ * `compact: false` também apaga o botão, porque o CSS da biblioteca só o mostra
+ * dentro de `.maplibregl-compact`.
+ *
+ * O desenho abaixo existe para ela caber no papel do produto: 10px, discreta,
+ * encostada no canto. O padrão da biblioteca é 12px numa faixa branca a 50%,
+ * que sobre o mapa lê como um elemento da interface, e não como um rodapé.
+ * ------------------------------------------------------------------------- */
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+  border-radius: 8px 0 0 0;
+  background-color: rgb(255 255 255 / 0.74);
+  padding: 1px 7px;
+  color: rgb(0 0 0 / 0.45);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: rgb(0 0 0 / 0.58);
+}
+
+/* O botão do modo compacto não é usado em nenhum dos três mapas. A regra fica
+   como rede de segurança: se alguém devolver `compact: true` sem ler a nota
+   acima, o salto volta junto. */
+.maplibregl-ctrl-attrib-button {
+  display: none !important;
+}
 @keyframes bot-glitch {
   0%,
   100% {

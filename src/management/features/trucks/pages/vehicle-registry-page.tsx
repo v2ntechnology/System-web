@@ -1,4 +1,11 @@
-import { CheckIcon, DeleteIcon, EditIcon, SearchIcon } from '@/components/icons';
+import {
+  CheckIcon,
+  DeleteIcon,
+  EditIcon,
+  PlusIcon,
+  PowerIcon,
+  SearchIcon,
+} from '@/components/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -8,6 +15,7 @@ import { QueryState } from '@/management/components/layout/query-state';
 import {
   deleteVehicle,
   fetchVehicleRegistryList,
+  setVehicleActive,
   type VehicleListEntry,
 } from '@/management/lib/fleet-api';
 import {
@@ -79,11 +87,20 @@ const SUPPLIER_STATES: Record<string, string> = {
 
 const supplierLabel = (state: string): string => SUPPLIER_STATES[state] ?? state;
 
+/**
+ * ⚠️ Ativo e fora de serviço são eixos DIFERENTES, e o filtro precisa refletir
+ * isso. Fora de serviço é o caminhão parado agora, com motivo, e ele volta.
+ * Inativo é o que saiu da frota: vendido, devolvido, fim de contrato. Um
+ * seletor só juntaria um caminhão vendido em 2024 com outro que entrou na
+ * oficina ontem.
+ */
 const SITUATION_OPTIONS = [
   { value: ALL, label: 'Todas as situações' },
   { value: 'OPERANDO', label: 'Em operação' },
   { value: 'FORA', label: 'Fora de serviço' },
   { value: 'SEM_SINAL', label: 'Sem sinal' },
+  { value: 'SEM_RASTREADOR', label: 'Sem rastreador' },
+  { value: 'INATIVOS', label: 'Inativos' },
 ];
 
 const REVIEW_OPTIONS = [
@@ -116,7 +133,18 @@ const normalize = (text: string): string =>
  */
 const SEM_SINAL_DIAS = 7;
 
+/**
+ * Cadastrado a mão, e portanto sem rastreador.
+ *
+ * ⚠️ Precisa vir ANTES de "sem sinal" em toda classificação. Sem rastreador é
+ * uma escolha de cadastro e não pede nada de ninguém; sem sinal é um problema
+ * que leva alguém a ligar para a filial. Misturar os dois enche a lista de
+ * problemas com caminhões que estão exatamente como deveriam estar.
+ */
+const semRastreador = (vehicle: VehicleListEntry): boolean => vehicle.origin === 'ROOKHUB';
+
 const semSinal = (vehicle: VehicleListEntry): boolean => {
+  if (semRastreador(vehicle)) return false;
   if (!vehicle.lastSeenAt) return true;
   const dias = (Date.now() - new Date(vehicle.lastSeenAt).getTime()) / 86_400_000;
   return dias > SEM_SINAL_DIAS;
@@ -183,6 +211,9 @@ export function VehicleRegistryPage() {
     vehicle: null,
   });
 
+  /** O veículo que espera confirmação para ligar ou desligar. */
+  const [confirming, setConfirming] = useState<VehicleListEntry | null>(null);
+
   /** O veículo que espera confirmação para ser apagado. */
   const [deleting, setDeleting] = useState<VehicleListEntry | null>(null);
 
@@ -198,6 +229,20 @@ export function VehicleRegistryPage() {
   });
 
   const vehicles = useMemo(() => data ?? [], [data]);
+
+  const toggle = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => setVehicleActive(id, active),
+    onSuccess: (veiculo) => {
+      toast.success(`${veiculo.plate} foi ${veiculo.active ? 'ativado' : 'inativado'}.`);
+      void queryClient.invalidateQueries({ queryKey: ['vehicle-registry-list'] });
+      void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      setConfirming(null);
+    },
+    onError: (erro) => {
+      toast.error(erro instanceof Error ? erro.message : 'Não foi possível alterar o status.');
+      setConfirming(null);
+    },
+  });
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteVehicle(id),
@@ -230,9 +275,14 @@ export function VehicleRegistryPage() {
   const counts = useMemo(
     () => ({
       total: vehicles.length,
-      operando: vehicles.filter((v) => !v.outOfService && !semSinal(v)).length,
-      fora: vehicles.filter((v) => v.outOfService).length,
-      semSinal: vehicles.filter((v) => !v.outOfService && semSinal(v)).length,
+      /* Os números do topo falam da frota ATIVA: caminhão inativo saiu da
+         frota, e contá-lo como "sem sinal" encheria o cartão vermelho de
+         veículos que ninguém precisa procurar. */
+      ativos: vehicles.filter((v) => v.active).length,
+      inativos: vehicles.filter((v) => !v.active).length,
+      operando: vehicles.filter((v) => v.active && !v.outOfService && !semSinal(v)).length,
+      fora: vehicles.filter((v) => v.active && v.outOfService).length,
+      semSinal: vehicles.filter((v) => v.active && !v.outOfService && semSinal(v)).length,
       conferidos: vehicles.filter((v) => v.reviewed).length,
     }),
     [vehicles],
@@ -242,9 +292,21 @@ export function VehicleRegistryPage() {
     const term = normalize(search.trim());
 
     return vehicles.filter((vehicle) => {
-      if (situation === 'FORA' && !vehicle.outOfService) return false;
-      if (situation === 'SEM_SINAL' && (vehicle.outOfService || !semSinal(vehicle))) return false;
-      if (situation === 'OPERANDO' && (vehicle.outOfService || semSinal(vehicle))) return false;
+      if (situation === 'INATIVOS' && vehicle.active) return false;
+      if (situation === 'FORA' && (!vehicle.active || !vehicle.outOfService)) return false;
+      if (situation === 'SEM_RASTREADOR' && !semRastreador(vehicle)) return false;
+      if (
+        situation === 'SEM_SINAL' &&
+        (!vehicle.active || vehicle.outOfService || !semSinal(vehicle))
+      ) {
+        return false;
+      }
+      if (
+        situation === 'OPERANDO' &&
+        (!vehicle.active || vehicle.outOfService || semSinal(vehicle))
+      ) {
+        return false;
+      }
 
       if (review === PENDING && vehicle.reviewed) return false;
       if (review === 'CONFERIDOS' && !vehicle.reviewed) return false;
@@ -300,7 +362,17 @@ export function VehicleRegistryPage() {
             {/* O tamanho do trabalho                                       */}
             {/* ---------------------------------------------------------- */}
             <GlassCard className="grid gap-4 p-5 sm:grid-cols-3 sm:p-6 xl:grid-cols-5">
-              <Tile label="Na frota" value={counts.total} hint="veículos que a plataforma tem" />
+              <Tile
+                label="Na frota"
+                value={counts.ativos}
+                hint={
+                  counts.inativos === 0
+                    ? 'veículos ativos'
+                    : counts.inativos === 1
+                      ? 'ativos, mais 1 inativo'
+                      : `ativos, mais ${counts.inativos} inativos`
+                }
+              />
               <Tile
                 label="Em operação"
                 value={counts.operando}
@@ -330,7 +402,7 @@ export function VehicleRegistryPage() {
             {/* Filtros                                                     */}
             {/* ---------------------------------------------------------- */}
             <GlassCard className="flex flex-col gap-4 p-5">
-              <div className="grid items-end gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
+              <div className="grid items-end gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_auto]">
                 <GlassInput
                   label="Buscar"
                   placeholder="Placa, número de frota ou modelo"
@@ -359,6 +431,17 @@ export function VehicleRegistryPage() {
                   value={review}
                   onValueChange={setReview}
                 />
+
+                {/* ⚠️ Cadastrar cria um caminhão SEM rastreador, e a ficha diz
+                    isso. Ele nunca reporta posição, então a lista mostra "sem
+                    rastreador" e não "sem sinal". */}
+                <SpectrumButton
+                  type="button"
+                  onClick={() => setDialog({ open: true, vehicle: null })}
+                >
+                  <PlusIcon size={16} aria-hidden="true" />
+                  Cadastrar caminhão
+                </SpectrumButton>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -389,7 +472,7 @@ export function VehicleRegistryPage() {
                   </p>
                   <p className="text-on-surface-muted text-label-md mt-1 normal-case">
                     {vehicles.length === 0
-                      ? 'A frota chega pela telemetria: sincronize a integração para trazer os caminhões que já têm rastreador.'
+                      ? 'Use "Cadastrar caminhão" para começar, ou sincronize a telemetria para trazer quem já tem rastreador.'
                       : 'Limpe os filtros para ver a lista inteira.'}
                   </p>
                 </div>
@@ -410,7 +493,7 @@ export function VehicleRegistryPage() {
                         <Th className="w-[16%]" nowrap>
                           Placa
                         </Th>
-                        <Th className="w-[26%]">Veículo</Th>
+                        <Th className="w-[24%]">Veículo</Th>
                         <Th className="w-[28%]">Empresa</Th>
                         {/* ⚠️ Não há coluna de motorista, e não é esquecimento. A
                             lotação que a MiX entrega é uma conta de sistema em
@@ -420,7 +503,7 @@ export function VehicleRegistryPage() {
                           Odômetro
                         </Th>
                         <Th className="w-[12%]">Situação</Th>
-                        <Th className="w-[4%]" align="right">
+                        <Th className="w-[6%]" align="right">
                           Ações
                         </Th>
                       </tr>
@@ -432,8 +515,12 @@ export function VehicleRegistryPage() {
                           key={vehicle.id}
                           vehicle={vehicle}
                           onEdit={() => setDialog({ open: true, vehicle })}
+                          onToggle={() => setConfirming(vehicle)}
                           onDelete={() => setDeleting(vehicle)}
-                          busy={remove.isPending && deleting?.id === vehicle.id}
+                          busy={
+                            (toggle.isPending && confirming?.id === vehicle.id) ||
+                            (remove.isPending && deleting?.id === vehicle.id)
+                          }
                         />
                       ))}
                     </tbody>
@@ -460,6 +547,15 @@ export function VehicleRegistryPage() {
         onOpenChange={(open) => setDialog((atual) => ({ ...atual, open }))}
         vehicleId={dialog.vehicle?.id ?? null}
         plate={dialog.vehicle?.plate ?? null}
+      />
+
+      <ConfirmToggle
+        vehicle={confirming}
+        pending={toggle.isPending}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() =>
+          confirming ? toggle.mutate({ id: confirming.id, active: !confirming.active }) : undefined
+        }
       />
 
       <ConfirmDelete
@@ -509,15 +605,18 @@ function Th({
 function VehicleRow({
   vehicle,
   onEdit,
+  onToggle,
   onDelete,
   busy,
 }: {
   vehicle: VehicleListEntry;
   onEdit: () => void;
+  onToggle: () => void;
   onDelete: () => void;
   busy: boolean;
 }) {
   const mudo = semSinal(vehicle);
+  const semRastro = semRastreador(vehicle);
   const numero = vehicle.internalCode ?? vehicle.fleetNumber;
   const modelo = [semRuido(vehicle.manufacturer), semRuido(vehicle.model)]
     .filter(Boolean)
@@ -532,7 +631,13 @@ function VehicleRow({
       onClick={(event) => {
         if (!(event.target as HTMLElement).closest('button')) onEdit();
       }}
-      className="border-outline-variant/60 hover:bg-on-surface/[0.04] cursor-pointer border-b transition-colors last:border-0"
+      className={cn(
+        'border-outline-variant/60 hover:bg-on-surface/[0.04] cursor-pointer border-b transition-colors last:border-0',
+        /* Inativo sai da frota, e a linha precisa dizer isso antes de qualquer
+           chip: numa lista longa, a cor cheia dá o mesmo peso a um caminhão
+           vendido e a um que está rodando agora. */
+        !vehicle.active && 'opacity-55',
+      )}
     >
       <td className="py-3 pr-4 whitespace-nowrap">
         <p className="text-on-surface text-body-md tabular font-medium">{vehicle.plate}</p>
@@ -579,8 +684,15 @@ function VehicleRow({
 
       <td className="py-3 pr-4">
         <div className="flex flex-wrap items-center gap-1.5">
-          {vehicle.outOfService ? (
+          {/* ⚠️ Inativo vem PRIMEIRO e cala o resto. Um caminhão que saiu da
+              frota não está "sem sinal": ele está fora, e dizer as duas coisas
+              manda alguém procurar um rastreador que não deveria reportar. */}
+          {!vehicle.active ? (
+            <StatusChip tone="neutral">Inativo</StatusChip>
+          ) : vehicle.outOfService ? (
             <StatusChip tone="attention">Fora de serviço</StatusChip>
+          ) : semRastro ? (
+            <StatusChip tone="info">Sem rastreador</StatusChip>
           ) : mudo ? (
             <StatusChip tone="critical">Sem sinal</StatusChip>
           ) : (
@@ -590,7 +702,10 @@ function VehicleRow({
           {/* Só aparece quando contradiz a coluna: o estado do fornecedor
               repetido em 40 linhas verdes seria ruído. `Unavailable` aqui quase
               sempre é resto de transferência, e é o que vale olhar. */}
-          {vehicle.supplierState && vehicle.supplierState !== 'Available' ? (
+          {vehicle.active &&
+          !semRastro &&
+          vehicle.supplierState &&
+          vehicle.supplierState !== 'Available' ? (
             <StatusChip tone="neutral">{supplierLabel(vehicle.supplierState)}</StatusChip>
           ) : null}
 
@@ -605,6 +720,25 @@ function VehicleRow({
 
       <td className="py-3 text-right">
         <div className="flex items-center justify-end gap-1">
+          {/*
+           * Alternar antes de editar, como na lista de motoristas.
+           *
+           * ⚠️ O botão já NASCE na cor do que vai fazer: vermelho quando vai
+           * tirar da frota, verde quando vai devolver. A cor é o rótulo, porque
+           * o botão não tem texto, e numa lista longa descobrir pelo hover é
+           * descobrir tarde.
+           */}
+          <button
+            type="button"
+            onClick={onToggle}
+            disabled={busy}
+            title={vehicle.active ? 'Inativar veículo' : 'Ativar veículo'}
+            aria-label={vehicle.active ? `Inativar ${vehicle.plate}` : `Ativar ${vehicle.plate}`}
+            className={cn('rounded-lg p-1.5', vehicle.active ? 'acao-excluir' : 'acao-ativar')}
+          >
+            <PowerIcon size={16} aria-hidden="true" />
+          </button>
+
           <button
             type="button"
             onClick={onEdit}
@@ -634,6 +768,70 @@ function VehicleRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+/**
+ * A pergunta antes de tirar da frota ou devolver.
+ *
+ * ⚠️ Existe porque o atalho fica a um clique de distância na linha: sem a
+ * confirmação, um clique torto já grava no banco, e numa lista com o cursor
+ * passando por cima o clique torto acontece.
+ *
+ * O texto diz o que inativar NÃO é. A confusão com "fora de serviço" é o erro
+ * provável aqui, e ele custa caro: quem inativa um caminhão que só está na
+ * oficina tira da escala um veículo que volta na semana que vem.
+ */
+function ConfirmToggle({
+  vehicle,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  vehicle: VehicleListEntry | null;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const ativando = vehicle != null && !vehicle.active;
+
+  return (
+    <GlassModal
+      open={vehicle != null}
+      onOpenChange={(open) => {
+        if (!open) onCancel();
+      }}
+      title={ativando ? 'Ativar veículo' : 'Inativar veículo'}
+      className="w-[calc(100vw-2rem)] max-w-[480px]"
+    >
+      <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6">
+        <p className="text-on-surface text-body-md">
+          {ativando ? 'Devolver ' : 'Tirar '}
+          <strong>{vehicle?.plate}</strong>
+          {ativando
+            ? ' para a frota? Ele volta a aparecer nas listas e nos seletores.'
+            : ' da frota? Ele deixa de aparecer nas listas e nos seletores. Nada é apagado, e o histórico continua respondendo por ele.'}
+        </p>
+
+        {!ativando ? (
+          <Alert severity="info">
+            Inativar é para o caminhão que <strong>saiu da frota</strong>: vendido, devolvido, fim
+            de contrato. Se ele só está parado agora, na oficina ou esperando peça, o certo é marcar{' '}
+            <strong>fora de operação</strong> na ficha, que pede o motivo e mantém o caminhão na
+            conta da frota.
+          </Alert>
+        ) : null}
+
+        <div className="flex items-center justify-end gap-2">
+          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+            Cancelar
+          </SpectrumButton>
+          <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>
+            {pending ? (ativando ? 'Ativando…' : 'Inativando…') : ativando ? 'Ativar' : 'Inativar'}
+          </SpectrumButton>
+        </div>
+      </div>
+    </GlassModal>
   );
 }
 
