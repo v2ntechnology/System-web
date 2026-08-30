@@ -322,10 +322,25 @@ export interface VehicleRegistryFormProps {
   /** Nulo abre em branco para cadastrar uma placa nova. */
   vehicleId: string | null;
   onSaved: () => void;
+  /**
+   * Fecha o diálogo. Presente só quando o formulário está dentro de um.
+   *
+   * ⚠️ É ele que decide a forma do rodapé, e não uma prop de estilo: dentro do
+   * diálogo a barra de ações fica **colada embaixo**, como no cadastro de
+   * motorista; no painel de detalhe do caminhão, que rola junto com a página,
+   * uma barra colada ficaria flutuando no meio da tela sem nada a que se
+   * prender.
+   */
+  onClose?: (() => void) | undefined;
   className?: string | undefined;
 }
 
-export function VehicleRegistryForm({ vehicleId, onSaved, className }: VehicleRegistryFormProps) {
+export function VehicleRegistryForm({
+  vehicleId,
+  onSaved,
+  onClose,
+  className,
+}: VehicleRegistryFormProps) {
   const registro = useQuery({
     queryKey: ['vehicle-registry', vehicleId],
     queryFn: () => fetchVehicleRegistry(vehicleId as string),
@@ -336,13 +351,20 @@ export function VehicleRegistryForm({ vehicleId, onSaved, className }: VehicleRe
     /* `key` fixo no modo de cadastro: abrir, fechar e abrir de novo remonta o
        formulário limpo, sem sobra do que a pessoa digitou e desistiu. */
     return (
-      <Campos key="novo" vehicleId={null} registro={null} onSaved={onSaved} className={className} />
+      <Campos
+        key="novo"
+        vehicleId={null}
+        registro={null}
+        onSaved={onSaved}
+        onClose={onClose}
+        className={className}
+      />
     );
   }
 
   if (registro.isPending) {
     return (
-      <div className={cn('flex justify-center py-8', className)}>
+      <div className={cn('flex justify-center px-5 py-10 sm:px-6', className)}>
         <Spinner className="text-on-surface-muted size-5" label="Carregando o cadastro" />
       </div>
     );
@@ -350,7 +372,7 @@ export function VehicleRegistryForm({ vehicleId, onSaved, className }: VehicleRe
 
   if (registro.isError || !registro.data) {
     return (
-      <p className={cn('text-error text-body-md py-8 text-center', className)}>
+      <p className={cn('text-error text-body-md px-5 py-10 text-center sm:px-6', className)}>
         Não foi possível carregar o cadastro deste veículo.
       </p>
     );
@@ -364,6 +386,7 @@ export function VehicleRegistryForm({ vehicleId, onSaved, className }: VehicleRe
       vehicleId={vehicleId}
       registro={registro.data}
       onSaved={onSaved}
+      onClose={onClose}
       className={className}
     />
   );
@@ -395,11 +418,13 @@ function Campos({
   vehicleId,
   registro,
   onSaved,
+  onClose,
   className,
 }: {
   vehicleId: string | null;
   registro: VehicleRegistry | null;
   onSaved: () => void;
+  onClose?: (() => void) | undefined;
   className?: string | undefined;
 }) {
   const cliente = useQueryClient();
@@ -454,310 +479,353 @@ function Campos({
   const digitos = (valor: string, tamanho: number) => valor.replace(/\D/g, '').slice(0, tamanho);
 
   const vencida = registro?.kmToMaintenance != null && registro.kmToMaintenance < 0;
+  const dentroDoDialogo = onClose != null;
   const podeSalvar = criando ? form.plate.trim().length >= 7 : mudou;
 
   return (
     <form
-      className={cn('flex flex-col gap-5', className)}
+      className={cn(
+        'flex flex-col',
+        /* Dentro do diálogo o formulário ocupa a altura disponível para a
+           barra de ações poder colar embaixo. Fora dele cresce com o
+           conteúdo, como qualquer bloco de página. */
+        dentroDoDialogo ? 'min-h-0 flex-1' : 'gap-5',
+        className,
+      )}
       onSubmit={(evento) => {
         evento.preventDefault();
         if (podeSalvar && !salvar.isPending) salvar.mutate();
       }}
     >
-      {erro ? <Alert severity="error">{erro}</Alert> : null}
-
-      {/* ------------------------------------------------------------------ */}
-      <Secao
-        titulo="Identificação"
-        hint={
-          criando
-            ? 'A placa não pode ser alterada depois: é por ela que a telemetria reconhece o caminhão.'
-            : undefined
-        }
-      >
-        {criando ? (
-          <GlassInput
-            label="Placa"
-            hint="ABC1D23 ou ABC1234"
-            value={form.plate}
-            onChange={(e) => alterar('plate', e.target.value.toUpperCase().slice(0, 8))}
-            autoFocus
-            required
-          />
-        ) : (
-          <GlassInput label="Placa" value={form.plate} readOnly disabled hint="Não é editável" />
+      {/*
+       * ⚠️ O corpo é quem rola, e não o diálogo inteiro: é isso que mantém a
+       * barra de ações colada embaixo. `min-h-0` é obrigatório, senão o filho
+       * flex se recusa a encolher e a barra é empurrada para fora da área
+       * visível. Mesma mecânica do cadastro de motorista.
+       */}
+      <div
+        className={cn(
+          'flex flex-col gap-5',
+          dentroDoDialogo && 'min-h-0 flex-1 overflow-y-auto px-5 pb-7 sm:px-6',
         )}
+      >
+        {erro ? <Alert severity="error">{erro}</Alert> : null}
 
-        <GlassInput
-          label="Renavam"
-          hint="11 dígitos"
-          value={form.renavam}
-          onChange={(e) => alterar('renavam', digitos(e.target.value, 11))}
-          inputMode="numeric"
-        />
+        {/* ------------------------------------------------------------------ */}
+        <Secao
+          titulo="Identificação"
+          hint={
+            criando
+              ? 'A placa não pode ser alterada depois: é por ela que a telemetria reconhece o caminhão.'
+              : undefined
+          }
+        >
+          {criando ? (
+            <GlassInput
+              label="Placa"
+              hint="ABC1D23 ou ABC1234"
+              value={form.plate}
+              onChange={(e) => alterar('plate', e.target.value.toUpperCase().slice(0, 8))}
+              autoFocus
+              required
+            />
+          ) : (
+            <GlassInput label="Placa" value={form.plate} readOnly disabled hint="Não é editável" />
+          )}
 
-        <GlassInput
-          label="Chassi"
-          hint="17 caracteres, do documento"
-          value={form.vin}
-          onChange={(e) => alterar('vin', e.target.value.toUpperCase().slice(0, 17))}
-        />
+          <GlassInput
+            label="Renavam"
+            hint="11 dígitos"
+            value={form.renavam}
+            onChange={(e) => alterar('renavam', digitos(e.target.value, 11))}
+            inputMode="numeric"
+          />
 
-        <GlassInput
-          label="Número de frota"
-          hint="O número pintado na porta"
-          value={form.fleetNumber}
-          onChange={(e) => alterar('fleetNumber', e.target.value)}
-          maxLength={20}
-        />
+          <GlassInput
+            label="Chassi"
+            hint="17 caracteres, do documento"
+            value={form.vin}
+            onChange={(e) => alterar('vin', e.target.value.toUpperCase().slice(0, 17))}
+          />
 
-        <GlassInput
-          label="Marca"
-          value={form.manufacturer}
-          onChange={(e) => alterar('manufacturer', e.target.value)}
-          maxLength={60}
-        />
+          <GlassInput
+            label="Número de frota"
+            hint="O número pintado na porta"
+            value={form.fleetNumber}
+            onChange={(e) => alterar('fleetNumber', e.target.value)}
+            maxLength={20}
+          />
 
-        <GlassInput
-          label="Modelo"
-          value={form.model}
-          onChange={(e) => alterar('model', e.target.value)}
-          maxLength={60}
-        />
+          <GlassInput
+            label="Marca"
+            value={form.manufacturer}
+            onChange={(e) => alterar('manufacturer', e.target.value)}
+            maxLength={60}
+          />
 
-        {/* ⚠️ Fabricação e modelo são dois anos e ambos aparecem no documento.
+          <GlassInput
+            label="Modelo"
+            value={form.model}
+            onChange={(e) => alterar('model', e.target.value)}
+            maxLength={60}
+          />
+
+          {/* ⚠️ Fabricação e modelo são dois anos e ambos aparecem no documento.
             Um caminhão "2023/2024" foi fabricado em 2023 e é modelo 2024, e a
             diferença muda o valor de revenda. */}
-        <GlassInput
-          label="Ano de fabricação"
-          value={form.year}
-          onChange={(e) => alterar('year', digitos(e.target.value, 4))}
-          inputMode="numeric"
-        />
+          <GlassInput
+            label="Ano de fabricação"
+            value={form.year}
+            onChange={(e) => alterar('year', digitos(e.target.value, 4))}
+            inputMode="numeric"
+          />
 
-        <GlassInput
-          label="Ano do modelo"
-          value={form.modelYear}
-          onChange={(e) => alterar('modelYear', digitos(e.target.value, 4))}
-          inputMode="numeric"
-        />
+          <GlassInput
+            label="Ano do modelo"
+            value={form.modelYear}
+            onChange={(e) => alterar('modelYear', digitos(e.target.value, 4))}
+            inputMode="numeric"
+          />
 
-        <GlassInput
-          label="Cor"
-          value={form.color}
-          onChange={(e) => alterar('color', e.target.value)}
-          maxLength={30}
-        />
-      </Secao>
+          <GlassInput
+            label="Cor"
+            value={form.color}
+            onChange={(e) => alterar('color', e.target.value)}
+            maxLength={30}
+          />
+        </Secao>
 
-      {/* ------------------------------------------------------------------ */}
-      <Secao titulo="Ficha técnica" hint="O que ele é e o que consegue levar.">
-        <GlassSelect
-          label="Classificação"
-          options={CLASSES}
-          value={form.bodyClass}
-          onValueChange={(v) => alterar('bodyClass', v)}
-        />
+        {/* ------------------------------------------------------------------ */}
+        <Secao titulo="Ficha técnica" hint="O que ele é e o que consegue levar.">
+          <GlassSelect
+            label="Classificação"
+            options={CLASSES}
+            value={form.bodyClass}
+            onValueChange={(v) => alterar('bodyClass', v)}
+          />
 
-        <GlassSelect
-          label="Carroceria"
-          options={CARROCERIAS}
-          value={form.bodyType}
-          onValueChange={(v) => alterar('bodyType', v)}
-        />
+          <GlassSelect
+            label="Carroceria"
+            options={CARROCERIAS}
+            value={form.bodyType}
+            onValueChange={(v) => alterar('bodyType', v)}
+          />
 
-        <GlassInput
-          label="Eixos"
-          value={form.axles}
-          onChange={(e) => alterar('axles', digitos(e.target.value, 2))}
-          inputMode="numeric"
-        />
+          <GlassInput
+            label="Eixos"
+            value={form.axles}
+            onChange={(e) => alterar('axles', digitos(e.target.value, 2))}
+            inputMode="numeric"
+          />
 
-        <GlassInput
-          label="Combustível"
-          hint="Diesel S10, S500, GNV"
-          value={form.fuelType}
-          onChange={(e) => alterar('fuelType', e.target.value)}
-          maxLength={40}
-        />
+          <GlassInput
+            label="Combustível"
+            hint="Diesel S10, S500, GNV"
+            value={form.fuelType}
+            onChange={(e) => alterar('fuelType', e.target.value)}
+            maxLength={40}
+          />
 
-        <GlassInput
-          label="Tara (kg)"
-          hint="Peso do veículo vazio"
-          value={form.tareWeightKg}
-          onChange={(e) => alterar('tareWeightKg', digitos(e.target.value, 6))}
-          inputMode="numeric"
-        />
+          <GlassInput
+            label="Tara (kg)"
+            hint="Peso do veículo vazio"
+            value={form.tareWeightKg}
+            onChange={(e) => alterar('tareWeightKg', digitos(e.target.value, 6))}
+            inputMode="numeric"
+          />
 
-        <GlassInput
-          label="Capacidade de carga (kg)"
-          value={form.payloadKg}
-          onChange={(e) => alterar('payloadKg', digitos(e.target.value, 6))}
-          inputMode="numeric"
-        />
+          <GlassInput
+            label="Capacidade de carga (kg)"
+            value={form.payloadKg}
+            onChange={(e) => alterar('payloadKg', digitos(e.target.value, 6))}
+            inputMode="numeric"
+          />
 
-        {/* Baú e sider vendem por metro cúbico e não por quilo: carga leve e
+          {/* Baú e sider vendem por metro cúbico e não por quilo: carga leve e
             volumosa enche o baú muito antes de atingir a capacidade em peso. */}
-        <GlassInput
-          label="Volume de carga (m³)"
-          value={form.cargoVolumeM3}
-          onChange={(e) => alterar('cargoVolumeM3', e.target.value.replace(/[^\d,.]/g, ''))}
-          inputMode="decimal"
-        />
+          <GlassInput
+            label="Volume de carga (m³)"
+            value={form.cargoVolumeM3}
+            onChange={(e) => alterar('cargoVolumeM3', e.target.value.replace(/[^\d,.]/g, ''))}
+            inputMode="decimal"
+          />
 
-        <GlassInput
-          label="Tanque (litros)"
-          value={form.tankCapacityL}
-          onChange={(e) => alterar('tankCapacityL', digitos(e.target.value, 5))}
-          inputMode="numeric"
-        />
+          <GlassInput
+            label="Tanque (litros)"
+            value={form.tankCapacityL}
+            onChange={(e) => alterar('tankCapacityL', digitos(e.target.value, 5))}
+            inputMode="numeric"
+          />
 
-        <GlassInput
-          label="Consumo de referência (km/l)"
-          hint="Para comparar com o que a telemetria mede"
-          value={form.referenceKmpl}
-          onChange={(e) => alterar('referenceKmpl', e.target.value.replace(/[^\d,.]/g, ''))}
-          inputMode="decimal"
-        />
-      </Secao>
+          <GlassInput
+            label="Consumo de referência (km/l)"
+            hint="Para comparar com o que a telemetria mede"
+            value={form.referenceKmpl}
+            onChange={(e) => alterar('referenceKmpl', e.target.value.replace(/[^\d,.]/g, ''))}
+            inputMode="decimal"
+          />
+        </Secao>
 
-      {/* ------------------------------------------------------------------ */}
-      <Secao
-        titulo="Documentação"
-        hint="Caminhão com documento vencido não sai, e descobrir isso no posto fiscal custa a viagem."
-      >
-        <GlassDateField
-          label="Licenciamento vence em"
-          value={form.licensingDueDate}
-          onValueChange={(v) => alterar('licensingDueDate', v)}
-        />
+        {/* ------------------------------------------------------------------ */}
+        <Secao
+          titulo="Documentação"
+          hint="Caminhão com documento vencido não sai, e descobrir isso no posto fiscal custa a viagem."
+        >
+          <GlassDateField
+            label="Licenciamento vence em"
+            value={form.licensingDueDate}
+            onValueChange={(v) => alterar('licensingDueDate', v)}
+          />
 
-        <GlassDateField
-          label="Tacógrafo aferido até"
-          value={form.tachographDueDate}
-          onValueChange={(v) => alterar('tachographDueDate', v)}
-        />
+          <GlassDateField
+            label="Tacógrafo aferido até"
+            value={form.tachographDueDate}
+            onValueChange={(v) => alterar('tachographDueDate', v)}
+          />
 
-        <GlassInput
-          label="RNTRC"
-          hint="Registro da ANTT"
-          value={form.rntrc}
-          onChange={(e) => alterar('rntrc', e.target.value)}
-          maxLength={20}
-        />
-      </Secao>
+          <GlassInput
+            label="RNTRC"
+            hint="Registro da ANTT"
+            value={form.rntrc}
+            onChange={(e) => alterar('rntrc', e.target.value)}
+            maxLength={20}
+          />
+        </Secao>
 
-      {/* ------------------------------------------------------------------ */}
-      <Secao
-        titulo="Propriedade"
-        hint="Próprio deprecia e tem manutenção na conta da empresa; agregado e terceiro são pagamento por viagem."
-      >
-        <GlassSelect
-          label="Vínculo"
-          options={VINCULOS}
-          value={form.ownership}
-          onValueChange={(v) => alterar('ownership', v)}
-        />
+        {/* ------------------------------------------------------------------ */}
+        <Secao
+          titulo="Propriedade"
+          hint="Próprio deprecia e tem manutenção na conta da empresa; agregado e terceiro são pagamento por viagem."
+        >
+          <GlassSelect
+            label="Vínculo"
+            options={VINCULOS}
+            value={form.ownership}
+            onValueChange={(v) => alterar('ownership', v)}
+          />
 
-        <GlassInput
-          label="Proprietário"
-          value={form.ownerName}
-          onChange={(e) => alterar('ownerName', e.target.value)}
-          maxLength={120}
-        />
+          <GlassInput
+            label="Proprietário"
+            value={form.ownerName}
+            onChange={(e) => alterar('ownerName', e.target.value)}
+            maxLength={120}
+          />
 
-        <GlassInput
-          label="CPF ou CNPJ do proprietário"
-          value={form.ownerDocument}
-          onChange={(e) => alterar('ownerDocument', digitos(e.target.value, 14))}
-          inputMode="numeric"
-        />
+          <GlassInput
+            label="CPF ou CNPJ do proprietário"
+            value={form.ownerDocument}
+            onChange={(e) => alterar('ownerDocument', digitos(e.target.value, 14))}
+            inputMode="numeric"
+          />
 
-        <GlassSelect
-          label="Forma de aquisição"
-          options={AQUISICOES}
-          value={form.acquisitionKind}
-          onValueChange={(v) => alterar('acquisitionKind', v)}
-        />
+          <GlassSelect
+            label="Forma de aquisição"
+            options={AQUISICOES}
+            value={form.acquisitionKind}
+            onValueChange={(v) => alterar('acquisitionKind', v)}
+          />
 
-        <GlassDateField
-          label="Adquirido em"
-          value={form.acquiredAt}
-          onValueChange={(v) => alterar('acquiredAt', v)}
-        />
-      </Secao>
+          <GlassDateField
+            label="Adquirido em"
+            value={form.acquiredAt}
+            onValueChange={(v) => alterar('acquiredAt', v)}
+          />
+        </Secao>
 
-      {/* ------------------------------------------------------------------ */}
-      <Secao titulo="Operação" hint="O que a telemetria não entrega: quem preenche é quem opera.">
-        <GlassInput
-          label="Código interno"
-          value={form.internalCode}
-          onChange={(e) => alterar('internalCode', e.target.value)}
-          maxLength={40}
-        />
+        {/* ------------------------------------------------------------------ */}
+        <Secao titulo="Operação" hint="O que a telemetria não entrega: quem preenche é quem opera.">
+          <GlassInput
+            label="Código interno"
+            value={form.internalCode}
+            onChange={(e) => alterar('internalCode', e.target.value)}
+            maxLength={40}
+          />
 
-        <GlassInput
-          label="Próxima revisão (km)"
-          hint={
-            registro?.kmToMaintenance == null
-              ? 'odômetro em que a revisão vence'
-              : vencida
-                ? `vencida há ${numero(Math.abs(registro.kmToMaintenance))} km`
-                : `faltam ${numero(registro.kmToMaintenance)} km`
-          }
-          value={form.nextMaintenanceKm}
-          onChange={(e) => alterar('nextMaintenanceKm', digitos(e.target.value, 7))}
-          inputMode="numeric"
-        />
+          <GlassInput
+            label="Próxima revisão (km)"
+            hint={
+              registro?.kmToMaintenance == null
+                ? 'odômetro em que a revisão vence'
+                : vencida
+                  ? `vencida há ${numero(Math.abs(registro.kmToMaintenance))} km`
+                  : `faltam ${numero(registro.kmToMaintenance)} km`
+            }
+            value={form.nextMaintenanceKm}
+            onChange={(e) => alterar('nextMaintenanceKm', digitos(e.target.value, 7))}
+            inputMode="numeric"
+          />
 
-        <GlassDateField
-          label="Próxima revisão (data)"
-          value={form.nextMaintenanceDate}
-          onValueChange={(v) => alterar('nextMaintenanceDate', v)}
-        />
+          <GlassDateField
+            label="Próxima revisão (data)"
+            value={form.nextMaintenanceDate}
+            onValueChange={(v) => alterar('nextMaintenanceDate', v)}
+          />
 
-        <GlassInput
-          label="Observação da operação"
-          hint="Não é sobrescrita pela sincronização"
-          value={form.manualNotes}
-          onChange={(e) => alterar('manualNotes', e.target.value)}
-          maxLength={500}
-        />
-      </Secao>
+          <GlassInput
+            label="Observação da operação"
+            hint="Não é sobrescrita pela sincronização"
+            value={form.manualNotes}
+            onChange={(e) => alterar('manualNotes', e.target.value)}
+            maxLength={500}
+          />
+        </Secao>
 
-      {/* ------------------------------------------------------------------ */}
-      <div className="border-outline-variant flex flex-col gap-3 border-t pt-5">
-        {/* ⚠️ Fora de operação NÃO é o mesmo que inativar. Este marca o caminhão
+        {/* ------------------------------------------------------------------ */}
+        <div className="border-outline-variant flex flex-col gap-3 border-t pt-5">
+          {/* ⚠️ Fora de operação NÃO é o mesmo que inativar. Este marca o caminhão
             parado agora, com motivo, e ele volta. Inativar tira da frota, e fica
             no botão da lista. */}
-        <Checkbox
-          label="Fora de operação"
-          description="Tira o caminhão da conta de frota disponível até alguém devolver. Diferente de inativar, que é sair da frota."
-          checked={form.outOfService}
-          onCheckedChange={(marcado) => alterar('outOfService', marcado === true)}
-        />
-
-        {form.outOfService ? (
-          <GlassInput
-            label="Motivo"
-            hint="Sem o motivo, o status vira um sinal sem explicação"
-            value={form.outOfServiceReason}
-            onChange={(e) => alterar('outOfServiceReason', e.target.value)}
-            maxLength={200}
+          <Checkbox
+            label="Fora de operação"
+            description="Tira o caminhão da conta de frota disponível até alguém devolver. Diferente de inativar, que é sair da frota."
+            checked={form.outOfService}
+            onCheckedChange={(marcado) => alterar('outOfService', marcado === true)}
           />
-        ) : null}
 
-        {registro?.outOfService && registro.outOfServiceSince ? (
-          <p className="text-warning text-label-md flex items-center gap-1.5 normal-case">
-            <WarningIcon size={14} aria-hidden="true" />
-            Parado desde {dataLonga.format(new Date(registro.outOfServiceSince))}
-          </p>
-        ) : null}
+          {form.outOfService ? (
+            <GlassInput
+              label="Motivo"
+              hint="Sem o motivo, o status vira um sinal sem explicação"
+              value={form.outOfServiceReason}
+              onChange={(e) => alterar('outOfServiceReason', e.target.value)}
+              maxLength={200}
+            />
+          ) : null}
+
+          {registro?.outOfService && registro.outOfServiceSince ? (
+            <p className="text-warning text-label-md flex items-center gap-1.5 normal-case">
+              <WarningIcon size={14} aria-hidden="true" />
+              Parado desde {dataLonga.format(new Date(registro.outOfServiceSince))}
+            </p>
+          ) : null}
+        </div>
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-on-surface-muted text-label-md flex items-center gap-1.5 normal-case">
+      {/*
+       * A barra de decisão do diálogo: sair sem gravar, ou gravar.
+       *
+       * ⚠️ A sombra para cima não é enfeite. A barra de rolagem é invisível no
+       * sistema inteiro (19/08/2026), então o conteúdo passando por baixo da
+       * barra é a única pista de que ainda há formulário abaixo. Numa ficha de
+       * cinco seções isso é a diferença entre a pessoa continuar e achar que
+       * acabou.
+       */}
+      <div
+        className={cn(
+          'flex flex-wrap items-center justify-between gap-x-4 gap-y-3',
+          dentroDoDialogo
+            ? 'border-outline-variant bg-surface-low shrink-0 border-t px-5 py-4 shadow-[0_-10px_22px_-14px_rgba(0,0,0,0.45)] sm:px-6'
+            : 'border-outline-variant border-t pt-5',
+        )}
+      >
+        {/* Escondido no estreito: em 390px o texto ocupa três linhas e rouba a
+            altura que o formulário não tem de sobra. */}
+        <p
+          className={cn(
+            'text-on-surface-muted text-label-md min-w-0 items-start gap-1.5 normal-case',
+            dentroDoDialogo ? 'hidden sm:flex' : 'flex',
+          )}
+        >
           {salvo ? (
             <span className="text-success flex items-center gap-1.5">
               <CheckIcon size={14} aria-hidden="true" />
@@ -765,26 +833,45 @@ function Campos({
             </span>
           ) : criando ? (
             <>
-              <InfoIcon size={14} aria-hidden="true" />
+              <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
               Caminhão cadastrado aqui não tem rastreador e não reporta posição
             </>
           ) : registro?.updatedAt ? (
             <>
-              <InfoIcon size={14} aria-hidden="true" />
+              <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
               Editado em {dataLonga.format(new Date(registro.updatedAt))}
               {registro.updatedByName ? ` por ${registro.updatedByName}` : ''}
             </>
           ) : (
             <>
-              <InfoIcon size={14} aria-hidden="true" />
+              <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
               Salvar congela esta ficha: a telemetria não sobrescreve mais
             </>
           )}
         </p>
 
-        <SpectrumButton type="submit" disabled={!podeSalvar || salvar.isPending}>
-          {salvar.isPending ? 'Salvando…' : criando ? 'Cadastrar caminhão' : 'Salvar cadastro'}
-        </SpectrumButton>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {dentroDoDialogo ? (
+            <SpectrumButton
+              type="button"
+              variant="ghost"
+              onClick={onClose}
+              disabled={salvar.isPending}
+            >
+              Fechar
+            </SpectrumButton>
+          ) : null}
+
+          <SpectrumButton type="submit" disabled={!podeSalvar || salvar.isPending}>
+            {salvar.isPending
+              ? criando
+                ? 'Cadastrando…'
+                : 'Salvando…'
+              : criando
+                ? 'Cadastrar caminhão'
+                : 'Salvar cadastro'}
+          </SpectrumButton>
+        </div>
       </div>
     </form>
   );

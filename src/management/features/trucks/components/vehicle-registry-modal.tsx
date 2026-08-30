@@ -13,6 +13,16 @@ import { VehicleRegistryForm } from './vehicle-registry-form';
  * Ele nunca vai reportar posição, então a lista mostra "sem rastreador" no lugar
  * de "sem sinal": a primeira é uma escolha de cadastro e não pede nada de
  * ninguém, a segunda é um problema que leva alguém a ligar para a filial.
+ *
+ * <h2>A barra de ações fica colada embaixo</h2>
+ *
+ * Decisão do usuário em 30/08/2026, seguindo o cadastro de motorista. Aqui o
+ * ganho é maior: a ficha tem cinco seções e mais de vinte campos, então o botão
+ * de gravar ficava a três telas de rolagem do começo.
+ *
+ * ⚠️ Este componente **não** aplica padding nem rolagem próprios. Quem rola é o
+ * corpo do formulário, e é isso que segura a barra embaixo: um `overflow-y-auto`
+ * aqui rolaria o formulário inteiro, barra junto, e a colagem se perderia.
  */
 export interface VehicleRegistryModalProps {
   open: boolean;
@@ -43,17 +53,15 @@ export function VehicleRegistryModal({
       }
       className="w-[calc(100vw-2rem)] max-w-[760px]"
     >
-      {/* Rola dentro do diálogo, e não na página: a ficha tem cinco seções e não
-          cabe na altura da tela. A barra de rolagem é invisível no sistema
-          inteiro (19/08/2026), então o `pb` garante que o último campo não
-          encoste na borda e pareça cortado. */}
-      <div className="overflow-y-auto px-5 pb-6 sm:px-6">
-        {/* Só monta quando o diálogo está aberto. Sem a guarda, fechar dispararia
-            uma consulta durante a animação de saída. */}
-        {open ? (
-          <VehicleRegistryForm vehicleId={vehicleId} onSaved={() => onOpenChange(false)} />
-        ) : null}
-      </div>
+      {/* Só monta quando o diálogo está aberto. Sem a guarda, fechar dispararia
+          uma consulta durante a animação de saída. */}
+      {open ? (
+        <VehicleRegistryForm
+          vehicleId={vehicleId}
+          onSaved={() => onOpenChange(false)}
+          onClose={() => onOpenChange(false)}
+        />
+      ) : null}
     </GlassModal>
   );
 }
