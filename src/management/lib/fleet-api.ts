@@ -1320,6 +1320,28 @@ export interface NewDriverInput {
   cnhCategory: string;
   cnhExpiresAt: string;
   hiredAt: string | null;
+  rg: string | null;
+  rgIssuer: string | null;
+  birthDate: string | null;
+  cnhNumber: string | null;
+  cnhFirstLicensedAt: string | null;
+  cnhEar: boolean;
+  moppExpiresAt: string | null;
+  toxicologyExamAt: string | null;
+  toxicologyExpiresAt: string | null;
+  asoExpiresAt: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  addressZip: string | null;
+  addressStreet: string | null;
+  addressNumber: string | null;
+  addressComplement: string | null;
+  addressDistrict: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  employmentType: string | null;
+  pis: string | null;
+  dismissedAt: string | null;
   companyId: string | null;
   employeeNumber: string | null;
   manualNotes: string | null;
@@ -1343,6 +1365,47 @@ export interface DriverRegistry {
   cnhCategory: string | null;
   cnhExpiresAt: string | null;
   hiredAt: string | null;
+
+  /* Identificação */
+  rg: string | null;
+  rgIssuer: string | null;
+  birthDate: string | null;
+
+  /* Habilitação */
+  /**
+   * ⚠️ O registro da CNH, que NÃO é o mesmo que `license`.
+   *
+   * `license` é o identificador que a telemetria usa para casar a pessoa com a
+   * viagem, e vem do que o cliente cadastrou lá. Este é o número do documento.
+   */
+  cnhNumber: string | null;
+  cnhFirstLicensedAt: string | null;
+  /** Exerce Atividade Remunerada. Sem a observação, dirigir profissionalmente é infração grave. */
+  cnhEar: boolean;
+  moppExpiresAt: string | null;
+
+  /* Aptidão */
+  toxicologyExamAt: string | null;
+  /** ⚠️ Vencido impede dirigir C, D e E, e a empresa responde junto. */
+  toxicologyExpiresAt: string | null;
+  asoExpiresAt: string | null;
+
+  /* Contato e endereço */
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  addressZip: string | null;
+  addressStreet: string | null;
+  addressNumber: string | null;
+  addressComplement: string | null;
+  addressDistrict: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+
+  /* Vínculo */
+  employmentType: string | null;
+  pis: string | null;
+  dismissedAt: string | null;
+
   companyId: string | null;
   companyName: string | null;
   employeeNumber: string | null;

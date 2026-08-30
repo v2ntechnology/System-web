@@ -535,6 +535,7 @@ function Campos({
 
           <GlassInput
             label="Renavam"
+            placeholder="00123456789"
             hint="11 dígitos"
             value={form.renavam}
             onChange={(e) => alterar('renavam', digitos(e.target.value, 11))}
@@ -543,6 +544,7 @@ function Campos({
 
           <GlassInput
             label="Chassi"
+            placeholder="9BM9580748B123456"
             hint="17 caracteres, do documento"
             value={form.vin}
             onChange={(e) => alterar('vin', e.target.value.toUpperCase().slice(0, 17))}
@@ -550,6 +552,7 @@ function Campos({
 
           <GlassInput
             label="Número de frota"
+            placeholder="221"
             hint="O número pintado na porta"
             value={form.fleetNumber}
             onChange={(e) => alterar('fleetNumber', e.target.value)}
@@ -558,6 +561,7 @@ function Campos({
 
           <GlassInput
             label="Marca"
+            placeholder="Volvo"
             value={form.manufacturer}
             onChange={(e) => alterar('manufacturer', e.target.value)}
             maxLength={60}
@@ -565,6 +569,7 @@ function Campos({
 
           <GlassInput
             label="Modelo"
+            placeholder="FH 460"
             value={form.model}
             onChange={(e) => alterar('model', e.target.value)}
             maxLength={60}
@@ -575,6 +580,7 @@ function Campos({
             diferença muda o valor de revenda. */}
           <GlassInput
             label="Ano de fabricação"
+            placeholder="2023"
             value={form.year}
             onChange={(e) => alterar('year', digitos(e.target.value, 4))}
             inputMode="numeric"
@@ -582,6 +588,7 @@ function Campos({
 
           <GlassInput
             label="Ano do modelo"
+            placeholder="2024"
             value={form.modelYear}
             onChange={(e) => alterar('modelYear', digitos(e.target.value, 4))}
             inputMode="numeric"
@@ -589,6 +596,7 @@ function Campos({
 
           <GlassInput
             label="Cor"
+            placeholder="Branco"
             value={form.color}
             onChange={(e) => alterar('color', e.target.value)}
             maxLength={30}
@@ -613,6 +621,7 @@ function Campos({
 
           <GlassInput
             label="Eixos"
+            placeholder="6"
             value={form.axles}
             onChange={(e) => alterar('axles', digitos(e.target.value, 2))}
             inputMode="numeric"
@@ -620,6 +629,7 @@ function Campos({
 
           <GlassInput
             label="Combustível"
+            placeholder="Diesel S10"
             hint="Diesel S10, S500, GNV"
             value={form.fuelType}
             onChange={(e) => alterar('fuelType', e.target.value)}
@@ -628,6 +638,7 @@ function Campos({
 
           <GlassInput
             label="Tara (kg)"
+            placeholder="8500"
             hint="Peso do veículo vazio"
             value={form.tareWeightKg}
             onChange={(e) => alterar('tareWeightKg', digitos(e.target.value, 6))}
@@ -636,6 +647,7 @@ function Campos({
 
           <GlassInput
             label="Capacidade de carga (kg)"
+            placeholder="36000"
             value={form.payloadKg}
             onChange={(e) => alterar('payloadKg', digitos(e.target.value, 6))}
             inputMode="numeric"
@@ -645,6 +657,7 @@ function Campos({
             volumosa enche o baú muito antes de atingir a capacidade em peso. */}
           <GlassInput
             label="Volume de carga (m³)"
+            placeholder="92,5"
             value={form.cargoVolumeM3}
             onChange={(e) => alterar('cargoVolumeM3', e.target.value.replace(/[^\d,.]/g, ''))}
             inputMode="decimal"
@@ -652,6 +665,7 @@ function Campos({
 
           <GlassInput
             label="Tanque (litros)"
+            placeholder="600"
             value={form.tankCapacityL}
             onChange={(e) => alterar('tankCapacityL', digitos(e.target.value, 5))}
             inputMode="numeric"
@@ -659,6 +673,7 @@ function Campos({
 
           <GlassInput
             label="Consumo de referência (km/l)"
+            placeholder="2,4"
             hint="Para comparar com o que a telemetria mede"
             value={form.referenceKmpl}
             onChange={(e) => alterar('referenceKmpl', e.target.value.replace(/[^\d,.]/g, ''))}
@@ -685,6 +700,7 @@ function Campos({
 
           <GlassInput
             label="RNTRC"
+            placeholder="12345678"
             hint="Registro da ANTT"
             value={form.rntrc}
             onChange={(e) => alterar('rntrc', e.target.value)}
@@ -706,6 +722,7 @@ function Campos({
 
           <GlassInput
             label="Proprietário"
+            placeholder="Servioeste Transportes Ltda"
             value={form.ownerName}
             onChange={(e) => alterar('ownerName', e.target.value)}
             maxLength={120}
@@ -713,6 +730,7 @@ function Campos({
 
           <GlassInput
             label="CPF ou CNPJ do proprietário"
+            placeholder="12.345.678/0001-90"
             value={form.ownerDocument}
             onChange={(e) => alterar('ownerDocument', digitos(e.target.value, 14))}
             inputMode="numeric"
@@ -736,6 +754,7 @@ function Campos({
         <Secao titulo="Operação" hint="O que a telemetria não entrega: quem preenche é quem opera.">
           <GlassInput
             label="Código interno"
+            placeholder="221"
             value={form.internalCode}
             onChange={(e) => alterar('internalCode', e.target.value)}
             maxLength={40}
@@ -743,6 +762,7 @@ function Campos({
 
           <GlassInput
             label="Próxima revisão (km)"
+            placeholder="480000"
             hint={
               registro?.kmToMaintenance == null
                 ? 'odômetro em que a revisão vence'
@@ -763,6 +783,7 @@ function Campos({
 
           <GlassInput
             label="Observação da operação"
+            placeholder="Baú com avaria na porta lateral"
             hint="Não é sobrescrita pela sincronização"
             value={form.manualNotes}
             onChange={(e) => alterar('manualNotes', e.target.value)}
@@ -785,6 +806,7 @@ function Campos({
           {form.outOfService ? (
             <GlassInput
               label="Motivo"
+              placeholder="Aguardando peça do turbo"
               hint="Sem o motivo, o status vira um sinal sem explicação"
               value={form.outOfServiceReason}
               onChange={(e) => alterar('outOfServiceReason', e.target.value)}

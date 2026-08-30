@@ -3,7 +3,9 @@ import {
   EraserIcon,
   IdCardIcon,
   InfoIcon,
+  MapPinIcon,
   MinusCircleIcon,
+  ShieldCheckIcon,
   TruckIcon,
   UserIcon,
 } from '@/components/icons';
@@ -39,6 +41,9 @@ import {
   DEFAULT_DRIVER_FORM,
   digitsOnly,
   driverRegistrationSchema,
+  EMPLOYMENT_TYPES,
+  UF_LIST,
+  formatCep,
   formatCpf,
   formatPhone,
   NO_COMPANY,
@@ -133,6 +138,34 @@ export function DriverRegistrationModal({
       cnhCategory: ficha.cnhCategory ?? DEFAULT_DRIVER_FORM.cnhCategory,
       cnhExpiresAt: ficha.cnhExpiresAt ?? '',
       hiredAt: ficha.hiredAt ?? '',
+
+      rg: ficha.rg ?? '',
+      rgIssuer: ficha.rgIssuer ?? '',
+      birthDate: ficha.birthDate ?? '',
+
+      cnhNumber: ficha.cnhNumber ?? '',
+      cnhFirstLicensedAt: ficha.cnhFirstLicensedAt ?? '',
+      cnhEar: ficha.cnhEar,
+      moppExpiresAt: ficha.moppExpiresAt ?? '',
+
+      toxicologyExamAt: ficha.toxicologyExamAt ?? '',
+      toxicologyExpiresAt: ficha.toxicologyExpiresAt ?? '',
+      asoExpiresAt: ficha.asoExpiresAt ?? '',
+
+      emergencyContactName: ficha.emergencyContactName ?? '',
+      emergencyContactPhone: formatPhone(ficha.emergencyContactPhone ?? ''),
+      addressZip: formatCep(ficha.addressZip ?? ''),
+      addressStreet: ficha.addressStreet ?? '',
+      addressNumber: ficha.addressNumber ?? '',
+      addressComplement: ficha.addressComplement ?? '',
+      addressDistrict: ficha.addressDistrict ?? '',
+      addressCity: ficha.addressCity ?? '',
+      addressState: ficha.addressState ?? '',
+
+      employmentType: ficha.employmentType ?? '',
+      pis: ficha.pis ?? '',
+      dismissedAt: ficha.dismissedAt ?? '',
+
       companyId: ficha.companyId ?? NO_COMPANY,
       employeeNumber: ficha.employeeNumber ?? '',
       manualNotes: ficha.manualNotes ?? '',
@@ -190,6 +223,35 @@ export function DriverRegistrationModal({
         cnhCategory: form.cnhCategory,
         cnhExpiresAt: form.cnhExpiresAt,
         hiredAt: emptyToNull(form.hiredAt),
+
+        rg: emptyToNull(form.rg),
+        rgIssuer: emptyToNull(form.rgIssuer),
+        birthDate: emptyToNull(form.birthDate),
+
+        cnhNumber: form.cnhNumber === '' ? null : digitsOnly(form.cnhNumber),
+        cnhFirstLicensedAt: emptyToNull(form.cnhFirstLicensedAt),
+        cnhEar: form.cnhEar,
+        moppExpiresAt: emptyToNull(form.moppExpiresAt),
+
+        toxicologyExamAt: emptyToNull(form.toxicologyExamAt),
+        toxicologyExpiresAt: emptyToNull(form.toxicologyExpiresAt),
+        asoExpiresAt: emptyToNull(form.asoExpiresAt),
+
+        emergencyContactName: emptyToNull(form.emergencyContactName),
+        emergencyContactPhone:
+          form.emergencyContactPhone === '' ? null : digitsOnly(form.emergencyContactPhone),
+        addressZip: form.addressZip === '' ? null : digitsOnly(form.addressZip),
+        addressStreet: emptyToNull(form.addressStreet),
+        addressNumber: emptyToNull(form.addressNumber),
+        addressComplement: emptyToNull(form.addressComplement),
+        addressDistrict: emptyToNull(form.addressDistrict),
+        addressCity: emptyToNull(form.addressCity),
+        addressState: emptyToNull(form.addressState),
+
+        employmentType: emptyToNull(form.employmentType),
+        pis: form.pis === '' ? null : digitsOnly(form.pis),
+        dismissedAt: emptyToNull(form.dismissedAt),
+
         companyId: form.companyId === NO_COMPANY ? null : emptyToNull(form.companyId),
         employeeNumber: emptyToNull(form.employeeNumber),
         manualNotes: emptyToNull(form.manualNotes),
@@ -384,6 +446,35 @@ export function DriverRegistrationModal({
                 {...register('email')}
                 className="sm:col-span-2"
               />
+
+              <GlassInput
+                label="RG"
+                autoComplete="off"
+                placeholder="12.345.678-9"
+                error={errors.rg?.message}
+                {...register('rg')}
+              />
+
+              <GlassInput
+                label="Órgão emissor"
+                autoComplete="off"
+                placeholder="DETRAN-RJ"
+                error={errors.rgIssuer?.message}
+                {...register('rgIssuer')}
+              />
+
+              <Controller
+                control={control}
+                name="birthDate"
+                render={({ field }) => (
+                  <GlassDateField
+                    label="Data de nascimento"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    error={errors.birthDate?.message}
+                  />
+                )}
+              />
             </div>
 
             {/* ------------------------------------------------------------ */}
@@ -475,14 +566,69 @@ export function DriverRegistrationModal({
               />
 
               <GlassInput
-                label="Número da CNH"
+                label="Registro da CNH"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="12345678901"
+                hint="11 dígitos, do documento"
+                error={errors.cnhNumber?.message}
+                {...register('cnhNumber')}
+              />
+
+              <Controller
+                control={control}
+                name="cnhFirstLicensedAt"
+                render={({ field }) => (
+                  <GlassDateField
+                    label="Primeira habilitação"
+                    hint="Seguradora costuma exigir tempo mínimo"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    error={errors.cnhFirstLicensedAt?.message}
+                  />
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="moppExpiresAt"
+                render={({ field }) => (
+                  <GlassDateField
+                    label="MOPP vence em"
+                    hint="Produtos perigosos. Vazio quando não tem o curso"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    error={errors.moppExpiresAt?.message}
+                  />
+                )}
+              />
+
+              {/* ⚠️ O identificador da telemetria, e NÃO o registro do
+                  documento. É por ele que a viagem casa com a pessoa: vem do
+                  que o cliente cadastrou no fornecedor (cartão, tag), e mudar
+                  um pelo outro quebraria a reconciliação. */}
+              <GlassInput
+                label="Identificação na telemetria"
                 inputMode="numeric"
                 autoComplete="off"
                 placeholder="11 dígitos"
-                hint="Opcional"
+                hint="O que o fornecedor usa para reconhecer a pessoa"
                 error={errors.license?.message}
                 {...register('license')}
-                className="sm:col-span-2"
+              />
+
+              <Controller
+                control={control}
+                name="cnhEar"
+                render={({ field }) => (
+                  <Checkbox
+                    label="Tem EAR na CNH"
+                    description="Exerce Atividade Remunerada. Sem a observação, dirigir profissionalmente é infração grave, mesmo com a categoria certa."
+                    checked={field.value}
+                    onCheckedChange={(marcado) => field.onChange(marcado === true)}
+                    className="sm:col-span-2"
+                  />
+                )}
               />
             </div>
 
@@ -510,6 +656,166 @@ export function DriverRegistrationModal({
 
           <Section
             step={3}
+            title="Aptidão"
+            description="As duas datas que tiram o caminhão da rua. Vencido não dirige, e a empresa responde junto."
+            icon={<ShieldCheckIcon size={16} aria-hidden="true" />}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* ⚠️ Obrigatório por lei para C, D e E, com validade de dois anos
+                  e meio. É a data que mais tira caminhão da rua depois da CNH. */}
+              <Controller
+                control={control}
+                name="toxicologyExpiresAt"
+                render={({ field }) => (
+                  <GlassDateField
+                    label="Toxicológico vence em"
+                    hint="Obrigatório para C, D e E"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    error={errors.toxicologyExpiresAt?.message}
+                  />
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="toxicologyExamAt"
+                render={({ field }) => (
+                  <GlassDateField
+                    label="Data do exame"
+                    hint="Quando foi colhido"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    error={errors.toxicologyExamAt?.message}
+                  />
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="asoExpiresAt"
+                render={({ field }) => (
+                  <GlassDateField
+                    label="ASO vence em"
+                    hint="Atestado de saúde ocupacional"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    error={errors.asoExpiresAt?.message}
+                  />
+                )}
+              />
+            </div>
+          </Section>
+
+          <Section
+            step={4}
+            title="Contato e endereço"
+            description="Quem avisar se acontecer alguma coisa na estrada, e onde a pessoa mora."
+            icon={<MapPinIcon size={16} aria-hidden="true" />}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <GlassInput
+                label="Contato de emergência"
+                autoComplete="off"
+                placeholder="Maria Ferreira da Silva"
+                error={errors.emergencyContactName?.message}
+                {...register('emergencyContactName')}
+              />
+
+              <Controller
+                control={control}
+                name="emergencyContactPhone"
+                render={({ field }) => (
+                  <GlassInput
+                    label="Telefone de emergência"
+                    inputMode="tel"
+                    autoComplete="off"
+                    placeholder="(00) 00000-0000"
+                    error={errors.emergencyContactPhone?.message}
+                    value={formatPhone(field.value)}
+                    onChange={(event) => field.onChange(formatPhone(event.target.value))}
+                    onBlur={field.onBlur}
+                  />
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="addressZip"
+                render={({ field }) => (
+                  <GlassInput
+                    label="CEP"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="26200-000"
+                    error={errors.addressZip?.message}
+                    value={formatCep(field.value)}
+                    onChange={(event) => field.onChange(formatCep(event.target.value))}
+                    onBlur={field.onBlur}
+                  />
+                )}
+              />
+
+              <GlassInput
+                label="Logradouro"
+                autoComplete="off"
+                placeholder="Rua das Acácias"
+                error={errors.addressStreet?.message}
+                {...register('addressStreet')}
+              />
+
+              <GlassInput
+                label="Número"
+                autoComplete="off"
+                placeholder="120"
+                error={errors.addressNumber?.message}
+                {...register('addressNumber')}
+              />
+
+              <GlassInput
+                label="Complemento"
+                autoComplete="off"
+                placeholder="Apto 302, fundos"
+                error={errors.addressComplement?.message}
+                {...register('addressComplement')}
+              />
+
+              <GlassInput
+                label="Bairro"
+                autoComplete="off"
+                placeholder="Centro"
+                error={errors.addressDistrict?.message}
+                {...register('addressDistrict')}
+              />
+
+              <GlassInput
+                label="Cidade"
+                autoComplete="off"
+                placeholder="Queimados"
+                error={errors.addressCity?.message}
+                {...register('addressCity')}
+              />
+
+              <Controller
+                control={control}
+                name="addressState"
+                render={({ field }) => (
+                  <GlassSelect
+                    label="Estado"
+                    options={[
+                      { value: '', label: 'Não informado' },
+                      ...UF_LIST.map((uf) => ({ value: uf, label: uf })),
+                    ]}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  />
+                )}
+              />
+            </div>
+          </Section>
+
+          <Section
+            step={5}
             title="Vínculo com a operação"
             description="Em que empresa a pessoa trabalha e desde quando. Tudo opcional."
             icon={<TruckIcon size={16} aria-hidden="true" />}
@@ -530,12 +836,55 @@ export function DriverRegistrationModal({
                 />
               ) : null}
 
+              {/* ⚠️ Espelha o vínculo do veículo, e pelo mesmo motivo: CLT tem
+                  custo fixo mensal, agregado e terceiro são pagamento por
+                  viagem. Sem o campo, custo por km soma o que não se soma. */}
+              <Controller
+                control={control}
+                name="employmentType"
+                render={({ field }) => (
+                  <GlassSelect
+                    label="Vínculo"
+                    options={[...EMPLOYMENT_TYPES]}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  />
+                )}
+              />
+
               <GlassInput
                 label="Matrícula"
                 autoComplete="off"
-                placeholder="Código interno do RH"
+                placeholder="9042"
+                hint="Código interno do RH"
                 error={errors.employeeNumber?.message}
                 {...register('employeeNumber')}
+              />
+
+              <GlassInput
+                label="PIS/PASEP"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="12345678901"
+                hint="11 dígitos"
+                error={errors.pis?.message}
+                {...register('pis')}
+              />
+
+              {/* Preenchida junto da inativação: é o que responde "desde
+                  quando" sem depender da data em que alguém mexeu na ficha. */}
+              <Controller
+                control={control}
+                name="dismissedAt"
+                render={({ field }) => (
+                  <GlassDateField
+                    label="Data de saída"
+                    hint="Vazio enquanto a pessoa está na empresa"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    error={errors.dismissedAt?.message}
+                  />
+                )}
               />
 
               <Controller

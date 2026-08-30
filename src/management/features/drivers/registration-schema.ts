@@ -118,6 +118,59 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * o campo aparece em branco na tela. Com um valor próprio a opção se comporta
  * como qualquer outra, e a conversão para nulo acontece só na hora de enviar.
  */
+/**
+ * Como a pessoa está ligada à empresa.
+ *
+ * ⚠️ Espelha o vínculo do veículo, e pelo mesmo motivo: CLT tem custo fixo
+ * mensal, agregado e terceiro são pagamento por viagem. Sem o campo, custo por
+ * km soma coisas que não se somam.
+ */
+export const EMPLOYMENT_TYPES = [
+  { value: '', label: 'Não informado' },
+  { value: 'CLT', label: 'CLT' },
+  { value: 'AUTONOMO', label: 'Autônomo' },
+  { value: 'AGREGADO', label: 'Agregado' },
+  { value: 'TERCEIRO', label: 'Terceiro' },
+  { value: 'TEMPORARIO', label: 'Temporário' },
+];
+
+/** Sigla de estado, para o endereço. */
+export const UF_LIST = [
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
+];
+
+/** CEP com o traço, como o brasileiro lê. */
+export function formatCep(input: string): string {
+  const d = digitsOnly(input).slice(0, 8);
+  return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
+}
+
 export const NO_COMPANY = 'NO_COMPANY';
 
 export const driverRegistrationSchema = z.object({
@@ -144,6 +197,69 @@ export const driverRegistrationSchema = z.object({
 
   hiredAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
 
+  /* ---------------------------------------------------------------- */
+  /* Identificação                                                     */
+  /* ---------------------------------------------------------------- */
+
+  rg: z.string().max(20, 'RG muito longo.'),
+  rgIssuer: z.string().max(20, 'Órgão emissor muito longo.'),
+  birthDate: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
+
+  /* ---------------------------------------------------------------- */
+  /* Habilitação                                                       */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * ⚠️ Registro da CNH, que NÃO é o mesmo que `license`.
+   *
+   * `license` é o identificador que a telemetria usa para casar a pessoa com
+   * a viagem (o cartão, a tag, o que o cliente cadastrou lá). O registro é o
+   * número do documento, e acompanha a pessoa entre renovações. Juntar os dois
+   * quebraria a reconciliação no dia em que o cliente mudasse de crachá.
+   */
+  cnhNumber: z
+    .string()
+    .refine((v) => v === '' || digitsOnly(v).length === 11, 'O registro da CNH tem 11 dígitos.'),
+
+  cnhFirstLicensedAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
+  cnhEar: z.boolean(),
+  moppExpiresAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
+
+  /* ---------------------------------------------------------------- */
+  /* Aptidão                                                           */
+  /* ---------------------------------------------------------------- */
+
+  toxicologyExamAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
+  toxicologyExpiresAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
+  asoExpiresAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
+
+  /* ---------------------------------------------------------------- */
+  /* Contato e endereço                                                */
+  /* ---------------------------------------------------------------- */
+
+  emergencyContactName: z.string().max(120, 'Nome muito longo.'),
+  emergencyContactPhone: z
+    .string()
+    .refine((v) => v === '' || digitsOnly(v).length >= 10, 'Telefone incompleto.'),
+
+  addressZip: z
+    .string()
+    .refine((v) => v === '' || digitsOnly(v).length === 8, 'O CEP tem 8 dígitos.'),
+  addressStreet: z.string().max(160, 'Logradouro muito longo.'),
+  addressNumber: z.string().max(20, 'Número muito longo.'),
+  addressComplement: z.string().max(60, 'Complemento muito longo.'),
+  addressDistrict: z.string().max(80, 'Bairro muito longo.'),
+  addressCity: z.string().max(80, 'Cidade muito longa.'),
+  addressState: z.string(),
+
+  /* ---------------------------------------------------------------- */
+  /* Vínculo                                                           */
+  /* ---------------------------------------------------------------- */
+
+  employmentType: z.string(),
+  pis: z.string().refine((v) => v === '' || digitsOnly(v).length === 11, 'O PIS tem 11 dígitos.'),
+  dismissedAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
+
   companyId: z.string(),
   employeeNumber: z.string().max(40, 'Matrícula muito longa.'),
   manualNotes: z.string().max(500, 'Observação muito longa.'),
@@ -161,6 +277,28 @@ export const DEFAULT_DRIVER_FORM: DriverRegistrationValues = {
   cnhCategory: 'E',
   cnhExpiresAt: '',
   hiredAt: '',
+  rg: '',
+  rgIssuer: '',
+  birthDate: '',
+  cnhNumber: '',
+  cnhFirstLicensedAt: '',
+  cnhEar: false,
+  moppExpiresAt: '',
+  toxicologyExamAt: '',
+  toxicologyExpiresAt: '',
+  asoExpiresAt: '',
+  emergencyContactName: '',
+  emergencyContactPhone: '',
+  addressZip: '',
+  addressStreet: '',
+  addressNumber: '',
+  addressComplement: '',
+  addressDistrict: '',
+  addressCity: '',
+  addressState: '',
+  employmentType: '',
+  pis: '',
+  dismissedAt: '',
   companyId: NO_COMPANY,
   employeeNumber: '',
   manualNotes: '',

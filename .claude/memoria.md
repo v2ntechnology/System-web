@@ -365,6 +365,21 @@ confirmação, e o mesmo diálogo servindo criação e edição.
 - O chip "Conferido" e o filtro de conferência saem de `registry_updated_at`. É o placar do trabalho
   que a tela existe para fazer: 150 pessoas importadas, 0 conferidas no começo.
 
+### As duas fichas ficaram do tamanho do mercado (30/08/2026)
+
+O cadastro de motorista foi de 11 para 33 campos, em cinco seções (identificação, habilitação,
+aptidão, contato e endereço, vínculo), acompanhando o que já tinha sido feito no caminhão.
+
+- ⚠️ **"Identificação na telemetria" e "Registro da CNH" são campos DIFERENTES**, e o rótulo do
+  primeiro foi escolhido para ninguém confundir. Um é o que o fornecedor usa para casar a pessoa
+  com a viagem (cartão, tag); o outro é o número do documento. Trocar um pelo outro quebra a
+  reconciliação, e o sintoma seria viagem sem condutor identificado.
+- ⚠️ **Placeholder é EXEMPLO, e não repetição do rótulo.** "Digite a marca" não ensina nada;
+  "Volvo" mostra o formato e a granularidade esperada num relance, que é a diferença entre alguém
+  escrever "VW" e "Volkswagen" na mesma base. O cinza sai de `placeholder:text-placeholder`, que o
+  `GlassInput` já aplica. São 22 no caminhão e 19 no motorista.
+- O formulário do caminhão não tinha placeholder nenhum até esta rodada.
+
 ### Mapa ao vivo como central de comando (`/gestao/mapa`)
 
 Redesenhada em **30/08/2026**, e revista no mesmo dia depois que o usuário usou a tela. A regra
@@ -419,6 +434,51 @@ entra: é decisão de menu, não de permissão.
 - **Atualização a cada 10 segundos** (era 4). O número sai de `REFETCH_MS` e não de dois lugares:
   ele aparece escrito na tela, e com o valor repetido a legenda passaria a mentir na primeira vez
   que alguém mexesse no outro.
+- ⚠️ **"Atualização automática a cada 10 segundos" era mentira, e saiu** (usuário em 30/08/2026).
+  Os 10 segundos são de quanto em quanto tempo a TELA repergunta ao nosso banco. O banco só
+  recebe posição nova quando o coletor da MiX roda, e ele roda a cada **5 minutos**
+  (`rookhub.mix.collection-interval-ms`, padrão 300000, `fixedDelay`), mais o tempo que o
+  rastreador leva para reportar à MiX. O chip agora mostra a IDADE da leitura mais recente da
+  frota, medida no cliente a partir de `lastSyncAt`, e o intervalo do polling ficou no `title`.
+  ⚠️ Medir em vez de repetir o número do backend é de propósito: aquele valor é configuração, e
+  o atraso do rastreador não é configurável por ninguém.
+- ⚠️ **O replay não passa mais por estado do React.** O `TrackReplay` chamava `setState` no pai a
+  cada quadro, e o pai é a página inteira: lista de 33 veículos, ficha e mapa re-renderizavam
+  dezenas de vezes por segundo para mover um ponto, e era isso que fazia o play engasgar. O
+  `FleetMap` virou `forwardRef` e expõe `setReplayPose` (`FleetMapHandle`); o laço escreve direto
+  na fonte do MapLibre e o React não roda nenhuma vez enquanto o trajeto corre. Só o rótulo de
+  hora e o slider continuam em estado, a 8 atualizações por segundo (`PASSO_DA_INTERFACE_MS`).
+- **O marcador do replay é um CAMINHÃO, e a posição é interpolada entre leituras.** Um círculo
+  âmbar não dizia o que era (evento? parada? cursor?), e sem interpolar ele saltava de esquina em
+  esquina dez vezes por segundo, que era metade da sensação de travamento. ⚠️ São duas camadas
+  pelo mesmo motivo da frota: a seta gira com a direção, o crachá não, senão o caminhão fica de
+  cabeça para baixo em todo trecho rumo ao oeste. O rumo usa a fórmula da esfera, e não `atan2`
+  cru: em latitude de 23 graus um grau de longitude é bem mais curto que um de latitude, e
+  ignorar isso entorta a seta em todo trecho que corre para leste.
+- ⚠️ **O zoom do MapLibre desceu para o rodapé direito** para o mapa de calor poder ir ao topo
+  direito, onde o usuário pediu. É o mesmo conflito de canto já registrado antes: devolver o zoom
+  para cima traz a sobreposição de volta.
+- ⚠️ **O que flutua sobre o mapa usa a MESMA receita do mapa da operação**
+  (`components/shared/operation-map`), decidido pelo usuário em 30/08/2026: papel a 80%, traço de
+  divisória, `rounded-md`, `backdrop-blur` padrão e texto de 11px. São dois mapas do mesmo
+  produto, e a informação sobreposta não pode ter dois desenhos. A constante é `SOBRE_O_MAPA`, no
+  topo da página; mexeu num mapa, confira o outro.
+- Os tokens têm nomes diferentes nos dois lados e apontam para os mesmos valores: `background`,
+  `border` e `muted-foreground` do painel operacional são aliases de `surface`, `outline-variant`
+  e `on-surface-muted`, declarados no `@theme inline` do `globals.css`. Dentro de `management/`
+  usa-se o nome da gestão, que é a convenção da pasta.
+- ⚠️ **Duas versões foram recusadas antes desta, e as duas valem como aviso.** A primeira era uma
+  placa quase preta (`bg-[#101014]/82`), que eu escolhi para ganhar contraste: sobre o Liberty,
+  que é um mapa claro, ela não lê como vidro, lê como buraco. A segunda era branco puro com
+  `backdrop-blur-2xl`, que ficava mais pesada que o próprio mapa. Papel a 80% deixa o território
+  aparecer sem disputar com ele.
+- ⚠️ **Quem garante a leitura é a camada de papel, não o desfoque.** O `backdrop-blur` só dissolve
+  a malha de ruas; ele não escurece nem clareia nada, e um cartão com blur e fundo transparente
+  fica ilegível sobre mapa detalhado.
+- ⚠️ Aqui o desfoque FAZ sentido, ao contrário do resto do painel, onde ele foi removido no mesmo
+  redesign: lá era placa branca sobre papel branco e custava GPU sem efeito visível; sobre o mapa
+  há conteúdo atrás de verdade. Os dois mapas são as únicas superfícies do sistema que ainda usam
+  `backdrop-filter`.
 - ⚠️ **O filtro do painel lateral filtra a LISTA, não os marcadores.** Continua assim, e a tela
   não promete o contrário. Vale registrar como pendência: hoje um gestor que filtra por
   "Manutenção" vê a lista encolher e o mapa igual.
