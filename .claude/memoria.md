@@ -365,6 +365,33 @@ confirmação, e o mesmo diálogo servindo criação e edição.
 - O chip "Conferido" e o filtro de conferência saem de `registry_updated_at`. É o placar do trabalho
   que a tela existe para fazer: 150 pessoas importadas, 0 conferidas no começo.
 
+### Os dois diálogos de cadastro viraram etapas (30/08/2026)
+
+Decisão do usuário. Trinta campos numa coluna só obrigam a rolar três telas antes de saber o que
+falta. As cinco seções viraram etapas, com barra fixa no topo do diálogo e o botão principal
+mudando de "Próximo" para "Cadastrar" na última.
+
+- `WizardSteps` em `management/ui` serve os dois. Recebe a marca de erro por etapa, e é só isso:
+  o estado da etapa mora em cada formulário, porque um usa `react-hook-form` e o outro `useState`.
+- ⚠️ **As etapas são navegáveis, e não um trilho.** Dá para clicar direto na etapa 4. Assistente
+  que tranca o avanço serve para fluxo de compra, onde a ordem é regra de negócio; aqui a ordem é
+  só arrumação, e quem corrige o CEP de alguém não pode ser obrigado a passar por habilitação e
+  aptidão.
+- ⚠️ **"Próximo" só existe no CADASTRO.** Na edição o botão grava de qualquer etapa: quem abriu
+  para corrigir uma linha não passa por cinco telas para salvar.
+- ⚠️ **O botão de avançar é `type="button"`, e não submit.** Com submit, o Enter num campo da
+  etapa 1 tentaria gravar o cadastro inteiro em vez de ir para a etapa 2. O `onSubmit` também
+  avança em vez de gravar enquanto há etapa pela frente.
+- ⚠️ **A validação ao avançar é do passo atual, e não do formulário todo** (`trigger` com a lista
+  de campos da etapa). Sem a lista, sair da primeira etapa acusaria o vencimento da CNH em branco,
+  que é um campo que a pessoa ainda nem viu.
+- ⚠️ **A etapa com erro é marcada na barra.** É o que impede o pior defeito deste tipo de tela: a
+  pessoa clica em cadastrar, nada acontece, e o campo inválido está numa etapa que ela não está
+  vendo. Sem a marca, o formulário parece quebrado.
+- O título da seção sumiu de dentro do corpo: a barra já diz onde a pessoa está, e repetir gastava
+  a altura que a mudança existe para poupar. A descrição ficou, porque não está em lugar nenhum.
+- "Contato e endereço" virou "Contato" na aba para as cinco caberem sem cortar em 768px.
+
 ### As duas fichas ficaram do tamanho do mercado (30/08/2026)
 
 O cadastro de motorista foi de 11 para 33 campos, em cinco seções (identificação, habilitação,
@@ -482,6 +509,58 @@ entra: é decisão de menu, não de permissão.
 - ⚠️ **O filtro do painel lateral filtra a LISTA, não os marcadores.** Continua assim, e a tela
   não promete o contrário. Vale registrar como pendência: hoje um gestor que filtra por
   "Manutenção" vê a lista encolher e o mapa igual.
+
+### A frota em 3D no mapa ao vivo (30/08/2026)
+
+⚠️ **NÃO FOI VISTO NA TELA.** Escrito com o navegador do Playwright bloqueado, então nada aqui
+foi confirmado visualmente. É a primeira coisa a conferir na próxima sessão, e a lista do que
+pode estar errado está no fim desta seção.
+
+- **O modelo é `public/models/truck.glb`**, do pacote de veículos do Quaternius, baixado do Poly
+  Pizza. **CC0 1.0**: domínio público, uso comercial liberado, sem exigir crédito. ⚠️ Isso foi
+  verificado antes de baixar, e importa: dos cinco caminhões que apareceram na busca, só este era
+  CC0, os outros quatro eram CC-BY, que obriga a exibir o nome do autor dentro do produto. São
+  7.474 triângulos e 197 KB.
+- **O `three` já era dependência do projeto** (`three@0.185.1`, usado por `globe`, `time-vortex` e
+  `voice-sphere`), e o `GLTFLoader` vem no pacote. O que muda é que o mapa passa a carregar o
+  chunk do three: 569 KB, 142 KB comprimido.
+- ⚠️ **O risco foi levantado ANTES e o usuário decidiu seguir.** O `vehicle-icons.ts` documenta
+  que a primeira versão deste mapa desenhava o veículo visto de cima e foi recusada, porque no
+  zoom em que a tela abre o marcador tem ~26px e nesse tamanho caminhão, van e carro viram o
+  mesmo retângulo. Um modelo 3D em perspectiva cai na mesma armadilha. Se a legibilidade
+  incomodar em uso, o caminho de volta é reativar `icon-opacity` nas camadas 2D, que continuam
+  montadas.
+- **Uma camada só, N caminhões.** O exemplo oficial do MapLibre cria uma custom layer por modelo,
+  com a coordenada fixa na matriz; aqui seriam 33 renderers. `fleet-3d-layer.ts` é uma camada
+  única com um clone por veículo na mesma cena.
+- ⚠️ **A origem do sistema de coordenadas acompanha o centro do mapa.** Coordenada Mercator vive
+  entre 0 e 1 e um metro vale ~1e-8 nessa escala: com origem em (0,0) o `float32` da GPU perde a
+  diferença entre dois caminhões da mesma cidade e eles tremem na tela.
+- ⚠️ **`renderer.resetState()` antes de cada `render` é obrigatório.** O three e o MapLibre
+  dividem o mesmo contexto WebGL; sem devolver o estado, o mapa passa a desenhar com o programa e
+  os buffers que o three deixou ligados, e o sintoma é o mapa inteiro sumir depois do primeiro
+  quadro.
+- ⚠️ **As camadas 2D continuam montadas, com `icon-opacity: 0`, e isso é estrutural.** Uma custom
+  layer do three não responde a `queryRenderedFeatures`, e os três handlers da tela (clique,
+  popup no cursor, troca do ponteiro) estão ligados ao `LAYER_ICON` por id. `icon-opacity` é
+  propriedade de PINTURA: o símbolo continua sendo colocado e consultado. Apagar a camada quebra
+  a interação inteira sem erro no console.
+- **O status é dito por um DISCO no chão, não pela pintura do caminhão.** Tingir o modelo
+  estragaria a textura, e no tamanho em que ele aparece a cor da lataria não se lê. O escolhido
+  cresce 25%, que é o papel que o halo fazia na versão 2D.
+- **O modelo é escalado a cada quadro para ocupar ~34px de comprimento**, medindo metros por
+  pixel com `project`/`unproject` em vez de fórmula: a fórmula depende da latitude, do tamanho do
+  tile e da projeção, e erra em silêncio quando qualquer uma muda.
+
+**O que conferir na tela, em ordem:**
+
+1. O mapa continua desenhando depois do primeiro quadro (se sumir, é o `resetState`).
+2. O caminhão está em pé e apontando para a frente. Se estiver deitado, de lado ou andando de ré,
+   os dois valores a mexer são `ROTACAO_BASE_X` e `ROTACAO_BASE_Z`, e o motivo de cada um está
+   escrito ao lado deles. O GLB veio do FBX2glTF, que exporta Y para cima com o comprimento em Z.
+3. O tamanho na tela em zoom de estado e em zoom de rua (`ALVO_PX`).
+4. Clicar num caminhão ainda abre o popup e seleciona.
+5. O disco de status não pisca contra o chão do modelo (`disco.position.z`).
 
 ### A base cartográfica dos três mapas (30/08/2026)
 
