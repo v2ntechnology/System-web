@@ -15,7 +15,7 @@ export interface SaasTenant {
 export const SAAS_TENANTS: SaasTenant[] = [
   {
     id: 'tenant-servioeste',
-    name: 'ServiOeste Transportes',
+    name: 'Servioeste',
     slug: 'servioeste',
     plan: 'business',
     status: 'active',
@@ -117,7 +117,7 @@ export const SAAS_USERS: SaasUser[] = [
     id: 'u1',
     name: 'Thiago Santos',
     email: 'thiago@servioeste.com.br',
-    tenant: 'ServiOeste Transportes',
+    tenant: 'Servioeste',
     role: 'Gestor de frota',
     active: true,
   },
@@ -125,7 +125,7 @@ export const SAAS_USERS: SaasUser[] = [
     id: 'u2',
     name: 'Marina Alves',
     email: 'marina@servioeste.com.br',
-    tenant: 'ServiOeste Transportes',
+    tenant: 'Servioeste',
     role: 'Administrador',
     active: true,
   },
@@ -191,7 +191,7 @@ export const SAAS_AUDIT: { id: string; actor: string; action: string; date: stri
   {
     id: 'a2',
     actor: 'Marina Alves',
-    action: 'Upgrade do plano Starter para Business (ServiOeste)',
+    action: 'Upgrade do plano Starter para Business (Servioeste)',
     date: '2024-04-28T14:30:00-03:00',
   },
   {

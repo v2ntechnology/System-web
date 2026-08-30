@@ -136,7 +136,7 @@ export function DriversPage() {
       {/* -------------------------------------------------------------------
        * Faixa escura: pódio + resumo da equipe
        * ----------------------------------------------------------------- */}
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Ranking e resumo da equipe</h2>
 
         <div className="grid gap-5 xl:grid-cols-[1.55fr_1fr]">

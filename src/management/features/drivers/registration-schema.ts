@@ -111,14 +111,14 @@ export const allowsTruck = (category: string): boolean => TRUCK_CATEGORIES.has(c
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * "Sem filial" precisa de um valor de verdade.
+ * "Sem empresa" precisa de um valor de verdade.
  *
  * ⚠️ O `GlassSelect` é Radix, e no Radix a string vazia significa **nada
  * selecionado**: o gatilho renderiza o placeholder em vez do rótulo da opção, e
  * o campo aparece em branco na tela. Com um valor próprio a opção se comporta
  * como qualquer outra, e a conversão para nulo acontece só na hora de enviar.
  */
-export const NO_SITE = 'NO_SITE';
+export const NO_COMPANY = 'NO_COMPANY';
 
 export const driverRegistrationSchema = z.object({
   name: z.string().trim().min(3, 'Informe o nome do motorista.').max(120, 'Nome muito longo.'),
@@ -144,7 +144,7 @@ export const driverRegistrationSchema = z.object({
 
   hiredAt: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
 
-  siteId: z.string(),
+  companyId: z.string(),
   employeeNumber: z.string().max(40, 'Matrícula muito longa.'),
   manualNotes: z.string().max(500, 'Observação muito longa.'),
   active: z.boolean(),
@@ -161,7 +161,7 @@ export const DEFAULT_DRIVER_FORM: DriverRegistrationValues = {
   cnhCategory: 'E',
   cnhExpiresAt: '',
   hiredAt: '',
-  siteId: NO_SITE,
+  companyId: NO_COMPANY,
   employeeNumber: '',
   manualNotes: '',
   active: true,

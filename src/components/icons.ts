@@ -33,6 +33,17 @@ export {
   LuSearch as SearchIcon,
   LuFilter as FilterIcon,
   LuExternalLink as ExternalLinkIcon,
+  /* Editar um cadastro existente.
+     ⚠️ `LuPencil`, o lápis sozinho, e NÃO `LuSquarePen`. Alinhado com o outro
+     sistema do usuário em 30/08/2026, que documenta o motivo: em 16px a moldura
+     do quadrado vira ruído ao lado da lixeira, que é um desenho aberto. */
+  LuPencil as EditIcon,
+  /* Excluir um registro gravado. */
+  LuTrash as DeleteIcon,
+  /* Esvaziar um formulário. A borracha, e não a lixeira: lixeira significa
+     apagar um registro gravado, e usar o mesmo desenho para "zerar os campos"
+     faria alguém achar que ia perder o cadastro. */
+  LuEraser as EraserIcon,
   LuLayoutDashboard as DashboardIcon,
   LuLayoutGrid as GridIcon,
   LuInbox as InboxIcon,

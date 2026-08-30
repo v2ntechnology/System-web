@@ -3,7 +3,7 @@ import type { AuthUser, Tenant, UserRole } from '@/types';
 
 export const DEMO_TENANT: Tenant = {
   id: 'tenant-servioeste',
-  name: 'ServiOeste Transportes',
+  name: 'Servioeste',
   slug: 'servioeste',
   plan: 'business',
   status: 'active',

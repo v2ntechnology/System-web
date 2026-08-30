@@ -25,3 +25,4 @@ export { StatusChip, type StatusChipProps, type StatusTone } from './status-chip
 export { Checkbox, type CheckboxProps } from './checkbox';
 export { Alert, type AlertProps } from './alert';
 export { Spinner, type SpinnerProps } from './spinner';
+export { Pagination, PAGE_SIZE, type PaginationProps } from './pagination';

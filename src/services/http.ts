@@ -79,6 +79,25 @@ export async function httpRequest<T>(path: string, init: RequestInit = {}): Prom
     throw new ApiError(await motivoDoErro(response), response.status);
   }
 
+  /*
+   * ⚠️ Resposta sem corpo não passa por `json()`.
+   *
+   * `204 No Content` é o que uma exclusão bem-sucedida devolve, e o corpo vem
+   * vazio: `response.json()` numa string vazia lança `SyntaxError: Unexpected
+   * end of JSON input`. O sintoma engana, porque a operação **funcionou** no
+   * servidor e a tela mostra erro; quem for depurar vai procurar o defeito no
+   * backend, onde ele não está.
+   *
+   * `205` entra junto pelo mesmo motivo, e o `content-length: 0` cobre o caso de
+   * um 200 sem corpo. Quem chama uma rota assim tipa o retorno como `void`.
+   */
+  if (response.status === 204 || response.status === 205) {
+    return undefined as T;
+  }
+  if (response.headers.get('content-length') === '0') {
+    return undefined as T;
+  }
+
   return (await response.json()) as T;
 }
 
@@ -163,4 +182,3 @@ export function sortBy<T>(items: T[], key: keyof T, dir: 'asc' | 'desc' = 'asc')
   const sorted = [...items].sort((a, b) => compareValues(a[key], b[key]));
   return dir === 'desc' ? sorted.reverse() : sorted;
 }
-

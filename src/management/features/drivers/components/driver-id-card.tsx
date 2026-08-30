@@ -6,6 +6,18 @@ import { allowsTruck, daysUntilExpiry, formatCpf } from '../registration-schema'
 /**
  * A carteira do motorista, montando enquanto o formulário é preenchido.
  *
+ * ⚠️ ARQUIVADO EM 30/08/2026, e não código morto. Não apagar.
+ *
+ * O usuário pediu para tirar o quadro "Como esta pessoa vai ficar" do diálogo de
+ * cadastro **por enquanto**, para a tela focar no trabalho de conferir a lista
+ * que veio da telemetria. A varredura de importação acusa este arquivo como sem
+ * uso, e ele continua aqui de propósito.
+ *
+ * Para voltar: no `driver-registration-modal.tsx`, envolver o corpo do
+ * formulário numa grade `lg:grid-cols-[minmax(0,1fr)_340px]`, devolver a largura
+ * do diálogo para `max-w-[1180px]` e pôr este componente num `<aside>` com
+ * `lg:sticky lg:top-0`. O `siteName` de então virou `companyName`.
+ *
  * <h2>Não é decoração</h2>
  *
  * O cadastro tem doze campos, e quem preenche em lote não relê o formulário
