@@ -826,17 +826,15 @@ function Campos({
       {/*
        * A barra de decisão do diálogo: sair sem gravar, ou gravar.
        *
-       * ⚠️ A sombra para cima não é enfeite. A barra de rolagem é invisível no
-       * sistema inteiro (19/08/2026), então o conteúdo passando por baixo da
-       * barra é a única pista de que ainda há formulário abaixo. Numa ficha de
-       * cinco seções isso é a diferença entre a pessoa continuar e achar que
-       * acabou.
+       * ⚠️ Sem sombra para cima (decisão do usuário em 30/08/2026), igual ao
+       * cadastro de motorista. A borda e a superfície mais clara já separam a
+       * barra do formulário; a sombra era um terceiro sinal para a mesma coisa.
        */}
       <div
         className={cn(
           'flex flex-wrap items-center justify-between gap-x-4 gap-y-3',
           dentroDoDialogo
-            ? 'border-outline-variant bg-surface-low shrink-0 border-t px-5 py-4 shadow-[0_-10px_22px_-14px_rgba(0,0,0,0.45)] sm:px-6'
+            ? 'border-outline-variant bg-surface-low shrink-0 border-t px-5 py-4 sm:px-6'
             : 'border-outline-variant border-t pt-5',
         )}
       >

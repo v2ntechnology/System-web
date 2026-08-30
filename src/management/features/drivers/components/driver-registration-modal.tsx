@@ -946,12 +946,11 @@ export function DriverRegistrationModal({
          * confirmar está sempre a um clique, que é o que uma tela de trabalho
          * repetitivo pede.
          *
-         * A sombra para cima não é enfeite: a barra de rolagem é invisível no
-         * sistema inteiro (decisão do usuário em 19/08/2026), então o conteúdo
-         * passando por baixo da barra é a única pista de que ainda há
-         * formulário abaixo.
+         * ⚠️ Sem sombra para cima (decisão do usuário em 30/08/2026). A barra
+         * já se separa do formulário pela borda e pela superfície mais clara, e
+         * a sombra somava um terceiro sinal para a mesma coisa.
          */}
-        <div className="border-outline-variant bg-surface-low flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t px-5 py-4 shadow-[0_-10px_22px_-14px_rgba(0,0,0,0.45)] sm:px-6">
+        <div className="border-outline-variant bg-surface-low flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t px-5 py-4 sm:px-6">
           {/* Escondido no estreito: em 390px de largura o texto ocupa três
               linhas e rouba a altura que o formulário não tem de sobra. */}
           <p className="text-on-surface-muted text-label-md hidden min-w-0 items-start gap-1.5 normal-case sm:flex">
