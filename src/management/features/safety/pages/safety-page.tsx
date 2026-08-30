@@ -119,7 +119,7 @@ export function SafetyPage() {
         description="Eventos na estrada, contestações dos motoristas e as câmeras que merecem atenção agora."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo de segurança</h2>
 
         <QueryState isPending={isPending} isError={isError} label="os dados de segurança">
@@ -152,7 +152,7 @@ export function SafetyPage() {
                   hint: rateHint(data.eventsPer1000Km, data.eventsPer1000KmPrevious),
                 },
               ].map((metric) => (
-                <div key={metric.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                <div key={metric.label} className="metric-tile">
                   <p className="text-on-surface-variant text-label-md normal-case">
                     {metric.label}
                   </p>

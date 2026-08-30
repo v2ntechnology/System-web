@@ -5,12 +5,12 @@ import { LightCard, cn } from '@/management/ui';
 /**
  * Comparação entre filiais.
  *
- * ⚠️ A ordem é por QUILOMETRAGEM, e o destaque é por taxa. A filial com mais
+ * ⚠️ A ordem é por QUILOMETRAGEM, e o destaque é por taxa. A empresa com mais
  * caminhões gera mais eventos e roda mais quilômetros por definição: ranquear
  * por total absoluto premiaria a menor unidade todo mês, o que não diz nada
  * sobre quem opera melhor.
  *
- * O que compara é evento por mil quilômetros e consumo médio. Filial que não
+ * O que compara é evento por mil quilômetros e consumo médio. Empresa que não
  * rodou no período mostra travessão, não zero: zero em "eventos por mil km"
  * leria como frota exemplar quando significa que ninguém saiu.
  */
@@ -27,7 +27,7 @@ export interface UnitPerformanceCardProps {
 }
 
 export function UnitPerformanceCard({ units, periodLabel, className }: UnitPerformanceCardProps) {
-  /* A referência é a frota inteira, e não a melhor filial: comparar com a melhor
+  /* A referência é a frota inteira, e não a melhor empresa: comparar com a melhor
      faria todas as outras parecerem ruins, inclusive as que vão bem. */
   const comRodagem = units.filter((u) => u.eventsPer1000Km != null);
   const referencia =
@@ -43,7 +43,7 @@ export function UnitPerformanceCard({ units, periodLabel, className }: UnitPerfo
     >
       {units.length === 0 ? (
         <p className="text-on-light-variant text-body-md py-6 text-center">
-          Nenhuma filial com veículos cadastrados.
+          Nenhuma empresa com veículos cadastrados.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -51,7 +51,7 @@ export function UnitPerformanceCard({ units, periodLabel, className }: UnitPerfo
             <thead>
               <tr className="text-on-light-muted text-label-md normal-case">
                 <th scope="col" className="py-2 text-left font-normal">
-                  Filial
+                  Empresa
                 </th>
                 <th scope="col" className="py-2 text-right font-normal">
                   Veículos

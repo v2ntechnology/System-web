@@ -184,7 +184,7 @@ export function BillingPage() {
             })
           }
           aria-label={`Baixar a fatura ${row.number}`}
-          className="border-light-outline text-on-light-variant hover:bg-light-container focus-visible:ring-primary-on-light inline-flex size-8 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2"
+          className="acao-neutra focus-visible:ring-primary-on-light inline-flex size-8 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2"
         >
           <DownloadIcon size={16} />
         </button>
@@ -203,7 +203,7 @@ export function BillingPage() {
         description="O que você assina, o que já foi cobrado e por onde sai o pagamento."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo da assinatura</h2>
 
         <QueryState isPending={isPending} isError={isError} label="a assinatura">
@@ -237,7 +237,7 @@ export function BillingPage() {
               </GlassCard>
 
               <GlassCard className="grid min-w-0 gap-4 p-5 sm:grid-cols-3 sm:p-6">
-                <div className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                <div className="metric-tile">
                   <p className="text-on-surface-variant text-label-md normal-case">
                     Próxima cobrança
                   </p>
@@ -249,7 +249,7 @@ export function BillingPage() {
                   </p>
                 </div>
 
-                <div className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                <div className="metric-tile">
                   <p className="text-on-surface-variant text-label-md normal-case">Ciclo</p>
                   <p className="font-sora text-on-surface mt-2 text-[24px] font-bold leading-none">
                     {CYCLE_LABEL[data.cycle]}
@@ -261,7 +261,7 @@ export function BillingPage() {
                   </p>
                 </div>
 
-                <div className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                <div className="metric-tile">
                   <p className="text-on-surface-variant text-label-md normal-case">
                     Forma de pagamento
                   </p>

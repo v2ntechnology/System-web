@@ -75,7 +75,7 @@ export function ReleasesPage() {
         description="Autorização de saída de caminhões e motoristas — com a pendência, a severidade e a regra de quem decide."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Situação da fila</h2>
 
         <GlassCard className="flex flex-wrap items-center gap-4 p-5 sm:p-6">

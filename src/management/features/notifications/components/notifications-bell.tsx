@@ -34,7 +34,7 @@ export function NotificationsBell() {
              símbolo e a contagem, como no painel operacional. Como aqui ele fica
              sobre a fotografia do banner, a cor é `on-media` e o véu do hover é
              branco fixo, igual ao botão de menu ao lado. */
-          className="text-on-media rounded-pill focus-visible:ring-secondary focus-visible:ring-offset-background relative flex size-10 items-center justify-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          className="acao-neutra rounded-pill focus-visible:ring-secondary focus-visible:ring-offset-surface relative flex size-10 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >
           <BellIcon size={22} />
           {unread > 0 ? (
@@ -60,7 +60,7 @@ export function NotificationsBell() {
           align="end"
           sideOffset={8}
           className={cn(
-            'bg-surface-low ring-outline-variant w-[calc(100vw-2rem)] max-w-[26rem] rounded-lg p-2 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)] ring-1',
+            'bg-surface-low ring-outline-variant w-[calc(100vw-2rem)] max-w-[26rem] rounded-lg p-2 shadow-[0_2px_6px_rgba(28,26,24,0.05),0_24px_48px_-20px_rgba(28,26,24,0.18)] ring-1',
             POPOVER_LAYER,
           )}
         >

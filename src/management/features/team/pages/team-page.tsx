@@ -38,7 +38,7 @@ function Tile({
   tone?: 'neutral' | 'warning' | undefined;
 }) {
   return (
-    <div className="bg-surface-lowest min-w-0 rounded-lg p-4">
+    <div className="metric-tile">
       <p className="text-on-surface-variant text-label-md normal-case">{label}</p>
       <p
         className={cn(
@@ -107,7 +107,7 @@ function EquipeReal() {
         description="Quem dirige, quem tem acesso ao painel e quem apareceu na operação nos últimos 30 dias."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo do quadro</h2>
 
         <QueryState isPending={isPending} isError={isError} label="a equipe">
@@ -251,7 +251,7 @@ function EquipeSimulada() {
         description="Quem trabalha na operação, o que cada um faz e quem pode assumir viagem hoje."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo do quadro</h2>
 
         <QueryState isPending={isPending} isError={isError} label="a equipe">

@@ -91,7 +91,7 @@ export function ReportsPage() {
       {/* -------------------------------------------------------------------
        * Faixa escura: indicadores do período + seletor
        * ----------------------------------------------------------------- */}
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Indicadores do período</h2>
         <PeriodIndicators period={period} />
 

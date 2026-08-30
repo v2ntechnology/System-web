@@ -79,7 +79,7 @@ export function SettingsPage() {
         description="Quem tem acesso, o que o plano inclui e a saúde das integrações com os fornecedores."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo da conta</h2>
 
         <QueryState isPending={isPending} isError={isError} label="as configurações">
@@ -98,7 +98,7 @@ export function SettingsPage() {
                 },
                 { label: 'Integrações com problema', value: unhealthy, alert: unhealthy > 0 },
               ].map((metric) => (
-                <div key={metric.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                <div key={metric.label} className="metric-tile">
                   <p className="text-on-surface-variant text-label-md normal-case">
                     {metric.label}
                   </p>

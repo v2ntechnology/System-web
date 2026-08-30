@@ -115,7 +115,7 @@ export function ChecklistsPage() {
         description="O que o motorista verificou antes de sair, o que reprovou e qual veículo está impedido de rodar."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo de checklists</h2>
 
         <QueryState isPending={isPending} isError={isError} label="os checklists">
@@ -126,7 +126,7 @@ export function ChecklistsPage() {
               { label: 'Veículos bloqueados', value: blocked, alert: blocked > 0 },
               { label: 'Sincronização tardia', value: flagged, alert: flagged > 0 },
             ].map((metric) => (
-              <div key={metric.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+              <div key={metric.label} className="metric-tile">
                 <p className="text-on-surface-variant text-label-md normal-case">{metric.label}</p>
                 <p
                   className={cn(

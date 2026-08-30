@@ -2,9 +2,45 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from '@/components/icons';
 import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 
+import { usePointerClose } from '@/hooks/use-pointer-close';
 import { cn } from '@/lib/utils';
 
-const Select = SelectPrimitive.Root;
+/*
+ * O `Content` é escrito longe do `Root` por quem usa o componente, então os
+ * handlers viajam por contexto. Passá-los à mão em cada uma das oito telas seria
+ * a mesma armadilha de novo: bastaria uma esquecer.
+ */
+const SelectContext = React.createContext<
+  ReturnType<typeof usePointerClose>['contentProps'] | null
+>(null);
+
+/**
+ * ⚠️ O `Root` daqui NÃO é o do Radix direto: ele embrulha para instalar o
+ * `usePointerClose`, que é o que impede o anel de foco de reaparecer no gatilho
+ * depois de fechar a lista com o mouse. A mesma mecânica roda no `GlassSelect`
+ * do painel de gestão, a partir do mesmo hook.
+ *
+ * O `onOpenChange` de quem usa continua funcionando: ele é chamado depois do
+ * hook, e não no lugar dele.
+ */
+const Select = ({
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) => {
+  const pointer = usePointerClose();
+
+  return (
+    <SelectContext.Provider value={pointer.contentProps}>
+      <SelectPrimitive.Root
+        onOpenChange={(open) => {
+          pointer.onOpenChange(open);
+          onOpenChange?.(open);
+        }}
+        {...props}
+      />
+    </SelectContext.Provider>
+  );
+};
 const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
 
@@ -60,32 +96,38 @@ SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayNam
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = 'popper', ...props }, ref) => (
-  <SelectPrimitive.Portal>
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-        position === 'popper' && 'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
-        className,
-      )}
-      position={position}
-      {...props}
-    >
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
+>(({ className, children, position = 'popper', ...props }, ref) => {
+  const pointerProps = React.useContext(SelectContext);
+
+  return (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        ref={ref}
+        {...pointerProps}
         className={cn(
-          'p-1',
+          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
           position === 'popper' &&
-            'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
+            'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
+          className,
         )}
+        position={position}
+        {...props}
       >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
-    </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
-));
+        <SelectScrollUpButton />
+        <SelectPrimitive.Viewport
+          className={cn(
+            'p-1',
+            position === 'popper' &&
+              'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
+  );
+});
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
 const SelectLabel = React.forwardRef<

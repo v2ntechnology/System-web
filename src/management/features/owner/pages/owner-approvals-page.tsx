@@ -71,7 +71,7 @@ export function OwnerApprovalsPage() {
         description="Pareceres do gestor e liberações que exigem a sua decisão formal — com as evidências e o plano de ação anexados."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Situação da fila</h2>
 
         <GlassCard className="flex flex-wrap items-center gap-4 p-5 sm:p-6">

@@ -59,7 +59,7 @@ export function CostsPage() {
     return (
       <>
         <PageBanner size="inline" title="Custos" description="Custo por quilômetro em camadas." />
-        <main className="mx-auto w-full max-w-2xl px-4 pb-24 sm:px-6">
+        <main className="mx-auto w-full max-w-2xl px-4 pb-24 sm:px-6 xl:px-10">
           <GlassCard className="flex flex-col items-center gap-4 p-10 text-center">
             <LockIcon size={40} className="text-warning" aria-hidden="true" />
             <h2 className="font-sora text-on-surface text-headline-md">
@@ -217,7 +217,7 @@ export function CostsPage() {
         description="Combustível, manutenção e custos fixos separados por veículo — com a memória de cálculo junto."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Custos do período</h2>
 
         <QueryState isPending={isPending} isError={isError} label="os custos">
@@ -253,7 +253,7 @@ export function CostsPage() {
                     { label: 'Manutenção', value: data.maintenance },
                     { label: 'Custos fixos', value: data.fixed },
                   ].map((layer) => (
-                    <div key={layer.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                    <div key={layer.label} className="metric-tile">
                       <p className="text-on-surface-variant text-label-md normal-case">
                         {layer.label}
                       </p>
@@ -268,7 +268,7 @@ export function CostsPage() {
                       </p>
                     </div>
                   ))}
-                  <div className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                  <div className="metric-tile">
                     <p className="text-on-surface-variant text-label-md normal-case">Km rodados</p>
                     <p className="tabular font-sora text-on-surface mt-2 text-[24px] font-bold leading-none">
                       {km.format(data.kmDriven)}

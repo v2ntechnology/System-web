@@ -37,7 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSession } from '@/hooks/use-session';
 import { tenantStatusDescriptor } from '@/lib/status-maps';
 import { cn } from '@/lib/utils';
-import { useThemeStore, type Theme } from '@/stores/theme-store';
+import { DARK_MODE_ENABLED, useThemeStore, type Theme } from '@/stores/theme-store';
 import type { UserRole } from '@/types';
 
 const MOCK_USERS: { name: string; email: string; role: UserRole; active: boolean }[] = [
@@ -282,28 +282,50 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Aparência</CardTitle>
-                  <CardDescription>O tema escuro é o padrão do RookHub.</CardDescription>
+                  <CardDescription>
+                    O RookHub está sendo refeito no tema claro. O escuro volta em seguida.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
                     {THEME_OPTIONS.map((option) => {
                       const Icon = option.icon;
                       const active = theme === option.value;
+                      /* ⚠️ Este é o TERCEIRO seletor de tema do sistema, e o único
+                         em tela cheia: os outros dois vivem dentro de menu
+                         (`components/layout/theme-toggle.tsx` e
+                         `management/features/appearance/components/theme-switch.tsx`).
+                         A guarda precisa existir nos três, senão a opção parece
+                         clicável em um lugar e bloqueada nos outros. */
+                      const blocked = option.value === 'dark' && !DARK_MODE_ENABLED;
                       return (
                         <button
                           key={option.value}
                           type="button"
-                          onClick={() => setTheme(option.value)}
+                          onClick={() => {
+                            if (blocked) return;
+                            setTheme(option.value);
+                          }}
+                          aria-disabled={blocked}
+                          title={
+                            blocked
+                              ? 'Tema escuro em breve. A interface está sendo refeita no claro.'
+                              : option.label
+                          }
                           className={cn(
                             'flex flex-col items-center gap-2 rounded-lg border p-4 text-sm transition-colors',
                             active
                               ? 'border-primary bg-primary/10 text-foreground'
                               : 'border-border text-muted-foreground hover:bg-muted/40',
+                            blocked && 'cursor-not-allowed opacity-40 hover:bg-transparent',
                           )}
                           aria-pressed={active}
                         >
                           <Icon className="h-5 w-5" />
                           {option.label}
+                          {blocked ? (
+                            <span className="text-[11px] font-normal">em breve</span>
+                          ) : null}
                         </button>
                       );
                     })}

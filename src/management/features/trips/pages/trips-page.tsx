@@ -123,7 +123,7 @@ function ViagensReais() {
         description="Cada percurso que a frota fez, e os lugares onde ela mais fica parada."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo do período</h2>
 
         <div role="group" aria-label="Período" className="mb-4 flex flex-wrap gap-1.5">
@@ -163,7 +163,7 @@ function ViagensReais() {
                 alerta: resumo.aoVolante > 0 && resumo.parado / resumo.aoVolante > 0.2,
               },
             ].map((metrica) => (
-              <div key={metrica.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+              <div key={metrica.label} className="metric-tile">
                 <p className="text-on-surface-variant text-label-md normal-case">{metrica.label}</p>
                 <p
                   className={cn(
@@ -386,7 +386,7 @@ function ViagensSimuladas() {
         description="O que está rodando agora, o que passou do prazo e o histórico do que já foi entregue."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo das viagens</h2>
 
         <QueryState isPending={isPending} isError={isError} label="as viagens">
@@ -397,7 +397,7 @@ function ViagensSimuladas() {
               { label: 'Concluídas no período', value: finished.length },
               { label: 'Entregas no prazo', value: `${onTimeRate}%` },
             ].map((metric) => (
-              <div key={metric.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+              <div key={metric.label} className="metric-tile">
                 <p className="text-on-surface-variant text-label-md normal-case">{metric.label}</p>
                 <p
                   className={cn(

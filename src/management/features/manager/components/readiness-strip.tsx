@@ -26,7 +26,7 @@ function Tile({
   tone?: 'neutral' | 'warning' | undefined;
 }) {
   return (
-    <div className="bg-surface-lowest min-w-0 rounded-lg p-4">
+    <div className="metric-tile">
       <p className="text-on-surface-variant text-label-md normal-case">{label}</p>
       <p
         className={cn(

@@ -67,7 +67,7 @@ export function DiagnosesPage() {
         description="Anomalias detectadas pela plataforma e a explicação do gestor — o que o proprietário lê no lugar do número seco."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Situação dos pareceres</h2>
 
         <GlassCard className="flex flex-wrap items-center gap-4 p-5 sm:p-6">

@@ -90,7 +90,7 @@ export function OwnerHomePage() {
             {operacao.data ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {operacao.data.metrics.map((indicador) => (
-                  <div key={indicador.id} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+                  <div key={indicador.id} className="metric-tile">
                     <p className="text-on-surface-variant text-label-md normal-case">
                       {indicador.label}
                     </p>

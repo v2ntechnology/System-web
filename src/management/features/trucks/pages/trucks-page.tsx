@@ -157,7 +157,7 @@ export function TrucksPage() {
       {/* -------------------------------------------------------------------
        * Faixa escura: despesas do período + filtros
        * ----------------------------------------------------------------- */}
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Despesas da frota no período</h2>
 
         <QueryState

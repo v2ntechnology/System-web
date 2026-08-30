@@ -92,7 +92,7 @@ export function ExtensionsPage() {
         description="Integrações e serviços de outras plataformas que a sua operação pode contratar e conectar ao RookHub."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo das extensões</h2>
 
         <QueryState isPending={isPending} isError={isError} label="as extensões">

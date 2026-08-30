@@ -109,7 +109,7 @@ function DesempenhoReal() {
         description="Quem está trabalhando, quem queima combustível parado e quem dirige melhor."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Extremos da frota no período</h2>
 
         <div role="group" aria-label="Período" className="mb-4 flex flex-wrap gap-1.5">
@@ -288,7 +288,7 @@ function DesempenhoSimulado() {
         description="Destaques do time e rentabilidade por caminhão: quem premiar e qual ativo cobrar."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Extremos da frota no período</h2>
 
         <QueryState isPending={fleet.isPending} isError={fleet.isError} label="a rentabilidade">

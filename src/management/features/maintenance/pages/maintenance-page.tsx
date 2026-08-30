@@ -100,7 +100,7 @@ export function MaintenancePage() {
         description="Ordens de serviço, planos preventivos e o desempenho de cada oficina."
       />
 
-      <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo de manutenção</h2>
 
         <QueryState isPending={isPending} isError={isError} label="a manutenção">
@@ -111,7 +111,7 @@ export function MaintenancePage() {
               { label: 'Custo no período', value: brl.format(cost) },
               { label: 'Parada média', value: `${avgDowntime} h` },
             ].map((metric) => (
-              <div key={metric.label} className="bg-surface-lowest min-w-0 rounded-lg p-4">
+              <div key={metric.label} className="metric-tile">
                 <p className="text-on-surface-variant text-label-md normal-case">{metric.label}</p>
                 <p
                   className={cn(

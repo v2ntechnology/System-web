@@ -69,7 +69,7 @@ export function EventVideoDialog({
                 Clipe de {data.durationSeconds}s · {data.provider}
               </p>
               <p className="text-on-surface-muted text-label-md normal-case">
-                Reprodução indisponível nesta versão de demonstração.
+                A reprodução do clipe ainda não foi ligada.
               </p>
             </div>
           )}

@@ -72,8 +72,12 @@ export default function TrackingPage() {
                     type="button"
                     onClick={() => setSelectedId(v.id)}
                     className={cn(
-                      'flex w-full items-center justify-between gap-2 rounded-md border border-transparent px-3 py-2 text-left transition-colors hover:bg-muted/50',
-                      selectedId === v.id && 'border-primary/40 bg-primary/10',
+                      'flex w-full items-center justify-between gap-2 rounded-md border border-transparent px-3 py-2 text-left transition-colors',
+                      /* Estados exclusivos: o hover incondicional vencia o
+                         destaque do selecionado por especificidade e apagava a
+                         linha escolhida justamente ao apontar para ela. Mesma
+                         armadilha do menu lateral, corrigida em 30/08/2026. */
+                      selectedId === v.id ? 'border-primary/40 bg-primary/15' : 'hover:bg-muted/50',
                     )}
                   >
                     <div className="min-w-0">
