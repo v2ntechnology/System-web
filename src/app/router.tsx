@@ -5,6 +5,7 @@ import { APP_NAVIGATION, SAAS_NAVIGATION } from '@/app/navigation';
 import { HUB_ROLES, landingForRole, usesManagementPanel } from '@/app/permissions';
 import { connectSession } from '@/app/session-bootstrap';
 import { AppShell } from '@/components/layout/app-shell';
+import { ThemeLock } from '@/components/layout/theme-lock';
 import { NoAccessState, LoadingState } from '@/components/shared/states';
 import { usePermissions, useSession } from '@/hooks/use-session';
 import { managementRoutes } from '@/management/routes';
@@ -321,13 +322,29 @@ const managementArea: RouteObject = {
   ),
 };
 
+/**
+ * Telas que ficam brancas, hoje e depois que o tema escuro voltar.
+ *
+ * ⚠️ Decisão do usuário em 30/08/2026. São as telas sem casca de aplicação: as
+ * públicas (login, esqueci minha senha, convite, sessão expirada e 404) mais as
+ * duas do hub, que exigem sessão mas não têm menu nem topbar e funcionam como
+ * porta de entrada. O motivo e o mecanismo estão no `ThemeLock`.
+ *
+ * A trava embrulha o elemento da rota, e não a página: nenhuma delas sabe que
+ * está travada, e a mesma tela dentro da aplicação seguiria o tema normalmente.
+ */
+const lockLight = (routes: RouteObject[]): RouteObject[] =>
+  routes.map((route) => ({ ...route, element: <ThemeLock>{route.element}</ThemeLock> }));
+
 export function AppRouter() {
   return useRoutes([
-    ...publicRoutes,
-    ...hubRoutes,
+    ...lockLight(publicRoutes),
+    ...lockLight(hubRoutes),
     managementArea,
     protectedRoutes,
     adminRoutes,
-    { path: '*', element: lazyElement(() => import('@/pages/misc/not-found-page')) },
+    ...lockLight([
+      { path: '*', element: lazyElement(() => import('@/pages/misc/not-found-page')) },
+    ]),
   ]);
 }

@@ -1,7 +1,7 @@
 import { MoonIcon, SunIcon } from '@/components/icons';
 
 import { cn } from '@/lib/utils';
-import { useThemeStore, type Theme } from '@/stores/theme-store';
+import { DARK_MODE_ENABLED, useThemeStore, type Theme } from '@/stores/theme-store';
 
 const OPTIONS: { value: Theme; label: string; Icon: typeof SunIcon }[] = [
   { value: 'light', label: 'Tema claro', Icon: SunIcon },
@@ -24,6 +24,11 @@ const OPTIONS: { value: Theme; label: string; Icon: typeof SunIcon }[] = [
  * menu quem manda no foco são as setas do Radix — Tab fecha o menu inteiro. Pelo
  * teclado, quem alterna o tema é o item que embrulha este seletor (ver
  * `user-menu.tsx`); aqui o clique é do ponteiro.
+ *
+ * ⚠️ Enquanto `DARK_MODE_ENABLED` for falso (redesign em andamento, 30/08/2026),
+ * a lua fica visível e recusa o clique, com o motivo na dica. Gêmeo do
+ * `management/features/appearance/components/theme-switch.tsx`: mexeu num,
+ * espelhe no outro.
  */
 export function ThemeSwitch() {
   const theme = useThemeStore((s) => s.theme);
@@ -45,6 +50,7 @@ export function ThemeSwitch() {
 
       {OPTIONS.map(({ value, label, Icon }) => {
         const active = theme === value;
+        const blocked = value === 'dark' && !DARK_MODE_ENABLED;
 
         return (
           <button
@@ -53,8 +59,9 @@ export function ThemeSwitch() {
             role="radio"
             tabIndex={-1}
             aria-checked={active}
+            aria-disabled={blocked}
             aria-label={label}
-            title={label}
+            title={blocked ? 'Tema escuro em breve. A interface está sendo refeita no claro.' : label}
             /* Sem roubar o foco do menu: quem clica com o mouse deixaria o foco
                preso neste botão, e as setas parariam de andar pelos itens. */
             onMouseDown={(event) => event.preventDefault()}
@@ -64,12 +71,17 @@ export function ThemeSwitch() {
                  teclado). Sem isto, clicar no sol escolhia claro e em seguida o
                  item alternava de volta para escuro, e nada mudava na tela. */
               event.stopPropagation();
+              if (blocked) return;
               setTheme(value);
             }}
             className={cn(
               'relative z-10 flex size-9 items-center justify-center rounded-full transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              /* `aria-disabled` em vez de `disabled`: o botão continua na leitura
+                 do leitor de tela, anunciando que a opção existe e está
+                 indisponível. */
+              blocked && 'cursor-not-allowed opacity-40 hover:text-muted-foreground',
             )}
           >
             <Icon className="size-4" />

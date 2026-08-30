@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { connectSession } from '@/app/session-bootstrap';
-import { useThemeStore } from '@/stores/theme-store';
+import { applyThemeClass, useThemeStore } from '@/stores/theme-store';
 
 function QueryProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -24,14 +24,20 @@ function QueryProvider({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
+/**
+ * Aplica o tema na primeira montagem e a cada troca.
+ *
+ * ⚠️ Chama `applyThemeClass` em vez de mexer nas classes por conta própria. As
+ * duas travas de tema (escuro desligado durante o redesign, e as rotas públicas
+ * presas no claro) moram lá dentro: uma segunda escrita direta no `<html>` aqui
+ * desfaria a trava a cada render que mudasse `theme`, e o defeito só apareceria
+ * quando o escuro voltasse a existir.
+ */
 function ThemeProvider({ children }: { children: ReactNode }) {
   const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('dark', theme === 'dark');
-    root.classList.toggle('light', theme === 'light');
-    root.style.colorScheme = theme;
+    applyThemeClass(theme);
   }, [theme]);
 
   return <>{children}</>;
