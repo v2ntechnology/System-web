@@ -4,11 +4,14 @@ import type { FeatureCollection } from 'geojson';
 import { type GeoJSONSource, Map as MapLibreMap, NavigationControl, Popup } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 
+import { MAP_STYLE, mapStyleUrlNow } from '@/components/shared/map-style';
+import { useThemeStore } from '@/stores/theme-store';
+
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-/* Mesmo estilo do mapa ao vivo: dois mapas com bases diferentes na mesma
-   sessão fazem o usuário achar que está olhando cidades diferentes. */
-const STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+/* A base é a mesma dos outros dois mapas, e sai de um lugar só: dois mapas
+   com bases diferentes na mesma sessão fazem o usuário achar que está olhando
+   cidades diferentes. Ver `@/components/shared/map-style`. */
 
 const SOURCE = 'stops';
 const LAYER_HALO = 'stops-halo';
@@ -56,7 +59,7 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
 
     const instance = new MapLibreMap({
       container: container.current,
-      style: STYLE_URL,
+      style: mapStyleUrlNow(),
       center: [-43.25, -22.88],
       zoom: 8.6,
       attributionControl: { compact: true },
@@ -71,7 +74,15 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
       className: 'fleet-popup',
     });
 
-    instance.on('load', () => {
+    /**
+     * ⚠️ Roda de novo a cada troca de estilo. `setStyle` descarta fonte e
+     * camada: sem a segunda passada, mudar de tema deixaria a base nova sem
+     * parada nenhuma desenhada.
+     */
+    function montarCamadas() {
+      /* Lido aqui, e não capturado do render: a montagem roda de novo a cada
+         troca de base, e precisa do tema do momento. */
+      const claro = useThemeStore.getState().theme === 'light';
       instance.addSource(SOURCE, { type: 'geojson', data: vazio() });
 
       /* Halo só sob a parada selecionada, para a lista e o mapa apontarem
@@ -110,7 +121,7 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
           ],
           'circle-opacity': 0.78,
           'circle-stroke-width': 1.5,
-          'circle-stroke-color': '#0F172A',
+          'circle-stroke-color': claro ? '#FFFFFF' : '#0F172A',
           'circle-stroke-opacity': 0.55,
         },
       });
@@ -124,18 +135,27 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
         filter: ['>=', ['get', 'horas'], 4],
         layout: {
           'text-field': ['get', 'rotulo'],
+          /* Família publicada pelo provedor. Sem isto, o padrão da especificação
+             pede a fonte do CARTO e cada faixa de glifo vira um 404. */
+          'text-font': ['Noto Sans Bold'],
           'text-size': 11,
           'text-offset': [0, 1.4],
           'text-anchor': 'top',
           'text-allow-overlap': false,
         },
         paint: {
-          'text-color': '#E2E8F0',
-          'text-halo-color': '#0F172A',
-          'text-halo-width': 1.4,
+          /* O halo é sempre o oposto do texto: é ele que separa o rótulo da rua
+             desenhada por baixo. Ver a nota equivalente em `fleet-map`. */
+          'text-color': claro ? '#141416' : '#E2E8F0',
+          'text-halo-color': claro ? '#FFFFFF' : '#0F172A',
+          'text-halo-width': 1.6,
         },
       });
+    }
 
+    /* Ouvinte é do mapa e não do estilo: sobrevive à troca, e por isso fica
+       fora de `montarCamadas`. Registrar de novo faria um clique valer dois. */
+    function ligarInteracoes() {
       instance.on('click', LAYER_CIRCLE, (evento) => {
         const indice = evento.features?.[0]?.properties?.['indice'];
         if (typeof indice === 'number') onSelectRef.current(indice);
@@ -160,11 +180,25 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
         instance.getCanvas().style.cursor = '';
         popup.remove();
       });
+    }
 
+    instance.on('load', () => {
+      montarCamadas();
+      ligarInteracoes();
       setReady(true);
     });
 
+    /* A remontagem depois de `setStyle`. `load` dispara uma vez na vida do
+       mapa; `styledata` dispara a cada base nova. A guarda do `getSource` evita
+       redesenhar a cada tile que chega. */
+    instance.on('styledata', () => {
+      if (!instance.isStyleLoaded() || instance.getSource(SOURCE)) return;
+      montarCamadas();
+    });
+
     instance.on('error', () => setFailed(true));
+
+    /* Guardado para o efeito de tema alcançar a instância. */
     map.current = instance;
 
     return () => {
@@ -173,6 +207,13 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
       map.current = null;
     };
   }, []);
+
+  /* Troca a base quando o tema muda, preservando a câmera. O que estava
+     desenhado por cima volta pelo ouvinte de 'styledata' acima. */
+  const theme = useThemeStore((state) => state.theme);
+  useEffect(() => {
+    map.current?.setStyle(MAP_STYLE[theme]);
+  }, [theme]);
 
   /* Dados novos reescrevem a fonte. Nunca recriar a camada. */
   useEffect(() => {

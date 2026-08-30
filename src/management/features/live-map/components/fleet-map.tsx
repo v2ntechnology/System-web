@@ -12,16 +12,15 @@ import { useEffect, useRef, useState } from 'react';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+import { MAP_STYLE, mapStyleUrlNow } from '@/components/shared/map-style';
+import { useThemeStore } from '@/stores/theme-store';
+
 import { SETA_ESCALA, headingIdFor, iconIdFor, loadVehicleIcons } from './vehicle-icons';
 
-/**
- * Estilo escuro gratuito e sem chave de API.
- *
- * O documento especifica Mapbox (FE-10), mas Mapbox exige conta e token. O
- * próprio doc já prevê esta troca em `RT-02`: a API do MapLibre é praticamente
- * idêntica, então migrar depois é trocar o import e esta URL.
+/*
+ * A base saiu daqui e virou `@/components/shared/map-style`, comum aos três
+ * mapas da aplicação. O motivo e a escolha do Liberty estão documentados lá.
  */
-const STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 /*
  * O `setWorkerUrl` que este arquivo trazia do monorepo **não existe aqui**: lá o
@@ -295,7 +294,7 @@ export function FleetMap({
 
     const instance = new MapLibreMap({
       container: container.current,
-      style: STYLE_URL,
+      style: mapStyleUrlNow(),
       center: [-43.25, -22.88],
       zoom: 9.4,
       attributionControl: { compact: true },
@@ -310,24 +309,54 @@ export function FleetMap({
       className: 'fleet-popup',
     });
 
+    /**
+     * Desenha o conteúdo da RookHub por cima da base.
+     *
+     * ⚠️ As imagens PRECISAM existir antes da camada que as usa. Registrar a
+     * camada primeiro faz o MapLibre avisar "image not found" e simplesmente
+     * não desenhar: o mapa fica vazio sem erro na aplicação.
+     *
+     * ⚠️ Roda de novo a cada troca de estilo, e não só na criação. `setStyle`
+     * descarta fonte, camada E imagem registradas: sem esta segunda passada,
+     * mudar de tema deixaria a base nova sem caminhão nenhum em cima.
+     */
+    async function desenharConteudo() {
+      const imagens = await loadVehicleIcons();
+      for (const [id, imagem] of Object.entries(imagens)) {
+        if (!instance.hasImage(id)) instance.addImage(id, imagem, { pixelRatio: 2 });
+      }
+      montarCamadas(instance);
+    }
+
     instance.on('load', () => {
-      /*
-       * ⚠️ As imagens PRECISAM existir antes da camada que as usa. Registrar a
-       * camada primeiro faz o MapLibre avisar "image not found" e simplesmente
-       * não desenhar: o mapa fica vazio sem erro na aplicação.
-       */
-      void loadVehicleIcons()
-        .then((imagens) => {
-          for (const [id, imagem] of Object.entries(imagens)) {
-            if (!instance.hasImage(id)) instance.addImage(id, imagem, { pixelRatio: 2 });
-          }
-          montarCamadas(instance);
+      void desenharConteudo()
+        .then(() => {
+          ligarInteracoes(instance);
           setReady(true);
         })
         .catch(() => setFailed(true));
     });
 
+    /*
+     * A remontagem depois de `setStyle`. O evento certo é `styledata`, e não
+     * `load`: `load` dispara uma vez na vida do mapa e nunca mais, então um
+     * mapa que troca de base ficaria vazio para sempre.
+     *
+     * A guarda do `getSource` existe porque `styledata` também dispara em
+     * carregamento de tile: sem ela, o desenho seria refeito a cada rolagem.
+     */
+    instance.on('styledata', () => {
+      if (!instance.isStyleLoaded() || instance.getSource(SOURCE_ID)) return;
+      setReady(false);
+      void desenharConteudo()
+        .then(() => setReady(true))
+        .catch(() => setFailed(true));
+    });
+
     function montarCamadas(mapa: MapLibreMap) {
+      /* Lido aqui, e não capturado do render: `montarCamadas` roda de novo a
+         cada troca de base, e precisa do tema do momento. */
+      const claro = useThemeStore.getState().theme === 'light';
       /* O calor entra por baixo de tudo: ele é fundo, não informação pontual. */
       mapa.addSource(SOURCE_HEAT, { type: 'geojson', data: vazio() });
       mapa.addLayer({
@@ -387,7 +416,7 @@ export function FleetMap({
           'circle-radius': 5,
           'circle-color': ['get', 'color'],
           'circle-stroke-width': 2,
-          'circle-stroke-color': '#0B0B0E',
+          'circle-stroke-color': claro ? '#FFFFFF' : '#0B0B0E',
         },
       });
       mapa.addLayer({
@@ -398,7 +427,7 @@ export function FleetMap({
           'circle-radius': 7,
           'circle-color': '#FBBF24',
           'circle-stroke-width': 3,
-          'circle-stroke-color': '#0B0B0E',
+          'circle-stroke-color': claro ? '#FFFFFF' : '#0B0B0E',
         },
       });
 
@@ -471,6 +500,18 @@ export function FleetMap({
         source: SOURCE_ID,
         layout: {
           'text-field': ['get', 'plate'],
+          /*
+           * ⚠️ A família PRECISA estar declarada, e precisa ser uma que o
+           * provedor publique.
+           *
+           * Sem `text-font`, o MapLibre usa o padrão da especificação, que é
+           * "Open Sans Regular, Arial Unicode MS Regular": família do CARTO, que
+           * era a base antiga. O OpenFreeMap não a serve, e cada faixa de glifo
+           * virava um 404 no console. O rótulo ainda aparecia por causa do
+           * recurso alternativo do MapLibre, e é isso que torna o defeito fácil
+           * de não ver: falha silenciosa com aparência de sucesso.
+           */
+          'text-font': ['Noto Sans Bold'],
           'text-size': 11,
           'text-offset': [0, 2],
           'text-anchor': 'top',
@@ -478,12 +519,28 @@ export function FleetMap({
           'text-optional': true,
         },
         paint: {
-          'text-color': '#F0F0F2',
-          'text-halo-color': '#0B0B0E',
-          'text-halo-width': 1.4,
+          /*
+           * ⚠️ A placa inverte com a base, e não é enfeite: sobre o mapa claro,
+           * texto branco com contorno preto lê como adesivo mal recortado, e o
+           * contorno come a letra em corpo pequeno. O halo é o oposto do texto,
+           * sempre, porque é ele que separa a placa da rua desenhada por baixo.
+           */
+          'text-color': claro ? '#141416' : '#F0F0F2',
+          'text-halo-color': claro ? '#FFFFFF' : '#0B0B0E',
+          'text-halo-width': 1.6,
         },
       });
+    }
 
+    /**
+     * Os ouvintes de ponteiro, registrados UMA vez.
+     *
+     * ⚠️ Separados de `montarCamadas` de propósito. Trocar o estilo obriga a
+     * remontar fonte e camada, mas ouvinte é do mapa e não do estilo: sobrevive
+     * à troca. Se estivessem juntos, cada mudança de tema registraria um
+     * conjunto novo e um clique passaria a selecionar o veículo duas vezes.
+     */
+    function ligarInteracoes(mapa: MapLibreMap) {
       mapa.on('click', LAYER_ICON, (event: MapLayerMouseEvent) => {
         const id = event.features?.[0]?.properties?.vehicleId;
         if (typeof id === 'string') onSelectRef.current(id);
@@ -526,7 +583,22 @@ export function FleetMap({
       instance.remove();
       map.current = null;
     };
+    /* Lista vazia de propósito: o mapa é criado uma vez. O tema entra por
+       `mapStyleUrlNow()` na criação e pelo efeito abaixo nas trocas. */
   }, []);
+
+  /**
+   * Troca a base quando o tema muda, preservando a câmera.
+   *
+   * O que estava desenhado por cima volta pelo ouvinte de `styledata` do
+   * efeito acima. Enquanto o modo escuro está desligado, isto nunca dispara,
+   * e é justamente por isso que precisa estar certo: quem religar o escuro
+   * não vai descobrir sozinho que `setStyle` apaga as camadas.
+   */
+  const theme = useThemeStore((state) => state.theme);
+  useEffect(() => {
+    map.current?.setStyle(MAP_STYLE[theme]);
+  }, [theme]);
 
   /**
    * Posição nova: anima do desenhado até o recebido.

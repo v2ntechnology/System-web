@@ -7,17 +7,13 @@ import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { VEHICLE_STATUS_LABEL } from '@/mocks/fleet/vehicles';
 import { useThemeStore } from '@/stores/theme-store';
+
+import { MAP_STYLE } from './map-style';
 import type { MapVehicleMarker, VehicleStatus } from '@/types';
 
-/**
- * Mapa vetorial real (MapLibre GL + OpenFreeMap). O provedor é gratuito,
- * sem chave de API e sem limite declarado; a atribuição do OpenStreetMap é
- * inserida automaticamente pela própria biblioteca.
- */
-const STYLE_URL = {
-  dark: 'https://tiles.openfreemap.org/styles/dark',
-  light: 'https://tiles.openfreemap.org/styles/positron',
-} as const;
+/* A base saiu daqui e virou `./map-style`, comum aos três mapas. O claro
+   deixou de ser o `positron` e passou a ser o Liberty, mais detalhado: o
+   motivo está documentado lá. */
 
 /** Centro aproximado do Sudeste, onde a frota simulada se concentra. */
 const INITIAL_CENTER: [number, number] = [-46.6333, -20.5];
@@ -46,6 +42,18 @@ const LEGEND_CLASS: Record<VehicleStatus, string> = {
 const LEGEND: VehicleStatus[] = ['on_trip', 'available', 'alert', 'maintenance', 'stopped'];
 
 /** Ícone do caminhão (lucide "truck"), desenhado dentro do marcador. */
+/**
+ * O caminhão do marcador, como texto.
+ *
+ * ⚠️ **A única exceção sancionada à regra de importar todo ícone de
+ * `components/icons.ts`.** O marcador do MapLibre recebe um elemento de DOM, e
+ * não um componente React: não há onde montar o `TruckIcon`.
+ *
+ * O desenho é o mesmo `LuTruck` que o `TruckIcon` exporta, copiado do pacote.
+ * Se o ícone de caminhão do sistema mudar, este precisa mudar junto, à mão. É o
+ * preço de existir fora do React, e por isso é exceção e não padrão: nenhum
+ * outro ícone entra assim.
+ */
 const TRUCK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>`;
 
 interface OperationMapProps {
@@ -157,7 +165,7 @@ export function OperationMap({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: STYLE_URL[theme],
+      style: MAP_STYLE[theme],
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
       pitch: 45,
@@ -199,6 +207,12 @@ export function OperationMap({
     };
 
     map.on('load', addRouteLayers);
+
+    /* ⚠️ Também em `styledata`, e não só em `load`. `setStyle` descarta fonte e
+       camada, e `load` dispara uma vez na vida do mapa: sem isto, trocar de
+       tema apagava a rota desenhada e ela não voltava mais. A guarda de fonte
+       dentro de `addRouteLayers` é o que segura o disparo repetido do evento. */
+    map.on('styledata', addRouteLayers);
     map.on('styledata', addRouteLayers);
     mapRef.current = map;
 
@@ -212,7 +226,7 @@ export function OperationMap({
 
   // Troca o estilo quando o tema muda, preservando a posição da câmera.
   useEffect(() => {
-    mapRef.current?.setStyle(STYLE_URL[theme]);
+    mapRef.current?.setStyle(MAP_STYLE[theme]);
   }, [theme]);
 
   // Sincroniza rotas e marcadores com a lista recebida.
