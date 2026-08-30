@@ -868,6 +868,71 @@ export async function saveVehicleRegistry(
   return toRegistry(dto);
 }
 
+/**
+ * Apaga um veículo que não deixou rastro.
+ *
+ * ⚠️ Não é o mesmo que tirar de serviço, e a tela precisa deixar isso claro.
+ * Fora de serviço é para o caminhão que existe e está parado: o histórico dele
+ * continua respondendo por quilômetro rodado e por evento. Excluir é para o
+ * registro fantasma, e nesta frota ele apareceu: o cliente recadastrou um
+ * caminhão transferido com duas letras da placa trocadas, e a plataforma passou
+ * a enxergar 41 caminhões onde existem 40.
+ *
+ * O backend **recusa com 409** quando existe viagem, evento ou posição, e a
+ * mensagem dele diz o que prende. É essa mensagem que deve chegar à tela.
+ */
+export async function deleteVehicle(vehicleId: string): Promise<void> {
+  await httpRequest<void>(`/v1/vehicles/${vehicleId}`, { method: 'DELETE' });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lista da tela de cadastro                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Uma linha da tela de cadastro de frota.
+ *
+ * ⚠️ Vem de `/v1/vehicles/registry`, que NÃO filtra nada. A rota `/v1/vehicles`,
+ * usada pelo painel e pelo mapa, agrega e esconde o que não interessa ao
+ * operador. Esta tela existe para mostrar o que está errado, então recebe tudo:
+ * foi assim que os dois ativos com o número de frota gravado no lugar da placa
+ * apareceram.
+ */
+export interface VehicleListEntry {
+  id: string;
+  plate: string;
+  /** O número pintado na porta, como o fornecedor entrega. */
+  fleetNumber: string | null;
+  /** O mesmo número, quando alguém corrigiu na tela. */
+  internalCode: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  year: number | null;
+  /** A empresa, já consolidada. O subgrupo do fornecedor não chega aqui. */
+  companyName: string | null;
+  /**
+   * O que o fornecedor diz do rastreador.
+   *
+   * ⚠️ Chega cru, e não traduzido para ativo/inativo. `Unavailable` quase
+   * sempre significa "este é o registro velho de uma transferência", e não
+   * "caminhão parado": nesta frota são 13 placas que existem em duas empresas
+   * ao mesmo tempo, sempre com a nova disponível e a velha indisponível.
+   */
+  supplierState: string | null;
+  /** Decisão da operação daqui, diferente do estado do fornecedor. */
+  outOfService: boolean;
+  outOfServiceReason: string | null;
+  odometerKm: number | null;
+  /** Última posição conhecida. Nulo quando não houve sinal na janela coletada. */
+  lastSeenAt: string | null;
+  /** Uma pessoa já salvou esta ficha, e a sincronização respeita o que ela escreveu. */
+  reviewed: boolean;
+}
+
+export async function fetchVehicleRegistryList(): Promise<VehicleListEntry[]> {
+  return httpRequest<VehicleListEntry[]>('/v1/vehicles/registry');
+}
+
 /* -------------------------------------------------------------------------- */
 /* Desempenho por veículo                                                      */
 /* -------------------------------------------------------------------------- */
@@ -1039,7 +1104,20 @@ export async function fetchTeam(days = 30): Promise<TeamOverview> {
  * qualquer equipamento, e o CPF e a CNH dela nunca vieram da telemetria.
  */
 
-export interface FleetSite {
+/**
+ * Uma empresa do cliente.
+ *
+ * ⚠️ Empresa, e não filial. A SERVIOESTE tem 5 empresas e 15 subgrupos no
+ * fornecedor, e os subgrupos são de três tipos que não descrevem operação
+ * nenhuma: o nome da cidade, o "Default Site" onde a MiX joga o que ninguém
+ * classificou, e o "DESLIGADOS / INATIVOS" que é o arquivo morto do cliente.
+ * Quatro filiais se chamam "Default Site" e cinco se chamam "DESLIGADOS /
+ * INATIVOS", indistinguíveis num seletor.
+ *
+ * Decisão do usuário em 30/08/2026: a tela mostra a empresa, e quem está em
+ * qualquer subgrupo dela conta como sendo dela.
+ */
+export interface FleetCompany {
   id: string;
   name: string;
 }
@@ -1053,13 +1131,15 @@ export interface NewDriverInput {
   cnhCategory: string;
   cnhExpiresAt: string;
   hiredAt: string | null;
-  siteId: string | null;
+  companyId: string | null;
   employeeNumber: string | null;
   manualNotes: string | null;
   active: boolean;
   /**
    * Data URL da foto, já reduzida a um quadrado pequeno pelo navegador.
-   * Nula quando ninguém escolheu foto.
+   *
+   * Nula quando ninguém escolheu foto. ⚠️ Na edição, nula significa "não mexi",
+   * e não "remova": o formulário abre sem carregar os bytes da foto atual.
    */
   photo: string | null;
 }
@@ -1074,16 +1154,23 @@ export interface DriverRegistry {
   cnhCategory: string | null;
   cnhExpiresAt: string | null;
   hiredAt: string | null;
-  siteName: string | null;
+  companyId: string | null;
+  companyName: string | null;
   employeeNumber: string | null;
   manualNotes: string | null;
   active: boolean;
+  inactiveSource: 'TELEMETRIA' | 'OPERACAO' | null;
   createdByOperation: boolean;
 }
 
-/** Filiais da empresa. Vazio numa empresa que ainda não sincronizou. */
-export async function fetchFleetSites(): Promise<FleetSite[]> {
-  return httpRequest<FleetSite[]>('/v1/fleet/sites');
+/**
+ * Empresas do cliente. Vazio numa empresa que ainda não sincronizou.
+ *
+ * O caminho continua `/v1/fleet/sites` porque o app do motorista consome a mesma
+ * rota. O que mudou foi o conteúdo, não o endereço.
+ */
+export async function fetchFleetCompanies(): Promise<FleetCompany[]> {
+  return httpRequest<FleetCompany[]>('/v1/fleet/sites');
 }
 
 export async function createDriver(input: NewDriverInput): Promise<DriverRegistry> {
@@ -1091,6 +1178,56 @@ export async function createDriver(input: NewDriverInput): Promise<DriverRegistr
     method: 'POST',
     body: JSON.stringify(input),
   });
+}
+
+/** A ficha gravada, para abrir a edição com os campos preenchidos. */
+export async function fetchDriverRegistryEntry(id: string): Promise<DriverRegistry> {
+  return httpRequest<DriverRegistry>(`/v1/drivers/${id}/registry`);
+}
+
+/**
+ * Salva a ficha inteira de um motorista que já existe.
+ *
+ * ⚠️ Gravar aqui congela este motorista para a sincronização: a partir do
+ * primeiro salvamento, a telemetria não sobrescreve mais nome, telefone,
+ * matrícula, empresa nem foto dele. É o que torna a correção duradoura, e é o
+ * ponto do produto: o cadastro do fornecedor é ponto de partida, não fonte de
+ * verdade.
+ */
+export async function updateDriver(id: string, input: NewDriverInput): Promise<DriverRegistry> {
+  return httpRequest<DriverRegistry>(`/v1/drivers/${id}/registry`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Liga ou desliga um motorista sem abrir o formulário.
+ *
+ * Rota separada da edição porque salvar a ficha exige nome e CPF válidos, e a
+ * maior parte de quem veio da telemetria ainda não tem CPF. Exigir a ficha
+ * inteira travaria justamente a ação que a importação deixa pendente em 47
+ * pessoas.
+ */
+export async function setDriverActive(id: string, active: boolean): Promise<DriverRegistry> {
+  return httpRequest<DriverRegistry>(`/v1/drivers/${id}/active`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active }),
+  });
+}
+
+/**
+ * Apaga um motorista que não deixou rastro.
+ *
+ * ⚠️ Não é o mesmo que inativar, e a tela precisa deixar isso claro. Inativar é
+ * para quem saiu da empresa: o histórico dele continua respondendo por
+ * quilômetro rodado e por evento de segurança. Excluir é para o cadastro que
+ * nunca deveria ter existido, e o backend **recusa com 409** quando existe
+ * viagem, evento, posição ou caminhão apontando para a pessoa. A mensagem do
+ * erro diz o que prende, e é ela que deve chegar à tela.
+ */
+export async function deleteDriver(id: string): Promise<void> {
+  await httpRequest<void>(`/v1/drivers/${id}`, { method: 'DELETE' });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1110,7 +1247,8 @@ export interface DriverListEntry {
   document: string | null;
   cnhCategory: string | null;
   cnhExpiresAt: string | null;
-  siteName: string | null;
+  /** A empresa, já consolidada. O subgrupo do fornecedor não chega aqui. */
+  companyName: string | null;
   employeeNumber: string | null;
   phone: string | null;
   origin: 'ROOKHUB' | 'TELEMETRIA';
@@ -1128,6 +1266,18 @@ export interface DriverListEntry {
   distance30d: number | null;
   currentVehiclePlate: string | null;
   active: boolean;
+  /**
+   * Quem apagou a chave: `TELEMETRIA` para quem já chegou desligado do
+   * fornecedor, `OPERACAO` para quem alguém inativou na tela. Nulo enquanto
+   * está ativo. A tela usa para não acusar uma pessoa de uma decisão que foi da
+   * importação.
+   */
+  inactiveSource: 'TELEMETRIA' | 'OPERACAO' | null;
+  /**
+   * Uma pessoa já salvou esta ficha, e a partir daí a telemetria não escreve
+   * mais neste motorista. É o placar do trabalho que a tela existe para fazer.
+   */
+  reviewed: boolean;
   hasPhoto: boolean;
 }
 

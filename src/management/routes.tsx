@@ -204,6 +204,27 @@ export const managementRoutes: RouteObject = {
       element: page(() => import('@/management/features/trucks/pages/trucks-page'), 'TrucksPage'),
     },
     {
+      /*
+       * Cadastro de veículo, e não de pessoa. Irmã de `motoristas/cadastro`, e
+       * na mesma alçada: quem responde pela frota é o gestor, e o backend
+       * aceita o proprietário para não trancar o dono fora do próprio cadastro.
+       *
+       * ⚠️ Rota separada de `caminhoes` de propósito. Aquela tela é o painel
+       * da operação: filtra, agrega e esconde o que não interessa a quem está
+       * despachando. Esta mostra a frota inteira sem filtro, porque cadastro
+       * errado só aparece quando nada é escondido.
+       */
+      path: 'caminhoes/cadastro',
+      element: (
+        <RoleRoute allow={OWNER_AND_MANAGER}>
+          {page(
+            () => import('@/management/features/trucks/pages/vehicle-registry-page'),
+            'VehicleRegistryPage',
+          )}
+        </RoleRoute>
+      ),
+    },
+    {
       path: 'manutencao',
       element: page(
         () => import('@/management/features/maintenance/pages/maintenance-page'),

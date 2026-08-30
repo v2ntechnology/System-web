@@ -162,10 +162,22 @@ const MANAGER_NAV: NavEntry[] = [
     label: 'Frota',
     items: [
       {
+        /* ⚠️ `end` aqui, e não só no filho. `isItemActive` casa por prefixo
+           quando `end` é falso, então sem isto "Caminhões" acenderia junto com
+           "Cadastro": dois itens ativos ao mesmo tempo no menu. Mesma armadilha
+           que já apareceu em Motoristas. */
         to: '/gestao/caminhoes',
         label: 'Caminhões',
         hint: 'Situação, custo e manutenção',
         module: 'FLEET',
+        end: true,
+      },
+      {
+        to: '/gestao/caminhoes/cadastro',
+        label: 'Cadastro',
+        hint: 'A frota que a telemetria entrega, e o que já foi conferido por uma pessoa',
+        module: 'FLEET',
+        end: true,
       },
       {
         to: '/gestao/manutencao',

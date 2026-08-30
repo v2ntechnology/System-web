@@ -129,6 +129,10 @@ export function VehicleRegistryCard({ vehicleId, className }: VehicleRegistryCar
            caminhão que acabou de ir para a oficina. */
         void cliente.invalidateQueries({ queryKey: ['vehicles'] });
         void cliente.invalidateQueries({ queryKey: ['vehicle-registry', vehicleId] });
+        /* A tela de cadastro mostra "Conferido" e "Fora de serviço" na linha, e
+           os dois mudam ao salvar aqui. Sem esta invalidação a lista continuaria
+           dizendo que falta conferir um veículo que acabou de ser conferido. */
+        void cliente.invalidateQueries({ queryKey: ['vehicle-registry-list'] });
       }}
       className={className}
     />
