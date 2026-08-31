@@ -341,18 +341,14 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
   const layer3d = useRef<Fleet3dLayer | null>(null);
 
   /**
-   * A câmera acompanha o veículo escolhido enquanto ele anda.
+   * O mapa está sendo arrastado NESTE instante.
    *
-   * Pedido do usuário em 30/08/2026: com uma placa selecionada e o caminhão em
-   * viagem, o mapa deve ir atrás dele a cada leitura nova, sem que a pessoa
-   * precise clicar de novo.
-   *
-   * ⚠️ Desliga no primeiro gesto de quem está olhando. Arrastar, dar zoom ou
-   * girar o mapa é dizer "quero ver outra coisa", e uma câmera que insiste em
-   * voltar para o caminhão torna a tela impossível de usar. Volta a seguir
-   * quando uma placa é escolhida de novo.
+   * ⚠️ Serve só para não brigar com o gesto em curso, e não para desligar o
+   * seguimento. São coisas diferentes, e confundi-las foi o erro da primeira
+   * versão: ver o mapa enquanto o dedo está no botão é uma coisa, e ter uma
+   * placa escolhida é outra.
    */
-  const seguindo = useRef(false);
+  const arrastando = useRef(false);
   const animacaoRef = useRef<number | null>(null);
   const selectedRef = useRef<string | null>(selectedId);
   useEffect(() => {
@@ -799,8 +795,11 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
      * disparam esses eventos, e sem ela o seguimento se desligaria sozinho no
      * primeiro quadro que ele mesmo produzisse.
      */
-    instance.on('dragstart', (evento) => {
-      if ('originalEvent' in evento && evento.originalEvent) seguindo.current = false;
+    instance.on('dragstart', () => {
+      arrastando.current = true;
+    });
+    instance.on('dragend', () => {
+      arrastando.current = false;
     });
 
     instance.on('error', (evento) => {
@@ -866,6 +865,19 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
     if (animacaoRef.current !== null) cancelAnimationFrame(animacaoRef.current);
     const inicio = performance.now();
 
+    /*
+     * De onde a câmera parte nesta leitura.
+     *
+     * ⚠️ É o que permite a pessoa mexer no mapa SEM perder o seguimento (pedido
+     * do usuário em 30/08/2026). Se o centro fosse escrito direto na posição do
+     * caminhão, quem tivesse arrastado para olhar outra região levaria um salto
+     * seco de volta no primeiro quadro. Guardando o ponto de partida, o centro
+     * percorre a distância inteira na mesma curva do caminhão: perto dele o
+     * movimento é imperceptível e a câmera desliza junto; longe, ela volta
+     * andando.
+     */
+    const camaraDe = map.current.getCenter();
+
     const passo = (agora: number) => {
       const fracao = Math.min(1, (agora - inicio) / DESLIZE_MS);
       const suave = suavizar(fracao);
@@ -887,19 +899,33 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
       /*
        * A câmera anda junto, e é AQUI que ela fica fluida.
        *
-       * Seguir com `easeTo` a cada leitura daria um solavanco a cada ciclo: a
-       * câmera correria até o destino e pararia, esperando o próximo. Aqui ela
-       * usa a MESMA posição interpolada do caminhão, quadro a quadro, com a
-       * mesma curva de suavização. O veículo fica parado no centro e o
-       * território é que desliza por baixo dele.
+       * Seguir com `easeTo` a cada leitura daria um solavanco por ciclo: a
+       * câmera correria até o destino e pararia, esperando o próximo. Aqui o
+       * centro percorre a MESMA curva do caminhão, quadro a quadro, saindo de
+       * onde a câmera estava quando a leitura chegou.
        *
-       * ⚠️ `isEasing()` protege a animação de foco que roda ao escolher a placa:
-       * sem essa guarda, o `setCenter` daqui cortaria aquele movimento no
-       * primeiro quadro e o enquadramento chegaria de repente.
+       * ⚠️ Basta ter uma placa escolhida. Mexer no mapa NÃO cancela o
+       * seguimento, e essa é a regra que o usuário pediu em 30/08/2026: a
+       * "mexidinha" para olhar um cruzamento não é um pedido de desistir do
+       * veículo. Quem desiste é quem fecha a ficha.
+       *
+       * Três guardas, e cada uma existe por um motivo diferente:
+       *
+       *   - `arrastando`: enquanto o dedo está no botão, mandar o centro seria
+       *     disputar o mapa com a mão de quem está usando;
+       *   - `isEasing`: protege a animação de foco que roda ao escolher a
+       *     placa, que senão seria cortada no primeiro quadro;
+       *   - `alvoDaCamera`: sem placa escolhida não há o que seguir.
+       *
+       * O ângulo sobrevive sozinho: `setCenter` mexe só no centro, e `bearing`
+       * e `pitch` seguem intactos.
        */
       const alvoDaCamera = selectedRef.current ? atual.get(selectedRef.current) : undefined;
-      if (seguindo.current && alvoDaCamera && !map.current?.isEasing()) {
-        map.current?.setCenter([alvoDaCamera.lng, alvoDaCamera.lat]);
+      if (alvoDaCamera && !arrastando.current && !map.current?.isEasing()) {
+        map.current?.setCenter([
+          camaraDe.lng + (alvoDaCamera.lng - camaraDe.lng) * suave,
+          camaraDe.lat + (alvoDaCamera.lat - camaraDe.lat) * suave,
+        ]);
       }
 
       if (fracao < 1) {
@@ -965,9 +991,6 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
     if (selectedId === focado.current) return;
     focado.current = selectedId;
 
-    /* Escolher uma placa religa o seguimento, inclusive depois de a pessoa ter
-       arrastado o mapa: o clique é o pedido de "volte para este". */
-    seguindo.current = Boolean(selectedId);
     if (!selectedId) return;
 
     const alvo = positions.find((vehicle) => vehicle.vehicleId === selectedId);

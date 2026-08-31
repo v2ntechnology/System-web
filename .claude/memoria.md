@@ -574,16 +574,32 @@ entra: é decisão de menu, não de permissão.
   caminhão, quadro a quadro: o veículo fica parado no centro e o território desliza por baixo.
   ⚠️ Seguir com `easeTo` a cada leitura daria um solavanco por ciclo, porque a câmera correria
   até o destino e pararia esperando o próximo.
-- ⚠️ **Só o ARRASTO desliga o seguimento. Zoom, giro e inclinação, não.** A diferença é de
-  intenção: arrastar é "quero olhar outro lugar"; inclinar ou girar é "quero ver o MESMO lugar de
-  outro ângulo". A primeira versão desligava no `pitchstart` e no `rotatestart`, e o usuário
-  apontou que inclinar o mapa custava o seguimento, que é o oposto do que se pede ao inclinar.
-  Religa quando uma placa é escolhida de novo.
+- ⚠️ **NENHUM gesto desliga o seguimento. Quem desiste do veículo é quem fecha a ficha** (regra
+  final do usuário em 30/08/2026, depois de duas versões mais restritivas). A "mexidinha" para
+  olhar um cruzamento ao lado não é um pedido de abandonar a placa: na leitura seguinte a câmera
+  volta para ela.
+- **A câmera parte de ONDE ESTÁ, e não salta.** O laço guarda `map.getCenter()` no início de cada
+  deslize e interpola dali até o veículo na mesma curva do caminhão. Perto dele o movimento é
+  imperceptível e a câmera desliza junto; longe, ela volta andando. Escrever o centro direto na
+  posição do veículo daria um salto seco em quem tivesse arrastado para longe.
+- ⚠️ **`arrastando` marca o gesto EM CURSO, e não é um interruptor.** Enquanto o dedo está no
+  botão, mandar o centro seria disputar o mapa com a mão de quem está usando; ao soltar, o
+  seguimento continua normalmente. Confundir "está arrastando agora" com "desistiu de seguir" foi
+  o erro das versões anteriores.
 - **O ângulo escolhido sobrevive sozinho no seguimento:** `setCenter` mexe só no centro, e
   `bearing` e `pitch` seguem intactos. ⚠️ Mas os dois `fitBounds` (enquadramento inicial e
   abertura do trajeto) PRECISAM receber `bearing` e `pitch` atuais explicitamente: sem eles o
   MapLibre calcula a câmera como se o mapa estivesse achatado e devolve a visão para o de cima,
   desfazendo a inclinação que a pessoa escolheu.
+- ⚠️ **Armadilha ao TESTAR o seguimento:** as posições reais não mudam entre leituras (a coleta da
+  MiX é de 5 em 5 minutos), e o React Query faz *structural sharing* — dado igual mantém a MESMA
+  referência, o efeito não dispara e parece que o seguimento quebrou. Para testar é preciso
+  interceptar `/v1/fleet/positions` e deslocar as coordenadas. ⚠️ E filtrar por
+  `status === 'EM_VIAGEM'` no interceptador NÃO funciona: ali o DTO ainda traz o status CRU do
+  backend, e o filtro não casa com nada. Deslocar todos os veículos é o caminho. Perdi duas
+  rodadas achando que o produto estava quebrado quando o quebrado era o teste.
+- ⚠️ O polling também PARA quando a aba perde o foco (`refetchIntervalInBackground` é falso por
+  padrão). Num teste automatizado, `page.bringToFront()` antes de esperar.
 - ⚠️ A guarda do `originalEvent` separa o gesto da pessoa do movimento que o próprio código pede:
   `easeTo`, `fitBounds` e o `setCenter` do laço também disparam esses eventos, e sem ela o
   seguimento se desligaria sozinho no primeiro quadro que ele mesmo produzisse.
