@@ -1,20 +1,28 @@
-import { SearchIcon, WarningIcon } from '@/components/icons';
-import type { Driver, DriverStatus, RankingPeriod } from '@/management/types';
+import {
+  AlertCircleIcon,
+  MedalIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  SteeringWheelIcon,
+  WarningIcon,
+} from '@/components/icons';
+import type { Driver, DriverStatus } from '@/management/types';
 import { GlassCard, GlassSelect } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
+import { useIncrementalList } from '@/management/hooks/use-incremental-list';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
 import { getDrivers } from '../api';
 import { DriverDetailPanel } from '../components/driver-detail-panel';
 import { DriverHoursCard } from '../components/driver-hours-card';
 import { DriverListItem } from '../components/driver-list-item';
-import { DriverRankingCard } from '../components/driver-ranking-card';
 
 const TABS = [
   { id: 'TODOS', label: 'Todos' },
@@ -63,7 +71,6 @@ export function DriversPage() {
   const [tab, setTab] = useState<TabId>('TODOS');
   const [sort, setSort] = useState<Sort>('score');
   const [search, setSearch] = useState('');
-  const [period, setPeriod] = useState<RankingPeriod>('MES');
 
   const drivers = useMemo(() => data ?? [], [data]);
 
@@ -105,13 +112,6 @@ export function DriversPage() {
       : 0;
   const totalWarnings = drivers.reduce((sum, driver) => sum + driver.criticalEvents, 0);
 
-  /** Vindo do pódio: garante que o motorista esteja visível na lista. */
-  function focusDriver(driverId: string) {
-    setTab('TODOS');
-    setSearch('');
-    setSelectedId(driverId);
-  }
-
   const counts = useMemo(
     () =>
       Object.fromEntries(
@@ -120,69 +120,82 @@ export function DriversPage() {
     [drivers],
   );
 
+  /* A coluna abre com oito motoristas e cresce ao rolar dentro da própria
+     caixa: a equipe inteira empurrava a ficha do motorista para fora da tela.
+     A aba entra na chave para o recorte reabrir a janela nos oito primeiros. */
+  const {
+    visible: naTela,
+    hasMore: temMais,
+    sentinelRef,
+  } = useIncrementalList(visible, { resetKey: `${tab}-${visible.length}` });
+
   const tabsWithCounts = useMemo(
     () => TABS.map((option) => ({ ...option, count: counts[option.id] })),
     [counts],
   );
 
+  const stats: HeroStat[] = [
+    {
+      key: 'ativos',
+      label: 'Motoristas ativos',
+      value: drivers.filter((d) => d.status !== 'AFASTADO').length,
+      hint: 'no quadro, fora os afastados',
+      icon: SteeringWheelIcon,
+    },
+    {
+      /* A nota é relativa à própria frota: mede a dispersão da equipe, e não
+         segurança absoluta. Ver a nota do tipo `SafetySummary`. */
+      key: 'score',
+      label: 'Score médio',
+      value: averageScore,
+      hint: 'média das notas de condução',
+      icon: MedalIcon,
+    },
+    {
+      key: 'eventos',
+      label: 'Eventos críticos',
+      value: totalWarnings,
+      hint: 'somados no período',
+      icon: ShieldAlertIcon,
+      tone: totalWarnings > 0 ? 'warn' : 'neutral',
+    },
+    {
+      key: 'atencao',
+      label: 'Requerem atenção',
+      value: attentionCount,
+      hint: 'score baixo, muitos eventos ou CNH vencendo',
+      icon: AlertCircleIcon,
+      tone: attentionCount > 0 ? 'alert' : 'neutral',
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Motoristas"
         description="Ficha completa, score de segurança, advertências e histórico na estrada de cada motorista."
       />
 
       {/* -------------------------------------------------------------------
-       * Faixa escura: pódio + resumo da equipe
+       * Resumo da equipe, pódio e jornada
        * ----------------------------------------------------------------- */}
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Ranking e resumo da equipe</h2>
 
-        <div className="grid gap-5 xl:grid-cols-[1.55fr_1fr]">
-          <GlassCard className="flex p-5 sm:p-6">
-            <DriverRankingCard
-              period={period}
-              onPeriodChange={setPeriod}
-              selectedDriverId={selectedId}
-              onSelectDriver={focusDriver}
-            />
-          </GlassCard>
+        {/* A subida fica nos cards, e não na seção: em volta do conteúdo ela
+            jogaria carregamento e erro por cima da faixa colorida. */}
+        <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
 
-          <GlassCard className="flex flex-col p-5 sm:p-6">
-            <h3 className="text-on-surface-variant text-body-md">Resumo da equipe</h3>
-
-            <div className="mt-4 grid flex-1 auto-rows-fr gap-3 sm:grid-cols-2">
-              {[
-                {
-                  label: 'Motoristas ativos',
-                  value: drivers.filter((d) => d.status !== 'AFASTADO').length,
-                },
-                { label: 'Score médio', value: averageScore },
-                { label: 'Eventos críticos', value: totalWarnings },
-                { label: 'Requerem atenção', value: attentionCount },
-              ].map((metric) => (
-                <div key={metric.label} className="bg-surface-lowest rounded-lg p-4">
-                  <p className="text-on-surface-variant text-label-md normal-case">
-                    {metric.label}
-                  </p>
-                  <p className="tabular font-sora text-on-surface mt-2 text-[32px] font-bold leading-none">
-                    {metric.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {attentionCount > 0 ? (
-              <p className="text-warning text-label-md mt-4 flex items-start gap-2 normal-case">
-                <WarningIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-                {attentionCount === 1
-                  ? '1 motorista com score baixo, muitos eventos ou CNH próxima do vencimento.'
-                  : `${attentionCount} motoristas com score baixo, muitos eventos ou CNH próxima do vencimento.`}
-              </p>
-            ) : null}
-          </GlassCard>
-        </div>
+        {attentionCount > 0 ? (
+          <div className="bg-warning/10 ring-warning/30 mt-5 flex flex-wrap items-center gap-3 rounded-lg px-4 py-3 ring-1">
+            <WarningIcon size={18} className="text-warning shrink-0" aria-hidden="true" />
+            <p className="text-on-surface text-body-md min-w-0 flex-1">
+              {attentionCount === 1
+                ? '1 motorista com score baixo, muitos eventos ou CNH próxima do vencimento.'
+                : `${attentionCount} motoristas com score baixo, muitos eventos ou CNH próxima do vencimento.`}
+            </p>
+          </div>
+        ) : null}
 
         {/* Jornada logo abaixo do resumo: é a informação com prazo. Score e
             ranking podem esperar a tarde; um motorista em 5h30 precisa parar
@@ -241,8 +254,13 @@ export function DriversPage() {
               <div className="min-w-0">
                 <div className="mb-3 flex items-baseline justify-between gap-3">
                   <h2 className="font-sora text-primary text-headline-md">Equipe</h2>
+                  {/* Enquanto a janela não corta nada, o contador é o de sempre
+                      (quantos o filtro deixou passar, de quantos existem).
+                      Quando corta, ele passa a contar o que está na caixa. */}
                   <span className="text-on-light-muted text-label-md tabular normal-case">
-                    {visible.length} de {drivers.length}
+                    {naTela.length === visible.length
+                      ? `${visible.length} de ${drivers.length}`
+                      : `${naTela.length} de ${visible.length}`}
                   </span>
                 </div>
 
@@ -251,8 +269,13 @@ export function DriversPage() {
                     Nenhum motorista encontrado com esses filtros.
                   </p>
                 ) : (
-                  <ul className="flex flex-col gap-2">
-                    {visible.map((driver) => (
+                  /* Caixa da altura de oito motoristas, com rolagem própria: a
+                     lista inteira empurrava a ficha para fora da primeira tela,
+                     e rolar a página para ver o nono tirava a ficha do campo de
+                     visão. A barra de rolagem não aparece, por decisão de
+                     19/08/2026. */
+                  <ul className="flex max-h-[34rem] flex-col gap-2 overflow-y-auto">
+                    {naTela.map((driver) => (
                       <li key={driver.id} className="min-w-0">
                         <DriverListItem
                           driver={driver}
@@ -261,6 +284,16 @@ export function DriversPage() {
                         />
                       </li>
                     ))}
+
+                    {/* Sentinela: entrar na tela é o que carrega o próximo
+                        punhado, sem botão e sem paginação. */}
+                    {temMais ? (
+                      <li ref={sentinelRef} className="py-3 text-center" aria-hidden="true">
+                        <span className="text-on-light-muted text-label-md normal-case">
+                          Carregando mais…
+                        </span>
+                      </li>
+                    ) : null}
                   </ul>
                 )}
               </div>

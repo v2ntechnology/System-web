@@ -1,16 +1,22 @@
 import {
+  BadgeCheckIcon,
+  BlockedIcon,
   CheckIcon,
   DeleteIcon,
   EditIcon,
   PlusIcon,
   PowerIcon,
+  RadarIcon,
+  RouteIcon,
   SearchIcon,
+  TruckIcon,
 } from '@/components/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { QueryState } from '@/management/components/layout/query-state';
 import {
   deleteVehicle,
@@ -167,39 +173,6 @@ const semRuido = (valor: string | null): string | null =>
 const km = (valor: number | null): string =>
   valor == null ? '–' : `${Math.round(valor).toLocaleString('pt-BR')} km`;
 
-function Tile({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: number;
-  hint: string;
-  tone?: 'critical' | 'attention' | 'positive' | undefined;
-}) {
-  return (
-    <div className="metric-tile">
-      <p className="text-on-surface-variant text-label-md normal-case">{label}</p>
-      <p
-        className={cn(
-          'tabular font-sora mt-2 text-[28px] font-bold leading-none',
-          tone === 'critical'
-            ? 'text-error'
-            : tone === 'attention'
-              ? 'text-warning'
-              : tone === 'positive'
-                ? 'text-success'
-                : 'text-on-surface',
-        )}
-      >
-        {value}
-      </p>
-      <p className="text-on-surface-muted text-label-sm mt-1.5 normal-case">{hint}</p>
-    </div>
-  );
-}
-
 export function VehicleRegistryPage() {
   const queryClient = useQueryClient();
 
@@ -347,56 +320,67 @@ export function VehicleRegistryPage() {
     setPage(1);
   };
 
+  const stats: HeroStat[] = [
+    {
+      key: 'frota',
+      label: 'Na frota',
+      value: counts.ativos,
+      hint:
+        counts.inativos === 0
+          ? 'veículos ativos'
+          : counts.inativos === 1
+            ? 'ativos, mais 1 inativo'
+            : `ativos, mais ${counts.inativos} inativos`,
+      icon: TruckIcon,
+    },
+    {
+      key: 'operando',
+      label: 'Em operação',
+      value: counts.operando,
+      hint: 'reportaram posição na semana',
+      icon: RouteIcon,
+    },
+    {
+      key: 'fora',
+      label: 'Fora de serviço',
+      value: counts.fora,
+      hint: 'parados por decisão da operação',
+      icon: BlockedIcon,
+      tone: counts.fora > 0 ? 'warn' : 'neutral',
+    },
+    {
+      key: 'sem-sinal',
+      label: 'Sem sinal',
+      value: counts.semSinal,
+      hint: 'nenhuma posição há mais de 7 dias',
+      icon: RadarIcon,
+      tone: counts.semSinal > 0 ? 'alert' : 'neutral',
+    },
+    {
+      key: 'conferidos',
+      label: 'Conferidos',
+      value: counts.conferidos,
+      hint: 'ficha salva por uma pessoa',
+      icon: BadgeCheckIcon,
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Cadastro de frota"
         description="Cada caminhão que a plataforma conhece, em que empresa está e quem já foi conferido por uma pessoa."
       />
 
       <section className="w-full px-4 pb-24 sm:px-6 xl:px-10">
         <QueryState isPending={isPending} isError={isError} label="a frota">
-          <div className="flex flex-col gap-5">
+          {/* A subida fica no conteúdo, e não na seção: em volta do `QueryState`
+              ela jogaria o carregamento e o erro por cima da faixa colorida. */}
+          <div className="-mt-16 flex flex-col gap-5 sm:-mt-20">
             {/* ---------------------------------------------------------- */}
             {/* O tamanho do trabalho                                       */}
             {/* ---------------------------------------------------------- */}
-            <GlassCard className="grid gap-4 p-5 sm:grid-cols-3 sm:p-6 xl:grid-cols-5">
-              <Tile
-                label="Na frota"
-                value={counts.ativos}
-                hint={
-                  counts.inativos === 0
-                    ? 'veículos ativos'
-                    : counts.inativos === 1
-                      ? 'ativos, mais 1 inativo'
-                      : `ativos, mais ${counts.inativos} inativos`
-                }
-              />
-              <Tile
-                label="Em operação"
-                value={counts.operando}
-                hint="reportaram posição na semana"
-                tone="positive"
-              />
-              <Tile
-                label="Fora de serviço"
-                value={counts.fora}
-                hint="parados por decisão da operação"
-                tone={counts.fora > 0 ? 'attention' : undefined}
-              />
-              <Tile
-                label="Sem sinal"
-                value={counts.semSinal}
-                hint="nenhuma posição há mais de 7 dias"
-                tone={counts.semSinal > 0 ? 'critical' : undefined}
-              />
-              <Tile
-                label="Conferidos"
-                value={counts.conferidos}
-                hint="ficha salva por uma pessoa"
-              />
-            </GlassCard>
+            <HeroStats items={stats} />
 
             {/* ---------------------------------------------------------- */}
             {/* Filtros                                                     */}

@@ -1,10 +1,11 @@
-import { ClockIcon, TruckIcon, UserIcon } from '@/components/icons';
+import { ApprovalIcon, ClockIcon, InboxIcon, TruckIcon, UserIcon } from '@/components/icons';
 import type { ReleaseRequest } from '@/management/types';
-import { GlassCard, cn } from '@/management/ui';
+import { cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
@@ -67,39 +68,50 @@ export function ReleasesPage() {
   const graves = pending.filter((item) => item.severity === 'GRAVE').length;
   const hoursStopped = pending.reduce((sum, item) => sum + item.waitingHours, 0);
 
+  const stats: HeroStat[] = [
+    {
+      key: 'fila',
+      label: 'Na fila',
+      value: counts.PENDENTES,
+      hint: 'aguardando sua decisão',
+      icon: InboxIcon,
+      tone: counts.PENDENTES > 0 ? 'warn' : 'neutral',
+    },
+    {
+      key: 'parado',
+      label: 'Ativo parado',
+      value: `${hoursStopped} h`,
+      hint: 'somadas na fila inteira',
+      icon: ClockIcon,
+      tone: hoursStopped > 0 ? 'warn' : 'neutral',
+    },
+    {
+      key: 'graves',
+      label: 'Dependem do proprietário',
+      value: graves,
+      hint: 'ocorrência grave sai da sua alçada',
+      icon: ApprovalIcon,
+      tone: graves > 0 ? 'alert' : 'neutral',
+    },
+    {
+      key: 'tratadas',
+      label: 'Tratadas',
+      value: counts.TRATADAS,
+      hint: 'decisões já registradas',
+      icon: TruckIcon,
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Liberações"
-        description="Autorização de saída de caminhões e motoristas — com a pendência, a severidade e a regra de quem decide."
+        description="Autorização de saída de caminhão e motorista, com a pendência, a severidade e a regra de quem decide."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <section className="-mt-16 px-4 pb-8 sm:-mt-20 sm:px-6 xl:px-10">
         <h2 className="sr-only">Situação da fila</h2>
-
-        <GlassCard className="flex flex-wrap items-center gap-4 p-5 sm:p-6">
-          <ClockIcon size={28} className="text-primary shrink-0" aria-hidden="true" />
-
-          <div className="min-w-0 flex-1">
-            <p className="text-on-surface text-body-lg">
-              {counts.PENDENTES === 0
-                ? 'Nenhum pedido na fila.'
-                : counts.PENDENTES === 1
-                  ? '1 pedido aguardando decisão.'
-                  : `${counts.PENDENTES} pedidos aguardando decisão.`}
-            </p>
-            <p className="text-on-surface-variant text-body-md mt-1">
-              {counts.PENDENTES === 0
-                ? 'Toda decisão registrada aqui entra no histórico do veículo e do motorista.'
-                : `${hoursStopped}h de ativo parado somadas${
-                    graves > 0
-                      ? ` · ${graves === 1 ? '1 ocorrência grave depende' : `${graves} ocorrências graves dependem`} do proprietário`
-                      : ''
-                  }.`}
-            </p>
-          </div>
-        </GlassCard>
+        <HeroStats items={stats} />
       </section>
 
       <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">

@@ -1,10 +1,27 @@
-import { ArrowRightIcon, ClockIcon, WarningIcon } from '@/components/icons';
+import {
+  ArrowRightIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  ParkingIcon,
+  SearchIcon,
+  RouteIcon,
+  TruckIcon,
+  WarningIcon,
+} from '@/components/icons';
 import type { Trip } from '@/management/types';
-import { GlassCard, cn } from '@/management/ui';
+import {
+  GlassDateField,
+  GlassInput,
+  GlassSelect,
+  Pagination,
+  SpectrumButton,
+  cn,
+} from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { PendingSource } from '@/management/components/layout/pending-source';
@@ -56,6 +73,19 @@ const ABAS_REAIS = [
 
 type AbaReal = (typeof ABAS_REAIS)[number]['id'];
 
+/**
+ * Quantos percursos por página.
+ *
+ * ⚠️ Cem, e não o `PAGE_SIZE` de trinta das outras listas (decisão do usuário em
+ * 01/09/2026). Aqui a linha é baixa e a leitura é de varredura: rolar cem
+ * linhas custa menos que trocar de página quatro vezes para achar um trecho.
+ */
+const POR_PAGINA = 100;
+
+/** Valor de "sem recorte". Sentinela, e não string vazia: o Radix não aceita. */
+const TODOS = 'TODOS';
+const SEM_CONDUTOR = 'SEM_CONDUTOR';
+
 const numero = (valor: number | undefined, casas = 0) =>
   valor == null
     ? '–'
@@ -88,6 +118,15 @@ function ViagensReais() {
   const [aba, setAba] = useState<AbaReal>('PERCURSOS');
   const [paradaAtiva, setParadaAtiva] = useState<number | null>(null);
 
+  /* Recortes feitos no cliente: os percursos do período já vieram na resposta,
+     e trocar de placa não pode custar uma ida ao servidor. A busca continua
+     server-side porque endereço não cabe em lista de opções. */
+  const [placa, setPlaca] = useState(TODOS);
+  const [motorista, setMotorista] = useState(TODOS);
+  /* Data em ISO (`yyyy-MM-dd`), vazia quando não há recorte de dia. */
+  const [diaEscolhido, setDiaEscolhido] = useState('');
+  const [pagina, setPagina] = useState(1);
+
   const percursos = useQuery({
     queryKey: ['viagens', 'percursos', dias, busca],
     queryFn: () => fetchJourneys({ days: dias, search: busca || undefined }),
@@ -102,6 +141,68 @@ function ViagensReais() {
 
   const lista = useMemo(() => percursos.data?.journeys ?? [], [percursos.data]);
 
+  /* As opções saem do próprio resultado: oferecer uma placa que não rodou no
+     período é oferecer uma lista vazia. */
+  const opcoesPlaca = useMemo(
+    () => [
+      { value: TODOS, label: 'Todas as placas' },
+      ...[...new Set(lista.map((item) => item.plate))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+        .map((valor) => ({ value: valor, label: valor })),
+    ],
+    [lista],
+  );
+
+  const opcoesMotorista = useMemo(() => {
+    const nomes = [...new Set(lista.flatMap((item) => (item.driverName ? [item.driverName] : [])))];
+    const semCondutor = lista.some((item) => !item.driverName);
+
+    return [
+      { value: TODOS, label: 'Todos os motoristas' },
+      /* Sem condutor é um recorte de verdade, e não a ausência de filtro: é o
+         percurso que não entra em nota, jornada nem ranking. */
+      ...(semCondutor ? [{ value: SEM_CONDUTOR, label: 'Sem condutor identificado' }] : []),
+      ...nomes
+        .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+        .map((nome) => ({ value: nome, label: nome })),
+    ];
+  }, [lista]);
+
+  const filtrados = useMemo(
+    () =>
+      lista.filter((item) => {
+        if (placa !== TODOS && item.plate !== placa) return false;
+        if (motorista === SEM_CONDUTOR && item.driverName) return false;
+        if (motorista !== TODOS && motorista !== SEM_CONDUTOR && item.driverName !== motorista) {
+          return false;
+        }
+        if (diaEscolhido !== '' && !item.startedAt.startsWith(diaEscolhido)) return false;
+        return true;
+      }),
+    [lista, placa, motorista, diaEscolhido],
+  );
+
+  /* A página é presa ao total durante o render, e não corrigida por efeito:
+     filtrar na página 3 de uma lista que passou a ter 40 deixaria a tela vazia.
+     Mesmo padrão dos cadastros de frota e de motoristas. */
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+
+  const daPagina = useMemo(
+    () => filtrados.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA),
+    [filtrados, paginaAtual],
+  );
+
+  const filtrando = placa !== TODOS || motorista !== TODOS || diaEscolhido !== '';
+
+  const limparFiltros = () => {
+    setPlaca(TODOS);
+    setMotorista(TODOS);
+    setDiaEscolhido('');
+    setBusca('');
+    setPagina(1);
+  };
+
   const resumo = useMemo(() => {
     const distancia = lista.reduce((soma, item) => soma + (item.distanceKm ?? 0), 0);
     const aoVolante = lista.reduce((soma, item) => soma + (item.drivingSeconds ?? 0), 0);
@@ -115,18 +216,49 @@ function ViagensReais() {
     0,
   );
 
+  const excessoParado = resumo.aoVolante > 0 && resumo.parado / resumo.aoVolante > 0.2;
+
+  const stats: HeroStat[] = [
+    {
+      key: 'percursos',
+      label: 'Percursos',
+      value: km.format(lista.length),
+      hint: 'trechos no período',
+      icon: RouteIcon,
+    },
+    {
+      key: 'km',
+      label: 'Quilômetros rodados',
+      value: km.format(resumo.distancia),
+      hint: 'soma dos trechos',
+      icon: TruckIcon,
+    },
+    {
+      key: 'volante',
+      label: 'Tempo ao volante',
+      value: duration(resumo.aoVolante),
+      hint: 'com o caminhão em movimento',
+      icon: ClockIcon,
+    },
+    {
+      /* Parado com motor ligado é combustível queimado sem sair do lugar.
+         Destacado quando passa de um quinto do tempo ao volante. */
+      key: 'parado',
+      label: 'Motor ligado parado',
+      value: duration(resumo.parado),
+      hint: 'diesel queimado sem sair do lugar',
+      icon: ParkingIcon,
+      tone: excessoParado ? 'warn' : 'neutral',
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Viagens"
         description="Cada percurso que a frota fez, e os lugares onde ela mais fica parada."
-      />
-
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
-        <h2 className="sr-only">Resumo do período</h2>
-
-        <div role="group" aria-label="Período" className="mb-4 flex flex-wrap gap-1.5">
+      >
+        <div role="group" aria-label="Período" className="flex flex-wrap gap-1.5">
           {JANELAS.map((janela) => (
             <button
               key={janela.dias}
@@ -134,48 +266,32 @@ function ViagensReais() {
               onClick={() => setDias(janela.dias)}
               aria-pressed={dias === janela.dias}
               className={cn(
-                'text-label-md focus-visible:ring-secondary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                /* Sobre o indigo, a pastilha escolhida é a cor um degrau mais
+                   escura, e não o preto do resto do painel: preto sobre indigo
+                   lê como buraco na faixa. Ativo e hover são exclusivos. */
+                'text-label-md focus-visible:ring-on-primary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
                 dias === janela.dias
                   ? 'bg-primary-strong text-on-primary'
-                  : 'bg-on-surface/8 text-on-surface-variant hover:text-on-surface',
+                  : 'text-on-primary/80 hover:bg-primary-strong/60 hover:text-on-primary',
               )}
             >
               {janela.label}
             </button>
           ))}
         </div>
+      </HeroBand>
+
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+        <h2 className="sr-only">Resumo do período</h2>
 
         <QueryState
           isPending={percursos.isPending}
           isError={percursos.isError}
           label="os percursos"
         >
-          <GlassCard className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
-            {[
-              { label: 'Percursos', value: km.format(lista.length) },
-              { label: 'Quilômetros rodados', value: km.format(resumo.distancia) },
-              { label: 'Tempo ao volante', value: duration(resumo.aoVolante) },
-              {
-                label: 'Motor ligado parado',
-                value: duration(resumo.parado),
-                /* Parado com motor ligado é combustível queimado sem sair do
-                   lugar. Destacado quando passa de um quinto do total. */
-                alerta: resumo.aoVolante > 0 && resumo.parado / resumo.aoVolante > 0.2,
-              },
-            ].map((metrica) => (
-              <div key={metrica.label} className="metric-tile">
-                <p className="text-on-surface-variant text-label-md normal-case">{metrica.label}</p>
-                <p
-                  className={cn(
-                    'tabular font-sora mt-2 text-[32px] font-bold leading-none',
-                    metrica.alerta ? 'text-warning' : 'text-on-surface',
-                  )}
-                >
-                  {metrica.value}
-                </p>
-              </div>
-            ))}
-          </GlassCard>
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState` ela
+              jogaria o carregamento e o erro por cima da faixa colorida. */}
+          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
 
           {resumo.semMotorista > 0 ? (
             /* Percurso sem condutor identificado não entra em nota, jornada nem
@@ -204,28 +320,83 @@ function ViagensReais() {
         >
           {aba === 'PERCURSOS' ? (
             <div className="pb-4">
-              <label className="mb-4 block max-w-md">
-                <span className="sr-only">Buscar por placa, motorista ou endereço</span>
-                <input
-                  type="search"
+              {/* ⚠️ `surface="light"`: os campos moram dentro do painel branco,
+                  e a versão escura deles inverte a hierarquia da tela. */}
+              <div className="mb-4 grid items-end gap-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
+                <GlassInput
+                  surface="light"
+                  label="Buscar"
+                  placeholder="Rua, avenida ou bairro"
                   value={busca}
                   onChange={(evento) => setBusca(evento.target.value)}
-                  placeholder="Placa, motorista ou endereço"
-                  className="bg-light-container text-on-light placeholder:text-on-light-muted focus-visible:ring-primary-on-light w-full rounded-lg px-3 py-2 text-body-md focus-visible:outline-none focus-visible:ring-2"
+                  leading={<SearchIcon size={16} aria-hidden="true" />}
                 />
-              </label>
+
+                <GlassSelect
+                  surface="light"
+                  label="Placa"
+                  options={opcoesPlaca}
+                  value={placa}
+                  onValueChange={setPlaca}
+                />
+
+                <GlassSelect
+                  surface="light"
+                  label="Motorista"
+                  options={opcoesMotorista}
+                  value={motorista}
+                  onValueChange={setMotorista}
+                />
+
+                {/* Calendário, e não lista de dias: a janela chega a trinta
+                    dias, e escolher data em lista suspensa de trinta itens é
+                    procurar, não escolher. Vazio significa "todos os dias". */}
+                <GlassDateField
+                  surface="light"
+                  label="Dia do percurso"
+                  value={diaEscolhido}
+                  onValueChange={setDiaEscolhido}
+                />
+              </div>
+
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-on-light-muted text-label-md normal-case">
+                  {filtrados.length === lista.length
+                    ? `${lista.length.toLocaleString('pt-BR')} ${lista.length === 1 ? 'percurso' : 'percursos'}`
+                    : `${filtrados.length.toLocaleString('pt-BR')} de ${lista.length.toLocaleString('pt-BR')} percursos`}
+                </p>
+
+                {filtrando || busca !== '' ? (
+                  <SpectrumButton type="button" variant="ghost" size="sm" onClick={limparFiltros}>
+                    Limpar filtros
+                  </SpectrumButton>
+                ) : null}
+              </div>
 
               <QueryState
                 isPending={percursos.isPending}
                 isError={percursos.isError}
                 label="os percursos"
               >
-                {lista.length === 0 ? (
+                {filtrados.length === 0 ? (
                   <p className="text-on-light-variant text-body-md py-10 text-center">
-                    Nenhum percurso no período.
+                    {lista.length === 0
+                      ? 'Nenhum percurso no período.'
+                      : 'Nenhum percurso com esses filtros.'}
                   </p>
                 ) : (
-                  <JourneyList journeys={lista} />
+                  <>
+                    <JourneyList journeys={daPagina} />
+
+                    <Pagination
+                      className="mt-6"
+                      page={paginaAtual}
+                      total={filtrados.length}
+                      pageSize={POR_PAGINA}
+                      onPageChange={setPagina}
+                      label="percursos"
+                    />
+                  </>
                 )}
 
                 {percursos.data && percursos.data.ignored > 0 ? (
@@ -378,10 +549,41 @@ function ViagensSimuladas() {
   const onTimeRate = finished.length > 0 ? Math.round((onTime / finished.length) * 100) : 0;
   const lateCount = counts.ATRASADAS;
 
+  const stats: HeroStat[] = [
+    {
+      key: 'curso',
+      label: 'Em curso',
+      value: counts.EM_CURSO,
+      hint: 'na estrada agora',
+      icon: RouteIcon,
+    },
+    {
+      key: 'atrasadas',
+      label: 'Atrasadas',
+      value: lateCount,
+      hint: 'cliente precisa ser avisado',
+      icon: WarningIcon,
+      tone: lateCount > 0 ? 'alert' : 'neutral',
+    },
+    {
+      key: 'concluidas',
+      label: 'Concluídas no período',
+      value: finished.length,
+      hint: 'entregas fechadas',
+      icon: CheckCircleIcon,
+    },
+    {
+      key: 'prazo',
+      label: 'Entregas no prazo',
+      value: `${onTimeRate}%`,
+      hint: 'sobre as concluídas',
+      icon: ClockIcon,
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Viagens"
         description="O que está rodando agora, o que passou do prazo e o histórico do que já foi entregue."
       />
@@ -390,26 +592,9 @@ function ViagensSimuladas() {
         <h2 className="sr-only">Resumo das viagens</h2>
 
         <QueryState isPending={isPending} isError={isError} label="as viagens">
-          <GlassCard className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
-            {[
-              { label: 'Em curso', value: counts.EM_CURSO },
-              { label: 'Atrasadas', value: lateCount, alert: lateCount > 0 },
-              { label: 'Concluídas no período', value: finished.length },
-              { label: 'Entregas no prazo', value: `${onTimeRate}%` },
-            ].map((metric) => (
-              <div key={metric.label} className="metric-tile">
-                <p className="text-on-surface-variant text-label-md normal-case">{metric.label}</p>
-                <p
-                  className={cn(
-                    'tabular font-sora mt-2 text-[32px] font-bold leading-none',
-                    metric.alert ? 'text-error' : 'text-on-surface',
-                  )}
-                >
-                  {metric.value}
-                </p>
-              </div>
-            ))}
-          </GlassCard>
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState` ela
+              jogaria o carregamento e o erro por cima da faixa colorida. */}
+          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
 
           {lateCount > 0 ? (
             <div className="bg-error/10 border-error/30 text-error mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
