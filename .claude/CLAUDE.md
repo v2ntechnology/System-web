@@ -1,4 +1,4 @@
-# Instruções para Claude — RookHub (pt-BR)
+# Instruções para Claude: RookHub (pt-BR)
 
 ## Comportamento
 
@@ -6,9 +6,9 @@
 - **Nunca usar travessão (`—`)** em texto de interface, README, documentação, comentário de
   código ou mensagem de commit (decisão do usuário em 15/08/2026). Quebrar a frase em duas, ou usar
   dois-pontos e parênteses, em vez de trocar o travessão por vírgula.
-- Fazer só o que foi pedido — sem refatoração, limpeza ou melhoria não solicitada.
+- Fazer só o que foi pedido: sem refatoração, limpeza ou melhoria não solicitada.
 - `.claude/memoria.md` guarda o que o código não mostra. Na primeira tarefa de código ou infra da
-  sessão, rodar Grep `^#{2,3} ` nele — lista as seções e as linhas, custa pouco. Ler a seção cujo
+  sessão, rodar Grep `^#{2,3} ` nele: lista as seções e as linhas, custa pouco. Ler a seção cujo
   título casar com a tarefa **e sempre `Gotchas`** (armadilhas que causam retrabalho); nunca o
   arquivo inteiro.
 
@@ -21,10 +21,10 @@
   é obrigatório porque `verbatimModuleSyntax` está ligado.
 - Tela nova entra na pasta da **categoria do menu** a que pertence (`src/pages/<categoria>/`), e o
   mock correspondente na mesma categoria em `src/mocks/`. Não recriar `src/features/<dominio>/` nem
-  subdividir `components/` em data-display/forms/feedback — foram achatados de propósito.
+  subdividir `components/` em data-display/forms/feedback: foram achatados de propósito.
 - Telas consomem `src/services` pelos hooks de dados, **nunca** os mocks diretamente. Array grande
   de mock nunca dentro de componente React.
-- Tabela: usar o `DataTable` de `components/shared` — não recriar tabela por módulo.
+- Tabela: usar o `DataTable` de `components/shared`: não recriar tabela por módulo.
 - Ícone: importar **sempre** de `@/components/icons`, nunca de `react-icons` direto. Aquele arquivo
   é a fonte única dos quatro painéis (decisão do usuário em 19/08/2026): mesmo conceito, mesmo
   desenho, em `/app` e em `/gestao`. Conceito novo entra lá com nome semântico (`ApprovalIcon`, e
@@ -60,7 +60,7 @@
   desenvolvimento e a rota sumia no build publicado.
 - Nunca pôr o literal de um segredo em comando de shell (a harness grava comandos como permissão no
   `settings.local.json`); buscar pelo nome da variável.
-- Não recriar `.env.example` nem documentar nomes de chaves no `README.md` — os dois foram removidos
+- Não recriar `.env.example` nem documentar nomes de chaves no `README.md`: os dois foram removidos
   a pedido do usuário.
 - Guardas de permissão e plano no frontend são **UX, não segurança**: a validação definitiva terá de
   existir no backend. Não persistir dado sensível em `localStorage`.
@@ -68,7 +68,7 @@
 ## Git / autoria
 
 - Repo: `https://github.com/v2ntechnology/System-web.git`, branch `main`.
-- Cada pessoa configura a **própria identidade**, e **apenas com `--local`** — nunca alterar o
+- Cada pessoa configura a **própria identidade**, e **apenas com `--local`**: nunca alterar o
   Git global da máquina: `git config --local user.name "Seu Nome"` e
   `git config --local user.email "seu.email@exemplo.com"`. Autor = committer: usar
   `git commit -m "<msg>"` sem `--author`, senão o GitHub mostra dois avatares.
@@ -79,8 +79,8 @@
 - Sem `Co-Authored-By`. Nunca `push --force`, `reset --hard` ou reescrita de histórico.
 - ⚠️ **`.claude/` é versionado** desde 11/08/2026: `CLAUDE.md` e `memoria.md` valem para os 3
   desenvolvedores e entram no commit como qualquer documento. Só `settings.json` e
-  `settings.local.json` ficam de fora — são as permissões desta máquina. Por isso, **nada de dado
+  `settings.local.json` ficam de fora: são as permissões desta máquina. Por isso, **nada de dado
   pessoal aqui dentro**: exemplo de configuração usa placeholder, nunca a conta de alguém.
 - Antes de commitar: revisar `git diff` e confirmar que nenhum segredo entrou; e registrar em
-  `.claude/memoria.md` a decisão, armadilha ou combinado que o commit não revela — é o momento de
+  `.claude/memoria.md` a decisão, armadilha ou combinado que o commit não revela: é o momento de
   alimentar a memória.

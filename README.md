@@ -112,8 +112,8 @@ e o gradiente Spectrum. Desde 19/08/2026 a **paleta é uma só** para os dois pa
 
 | Categoria     | Ferramenta                                                                                          | Versão                  |
 | ------------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
-| Execução      | [Node.js LTS](https://nodejs.org/pt-br/download)                                                    | 24.18.0                 |
-| Gerenciador   | npm                                                                                                 | 11.16.0                 |
+| Execução      | [Node.js LTS](https://nodejs.org/pt-br/download)                                                    | 24.19.0                 |
+| Gerenciador   | npm                                                                                                 | 11.17.0                 |
 | Biblioteca UI | [React](https://react.dev/)                                                                         | 19.2.8                  |
 | Linguagem     | [TypeScript](https://www.typescriptlang.org/)                                                       | 6.0.3                   |
 | Empacotador   | [Vite](https://vitejs.dev/)                                                                         | 8.1.5                   |

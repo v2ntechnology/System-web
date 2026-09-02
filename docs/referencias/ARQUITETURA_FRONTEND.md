@@ -1,12 +1,13 @@
-# Arquitetura do Frontend — RookHub
+# Arquitetura do Frontend: RookHub
 
 Este documento registra as principais decisões técnicas da fundação do frontend.
 
-> **Estado em 29/08/2026.** O texto abaixo foi escrito na Fase 1, quando não existia backend. A
-> fundação continua valendo, mas a Fase 2 começou: autenticação, frota, mapa, motoristas,
-> segurança, assistente de IA e notificações já vêm da API real do `Backend-web`. Os trechos que
-> descrevem simulação seguem verdadeiros apenas para os módulos ainda não ligados. Onde a diferença
-> importa, ela está marcada na própria seção.
+> **Estado em 02/09/2026.** O texto abaixo foi escrito na Fase 1, quando não existia backend.
+> A fundação continua valendo, mas a Fase 2 terminou de virar produto: autenticação, frota,
+> mapa, motoristas, segurança, assistente de IA, voz e notificações vêm da API real do
+> `Backend-web`, que está **em produção** em `https://api.rookhub.com.br`, com este painel em
+> `https://app.rookhub.com.br`. Os trechos que descrevem simulação seguem verdadeiros apenas
+> para os módulos ainda não ligados: painel operacional, custos, manutenção e multas.
 
 ## 1. Objetivo e escopo
 
@@ -19,25 +20,25 @@ e foi exatamente isso que permitiu ligar a API real módulo a módulo, sem parar
 A estrutura é deliberadamente **rasa**: o projeto ainda é pequeno, e uma hierarquia
 profunda custava três níveis para chegar em um único arquivo.
 
-- `app/` — composição da aplicação: `router.tsx` (lazy loading, guardas e os três grupos de
+- `app/`, composição da aplicação. Tem o `router.tsx` (lazy loading, guardas e os três grupos de
   rotas), `providers.tsx` (Query, Tema, Tooltip, Toaster) e a configuração (`navigation`,
   `permissions`, `plans`, `environment`).
-- `pages/` — telas agrupadas pelas **categorias do menu**: `login/`, `hub/`, `dashboard/`,
+- `pages/`: telas agrupadas pelas **categorias do menu**: `login/`, `hub/`, `dashboard/`,
   `operations/`, `costs/`, `intelligence/`, `administration/`, `saas/` e `misc/`. As três
   telas de acesso vivem juntas em `login/login-page.tsx`, que também abriga o layout de
   autenticação. `hub/` é a porta de escolha em `/painel`, por onde dono e gestor passam antes de
   entrar no assistente ou na gestão. `mocks/` segue as mesmas categorias.
-- `management/` — o painel de gestão em `/gestao`, portado de `System-mobile/apps/web`. Ele
+- `management/`: o painel de gestão em `/gestao`, portado de `System-mobile/apps/web`. Ele
   **preserva as convenções de origem**: organização por feature, exportação nomeada e primitivos
   próprios em `management/ui`. Não achatar nem trocar seus primitivos pelos do painel operacional
   sem uma decisão explícita de unificação.
-- `components/` — componentes reutilizáveis em três grupos:
-  - `ui/` — primitivos no estilo shadcn/ui (Button, Card, Dialog, Table, …).
-  - `layout/` — AppShell, Sidebar, Topbar, Breadcrumbs, menus.
-  - `shared/` — `data-table` (tabela + paginação), `charts` (gráficos + ChartCard),
+- `components/`, componentes reutilizáveis, em três grupos:
+  - `ui/`: primitivos no estilo shadcn/ui (Button, Card, Dialog, Table, …).
+  - `layout/`: AppShell, Sidebar, Topbar, Breadcrumbs, menus.
+  - `shared/`: `data-table` (tabela + paginação), `charts` (gráficos + ChartCard),
     `cards` (Metric/Info), `filters` (busca, período, barra), `states` (carregando, vazio,
     erro, sem permissão, bloqueado por plano), `guards`, mapa e formulários.
-- `services/` — `contracts.ts` (interfaces), `api.ts` (implementações mockadas),
+- `services/`: `contracts.ts` (interfaces), `api.ts` (implementações mockadas),
   `http.ts` (atraso simulado, cliente HTTP e paginação) e `index.ts` como ponto de entrada.
 - `mocks/`, `stores/`, `hooks/`, `lib/`, `types/`, `styles/`.
 
@@ -63,7 +64,7 @@ Aliases de importação: `@/*` → `src/*`.
 - **TanStack Query** (`hooks/use-queries.ts`) centraliza `queryKeys`, cache e mutações, com
   invalidação automática após criação/edição.
 
-Regra: **arrays grandes nunca ficam dentro de componentes** — todo dado vem de `mocks/` via serviços.
+Regra: **arrays grandes nunca ficam dentro de componentes**: todo dado vem de `mocks/` via serviços.
 
 ## 4. Sessão, permissões e planos
 
@@ -80,13 +81,13 @@ Regra: **arrays grandes nunca ficam dentro de componentes** — todo dado vem de
 - Perfis (`UserRole`) mapeiam para capacidades (`Permission`) em `app/permissions.ts`.
 - Planos (`PlanType`) liberam módulos (`ModuleKey`) em `app/plans.ts`.
 - `PermissionGuard` e `PlanGuard` ocultam/bloqueiam conteúdo. **Isto é apenas controle visual**
-  — a segurança real deve ser reimplementada no backend.
+  A segurança real deve ser reimplementada no backend.
 - O modo demonstração (`DemoMenu`, dentro do menu do usuário) permite alternar perfil e plano para evidenciar o
   controle de acesso; não existirá em produção.
 
 ## 5. Roteamento
 
-- `react-router` v8 (pacote unificado — `react-router-dom` não é mais usado) com `useRoutes`
+- `react-router` v8 (pacote unificado: `react-router-dom` não é mais usado) com `useRoutes`
   e três grupos: **público** (`/login`, `/esqueci-minha-senha`,
   `/convite/:token`, `/sessao-expirada`), **autenticado** (`/app/*`) e **admin SaaS** (`/admin-saas/*`).
 - **Lazy loading** de todas as páginas (`app/router.tsx`) com fallback consistente.
@@ -99,7 +100,7 @@ Regra: **arrays grandes nunca ficam dentro de componentes** — todo dado vem de
 - `AppShell` = Sidebar (desktop, recolhível + drawer no mobile) + Topbar + área de conteúdo fluida.
 - A Sidebar é agrupada por categoria e filtra itens por **permissão**; itens fora do plano
   aparecem com cadeado. A Topbar traz breadcrumb, busca global (sugere telas conforme se
-  digita), notificações e menu do usuário — tema e modo demonstração ficam dentro desse menu.
+  digita), notificações e menu do usuário: tema e modo demonstração ficam dentro desse menu.
   O acesso à IA é um botão flutuante no canto inferior direito (`AiLauncher`).
 
 ## 6.1. Mapa da operação
@@ -114,7 +115,7 @@ Regra: **arrays grandes nunca ficam dentro de componentes** — todo dado vem de
   A atribuição do OpenStreetMap/OpenMapTiles é adicionada automaticamente e **não deve ser
   removida**.
 - Contrapartida assumida: o provedor público não oferece SLA nem suporte. Para produção com
-  garantia contratual, basta trocar a URL do estilo por um provedor pago — o componente e a
+  garantia contratual, basta trocar a URL do estilo por um provedor pago: o componente e a
   interface de marcadores permanecem iguais.
 - As coordenadas vêm de `mocks/fleet/vehicles.ts`, com lat/lng reais por cidade e um
   deslocamento determinístico para separar veículos da mesma praça.
@@ -201,7 +202,7 @@ que os tipos de domínio em `src/types/` usam essa forma.
 ### Remoção do `baseUrl`
 
 `baseUrl` está descontinuado e **deixa de funcionar no TypeScript 7**. Em vez de silenciar o
-diagnóstico com `"ignoreDeprecations": "6.0"` — que só esconderia o problema —, a opção foi
+diagnóstico com `"ignoreDeprecations": "6.0"` (que só esconderia o problema), a opção foi
 removida e cada entrada de `paths` passou a usar caminho relativo explícito ao próprio
 `tsconfig.app.json`:
 
@@ -266,8 +267,6 @@ do usuário. Nenhum dos dois deve ser recriado: os valores se pedem ao time.
 - Tela de Viagens, que depende de decidir entre cadastro próprio e integração com o TMS do cliente.
   A `trip` da MiX é o trecho entre ligar e desligar o veículo, e não o frete que a tela mostra.
 - Origem de custo, sem a qual não há custo por quilômetro.
-- Encadear a voz com a resposta do assistente. A síntese já existe no backend, mas a conversa por
-  voz do hub ainda não passa por ela ponta a ponta.
 - Reimplementar **todas** as validações de permissão e plano no backend. As guardas daqui são
   experiência de uso, não segurança.
 - Integrar multas (Detran) e câmeras, previstas como fontes futuras do ecossistema.

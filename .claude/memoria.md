@@ -1,4 +1,4 @@
-# Memória do Projeto — RookHub
+# Memória do Projeto: RookHub
 
 > Documento versionado e compartilhado pelo time. Guarda somente decisões, limites e armadilhas que
 > não ficam claros lendo um arquivo isolado. O código é a fonte de verdade para detalhes de
@@ -31,13 +31,18 @@ próximos passos · Gotchas
 - As telas consomem contratos e hooks de `src/services`; mocks são uma implementação desses
   contratos e podem ser substituídos por HTTP sem reescrever as páginas. Foi o que permitiu ligar
   a API módulo a módulo.
-- O produto está dividido em três projetos irmãos, sem compartilhamento automático de código:
+- **O painel está no ar em `https://app.rookhub.com.br`** desde 02/09/2026, no Cloudflare Pages
+  ligado ao repositório na `main`: push dispara build. Ele fala com a API real em
+  `https://api.rookhub.com.br`. Detalhe em `../Backend-web/docs/INFRAESTRUTURA.md`.
+- O produto está dividido em **quatro** projetos irmãos, sem compartilhamento automático de
+  código:
 
-  | Projeto         | Responsabilidade               | Repositório                   |
-  | --------------- | ------------------------------ | ----------------------------- |
-  | `System-web`    | esta aplicação React/Vite      | `v2ntechnology/System-web`    |
-  | `System-mobile` | monorepo com painel e app Expo | `v2ntechnology/System-mobile` |
-  | `Website`       | site institucional Next.js     | `v2ntechnology/Website`       |
+  | Projeto           | Responsabilidade                  | Repositório                     |
+  | ----------------- | --------------------------------- | ------------------------------- |
+  | `System-web`      | esta aplicação React/Vite         | `v2ntechnology/System-web`      |
+  | `System-mobile`   | monorepo com painel e app Expo    | `v2ntechnology/System-mobile`   |
+  | `Backend-web`     | a API que serve os três clientes  | `v2ntechnology/Backend-web`     |
+  | `Website-rookhub` | site institucional Next.js        | `v2ntechnology/Website-rookhub` |
 
 - O painel de gestão foi copiado de `System-mobile/apps/web` para `src/management`. A origem deve
   permanecer intacta até o usuário conferir e autorizar sua remoção; correções feitas aqui não são
@@ -56,7 +61,7 @@ próximos passos · Gotchas
   (`src/styles/palette.css`) e os ícones também (`src/components/icons.ts`).
 
 - ⚠️ O painel de gestão tem **um** limite de `Suspense`, no `ManagementLayout`, em volta do
-  `Outlet` — e nenhum por rota. Um limite por rota é criado do zero a cada navegação, e limite novo
+  `Outlet`: e nenhum por rota. Um limite por rota é criado do zero a cada navegação, e limite novo
   pinta o fallback na hora: a tela inteira sumia e voltava a cada troca de tela, o que o usuário
   descreveu como "fica um momento branco". Com um limite só, o React segura a tela anterior até a
   próxima estar pronta. Não devolver `Suspense` para dentro de `routes.tsx`.
@@ -118,7 +123,7 @@ próximos passos · Gotchas
 
 ## Temas e identidade visual
 
-### Redesign de 30/08/2026 — o desenho atual
+### Redesign de 30/08/2026: o desenho atual
 
 O usuário recusou o desenho anterior e fixou a direção com três referências de
 painel. Decisões confirmadas por ele antes do trabalho começar: **indigo da marca
@@ -226,7 +231,7 @@ painéis**.
   ele carrega o `aria-label` com o estado, e o `onSelect` alterna o tema com `preventDefault` para o
   menu não fechar. Trocar isso por um `div` solto tira o controle do teclado.
 - ⚠️ E os botões do seletor precisam de `stopPropagation` no clique: sem isso o clique escolhe o
-  tema e em seguida sobe até o `onSelect` do item, que **alterna** de novo — as duas ações se
+  tema e em seguida sobe até o `onSelect` do item, que **alterna** de novo: as duas ações se
   cancelam e nada muda na tela. O `onMouseDown` com `preventDefault` existe pelo mesmo motivo, para
   o foco não ficar preso no botão e travar as setas do menu.
 - A marca só existe em arte branca. `RookhubLogo` com `tone="adaptive"` aplica `brightness(0)` no
@@ -592,7 +597,7 @@ entra: é decisão de menu, não de permissão.
   MapLibre calcula a câmera como se o mapa estivesse achatado e devolve a visão para o de cima,
   desfazendo a inclinação que a pessoa escolheu.
 - ⚠️ **Armadilha ao TESTAR o seguimento:** as posições reais não mudam entre leituras (a coleta da
-  MiX é de 5 em 5 minutos), e o React Query faz *structural sharing* — dado igual mantém a MESMA
+  MiX é de 5 em 5 minutos), e o React Query faz *structural sharing*: dado igual mantém a MESMA
   referência, o efeito não dispara e parece que o seguimento quebrou. Para testar é preciso
   interceptar `/v1/fleet/positions` e deslocar as coordenadas. ⚠️ E filtrar por
   `status === 'EM_VIAGEM'` no interceptador NÃO funciona: ali o DTO ainda traz o status CRU do
@@ -651,7 +656,7 @@ entra: é decisão de menu, não de permissão.
   ⚠️ Medir em vez de repetir o número do backend é de propósito: aquele valor é configuração, e
   o atraso do rastreador não é configurável por ninguém.
 - ⚠️ **O replay não passa mais por estado do React.** O `TrackReplay` chamava `setState` no pai a
-  cada quadro, e o pai é a página inteira: lista de 33 veículos, ficha e mapa re-renderizavam
+  cada quadro, e o pai é a página inteira: lista de 40 veículos, ficha e mapa re-renderizavam
   dezenas de vezes por segundo para mover um ponto, e era isso que fazia o play engasgar. O
   `FleetMap` virou `forwardRef` e expõe `setReplayPose` (`FleetMapHandle`); o laço escreve direto
   na fonte do MapLibre e o React não roda nenhuma vez enquanto o trajeto corre. Só o rótulo de
@@ -1096,8 +1101,10 @@ não lendo documentação:
 - **Posição do fluxo incremental vem sem `FormattedAddress`.** O endereço geocodificado só
   acompanha início e fim de trecho, e a posição do evento. O mapa mostra coordenada quando não há
   endereço.
-- Volume real das 5 organizações: **54 ativos, 41 placas distintas, 149 motoristas, 154.625
-  posições por dia**, cerca de 2.863 por veículo por dia, uma a cada 30 segundos.
+- **O que a MiX reporta não é o que o painel mostra**: 54 ativos e 41 placas distintas antes da
+  desduplicação, 150 motoristas, e cerca de **154.625 posições por dia**, uma a cada 30 segundos
+  por veículo. Depois do tratamento no `Backend-web` sobram **40 caminhões e 110 motoristas**,
+  que é o que as telas exibem (conferido em 02/09/2026).
 
 ## Documentação e próximos passos
 
