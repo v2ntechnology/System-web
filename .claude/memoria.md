@@ -592,7 +592,7 @@ entra: é decisão de menu, não de permissão.
   MapLibre calcula a câmera como se o mapa estivesse achatado e devolve a visão para o de cima,
   desfazendo a inclinação que a pessoa escolheu.
 - ⚠️ **Armadilha ao TESTAR o seguimento:** as posições reais não mudam entre leituras (a coleta da
-  MiX é de 5 em 5 minutos), e o React Query faz *structural sharing* — dado igual mantém a MESMA
+  MiX é de 5 em 5 minutos), e o React Query faz _structural sharing_ — dado igual mantém a MESMA
   referência, o efeito não dispara e parece que o seguimento quebrou. Para testar é preciso
   interceptar `/v1/fleet/positions` e deslocar as coordenadas. ⚠️ E filtrar por
   `status === 'EM_VIAGEM'` no interceptador NÃO funciona: ali o DTO ainda traz o status CRU do
@@ -942,6 +942,77 @@ aprendeu a arrumar as pessoas já sabe arrumar os caminhões.
 - ⚠️ **`end: true` no item "Caminhões" do menu**, e não só no filho. `isItemActive` casa por
   prefixo quando `end` é falso, e sem isto "Caminhões" acenderia junto com "Cadastro". Mesma
   armadilha que já tinha aparecido em Motoristas.
+
+### Visão geral do gestor (`/gestao`), reescrita em 01/09/2026
+
+A home do gestor foi substituída inteira. Nasceu como `/gestao/visao-geral-2`, em slice isolado, e
+promovida depois de aprovada: a pasta virou `features/overview`, o mock virou `mocks/overview.ts` e
+a rota virou a própria `/gestao`. A antiga (`manager-home-page`) foi apagada.
+
+- A tela responde a **uma** pergunta: quantos caminhões podem rodar hoje e o que impede os outros.
+  **Nenhum valor em reais**: resultado financeiro é do proprietário.
+- ⚠️ **Foram apagados junto quatro blocos que só existiam na home antiga**: `ReadinessStrip`,
+  `OperationalMetricsCard`, `EventsTrendCard` e `ChecklistFailuresCard`. Com eles saíram do produto
+  o "Desempenho operacional" e o "Eventos de risco", que eram retrospectiva de 30 dias com seletor
+  de período. Saíram por decisão do usuário: a tela é do agora, e misturar dois relógios na mesma
+  página enfraquece os dois. Se voltarem, é em aba ou rota própria de desempenho, nunca na home.
+  `getManagerOverview` e `mockManagerOverview` ficaram sem uso, e não foram removidos.
+- A ordem das faixas é a da decisão: estado da frota (contexto, cards baixos encostados na faixa
+  indigo), decisões suas e impedimentos (o trabalho do dia, coluna larga), mapa de consulta e
+  viagens (coluna estreita).
+- **Decisões suas ≠ impedimentos.** Impedimento é o que a plataforma detecta; "decisões suas" é o
+  que ela espera do gestor (liberações, pareceres, o que subiu para o dono), e cada pedido na fila
+  é caminhão parado. Por isso vem antes, com a espera do pedido mais antigo em cima.
+- ⚠️ **"Parado" e "sem sinal" são cards separados**, e a soma dos cinco estados fecha com o total.
+  Somados, o gestor procura na oficina um caminhão que pode estar rodando com o rastreador mudo.
+- A fila de impedimentos é **única e ordenada por severidade**; nenhum filtro muda a ordem, só quem
+  entra nela. Os cards de severidade e a fileira de tipos (`/gestao/impedimentos`) são filtros, e
+  as contagens deles são sempre sobre a fila inteira: seguindo o filtro, escolher um tipo zeraria
+  os outros e o gestor perderia a noção do todo.
+- A faixa indigo (`HeroBand`) é o `bg-primary` chapado (#6366F1) e **só existe neste slice**. Texto
+  branco sempre, porque a faixa não muda com o tema; texto pequeno vai sobre `primary-strong`, que
+  é o que devolve o contraste (branco sobre o âncora dá 4,3:1).
+- O mini mapa (`FleetMiniMap`) é consulta rápida: sem giro, sem camada, sem histórico. Usa a base
+  compartilhada de `components/shared/map-style` e repete as três armadilhas já documentadas em
+  `A base cartográfica dos três mapas`: remontar camada no `styledata`, ouvinte fora da montagem e
+  `text-font` declarado.
+- ⚠️ **Dados sem origem real no mock**: CNH vencida/a vencer e disponibilidade de motorista
+  dependem de escala e do RH, como a tela de Equipe documenta. São os primeiros números a cair na
+  integração.
+
+### A faixa indigo virou o cabeçalho do painel (01/09/2026)
+
+- `HeroBand` (com `HeroPill` e `HeroLink`) saiu do slice da visão geral e virou
+  `components/layout/hero-band.tsx`. Ele **inclui a topbar**: quem usa `HeroBand` não usa
+  `PageBanner`, senão o título aparece duas vezes. A topbar fica FORA do indigo, sobre o papel,
+  porque marca, menu e avatar são pintados com os tokens do tema e somem sobre a cor saturada.
+- `components/layout/hero-stats.tsx` é a fileira de números de abertura: um card branco por
+  número, com ícone, e não um card com caixas dentro. Quem usa aplica `-mt-16 sm:-mt-20` para os
+  cards subirem por cima da borda da faixa; o `pb` grande do `HeroBand` existe para isso.
+- Adotaram o par em 01/09/2026: visão geral, impedimentos, viagens, equipe, segurança e
+  liberações. As demais telas seguem no `PageBanner`. O painel branco de conteúdo
+  (`rounded-t-4xl bg-light` no `PageContent`) foi mantido nessas telas: os blocos de dentro usam
+  `light-container` como poço, e sobre o papel eles sumiriam.
+- O `Tile` local da tela de Equipe e os `metric-tile` de resumo de Viagens e Segurança saíram,
+  substituídos pelo `HeroStats`.
+- No seletor de período de Viagens, que agora fica sobre a faixa, a pastilha ativa é
+  `primary-strong`, e não o preto do resto do painel: preto sobre indigo lê como buraco na faixa.
+
+### Gamificação em rota própria (01/09/2026)
+
+- O pódio "Top motoristas por score" saiu de `/gestao/motoristas` e virou `/gestao/gamificacao`,
+  a pedido do usuário. O motivo é a pergunta: a tela de motoristas responde "como este motorista
+  dirige" e a de gamificação responde "quem está ganhando". Na tela de motoristas o pódio ainda
+  dividia espaço com a ficha individual.
+- O item entrou no menu do gestor e no operacional, no grupo **Pessoas**, entre Motoristas e
+  Segurança.
+- A página tem os quatro números, o pódio (que traz o próprio seletor de mês/ano) e a
+  **classificação completa**, que a tela antiga não tinha: só o top 5 do mock, ou top 10 da API.
+- ⚠️ **A nota é relativa à própria frota** e a tela diz isso na cara. Cada cliente configura
+  eventos diferentes na telemetria, então 100 é "não gerou evento nesta configuração", e não
+  direção perfeita. Sem essa ressalva o ranking vira comparação entre transportadoras.
+- Quem não tem nota (rodou pouco no período) não entra na classificação e é contado na legenda do
+  primeiro card: sumir com essas pessoas sem dizer nada faria a frota parecer menor.
 
 ### Marca e artes
 
