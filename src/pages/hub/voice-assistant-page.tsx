@@ -329,7 +329,13 @@ export default function VoiceAssistantPage() {
     utteranceRef.current = null;
     clearPlaybackSource();
     stopSpeakingAnimation();
-    setErrorMessage(null);
+    /* NÃO limpar `errorMessage` aqui. Esta função é o fim da fala do
+       DISPOSITIVO, e a única coisa que chega nela com mensagem posta é o
+       aviso de que a voz da assistente falhou. Limpar aqui fazia o aviso
+       piscar enquanto ela falava e sumir ao terminar: quem ouvia percebia
+       a voz trocada e não tinha como saber por quê. O aviso agora sobrevive
+       até a próxima resposta bem-sucedida (que limpa em `speakResponse`) ou
+       até a próxima pergunta (`startListening`). */
     setStatus('idle');
   }
 
