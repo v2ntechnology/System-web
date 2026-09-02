@@ -3,7 +3,7 @@
 # (endOfLine: "lf") passaria a acusar todo o projeto como mal formatado.
 * text=auto eol=lf
 
-# Binários — nunca normalizar.
+# Binários: nunca normalizar.
 *.png binary
 *.jpg binary
 *.jpeg binary
