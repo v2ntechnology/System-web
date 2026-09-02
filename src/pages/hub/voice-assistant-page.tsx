@@ -80,6 +80,15 @@ const SEM_PERGUNTA =
  * espera custa dois segundos; errar para o lado da pressa custa a pergunta
  * inteira.
  */
+/* O aviso da voz precisa de estado PRÓPRIO, separado do `errorMessage`.
+   O `errorMessage` é passageiro de propósito: `startListening` o limpa a cada
+   pergunta, porque erro de microfone da pergunta anterior não vale para a
+   seguinte. Já a voz caída vale enquanto a conversa durar, e usar o mesmo
+   estado fazia o aviso sumir meio segundo depois de a assistente terminar de
+   falar, quando o microfone reabria. */
+const AVISO_VOZ_CAIDA =
+  'O serviço de voz está indisponível; usando temporariamente a voz do dispositivo.';
+
 const SILENCIO_PARA_ENCERRAR_MS = 2400;
 
 /**
@@ -162,6 +171,7 @@ export default function VoiceAssistantPage() {
      callbacks, mas quem redesenha o botão é o estado. */
   const [conversationOpen, setConversationOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [vozCaida, setVozCaida] = useState(false);
 
   /**
    * A última resposta, para a tela mostrar em texto o que foi falado.
@@ -326,6 +336,12 @@ export default function VoiceAssistantPage() {
   }
 
   function finishSpeaking() {
+    /* ⚠️ Guarda de reentrância. Esta função está ligada ao `onend` E ao
+       `onerror` da mesma fala: se os dois disparassem, `resumeConversation`
+       seria chamado duas vezes e o microfone reabriria em duplicado. O ref
+       serve de marca porque a linha seguinte já o zerava. */
+    if (!utteranceRef.current) return;
+
     utteranceRef.current = null;
     clearPlaybackSource();
     stopSpeakingAnimation();
@@ -337,6 +353,19 @@ export default function VoiceAssistantPage() {
        até a próxima resposta bem-sucedida (que limpa em `speakResponse`) ou
        até a próxima pergunta (`startListening`). */
     setStatus('idle');
+
+    /* ⚠️ Reabrir o microfone TAMBÉM aqui, e não só no caminho feliz.
+
+       Esta função é o fim da fala do dispositivo, que só acontece quando a
+       síntese da assistente falhou. Sem esta linha, a conversa morria depois
+       de UMA resposta: os outros três caminhos de `speakResponse` chamam
+       `resumeConversation`, este não chamava, e quem estava conversando
+       precisava encerrar e abrir de novo para fazer a segunda pergunta.
+
+       O sintoma só aparece quando a síntese falha, então passou despercebido
+       enquanto a ElevenLabs tinha crédito. `resumeConversation` já confere se
+       a conversa continua aberta, então chamar aqui é seguro. */
+    resumeConversation();
   }
 
   function applySpectrum(frequencyData: Uint8Array<ArrayBuffer>) {
@@ -414,9 +443,7 @@ export default function VoiceAssistantPage() {
   }
 
   function speakWithSystemFallback() {
-    setErrorMessage(
-      'O serviço de voz está indisponível; usando temporariamente a voz do dispositivo.',
-    );
+    setVozCaida(true);
 
     if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
       stopSpeakingAnimation();
@@ -611,6 +638,8 @@ export default function VoiceAssistantPage() {
       if (controller.signal.aborted) return;
 
       setStatus('speaking');
+      // A voz voltou: o aviso sai.
+      setVozCaida(false);
       setErrorMessage(null);
       await playBuffer(audioBuffer, true);
 
@@ -812,6 +841,7 @@ export default function VoiceAssistantPage() {
     clearPlaybackSource(true);
     stopSpeakingAnimation();
     setErrorMessage(null);
+    setVozCaida(false);
     setStatus('idle');
   }
 
@@ -907,7 +937,7 @@ export default function VoiceAssistantPage() {
                 {content.title}
               </h1>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                {errorMessage ?? content.description}
+                {errorMessage ?? (vozCaida ? AVISO_VOZ_CAIDA : content.description)}
               </p>
             </div>
 
