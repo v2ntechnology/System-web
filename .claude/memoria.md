@@ -9,8 +9,8 @@
 > código; não transforme este arquivo em diário de alterações.
 
 **Índice:** Produto e escopo · Arquitetura e áreas do sistema · Entrada, sessão e perfis · Temas e
-identidade visual · Mapas, cenas e voz · Segurança e ambiente · Telemetria MiX · Documentação e
-próximos passos · Gotchas
+identidade visual · Mapas, cenas e voz · Segurança e ambiente · Telemetria MiX (o que importa para a
+tela) · Documentação e próximos passos · Gotchas
 
 ---
 
@@ -123,7 +123,7 @@ próximos passos · Gotchas
 
 ## Temas e identidade visual
 
-### Redesign de 30/08/2026: o desenho atual
+### O desenho atual
 
 O usuário recusou o desenho anterior e fixou a direção com três referências de
 painel. Decisões confirmadas por ele antes do trabalho começar: **indigo da marca
@@ -192,7 +192,7 @@ painéis**.
 - `PRODUCT.md` na raiz guarda a verdade de produto que orienta o design. Ele foi
   escrito no redesign e não descreve visual: visual mora aqui.
 
-### Paleta única (19/08/2026)
+### Paleta única
 
 - Decisão do usuário: os dois painéis passaram a ter a **mesma identidade** em claro e escuro. A
   fonte única é `src/styles/palette.css`. O `@theme` de lá declara a rampa **escura** (padrão do
@@ -370,7 +370,7 @@ confirmação, e o mesmo diálogo servindo criação e edição.
 - O chip "Conferido" e o filtro de conferência saem de `registry_updated_at`. É o placar do trabalho
   que a tela existe para fazer: 150 pessoas importadas, 0 conferidas no começo.
 
-### Os dois diálogos de cadastro viraram etapas (30/08/2026)
+### Os diálogos de cadastro são etapas
 
 Decisão do usuário. Trinta campos numa coluna só obrigam a rolar três telas antes de saber o que
 falta. As cinco seções viraram etapas, com barra fixa no topo do diálogo e o botão principal
@@ -397,7 +397,7 @@ mudando de "Próximo" para "Cadastrar" na última.
   a altura que a mudança existe para poupar. A descrição ficou, porque não está em lugar nenhum.
 - "Contato e endereço" virou "Contato" na aba para as cinco caberem sem cortar em 768px.
 
-### As duas fichas ficaram do tamanho do mercado (30/08/2026)
+### As duas fichas, no tamanho do mercado
 
 O cadastro de motorista foi de 11 para 33 campos, em cinco seções (identificação, habilitação,
 aptidão, contato e endereço, vínculo), acompanhando o que já tinha sido feito no caminhão.
@@ -412,7 +412,7 @@ aptidão, contato e endereço, vínculo), acompanhando o que já tinha sido feit
   `GlassInput` já aplica. São 22 no caminhão e 19 no motorista.
 - O formulário do caminhão não tinha placeholder nenhum até esta rodada.
 
-### O assistente virou drawer, com histórico (30/08/2026)
+### O assistente é drawer, com histórico
 
 Decisão do usuário. O assistente abria num `GlassModal` centralizado, que cobre justamente a tela
 sobre a qual a pergunta é feita, e esquecia tudo ao recarregar a página.
@@ -449,7 +449,7 @@ sobre a qual a pergunta é feita, e esquecia tudo ao recarregar a página.
 - O estado do assistente é do store, com ações assíncronas, e não `useEffect` nos componentes:
   carregar conversa é consequência de um clique, não de uma renderização.
 
-### A tela de voz virou conversa de verdade (30/08/2026)
+### A tela de voz
 
 Pedido do usuário. A tela `/assistente` já falava, mas por comando solto: uma pergunta, uma
 resposta, e a captação cortava na primeira pausa.
@@ -490,7 +490,7 @@ resposta, e a captação cortava na primeira pausa.
   por efeito, que só roda depois do render: lido no meio de um `await`, ele ainda traz a resposta
   ANTERIOR. Vale para qualquer ref espelhado de estado.
 
-#### A tela acompanha a conversa, e o aviso só sai quando há consulta (30/08/2026)
+#### A tela acompanha a conversa
 
 Ajustes pedidos pelo usuário depois de conversar com a assistente de voz.
 
@@ -511,37 +511,21 @@ Ajustes pedidos pelo usuário depois de conversar com a assistente de voz.
   de linha: pode trazer meia linha ou duas e meia. O leitor guarda o resto entre uma leitura e
   outra.
 
-#### Placa falada, eco do alto-falante e modo de consulta (30/08/2026)
+#### Eco do alto-falante e modo de consulta
 
-Três correções tiradas de uma conversa real do usuário com a assistente, e as três só apareceram
-porque a auditoria guarda a pergunta como ela chegou.
+As armadilhas do lado do servidor (placa soletrada com tolerância de edição, prompt, NDJSON e
+`ResponseBodyEmitter`) estão em `../Backend-web/.claude/memoria.md`. Aqui fica o que é da tela.
 
-- ⚠️ **A placa soletrada não achava o caminhão.** A transcrição de "QJC8352" chega como "a placa
-  que JC 83 52": quem fala uma placa soletra, e o "Q" dito em português vira a palavra "que".
-  Normalizado a letras e dígitos isso é QUEJC8352, a duas edições da placa real. `locate_vehicle` e
-  `find_vehicle` passaram a aceitar distância de edição 2 (`levenshtein`, V25), e só quando o termo
-  tem cara de placa: cinco a doze caracteres, com letra E dígito. Sem esse corte, uma frase
-  qualquer viraria "placa" e a comparação traria um caminhão ao acaso.
-- ⚠️ **A tolerância é da BUSCA, nunca da gravação.** Placa continua sendo gravada exatamente como
-  é: aproximar na escrita trocaria um caminhão por outro no cadastro.
-- ⚠️ **A voz dela entrava no microfone e virava pergunta.** Sem fone, o alto-falante volta para a
-  captação: a pergunta chegou ao backend como "Oi tudo bem Eu gostaria de que você visse aonde está
-  a placa...", com o "oi tudo bem" que ela mesma tinha acabado de dizer grudado na frente, e o
-  modelo respondeu ao próprio cumprimento. Duas defesas: meio segundo de pausa antes de reabrir o
-  microfone, e o `semEco` da tela, que corta do começo da transcrição o que ela falou por último. O
-  corte exige três palavras seguidas: com uma, "onde" ou "está" roubariam o começo de perguntas
-  legítimas.
-- **O prompt cumprimenta uma vez por conversa** e ignora o "oi" quando ele vem colado numa pergunta.
-- **Modo de consulta na tela** (pedido do usuário): enquanto ela busca o dado, a esfera fica indigo
-  com pulso próprio, mais lento e mais amplo que o de processamento, e volta ao normal para falar. O
-  estado dura até a resposta chegar, e não só enquanto a frase "só um segundo" toca: a busca é o que
-  demora, e uma esfera congelada no meio da espera parece conversa travada.
-- ⚠️ **O `StreamingResponseBody` NÃO transmite, mesmo com `flush` a cada linha.** Medido em
-  30/08/2026: os cabeçalhos chegavam ao cliente aos 3,3 segundos, junto do corpo inteiro, e o aviso
-  de consulta perdia a razão de existir. Com `ResponseBodyEmitter` o aviso chega 1,1 segundo antes
-  da resposta. ⚠️ E cada `send` vai como `APPLICATION_JSON`: pedir `application/x-ndjson` no envio
-  derruba com "No suitable converter", porque o conversor do Jackson é registrado para JSON. O
-  ndjson descreve o fluxo; cada pedaço continua sendo um JSON comum.
+- ⚠️ **Sem fone, a voz dela entra no microfone e vira pergunta.** O alto-falante volta para a
+  captação, e a pergunta chegou ao backend com o "oi tudo bem" que ela mesma acabara de dizer
+  grudado na frente: o modelo respondeu ao próprio cumprimento. Duas defesas, as duas na tela: meio
+  segundo de pausa antes de reabrir o microfone, e o `semEco`, que corta do começo da transcrição o
+  que ela falou por último. **O corte exige três palavras seguidas**: com uma, "onde" ou "está"
+  roubariam o começo de perguntas legítimas.
+- **Modo de consulta**: enquanto ela busca o dado, a esfera fica indigo com pulso próprio, mais
+  lento e mais amplo que o de processamento, e volta ao normal para falar. O estado dura até a
+  resposta chegar, e não só enquanto a frase "só um segundo" toca: a busca é o que demora, e uma
+  esfera congelada no meio da espera parece conversa travada.
 
 ### Mapa ao vivo como central de comando (`/gestao/mapa`)
 
@@ -696,7 +680,7 @@ entra: é decisão de menu, não de permissão.
   não promete o contrário. Vale registrar como pendência: hoje um gestor que filtra por
   "Manutenção" vê a lista encolher e o mapa igual.
 
-### Carregamento das telas: a tampa dos mapas (30/08/2026)
+### Carregamento das telas: a tampa dos mapas
 
 - ⚠️ **`desenharConteudo` tem trava de reentrância, e sem ela há CORRIDA.** Ela é assíncrona:
   espera a rasterização dos ícones antes de montar. Nessa espera o `styledata` dispara, passa
@@ -754,7 +738,7 @@ existia; o que faltava era onde o custo é de RENDERIZAÇÃO, que são os três 
 - ⚠️ **O erro do GLTFLoader também avisa que terminou.** Quem espera esse retorno é a tampa: sem
   avisar, um 404 no modelo deixaria a tela em "Carregando o mapa" para sempre, sem erro visível.
 
-### A frota em 3D no mapa ao vivo (30/08/2026)
+### A frota em 3D no mapa ao vivo
 
 ⚠️ **NÃO FOI VISTO NA TELA.** Escrito com o navegador do Playwright bloqueado, então nada aqui
 foi confirmado visualmente. É a primeira coisa a conferir na próxima sessão, e a lista do que
@@ -859,7 +843,7 @@ pode estar errado está no fim desta seção.
 4. Clicar num caminhão ainda abre o popup e seleciona.
 5. O disco de status não pisca contra o chão do modelo (`disco.position.z`).
 
-### A base cartográfica dos três mapas (30/08/2026)
+### A base cartográfica dos três mapas
 
 - ⚠️ **A atribuição do mapa não pode ser removida, e a pergunta já foi feita** (usuário em
   30/08/2026). A base vem do OpenFreeMap com dados do OpenStreetMap, e a licença ODbL exige o
@@ -1027,104 +1011,48 @@ aprendeu a arrumar as pessoas já sabe arrumar os caminhões.
 - Não persistir tokens ou dados sensíveis em `localStorage`. A persistência atual guarda apenas
   preferências não sensíveis, como tema.
 
-## Telemetria MiX
+## Telemetria MiX, o que importa para a tela
 
-Acesso validado de ponta a ponta em 24/08/2026, contra o ambiente US
-(`identity.us.mixtelematics.com/core` e `integrate.us.mixtelematics.com`). O que segue são limites
-do fornecedor e armadilhas do teste, não configuração: credenciais ficam só no `.env`.
+O fornecedor, os limites dele e as armadilhas da ingestão estão em
+`../Backend-web/.claude/memoria.md`. Nenhum cliente fala com a MiX: tudo chega pela API do
+`Backend-web`. Aqui fica só o que muda decisão de tela.
 
-- Só o grant **`password`** está liberado para a aplicação. `client_credentials` responde
-  `unauthorized_client`, e a diferença para `invalid_client` é justamente a prova de que a
-  credencial da aplicação é válida. O token dura 1h e vem com `refresh_token`, então o backend
-  depende de renovar por refresh: não existe conta de serviço.
 - ⚠️ **IDs de 64 bits são destruídos pelo `JSON.parse` do JavaScript.** Os identificadores da MiX
-  têm 19 dígitos e o `Number.MAX_SAFE_INTEGER` tem 16. `1723190672275386368` vira
-  `1723190672275386400` silenciosamente. Com o ID arredondado a API responde
-  `401 UnauthorizedAccessException: Not Authorised`, ou seja, **o sintoma parece falta de permissão
-  e é ID inexistente**. Em Node, extrair os ids do texto cru antes do parse; no Java, `long` na
-  ingestão e **string na borda** que serializa para o navegador. Por isso `external_id` é `TEXT` no
-  schema do `Backend-web`.
-- Os ids são `long` **com sinal**: `SiteGroup` e `EventTypeId` aparecem negativos. Nada de
-  `UNSIGNED` nem validação que rejeite negativo.
-- ⚠️ **Teto de 20 requisições por minuto** (`429 API calls quota exceeded`). Isso define o
-  scheduler: 5 organisation groups por 3 fluxos são 15 chamadas, ou seja, cabe **um ciclo de
-  polling por minuto** e sobram 5 chamadas para cadastro. Polling por veículo é inviável. Falta
-  confirmar com a MiX se o limite é por conta, por aplicação ou por IP.
-- **`sinceToken=NEW` significa "comece de agora"**, não "traga o histórico": a primeira chamada
-  volta 0 registros e só o cursor. Backfill exige montar o cursor no formato `yyyyMMddHHmmssfff`
-  com data no passado. O cursor seguinte vem no header `GetSinceToken`.
-- Rotas `latest` exigem `quantity=1` quando o corpo traz vários ids
-  (`positions/groups/latest`, `trips/assets/latest`). As rotas de **eventos por ativo** pedem um
-  `EventFilter` no corpo cujo formato não foi decifrado em três tentativas; o fluxo do MVP é a rota
-  incremental por organização, que não precisa de filtro.
-- `DisplayTimeZone` vem como ID do Windows (`E. South America Standard Time`), não IANA. Converter
-  antes de usar.
-- Volume medido no piloto: 24 veículos de um grupo geraram **65.452 posições em 3 dias**, cerca de
-  900 por veículo por dia, uma a cada 95 segundos. Use esse número para dimensionar a hypertable,
-  não a estimativa do documento executivo.
-- ⚠️ **`ignition_on` não tem equivalente no payload da MiX**, que traz `IsAvl`, `Source`, `Hdop`,
-  `Pdop` e `NumberOfSatellites`. Precisa ser derivado do início e fim dos trechos em
-  `vehicle_journeys`. Continua valendo.
-- O schema do `Backend-web` **cobre viagens, eventos e catálogo de tipos** desde as migrations V3 a
-  V7 (`vehicle_journeys`, `vehicle_events`, `event_types`). A afirmação antiga de que faltavam
-  essas tabelas venceu: ver a subseção de 26/08/2026 logo abaixo, que é o estado corrente.
-
-### Coleta ligada de ponta a ponta (26/08/2026)
-
-Conector multiempresa, coleta incremental e telas com dado real. O que foi descoberto medindo, e
-não lendo documentação:
-
-- ⚠️ **O `sinceToken` retroage no máximo 7 dias.** Ele é um timestamp e aceita valor no passado,
-  mas além disso a MiX responde `400 ArgumentException: SinceToken must not be older than 7 days`.
-  Não é limite de quantidade: 14 dias falha com qualquer `quantity`. **Consequência de produto:
-  cliente novo entra enxergando uma semana, e não há como reconstruir histórico antigo por esta
-  rota.** Histórico maior exigiria o Data Feed, contratado à parte.
-- ⚠️ **Os eventos que o cliente usa têm `category = System`.** "VELOCIDADE LIMITE" e "USO DOS
-  FREIOS" são eventos padrão que ele renomeou em português. Filtrar por
-  `category NOT IN ('Hidden','Diagnostic','System')` parecia o caminho óbvio e esconderia
-  justamente os eventos com volume. O filtro correto é por categoria de risco derivada da
-  descrição.
-- **114 tipos de evento na frota, e 33 deles são saúde do rastreador**: "Firmware version changed",
-  "OBC unit reset", "MiX Vision: Power loss". Sem uma categoria própria, apareciam na tela de
-  segurança ao lado de sonolência ao volante.
-- ⚠️ **"ACELERAÇÃO (Evolução das marchas)" não é aceleração brusca.** São 3.053 ocorrências em 7
-  dias numa frota de 41 caminhões: é o contador de progressão de marchas do pacote de direção
-  econômica. Classificado como risco, sozinho zerava a nota de todos os motoristas.
-- ⚠️ **Não existe escala absoluta de nota de motorista.** Esta frota gera 170 eventos de freio por
-  mil quilômetros porque o evento dela conta uso do freio; outro cliente, com o evento padrão da
-  MiX, geraria dois. A nota é relativa à própria frota: 75 na média dela, 100 para quem não gera
-  evento, 50 para quem gera o dobro.
-- **`IsSystemDriver` não basta para identificar conta de sistema.** Dez contas vinham marcadas e
-  outras doze não, com o mesmo papel. Sete se chamam "Automatically created driver N" e cinco
-  "Unknown"; uma delas apareceu no mapa dirigindo um caminhão. O casamento é por **prefixo** do
-  nome, nunca por trecho, senão um sobrenome legítimo vira conta de sistema.
-- **Posição do fluxo incremental vem sem `FormattedAddress`.** O endereço geocodificado só
-  acompanha início e fim de trecho, e a posição do evento. O mapa mostra coordenada quando não há
-  endereço.
-- **O que a MiX reporta não é o que o painel mostra**: 54 ativos e 41 placas distintas antes da
-  desduplicação, 150 motoristas, e cerca de **154.625 posições por dia**, uma a cada 30 segundos
-  por veículo. Depois do tratamento no `Backend-web` sobram **40 caminhões e 110 motoristas**,
-  que é o que as telas exibem (conferido em 02/09/2026).
+  têm 19 dígitos e o `Number.MAX_SAFE_INTEGER` tem 16: `1723190672275386368` vira
+  `...400` silenciosamente. Com o ID arredondado a API responde `401 Not Authorised`, ou seja, **o
+  sintoma parece falta de permissão e é ID inexistente.** Por isso esses identificadores trafegam
+  como **string** na borda. Nunca convertê-los para número no cliente.
+- ⚠️ **O que a MiX reporta não é o que o painel mostra.** O fornecedor tem 54 ativos e 41 placas
+  antes da desduplicação, e 150 motoristas; depois do tratamento sobram **40 caminhões e 110
+  motoristas**, que é o que as telas exibem (conferido em 02/09/2026). Comparar os dois números sem
+  lembrar dessa diferença leva a conclusão errada.
+- ⚠️ **Não existe escala absoluta de nota de motorista.** A nota é relativa à própria frota, porque
+  o evento que uma conta gera não é o mesmo que outra gera: 75 na média dela, 100 para quem não gera
+  evento, 50 para quem gera o dobro. Nenhuma tela pode apresentar a nota como comparável entre
+  clientes.
+- **Posição do fluxo incremental vem sem endereço.** O geocodificado só acompanha início e fim de
+  trecho e a posição do evento, então o mapa mostra coordenada quando não há endereço.
+- ⚠️ **Metade da frota não tem motorista identificado na viagem** (2.069 de 2.287, medido em
+  02/09/2026). Qualquer ranking ou quadro de equipe precisa dizer isso na tela, senão o número
+  parece errado.
 
 ## Documentação e próximos passos
 
-- `docs/pdf/RookHub_Arquitetura_e_Decisoes_Tecnicas.pdf` descreve a arquitetura-alvo. **Não descreve
-  o estado implementado**, e diverge do que foi construído em três pontos registrados em
-  `Backend-web/docs/INFRAESTRUTURA.md`: ele diz OpenAI (existem chaves de Gemini também), diz AWS
-  (fomos de Oracle e Cloudflare por custo) e não menciona TimescaleDB, que está no schema desde a
-  `V1__baseline.sql`. Consulte o código e os READMEs para o agora.
-- Os PDFs em `docs/pdf/` são versionados de propósito. Não sugerir removê-los ou migrá-los para LFS
+- `docs/referencias/ARQUITETURA_FRONTEND.md` registra as decisões da fundação do frontend. A pasta
+  **existe e tem só esse arquivo**: os 4 vídeos e 2 PNGs de referência visual que moravam ali (13 MB)
+  foram removidos a pedido do usuário em 30/08/2026, junto das capturas de `public/images/` que
+  nenhum código importava. Sobraram em `public/images/` apenas `hub-robot.png` e `hub-rook.png`, que
+  são as artes dos dois cartões do hub. Não recriar as que saíram.
+- ⚠️ **`docs/pdf/RookHub_Arquitetura_e_Decisoes_Tecnicas.pdf` descreve a arquitetura-ALVO, não o
+  estado implementado.** Diverge do construído em três pontos: diz OpenAI (existem chaves de Gemini
+  também), diz AWS (fomos de Oracle e Cloudflare por custo) e não menciona TimescaleDB, que está no
+  schema desde a `V1__baseline.sql`. Para o agora, o código e os READMEs.
+- Os PDFs em `docs/pdf/` são versionados de propósito. Não sugerir removê-los nem migrá-los para LFS
   sem solicitação.
-- ⚠️ **`docs/referencias/` não existe mais** (removida a pedido do usuário em 30/08/2026): eram 4
-  vídeos de WhatsApp e 2 PNGs de referência visual, 13 MB. Saíram junto do `public/images/` as
-  capturas `truck-login`, `dashboard-preview-dark/light` e `assistant-preview-dark/light`, 2,9 MB
-  que **nenhum código importava**. Sobraram em `public/images/` só `hub-robot.png` e `hub-rook.png`,
-  que são as artes dos dois cartões do hub. Não recriar.
-- Pendências principais: ligar `services/api` (painel operacional) na API real; tela de Viagens,
-  que depende de decidir entre cadastro próprio e TMS do cliente; origem de custo; encadear a voz
-  com a resposta do assistente; autorização revalidada no backend; integrações de multas e câmeras;
-  paginação server-side; smoke E2E; code splitting; decidir o destino da cópia em `System-mobile`;
-  migrar para TS 7 quando o ecossistema de lint suportar.
+- **Pendências principais**: ligar `services/api` (painel operacional) na API real; tela de Viagens,
+  que depende de decidir entre cadastro próprio e TMS do cliente; origem de custo; integrações de
+  multas e câmeras; paginação server-side; smoke E2E; code splitting; decidir o destino da cópia em
+  `System-mobile`; migrar para TS 7 quando o ecossistema de lint suportar.
 
 ## Gotchas
 
