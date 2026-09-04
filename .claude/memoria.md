@@ -826,9 +826,10 @@ pode estar errado está no fim desta seção.
   popup no cursor, troca do ponteiro) estão ligados ao `LAYER_ICON` por id. `icon-opacity` é
   propriedade de PINTURA: o símbolo continua sendo colocado e consultado. Apagar a camada quebra
   a interação inteira sem erro no console.
-- **O status é dito por um DISCO no chão, não pela pintura do caminhão.** Tingir o modelo
-  estragaria a textura, e no tamanho em que ele aparece a cor da lataria não se lê. O escolhido
-  cresce 25%, que é o papel que o halo fazia na versão 2D.
+- **O veículo selecionado cresce 25%**, que é o papel que o halo fazia na versão 2D.
+  ⚠️ Este item dizia que o status era um DISCO no chão, contradizendo o item de cima. Conferido no
+  código em 03/09/2026: **é a cor da lataria mesmo**, e o disco foi a versão recusada, como o
+  próprio `fleet-3d-layer.ts:50` documenta. Texto de versão antiga que sobrou.
 - **O modelo é escalado a cada quadro para ocupar ~34px de comprimento**, medindo metros por
   pixel com `project`/`unproject` em vez de fórmula: a fórmula depende da latitude, do tamanho do
   tile e da projeção, e erra em silêncio quando qualquer uma muda.
@@ -1004,10 +1005,13 @@ aprendeu a arrumar as pessoas já sabe arrumar os caminhões.
   e não pode conter dados pessoais ou credenciais de máquina.
 - `.env.example` e a tabela de variáveis do README foram removidos por decisão do usuário e não
   devem ser recriados sem pedido.
-- `ACCESS_TOKEN_GITHUB` no `.env` é o PAT do GitHub usado para autenticar o push desta máquina. Não
-  tem prefixo `VITE_` e nunca deve ganhar um: não é variável de aplicação. Para usá-lo, passar por
-  `GIT_ASKPASS` com `credential.username=x-access-token`, nunca embutir o valor na URL do remoto nem
-  em argumento de comando.
+- ⚠️ **O PAT do GitHub não mora mais no `.env`.** O `ACCESS_TOKEN_GITHUB` foi removido em
+  03/09/2026, e não deve ser recriado ali: não é variável de aplicação. Quem entrega o token ao Git
+  é um credential helper que lê `~/.secrets/github-tokens.json`, escolhendo a conta pela chave
+  `credential.<url do repo>.username` do `.git/config` local. Nunca embutir o valor na URL do
+  remoto nem em argumento de comando.
+- ⚠️ **A ligação com o cofre não é versionada**, porque mora no `.git/config`. Cada desenvolvedor
+  monta o próprio cofre, com o próprio token, e refaz a configuração a cada clone novo.
 - Não persistir tokens ou dados sensíveis em `localStorage`. A persistência atual guarda apenas
   preferências não sensíveis, como tema.
 
