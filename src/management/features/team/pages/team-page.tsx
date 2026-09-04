@@ -1,10 +1,19 @@
-import { InfoIcon, SearchIcon, UsersIcon } from '@/components/icons';
+import {
+  IdCardIcon,
+  InfoIcon,
+  LockIcon,
+  SearchIcon,
+  SteeringWheelIcon,
+  UserIcon,
+  UsersIcon,
+} from '@/components/icons';
 import type { TeamPerson } from '@/management/types';
-import { GlassCard, LightCard, cn } from '@/management/ui';
+import { LightCard } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
@@ -26,46 +35,19 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
-function Tile({
-  label,
-  value,
-  hint,
-  tone = 'neutral',
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  tone?: 'neutral' | 'warning' | undefined;
-}) {
-  return (
-    <div className="metric-tile">
-      <p className="text-on-surface-variant text-label-md normal-case">{label}</p>
-      <p
-        className={cn(
-          'tabular font-sora mt-2 text-[24px] font-bold leading-none',
-          tone === 'warning' ? 'text-warning' : 'text-on-surface',
-        )}
-      >
-        {value}
-      </p>
-      <p className="text-on-surface-muted text-label-sm mt-1.5 normal-case">{hint}</p>
-    </div>
-  );
-}
-
 /**
- * Quadro de pessoas do tenant — dono e gestor.
+ * Quadro de pessoas do tenant: dono e gestor.
  *
- * Existe porque as duas visões que havia respondiam outra pergunta: Configurações
- * responde "quem tem acesso a quê" e a tela de Motoristas responde "como este
- * motorista dirige". Nenhuma das duas responde **"quem é o time e quem pode
- * trabalhar hoje"**, que é o que o dono e o gestor perguntam.
+ * Existe porque as duas visões que havia respondiam outra pergunta:
+ * Configurações responde "quem tem acesso a quê" e a tela de Motoristas responde
+ * "como este motorista dirige". Nenhuma das duas responde **"quem é o time e
+ * quem pode trabalhar hoje"**, que é o que o dono e o gestor perguntam.
  *
  * Por isso aqui não se edita nada: o cartão aponta para a ficha do motorista e
  * para Configurações. Duas telas donas da mesma ação divergem na primeira
  * mudança de regra.
  *
- * O gestor recebe os atalhos de tratativa; o dono, a leitura — a alçada de
+ * O gestor recebe os atalhos de tratativa; o dono, a leitura: a alçada de
  * pessoas é do gestor (RF-003).
  */
 export function TeamPage() {
@@ -99,10 +81,51 @@ function EquipeReal() {
     queryFn: () => fetchTeam(30),
   });
 
+  const stats: HeroStat[] = data
+    ? [
+        {
+          key: 'quadro',
+          label: 'Pessoas no quadro',
+          value: data.headcount,
+          hint: `${data.drivers} motoristas · ${data.staff} com acesso ao painel`,
+          icon: UsersIcon,
+        },
+        {
+          key: 'rodaram',
+          label: 'Rodaram no período',
+          value: data.driversActive,
+          hint: 'com trecho registrado',
+          icon: SteeringWheelIcon,
+        },
+        {
+          /* Ver a nota do componente: isto NÃO é indisponibilidade. */
+          key: 'sem-registro',
+          label: 'Sem registro',
+          value: data.driversWithoutRecord,
+          hint: 'folga, sem tag ou sem coleta',
+          icon: InfoIcon,
+        },
+        {
+          key: 'acessos',
+          label: 'Acessos ao painel',
+          value: data.staff,
+          hint: 'quem entra no sistema',
+          icon: UserIcon,
+        },
+        {
+          key: 'desativados',
+          label: 'Acessos desativados',
+          value: data.staffInactive,
+          hint: 'tratado em Configurações',
+          icon: LockIcon,
+          tone: data.staffInactive > 0 ? 'warn' : 'neutral',
+        },
+      ]
+    : [];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Equipe"
         description="Quem dirige, quem tem acesso ao painel e quem apareceu na operação nos últimos 30 dias."
       />
@@ -112,52 +135,16 @@ function EquipeReal() {
 
         <QueryState isPending={isPending} isError={isError} label="a equipe">
           {data ? (
-            <div className="grid gap-5 xl:grid-cols-[1fr_1.55fr]">
-              <GlassCard className="flex min-w-0 flex-col p-5 sm:p-6">
-                <h3 className="text-on-surface-variant text-body-md flex items-center gap-2">
-                  <UsersIcon size={18} aria-hidden="true" />
-                  Pessoas no quadro
-                </h3>
-
-                <p className="tabular font-sora text-on-surface mt-2 text-[44px] font-bold leading-none">
-                  {data.headcount}
-                </p>
-
-                <p className="text-on-surface-variant text-label-md mt-3 normal-case">
-                  {data.drivers} motoristas · {data.staff} com acesso ao painel
-                </p>
-
-                <p className="text-on-surface-muted text-label-md mt-auto flex items-start gap-1.5 pt-5 normal-case">
-                  <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-                  Duas origens: cadastro da telemetria e cadastro do sistema
-                </p>
-              </GlassCard>
-
-              <GlassCard className="grid min-w-0 gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
-                <Tile
-                  label="Rodaram no período"
-                  value={String(data.driversActive)}
-                  hint="com trecho registrado"
-                />
-                {/* Ver a nota do componente: isto NÃO é indisponibilidade. */}
-                <Tile
-                  label="Sem registro"
-                  value={String(data.driversWithoutRecord)}
-                  hint="folga, sem tag ou sem coleta"
-                />
-                <Tile
-                  label="Acessos ao painel"
-                  value={String(data.staff)}
-                  hint="quem entra no sistema"
-                />
-                <Tile
-                  label="Acessos desativados"
-                  value={String(data.staffInactive)}
-                  hint="tratado em Configurações"
-                  tone={data.staffInactive > 0 ? 'warning' : 'neutral'}
-                />
-              </GlassCard>
-            </div>
+            <>
+              {/* A subida fica nos cards, e não na seção: em volta do
+                  `QueryState` ela jogaria o carregamento e o erro por cima da
+                  faixa colorida. */}
+              <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+              {/* RN-121: o número vem com a procedência colada nele. */}
+              <p className="text-on-surface-muted text-label-sm mt-3 normal-case">
+                Duas origens: cadastro da telemetria e cadastro do sistema.
+              </p>
+            </>
           ) : null}
         </QueryState>
       </section>
@@ -243,10 +230,52 @@ function EquipeSimulada() {
 
   const personKey = (person: TeamPerson) => `${person.kind}-${person.id}`;
 
+  const stats: HeroStat[] = data
+    ? [
+        {
+          key: 'quadro',
+          label: 'Pessoas no quadro',
+          value: data.headcount,
+          hint: `${data.drivers} motoristas · ${data.staff} com acesso ao painel`,
+          icon: UsersIcon,
+        },
+        {
+          key: 'disponiveis',
+          label: 'Disponíveis agora',
+          value: data.driversAvailable,
+          hint: 'podem assumir viagem',
+          icon: SteeringWheelIcon,
+        },
+        {
+          key: 'indisponiveis',
+          label: 'Indisponíveis',
+          value: data.driversUnavailable,
+          hint: 'descanso ou afastamento',
+          icon: InfoIcon,
+          tone: data.driversUnavailable > 0 ? 'warn' : 'neutral',
+        },
+        {
+          key: 'cnh',
+          label: 'CNH a vencer',
+          value: data.cnhExpiringSoon,
+          hint: 'nos próximos 60 dias',
+          icon: IdCardIcon,
+          tone: data.cnhExpiringSoon > 0 ? 'warn' : 'neutral',
+        },
+        {
+          key: 'mfa',
+          label: 'Acesso sem MFA',
+          value: data.withoutMfa,
+          hint: 'tratado em Configurações',
+          icon: LockIcon,
+          tone: data.withoutMfa > 0 ? 'warn' : 'neutral',
+        },
+      ]
+    : [];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Equipe"
         description="Quem trabalha na operação, o que cada um faz e quem pode assumir viagem hoje."
       />
@@ -256,54 +285,16 @@ function EquipeSimulada() {
 
         <QueryState isPending={isPending} isError={isError} label="a equipe">
           {data ? (
-            <div className="grid gap-5 xl:grid-cols-[1fr_1.55fr]">
-              <GlassCard className="flex min-w-0 flex-col p-5 sm:p-6">
-                <h3 className="text-on-surface-variant text-body-md flex items-center gap-2">
-                  <UsersIcon size={18} aria-hidden="true" />
-                  Pessoas no quadro
-                </h3>
-
-                <p className="tabular font-sora text-on-surface mt-2 text-[44px] font-bold leading-none">
-                  {data.headcount}
-                </p>
-
-                <p className="text-on-surface-variant text-label-md mt-3 normal-case">
-                  {data.drivers} motoristas · {data.staff} com acesso ao painel
-                </p>
-
-                {/* RN-121 — o número vem com a procedência colada nele. */}
-                <p className="text-on-surface-muted text-label-md mt-auto flex items-start gap-1.5 pt-5 normal-case">
-                  <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-                  Cadastro de motoristas e usuários do painel
-                </p>
-              </GlassCard>
-
-              <GlassCard className="grid min-w-0 gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
-                <Tile
-                  label="Disponíveis agora"
-                  value={String(data.driversAvailable)}
-                  hint="podem assumir viagem"
-                />
-                <Tile
-                  label="Indisponíveis"
-                  value={String(data.driversUnavailable)}
-                  hint="descanso ou afastamento"
-                  tone={data.driversUnavailable > 0 ? 'warning' : 'neutral'}
-                />
-                <Tile
-                  label="CNH a vencer"
-                  value={String(data.cnhExpiringSoon)}
-                  hint="nos próximos 60 dias"
-                  tone={data.cnhExpiringSoon > 0 ? 'warning' : 'neutral'}
-                />
-                <Tile
-                  label="Acesso sem MFA"
-                  value={String(data.withoutMfa)}
-                  hint="tratado em Configurações"
-                  tone={data.withoutMfa > 0 ? 'warning' : 'neutral'}
-                />
-              </GlassCard>
-            </div>
+            <>
+              {/* A subida fica nos cards, e não na seção: em volta do
+                  `QueryState` ela jogaria o carregamento e o erro por cima da
+                  faixa colorida. */}
+              <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+              {/* RN-121: o número vem com a procedência colada nele. */}
+              <p className="text-on-surface-muted text-label-sm mt-3 normal-case">
+                Cadastro de motoristas e usuários do painel.
+              </p>
+            </>
           ) : null}
         </QueryState>
       </section>

@@ -13,6 +13,14 @@ import { cn } from '@/management/ui';
  * destino, existe endereço, e o que o gestor procura (quem, quanto rodou,
  * quanto ficou parado, quanto gastou) cabe na própria linha. Um painel lateral
  * repetiria os mesmos seis números com mais cliques.
+ *
+ * <h2>Por que a linha alterna de cor</h2>
+ *
+ * Decisão do usuário em 01/09/2026. Com duzentos percursos seguidos, cartões
+ * soltos com o mesmo fundo viram uma parede: o olho perde a linha ao atravessar
+ * da placa até o quilômetro do outro lado. A faixa alternada (papel e branco) é
+ * o guia horizontal, e por isso as linhas ficam **encostadas**, sem respiro
+ * entre elas: com espaço no meio, a alternância vira decoração e não guia.
  */
 
 const numero = (valor: number | undefined, casas = 0) =>
@@ -36,10 +44,15 @@ export interface JourneyListProps {
 
 export function JourneyList({ journeys, className }: JourneyListProps) {
   return (
-    <ul className={cn('flex flex-col gap-2', className)}>
-      {journeys.map((percurso) => {
+    <ul className={cn('ring-light-outline overflow-hidden rounded-xl ring-1', className)}>
+      {journeys.map((percurso, indice) => {
         const inicio = new Date(percurso.startedAt);
         const fim = new Date(percurso.endedAt);
+
+        /* Linha par no branco do painel, ímpar na faixa `light-stripe`
+           (#E5E7EB no claro), escolhida pelo usuário em 01/09/2026. As duas são
+           claras, então a tinta do texto é a mesma nas duas. */
+        const faixa = indice % 2 === 1;
 
         /* Parado com o motor ligado é o número que ninguém olha e todo mundo
            paga: destacado quando passa de um terço do percurso. */
@@ -52,7 +65,10 @@ export function JourneyList({ journeys, className }: JourneyListProps) {
         return (
           <li
             key={percurso.id}
-            className="bg-light-container/60 hover:bg-light-container rounded-xl p-3.5 transition-colors sm:p-4"
+            className={cn(
+              'hover:bg-primary-on-light/[0.07] px-3.5 py-3 transition-colors sm:px-4',
+              faixa ? 'bg-light-stripe' : 'bg-light',
+            )}
           >
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <span className="flex items-baseline gap-2.5">

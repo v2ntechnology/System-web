@@ -1,13 +1,22 @@
-import { WarningIcon } from '@/components/icons';
+import {
+  CheckCircleIcon,
+  MaintenanceIcon,
+  ParkingIcon,
+  RadarIcon,
+  TruckIcon,
+  WarningIcon,
+} from '@/components/icons';
 import type { Vehicle } from '@/management/types';
 import { GlassCard } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
+import { useIncrementalList } from '@/management/hooks/use-incremental-list';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
 import { getFleetExpenses, getVehicles } from '../api';
@@ -113,6 +122,10 @@ export function TrucksPage() {
 
   const vehicleId = useCallback((vehicle: Vehicle) => vehicle.id, []);
   const { selectedId, setSelectedId, selected } = useMasterDetail(visible, vehicleId);
+
+  /* A coluna abre com oito caminhões e cresce ao rolar: a frota inteira de uma
+     vez empurrava o painel do veículo para fora da primeira tela. */
+  const { visible: naTela, hasMore: temMais, sentinelRef } = useIncrementalList(visible);
   const staleCount = vehicles.filter((vehicle) => isStale(vehicle, now)).length;
 
   /** Clique numa barra dos cards de despesa leva ao veículo correspondente. */
@@ -146,19 +159,67 @@ export function TrucksPage() {
     [counts],
   );
 
+  /* A situação da frota vem antes da despesa: quem abre esta tela pergunta
+     primeiro quantos caminhões estão de pé, e só depois quanto custaram. */
+  const stats: HeroStat[] = [
+    {
+      key: 'total',
+      label: 'Frota total',
+      value: vehicles.length,
+      hint: 'veículos cadastrados',
+      icon: TruckIcon,
+    },
+    {
+      key: 'ativos',
+      label: 'Ativos',
+      value: counts.ATIVOS,
+      outOf: vehicles.length,
+      hint: 'disponíveis ou em viagem',
+      icon: CheckCircleIcon,
+    },
+    {
+      key: 'manutencao',
+      label: 'Em manutenção',
+      value: counts.MANUTENCAO,
+      outOf: vehicles.length,
+      hint: 'retidos por decisão da operação',
+      icon: MaintenanceIcon,
+    },
+    {
+      key: 'parados',
+      label: 'Parados',
+      value: counts.PARADOS,
+      outOf: vehicles.length,
+      hint: 'bloqueados ou sem sinal',
+      icon: ParkingIcon,
+      tone: counts.PARADOS > 0 ? 'warn' : 'neutral',
+    },
+    {
+      /* RN-141: dado velho é aviso, não detalhe. O número aparece aqui e o
+         texto completo continua na faixa abaixo. */
+      key: 'sincronizacao',
+      label: 'Sem sincronizar',
+      value: staleCount,
+      hint: `há mais de ${STALE_SYNC_MINUTES} minutos`,
+      icon: RadarIcon,
+      tone: staleCount > 0 ? 'alert' : 'neutral',
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Caminhões"
         description="Toda a frota, com situação em tempo real, custo por quilômetro e proximidade da próxima manutenção."
       />
 
       {/* -------------------------------------------------------------------
-       * Faixa escura: despesas do período + filtros
+       * Situação da frota, despesas do período e filtros
        * ----------------------------------------------------------------- */}
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
-        <h2 className="sr-only">Despesas da frota no período</h2>
+        <h2 className="sr-only">Situação e despesas da frota no período</h2>
+
+        <HeroStats items={stats} className="-mt-16 mb-6 sm:-mt-20" />
 
         <QueryState
           isPending={expensesQuery.isPending}
@@ -241,8 +302,13 @@ export function TrucksPage() {
               <div className="min-w-0">
                 <div className="mb-3 flex items-baseline justify-between gap-3">
                   <h2 className="font-sora text-primary text-headline-md">Frota</h2>
+                  {/* Enquanto a janela não corta nada, o contador é o de
+                      sempre (quantos o filtro deixou passar, de quantos existem).
+                      Quando corta, ele passa a contar o que está na caixa. */}
                   <span className="text-on-light-muted text-label-md tabular normal-case">
-                    {visible.length} de {vehicles.length}
+                    {naTela.length === visible.length
+                      ? `${visible.length} de ${vehicles.length}`
+                      : `${naTela.length} de ${visible.length}`}
                   </span>
                 </div>
 
@@ -251,8 +317,13 @@ export function TrucksPage() {
                     Nenhum caminhão encontrado com esses filtros.
                   </p>
                 ) : (
-                  <ul className="flex flex-col gap-2">
-                    {visible.map((vehicle) => (
+                  /* Caixa da altura de oito caminhões, com rolagem própria: a
+                     lista inteira empurrava o painel do veículo para fora da
+                     primeira tela, e rolar a página inteira para ver o nono
+                     tirava o detalhe do campo de visão. A barra de rolagem não
+                     aparece, por decisão de 19/08/2026. */
+                  <ul className="flex max-h-[42rem] flex-col gap-2 overflow-y-auto">
+                    {naTela.map((vehicle) => (
                       <li key={vehicle.id} className="min-w-0">
                         <VehicleListItem
                           vehicle={vehicle}
@@ -261,6 +332,16 @@ export function TrucksPage() {
                         />
                       </li>
                     ))}
+
+                    {/* Sentinela: entrar na tela é o que carrega o próximo
+                        punhado. Sem texto, porque a lista continua sozinha. */}
+                    {temMais ? (
+                      <li ref={sentinelRef} className="py-3 text-center" aria-hidden="true">
+                        <span className="text-on-light-muted text-label-md normal-case">
+                          Carregando mais…
+                        </span>
+                      </li>
+                    ) : null}
                   </ul>
                 )}
               </div>

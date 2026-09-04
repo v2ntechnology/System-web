@@ -2,15 +2,16 @@ import {
   AlertCircleIcon,
   CalendarCheckIcon,
   DropletIcon,
+  EditIcon,
   GaugeIcon,
   InfoIcon,
   MaintenanceIcon,
   WarningIcon,
 } from '@/components/icons';
 import type { Vehicle, VehicleDetail } from '@/management/types';
-import { Spinner, StatusChip, cn } from '@/management/ui';
+import { SpectrumButton, Spinner, StatusChip, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
-import type { ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
 import {
   Area,
   AreaChart,
@@ -21,8 +22,10 @@ import {
   YAxis,
 } from 'recharts';
 
+import { useIncrementalList } from '@/management/hooks/use-incremental-list';
+
 import { getVehicleDetail } from '../api';
-import { VehicleRegistryForm } from './vehicle-registry-form';
+import { VehicleRegistryModal } from './vehicle-registry-modal';
 import { VehicleStatusChip } from '../vehicle-status';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -97,6 +100,8 @@ function costAxis(values: number[]) {
  * Bloco escuro dentro do painel claro — mesma inversão dos tiles do dashboard.
  */
 export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
+  const [cadastroAberto, setCadastroAberto] = useState(false);
+
   const { data, isPending, isError } = useQuery({
     queryKey: ['vehicle-detail', vehicle.id],
     queryFn: () => getVehicleDetail(vehicle.id),
@@ -151,8 +156,34 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
           <span className="tabular text-on-surface-muted text-label-md normal-case">
             {km.format(vehicle.odometerKm)} km no odômetro
           </span>
+
+          {/*
+           * A ficha abre em diálogo, e não mais em formulário no pé do painel.
+           *
+           * Ela tem cinco seções e mais de vinte campos: no fim da página,
+           * empurrava para fora da tela o que a pessoa veio ver, e repetia na
+           * cara placa, marca e modelo, que já estão no cabeçalho aqui do lado.
+           * É o mesmo diálogo do cadastro de frota, então os campos moram num
+           * lugar só.
+           */}
+          <SpectrumButton
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setCadastroAberto(true)}
+          >
+            <EditIcon size={16} aria-hidden="true" />
+            Cadastro da operação
+          </SpectrumButton>
         </div>
       </header>
+
+      <VehicleRegistryModal
+        open={cadastroAberto}
+        onOpenChange={setCadastroAberto}
+        vehicleId={vehicle.id}
+        plate={vehicle.plate}
+      />
 
       {isPending ? (
         <div className="flex flex-1 items-center justify-center py-16">
@@ -305,48 +336,65 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
               ) : null}
             </h4>
 
-            <ul className="flex flex-col gap-2">
-              {data.recentEvents.map((event) => {
-                const severity = SEVERITY[event.severity];
-                const Icon = severity.icon;
-
-                return (
-                  <li
-                    key={event.id}
-                    className="bg-on-surface/4 flex items-start gap-2.5 rounded-md px-3 py-2.5"
-                  >
-                    <Icon
-                      size={16}
-                      aria-hidden="true"
-                      className={cn(
-                        'mt-0.5 shrink-0',
-                        severity.tone === 'critical'
-                          ? 'text-error'
-                          : severity.tone === 'attention'
-                            ? 'text-warning'
-                            : 'text-info',
-                      )}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="text-on-surface text-body-md block">{event.label}</span>
-                      <span className="text-on-surface-muted text-label-md block normal-case">
-                        {severity.label} · {dayMonth.format(new Date(event.at))}
-                      </span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          {/* O cadastro fica no fim: primeiro o que o veiculo fez, depois o que
-              a operacao anota sobre ele. */}
-          <div className="border-outline-variant mt-6 border-t pt-5">
-            <h4 className="text-on-surface-variant text-body-md mb-3">Cadastro da operação</h4>
-            <VehicleRegistryForm vehicleId={vehicle.id} onSaved={() => {}} />
+            <RecentEvents events={data.recentEvents} />
           </div>
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * Eventos recentes do veículo, oito por vez.
+ *
+ * A telemetria repete o mesmo evento muitas vezes no mesmo dia ("USO DOS
+ * FREIOS" nove vezes seguidas), e a lista inteira empurrava o cadastro da
+ * operação para fora da tela. Cresce ao rolar, sem botão e sem paginação.
+ */
+function RecentEvents({ events }: { events: VehicleDetail['recentEvents'] }) {
+  const { visible, hasMore, sentinelRef } = useIncrementalList(events);
+
+  return (
+    /* Mesma caixa da lista de frota: oito eventos visíveis e rolagem própria. A
+       telemetria repete "USO DOS FREIOS" nove vezes no mesmo dia, e a lista
+       inteira empurrava o cadastro da operação para fora da tela. */
+    <ul className="flex max-h-[34rem] flex-col gap-2 overflow-y-auto">
+      {visible.map((event) => {
+        const severity = SEVERITY[event.severity];
+        const Icon = severity.icon;
+
+        return (
+          <li
+            key={event.id}
+            className="bg-on-surface/4 flex items-start gap-2.5 rounded-md px-3 py-2.5"
+          >
+            <Icon
+              size={16}
+              aria-hidden="true"
+              className={cn(
+                'mt-0.5 shrink-0',
+                severity.tone === 'critical'
+                  ? 'text-error'
+                  : severity.tone === 'attention'
+                    ? 'text-warning'
+                    : 'text-info',
+              )}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="text-on-surface text-body-md block">{event.label}</span>
+              <span className="text-on-surface-muted text-label-md block normal-case">
+                {severity.label} · {dayMonth.format(new Date(event.at))}
+              </span>
+            </span>
+          </li>
+        );
+      })}
+
+      {hasMore ? (
+        <li ref={sentinelRef} className="py-2 text-center" aria-hidden="true">
+          <span className="text-on-surface-muted text-label-md normal-case">Carregando mais…</span>
+        </li>
+      ) : null}
+    </ul>
   );
 }

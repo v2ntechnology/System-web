@@ -75,6 +75,11 @@ const OPERATIONAL_NAV: NavEntry[] = [
     items: [
       { to: '/gestao/motoristas', label: 'Motoristas', hint: 'Ficha, score e advertências' },
       {
+        to: '/gestao/gamificacao',
+        label: 'Gamificação',
+        hint: 'Pódio e classificação por score de condução',
+      },
+      {
         to: '/gestao/seguranca',
         label: 'Segurança',
         hint: 'Eventos, contestações e copiloto',
@@ -134,10 +139,22 @@ const OWNER_NAV: NavEntry[] = [
  * financeiro global é do proprietário.
  */
 const MANAGER_NAV: NavEntry[] = [
-  { to: '/gestao', label: 'Visão geral', hint: 'Prontidão e desempenho operacional', end: true },
+  {
+    to: '/gestao',
+    label: 'Visão geral',
+    hint: 'Quem pode rodar hoje, e o que trava o resto',
+    end: true,
+  },
   {
     label: 'Operação',
     items: [
+      {
+        /* Fila única do que impede a saída. Fica no topo do grupo porque é o
+           destino do único botão cheio da visão geral. */
+        to: '/gestao/impedimentos',
+        label: 'Impedimentos',
+        hint: 'O que trava a saída, do pior ao menos claro',
+      },
       {
         to: '/gestao/mapa',
         label: 'Mapa ao vivo',
@@ -205,6 +222,11 @@ const MANAGER_NAV: NavEntry[] = [
         label: 'Cadastro',
         hint: 'Quem a telemetria entrega, e quem já foi conferido por uma pessoa',
         end: true,
+      },
+      {
+        to: '/gestao/gamificacao',
+        label: 'Gamificação',
+        hint: 'Pódio e classificação por score de condução',
       },
       {
         to: '/gestao/seguranca',

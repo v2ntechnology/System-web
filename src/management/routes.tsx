@@ -70,9 +70,15 @@ const OwnerHomePage = lazy(() =>
     default: m.OwnerHomePage,
   })),
 );
+/**
+ * ⚠️ A home do gestor virou a visão geral do slice `features/overview` em
+ * 01/09/2026, e a anterior foi apagada. O nome da constante continua o mesmo
+ * porque quem lê o `RoleHome` quer saber de qual papel é a porta de entrada,
+ * não de qual arquivo ela sai.
+ */
 const ManagerHomePage = lazy(() =>
-  import('@/management/features/manager/pages/manager-home-page').then((m) => ({
-    default: m.ManagerHomePage,
+  import('@/management/features/overview/pages/overview-page').then((m) => ({
+    default: m.OverviewPage,
   })),
 );
 
@@ -180,6 +186,16 @@ export const managementRoutes: RouteObject = {
       ),
     },
 
+    {
+      /* A visão geral mostra o tamanho de cada degrau; a fila inteira, com os
+         filtros por tipo, mora aqui, e é para cá que o botão do card leva. */
+      path: 'impedimentos',
+      element: page(
+        () => import('@/management/features/overview/pages/blockers-page'),
+        'BlockersPage',
+      ),
+    },
+
     /* Telas compartilhadas da operação. */
     {
       path: 'mapa',
@@ -236,6 +252,15 @@ export const managementRoutes: RouteObject = {
       element: page(
         () => import('@/management/features/drivers/pages/drivers-page'),
         'DriversPage',
+      ),
+    },
+    {
+      /* O pódio saiu da tela de motoristas em 01/09/2026: lá a pergunta é "como
+         este motorista dirige", aqui é "quem está ganhando". */
+      path: 'gamificacao',
+      element: page(
+        () => import('@/management/features/drivers/pages/gamification-page'),
+        'GamificationPage',
       ),
     },
     {

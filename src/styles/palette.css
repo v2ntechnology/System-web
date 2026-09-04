@@ -102,6 +102,8 @@
    * ---------------------------------------------------------------------- */
   --color-light: #2e2e2e; /* mesmo cinza de `surface-container` */
   --color-light-container: #262626; /* poço dentro do painel */
+  /* Faixa da linha alternada de lista longa. Ver a nota do tema claro. */
+  --color-light-stripe: #2a2a2a;
   --color-on-light: #f0f0f2;
   --color-on-light-variant: #b4b4bc;
   --color-on-light-muted: #9a9aa4;
@@ -199,6 +201,14 @@ html.light {
      superfície é o que fazia a tela parecer um formulário. */
   --color-light: #ffffff;
   --color-light-container: #f4f2ef;
+  /*
+   * Faixa da linha alternada, em lista longa dentro do painel branco.
+   * Escolhida pelo usuário em 01/09/2026: é mais fria e um degrau mais escura
+   * que o `light-container`, que some ao lado do branco quando a lista passa
+   * de cem linhas. Não serve como poço nem como superfície de card, só como
+   * faixa de leitura.
+   */
+  --color-light-stripe: #e5e7eb;
   --color-on-light: #191817;
   --color-on-light-variant: #4a4741;
   --color-on-light-muted: #6b665e;
