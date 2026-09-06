@@ -2,9 +2,10 @@
  * Paleta RookHub — fonte única de cor dos dois painéis.
  *
  * ÂNCORAS DE PRODUTO
- *   #212121  Grafite  — fundo do tema escuro, nos dois painéis
- *   #6366F1  Indigo   — marca primária
- *   #06B6D4  Cyan     — marca secundária (foco, destaque)
+ *   #212121  Grafite    — fundo do tema escuro, nos dois painéis
+ *   #D5623A  Terracota  — marca primária (decisão do usuário em 04/09/2026,
+ *                         no lugar do indigo #6366F1)
+ *   #06B6D4  Cyan       — marca secundária (foco, destaque, caminho da gestão)
  *
  * COMO OS TEMAS SE ORGANIZAM
  *
@@ -64,9 +65,17 @@
   /* ------------------------------------------------------------------------
    * Marca — constante nos dois temas
    * ---------------------------------------------------------------------- */
-  --color-primary-strong: #5457ee; /* 5.3:1 com branco — AA em botão e chip */
-  --color-primary-container: #3730a3;
+  --color-primary-strong: #b35231; /* 5,04:1 com branco, AA em botão e chip */
+  /* Ponta clara do gradiente de marca. Existe para o gradiente não precisar
+     terminar no cyan da secundária: decisão do usuário em 04/09/2026, os
+     gradientes decorativos ficam todos na família quente.
+     ⚠️ É decorativa. Não carrega texto: dá 1,9:1 com branco. */
+  --color-primary-bright: #e7ad61;
+  --color-primary-container: #6f301d;
   --color-on-primary: #ffffff;
+  /* Ponta clara do gradiente da secundaria, espelho do --color-primary-bright.
+     Decorativa: nao carrega texto. */
+  --color-accent-bright: #67e8f9;
   --color-secondary-container: #0e7490;
   --color-on-secondary: #00212b;
   --color-tertiary: #212121;
@@ -89,8 +98,11 @@
   /*
    * O degrau do hover da tinta. Aqui a tinta é clara, então o degrau ESCURECE.
    * Ver a nota no par do tema claro, que é onde a decisão foi tomada.
+   *
+   * ⚠️ Aprofundado junto com o par claro em 06/09/2026, pelo mesmo motivo: de
+   * #E9EDF2 para #DDE3EA. Contraste contra o texto em 14,4:1.
    */
-  --color-bright-hover: #e9edf2;
+  --color-bright-hover: #dde3ea;
 
   /* ------------------------------------------------------------------------
    * SUPERFÍCIE DE PAINEL — o `LightCard` do painel de gestão.
@@ -109,7 +121,7 @@
   --color-on-light-muted: #9a9aa4;
   --color-light-outline: #3a3a3e;
   --color-light-edge: transparent; /* traço externo (só o tema claro precisa) */
-  --color-primary-on-light: #a5b4fc;
+  --color-primary-on-light: #db7a58;
   --color-error-on-light: #fb7185;
   --color-warning-on-light: #fbbf24;
   --color-success-on-light: #34d399;
@@ -121,7 +133,7 @@
    * A ordem é FIXA — série nunca troca de cor quando um filtro muda a contagem.
    * Aqui estão as versões claras das mesmas três matizes, para o fundo escuro.
    * ---------------------------------------------------------------------- */
-  --color-chart-1: #818cf8;
+  --color-chart-1: #e08a63;
   --color-chart-2: #22d3ee;
   --color-chart-3: #fb7185;
 }
@@ -132,7 +144,7 @@
  * saiam do mesmo lugar: `--card` é o mesmo cinza que `--color-surface-container`.
  * ----------------------------------------------------------------------- */
 :root {
-  --primary: #6366f1;
+  --primary: #d5623a;
   --primary-foreground: #ffffff;
   --secondary-foreground: #f0f0f2;
   --accent: #06b6d4;
@@ -147,7 +159,7 @@
   --destructive: #fb7185;
   --destructive-foreground: #2d0410;
 
-  --ring: #06b6d4;
+  --ring: #d5623a;
 }
 
 /* --------------------------------------------------------------------------
@@ -214,7 +226,7 @@ html.light {
   --color-on-light-muted: #6b665e;
   --color-light-outline: #e5e1db;
   --color-light-edge: transparent;
-  --color-primary-on-light: #4338ca;
+  --color-primary-on-light: #a24a2c;
   --color-error-on-light: #9f1239;
   --color-warning-on-light: #6b3f0a;
   --color-success-on-light: #065f46;
@@ -227,7 +239,7 @@ html.light {
   --color-info-on-light: #075985;
 
   /* Versões escuras das três matizes, para os gráficos sobre o painel branco. */
-  --color-chart-1: #4f46e5;
+  --color-chart-1: #b04d2b;
   --color-chart-2: #0e8fa8;
   --color-chart-3: #e11d48;
 
@@ -272,8 +284,13 @@ html.light {
    * A pastilha nunca deve sair no hover: ela é o "você está aqui".
    *
    * Escurecer não serve como resposta ao cursor: #1C1A18 já está a um passo do
-   * preto, e o olho não vê a diferença. Clarear até #2A2724 dá o degrau visível
-   * mantendo 14:1 contra o texto, bem acima do mínimo AA.
+   * preto, e o olho não vê a diferença. O degrau precisa CLAREAR.
+   *
+   * ⚠️ Era #2A2724 e subiu para #3A3531 em 06/09/2026, a pedido do usuário: 14
+   * pontos de luminosidade não se enxergam numa pastilha pequena, e o hover do
+   * item selecionado ficava indistinguível do repouso. Com 30 pontos a resposta
+   * ao cursor aparece, e o contraste contra o texto segue em 10,8:1, muito acima
+   * do mínimo AA de 4,5:1.
    */
-  --color-bright-hover: #2a2724;
+  --color-bright-hover: #3a3531;
 }

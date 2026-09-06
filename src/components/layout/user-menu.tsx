@@ -131,8 +131,28 @@ export function UserMenu() {
                As classes ficam no item, e não no `<button>`: com `asChild` o
                Slot só concatena as duas listas, então o raio e o tamanho do
                ícone da base venceriam. Aqui elas passam pelo `cn` do item. */
-            className="acao-sair size-9 justify-center rounded-[10px] p-0 focus:bg-transparent focus-visible:ring-2 focus-visible:ring-destructive [&_svg]:size-[18px]"
+            /*
+             * ⚠️ `.acao-sair-no-menu` ANULA o `focus:text-secondary-foreground`
+             * que o `DropdownMenuItem` traz na base. Ela mora em `globals.css`
+             * porque utilitário do Tailwind vence `@layer components` por camada,
+             * e um seletor mais específico aqui não resolveria.
+             *
+             * Sem ele o ícone virava quase preto ao passar o mouse: medido em
+             * 06/09/2026, a cor ia de `rgb(225,29,72)` para `rgb(25,24,23)`. O
+             * Radix foca o item no hover, então tudo que é `focus:` na base
+             * dispara com o mouse, e o item só cancelava o fundo, não o texto.
+             */
+            className="acao-sair acao-sair-no-menu size-9 justify-center rounded-[10px] p-0 focus:bg-transparent [&_svg]:size-[18px]"
           >
+            {/*
+              ⚠️ SEM anel de foco, e isso é decisão registrada do projeto: o hover
+              de botão só-ícone move a COR, nunca desenha uma forma nova (ver
+              `.acao-*` em `globals.css`). O anel voltou a aparecer aqui porque o
+              Radix foca o item no hover e o `focus-visible` disparava com o
+              mouse, desenhando um contorno vermelho em volta do quadrado. Quem
+              navega por teclado continua vendo o realce: `.acao-sair` muda a cor
+              também em `:focus-visible`.
+            */}
             <button type="button" aria-label="Sair" title="Sair">
               <LogoutIcon />
             </button>

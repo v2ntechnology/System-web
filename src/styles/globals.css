@@ -1,6 +1,20 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/*
+ * ⚠️ Modelo 3D fora da varredura do Tailwind.
+ *
+ * A detecção automática de conteúdo do Tailwind 4 varre a pasta do projeto
+ * atrás de nome de classe, e ela pula binário por extensão: `.glb` não está na
+ * lista do scanner, então cada modelo é lido como se fosse código. Com o
+ * `truck.glb` de 326 KB isso passava despercebido. Com os 71 MB convertidos do
+ * 3D Warehouse (05/09/2026), o `vite build` tentou alocar 16 GB e morreu,
+ * levando a máquina junto. Não existe classe dentro de um GLB: a varredura ali
+ * nunca teve o que achar.
+ */
+@source not '../../public/models';
+@source not '../../public/original-models';
+
 /* Paleta única dos dois painéis: rampa neutra grafite + marca indigo/cyan. */
 @import './palette.css';
 
@@ -212,7 +226,21 @@
 }
 
 @utility bg-brand-gradient {
-  background-image: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  background-image: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    var(--color-primary-bright) 100%
+  );
+}
+
+/* Mesmo desenho na secundaria. Serve o caminho de gestao da hub, que se
+   identifica pelo cyan enquanto o assistente se identifica pelo terracota. */
+@utility bg-accent-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-accent) 0%,
+    var(--color-accent-bright) 100%
+  );
 }
 
 /* ==========================================================================
@@ -341,7 +369,7 @@
     border-radius: 9999px;
     transform: skew(45deg);
     color: var(--color-primary-foreground);
-    background-image: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    background-image: linear-gradient(135deg, var(--color-primary), var(--color-primary-bright));
     font-family: var(--font-display);
     font-size: clamp(2.5rem, 8vw, 5rem);
     font-weight: 700;
@@ -391,6 +419,27 @@
 
 /* Entrada pública e experiência de voz. */
 @layer components {
+  /*
+   * Telas de entrada que cabem inteiras na janela, sem rolagem vertical.
+   *
+   * O `zoom` reduz tudo na MESMA proporção, inclusive os componentes
+   * compartilhados de altura fixa (campo, botão, ícone), então a composição
+   * aprovada em 1080px de altura se mantém em qualquer janela mais baixa e
+   * nenhum elemento encolhe mais que o vizinho. Medir cada peça em `vh` foi
+   * tentado antes e produzia desproporção: cada uma parava no próprio piso, e
+   * a logo minguava enquanto os campos seguiam grandes.
+   *
+   * `tan(atan2(a, b))` é como se obtém um número adimensional a partir de dois
+   * comprimentos: `calc()` não permite dividir comprimento por comprimento.
+   */
+  .tela-proporcional {
+    --escala-tela: clamp(0.5, tan(atan2(100dvh, 1080px)), 1);
+    zoom: var(--escala-tela);
+    /* Dentro do zoom o `dvh` já chega reduzido; dividir devolve a janela cheia. */
+    height: calc(100dvh / var(--escala-tela));
+    overflow: hidden;
+  }
+
   .voice-core {
     position: relative;
     /* Maior que o diâmetro em repouso: a câmera enquadra a esfera já expandida,
@@ -410,7 +459,7 @@
    * nos demais estados e ganha amplitude real apenas enquanto a IA fala.
    */
   .voice-orbit {
-    --voice-orbit-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-accent));
+    --voice-orbit-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-primary-bright));
     --voice-orbit-radius: clamp(6.4rem, 15vw, 10.2rem);
     position: absolute;
     inset: 4%;
@@ -464,7 +513,7 @@
 
   .voice-orbit--listening {
     opacity: 0.26;
-    color: var(--color-accent);
+    color: var(--color-primary);
   }
 
   .voice-orbit--processing {
@@ -495,7 +544,7 @@
 
   .voice-orbit--speaking {
     opacity: 0.94;
-    color: var(--color-warning);
+    color: var(--color-accent);
   }
 
   .voice-orbit--speaking .voice-orbit-bar {
@@ -528,7 +577,7 @@
     transform: scaleY(0.22);
     transform-origin: center;
     border-radius: 9999px;
-    background: color-mix(in oklch, var(--color-primary) 72%, var(--color-accent));
+    background: color-mix(in oklch, var(--color-primary) 72%, var(--color-primary-bright));
     opacity: 0.52;
     transition:
       transform 70ms linear,
@@ -541,7 +590,7 @@
   }
 
   .voice-waveform--listening .voice-wave-bar {
-    background: var(--color-accent);
+    background: var(--color-primary);
     opacity: 0.9;
   }
 
@@ -554,7 +603,7 @@
   /* Acompanha o laranja da esfera enquanto a IA responde. */
   .voice-waveform--speaking .voice-wave-bar {
     animation: voice-wave-speaking 0.72s ease-in-out infinite alternate;
-    background: var(--color-warning);
+    background: var(--color-accent);
     opacity: 0.9;
   }
 
@@ -591,6 +640,37 @@
   to {
     transform: scaleY(1.15);
   }
+}
+
+/*
+ * Animação simplificada para hardware modesto (`modo-leve`, ver
+ * `management/lib/performance.ts`). A animação continua existindo: o que sai é
+ * o custo por quadro que não se percebe na tela.
+ *
+ * O peso aqui não são os dois arcos, que giram por `transform` e ficam na GPU:
+ * são as 72 barras da órbita e as 32 da onda, cada uma com `animation-delay`
+ * próprio, o que impede o navegador de agrupá-las num só passo de composição.
+ */
+:root.modo-leve .voice-orbit-bar {
+  display: none;
+}
+
+:root.modo-leve .voice-orbit-arc {
+  /* Metade da velocidade: mesma leitura, menos quadros por volta. */
+  animation-duration: 16s;
+}
+
+:root.modo-leve .voice-wave-bar {
+  /* Sem defasagem individual, as 32 barras viram uma animação só para o compositor. */
+  animation-delay: 0s !important;
+  animation-duration: 2.4s !important;
+  transition: none;
+}
+
+/* A onda de fala é a mais agitada das três; no modo leve ela acompanha as outras. */
+:root.modo-leve .voice-waveform--speaking .voice-wave-bar,
+:root.modo-leve .voice-waveform--processing .voice-wave-bar {
+  animation-name: voice-wave-idle;
 }
 
 @keyframes voice-orbit-spin {
@@ -776,7 +856,7 @@
       ),
       radial-gradient(
         circle at 75% 70%,
-        color-mix(in oklch, var(--color-accent) 16%, transparent),
+        color-mix(in oklch, var(--color-primary-bright) 16%, transparent),
         transparent 45%
       ),
       linear-gradient(
@@ -1371,5 +1451,26 @@
   30%,
   70% {
     transform: scaleY(0.12) rotate(-4deg);
+  }
+}
+
+@layer utilities {
+  /*
+   * O sair de DENTRO de um menu suspenso, que é caso à parte.
+   *
+   * ⚠️ `.acao-sair` sozinha não vence ali. O item do Radix traz
+   * `focus:text-secondary-foreground` na base do componente, e isso é utilitário
+   * do Tailwind: utilitário ganha de `@layer components` por CAMADA, não por
+   * especificidade, então escrever um seletor mais específico não resolve. O
+   * sintoma, medido em 06/09/2026, era o ícone virar quase preto ao passar o
+   * mouse, porque o Radix foca o item no hover e tudo que é `focus:` dispara.
+   *
+   * Esta classe repõe o comportamento de todo botão só-ícone do sistema: a cor
+   * um degrau mais fechada, sem desenhar forma nova.
+   */
+  .acao-sair-no-menu:hover,
+  .acao-sair-no-menu:focus,
+  .acao-sair-no-menu:focus-visible {
+    color: color-mix(in oklab, var(--color-error) 72%, black);
   }
 }

@@ -8,7 +8,7 @@ import { useSession } from '@/management/features/auth/store';
 import { isGroup, navForRole, type NavLeaf } from './nav-items';
 
 const triggerClass =
-  'rounded-pill text-body-md focus-visible:ring-secondary focus-visible:ring-offset-surface flex items-center gap-1.5 px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+  'rounded-pill text-body-md focus-visible:ring-primary focus-visible:ring-offset-surface flex items-center gap-1.5 px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /*
  * ⚠️ A pastilha do item ativo é PRETA, e não indigo (redesign de 30/08/2026).
@@ -37,7 +37,15 @@ const activeClass = 'bg-bright text-on-bright hover:bg-bright-hover font-medium'
  * agora mora sobre o papel, então o texto volta a ser `on-surface`. Manter o
  * `on-media` aqui deixaria o menu branco sobre fundo branco.
  */
-const idleClass = 'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]';
+/*
+ * ⚠️ O véu do hover subiu de 6% para 12% em 06/09/2026, a pedido do usuário.
+ *
+ * A 6% sobre o papel o fundo praticamente não existia: medido, ele saía em
+ * `oklab(0.209768 ... / 0.06)`, uma diferença que o olho não separa do branco.
+ * O único sinal de hover acabava sendo o texto escurecer, e num menu horizontal
+ * isso é pouco para dizer onde o cursor está.
+ */
+const idleClass = 'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.12]';
 
 /**
  * Navegação principal do painel.
@@ -126,10 +134,11 @@ export function AppNav() {
                           <NavLink
                             to={item.to}
                             className={cn(
-                              'focus-visible:ring-secondary block rounded-md px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2',
+                              'focus-visible:ring-primary block rounded-md px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2',
                               active
                                 ? 'bg-bright hover:bg-bright-hover'
-                                : 'hover:bg-on-surface/[0.06]',
+                                : /* Mesmo véu do menu de cima. Ver `idleClass`. */
+                                  'hover:bg-on-surface/[0.12]',
                             )}
                           >
                             <span
@@ -183,10 +192,10 @@ export function AppNavMobile({ onNavigate }: { onNavigate: () => void }) {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
       'block rounded-md px-3 py-2.5 text-body-md transition-colors',
-      'focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-2',
+      'focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2',
       isActive
         ? 'bg-bright text-on-bright font-medium'
-        : 'text-on-surface-variant hover:bg-on-surface/8',
+        : 'text-on-surface-variant hover:bg-on-surface/12',
     );
 
   return (
