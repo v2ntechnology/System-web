@@ -24,6 +24,8 @@ import {
 
 import { useIncrementalList } from '@/management/hooks/use-incremental-list';
 
+import { fetchMechanicalAlerts } from '@/management/lib/fleet-api';
+
 import { getVehicleDetail } from '../api';
 import { VehicleRegistryModal } from './vehicle-registry-modal';
 import { VehicleStatusChip } from '../vehicle-status';
@@ -338,9 +340,66 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
 
             <RecentEvents events={data.recentEvents} />
           </div>
+
+          <AlertasMecanicos vehicleId={vehicle.id} />
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * O que a rede CAN acusou de mecânico neste veículo.
+ *
+ * <h2>Por que uma consulta da frota inteira, e não deste veículo</h2>
+ *
+ * ⚠️ A rota devolve a frota toda, e o filtro é feito aqui. Parece desperdício e
+ * não é: são cerca de quarenta linhas agregadas, e a MESMA chave de cache é
+ * usada pela tela de Manutenção. Quem passa por lá e abre uma ficha não faz
+ * requisição nenhuma. Uma rota por veículo custaria uma ida ao servidor por
+ * clique na lista, que é o oposto.
+ *
+ * <h2>⚠️ Contagem, e não diagnóstico</h2>
+ *
+ * O evento diz que o sensor disparou, não que a peça está ruim. A ressalva
+ * completa está em `mechanical-alerts-card`, e o mesmo cuidado vale aqui: esta
+ * ficha é lida por quem decide mandar o caminhão para a oficina.
+ */
+function AlertasMecanicos({ vehicleId }: { vehicleId: string }) {
+  const alertas = useQuery({
+    queryKey: ['manutencao', 'alertas-mecanicos', 30],
+    queryFn: () => fetchMechanicalAlerts(30),
+  });
+
+  const doVeiculo = (alertas.data ?? []).filter((a) => a.vehicleId === vehicleId);
+  if (doVeiculo.length === 0) return null;
+
+  const total = doVeiculo.reduce((soma, a) => soma + a.occurrences, 0);
+
+  return (
+    <div className="mt-6">
+      <h4 className="text-on-surface-variant text-body-md mb-1 flex items-center gap-2">
+        Alertas mecânicos
+        <StatusChip tone="attention">{total.toLocaleString('pt-BR')}</StatusChip>
+      </h4>
+      <p className="text-on-surface-muted text-label-md mb-3 normal-case">
+        O que o sensor disparou nos últimos 30 dias. Não é diagnóstico.
+      </p>
+
+      <ul className="flex flex-col gap-2">
+        {doVeiculo.map((alerta) => (
+          <li
+            key={alerta.description}
+            className="flex items-baseline justify-between gap-3 text-sm"
+          >
+            <span className="text-on-surface-variant min-w-0 truncate">{alerta.description}</span>
+            <span className="tabular text-on-surface shrink-0 font-semibold">
+              {alerta.occurrences.toLocaleString('pt-BR')}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

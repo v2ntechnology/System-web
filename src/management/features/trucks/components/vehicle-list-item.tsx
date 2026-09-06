@@ -17,7 +17,7 @@ const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
  * Item da lista de frota (Figma).
  *
  * O selecionado vira um cartão indigo. O texto dele é branco, e não escuro como
- * no Figma: `#16161A` sobre `#6366F1` dá 4.1:1 e reprova AA em texto de corpo.
+ * no Figma: `#16161A` sobre `#d5623a` dá 4.1:1 e reprova AA em texto de corpo.
  *
  * A imagem vem do fornecedor quando existe, e cai para a silhueta genérica
  * quando não. Na frota real todos os 41 ativos têm imagem, mas ela é do TIPO do

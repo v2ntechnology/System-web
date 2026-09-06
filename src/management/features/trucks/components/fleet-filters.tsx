@@ -108,7 +108,7 @@ export function FleetFilters({
       />
 
       {/* Linha inteira no mobile: dividindo espaço com os selects, sobrava "Pl…". */}
-      <div className="border-outline-variant bg-surface-lowest rounded-pill focus-within:border-secondary flex min-w-0 basis-full items-center gap-2 border px-4 sm:max-w-72 sm:flex-1 sm:basis-auto">
+      <div className="border-outline-variant bg-surface-lowest rounded-pill focus-within:border-primary flex min-w-0 basis-full items-center gap-2 border px-4 sm:max-w-72 sm:flex-1 sm:basis-auto">
         <SearchIcon size={18} className="text-on-surface-muted shrink-0" aria-hidden="true" />
         <label htmlFor="filter-search" className="sr-only">
           Buscar por placa, modelo ou motorista
@@ -128,7 +128,7 @@ export function FleetFilters({
           type="button"
           onClick={() => onChange(EMPTY_FILTERS)}
           className={cn(
-            'text-on-surface-variant hover:text-on-surface text-label-md focus-visible:ring-secondary rounded-pill hover:bg-on-surface/8 inline-flex items-center gap-1.5 px-3 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+            'text-on-surface-variant hover:text-on-surface text-label-md focus-visible:ring-primary rounded-pill hover:bg-on-surface/8 inline-flex items-center gap-1.5 px-3 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
           )}
         >
           <CloseIcon size={14} aria-hidden="true" />

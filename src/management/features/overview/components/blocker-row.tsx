@@ -64,7 +64,7 @@ export function BlockerRow({ blocker }: { blocker: Blocker }) {
         ) : (
           <Link
             to={blocker.action.to}
-            className="text-primary-on-light text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md px-1 py-1 normal-case hover:underline focus-visible:outline-none focus-visible:ring-2"
+            className="text-primary-on-light text-label-md focus-visible:ring-primary inline-flex items-center gap-1.5 rounded-md px-1 py-1 normal-case hover:underline focus-visible:outline-none focus-visible:ring-2"
           >
             {blocker.action.label}
             <ArrowRightIcon size={15} aria-hidden="true" />

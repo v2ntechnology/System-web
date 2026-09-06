@@ -55,7 +55,7 @@ export function ExpenseCard({ category, highlightPlate, onSelectPlate }: Expense
                 onClick={() => onSelectPlate?.(entry.plate)}
                 aria-label={`${entry.plate}: ${brlCompact.format(entry.value)} em ${category.label}`}
                 className={cn(
-                  'focus-visible:ring-secondary group block w-full rounded-md px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
+                  'focus-visible:ring-primary group block w-full rounded-md px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
                   active ? 'bg-on-surface/8' : 'hover:bg-on-surface/5',
                 )}
               >

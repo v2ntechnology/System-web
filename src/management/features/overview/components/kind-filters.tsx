@@ -41,7 +41,7 @@ export function KindFilters({
             onClick={() => onSelect(active ? null : kind)}
             className={cn(
               'flex min-w-0 items-center gap-3 rounded-lg px-3.5 py-3 text-left transition-colors',
-              'focus-visible:ring-secondary focus-visible:outline-none focus-visible:ring-2',
+              'focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2',
               active
                 ? 'bg-on-surface text-surface'
                 : 'bg-on-surface/[0.05] text-on-surface hover:bg-on-surface/[0.09]',

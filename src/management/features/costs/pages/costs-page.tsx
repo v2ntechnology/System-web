@@ -15,7 +15,10 @@ import { QueryState } from '@/management/components/layout/query-state';
 import { env } from '@/app/environment';
 import { useFinancialVisibility } from '@/management/features/drivers/use-financial-visibility';
 
+import { fetchOperations, fetchVehiclePerformance } from '@/management/lib/fleet-api';
+
 import { getCostsSummary } from '../api';
+import { FuelEfficiencyCard } from '../components/fuel-efficiency-card';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const brlCompact = new Intl.NumberFormat('pt-BR', {
@@ -179,35 +182,7 @@ export function CostsPage() {
    * tela cheia volta. O que não pode acontecer é número simulado ao lado da
    * frota verdadeira, porque quem olha não tem como saber que é enfeite.
    */
-  if (!env.enableMocks) {
-    return (
-      <>
-        <PageBanner
-          size="inline"
-          title="Custos"
-          description="Combustível, manutenção e custos fixos separados por veículo."
-        />
-
-        <PageContent className="mt-0 sm:mt-0">
-          <PendingSource
-            title="Custos ainda não têm origem no sistema"
-            description="O custo por quilômetro é o número que o dono olha, e ele depende de lançamentos que o rastreador não conhece. A telemetria entrega quilometragem e consumo em litros; o preço do diesel, a nota da oficina e o valor da multa vêm de fora."
-            requirements={[
-              'Abastecimento: litros, preço por litro, posto e data',
-              'Manutenção: ordem de serviço, peças, oficina e valor',
-              'Multas: infração, valor, órgão e prazo de recurso',
-              'Custo fixo: parcela, seguro, licenciamento e depreciação',
-            ]}
-            meanwhile={[
-              { label: 'Quilômetros rodados e consumo médio', to: '/gestao' },
-              { label: 'Motor ligado parado, que é diesel queimado', to: '/gestao' },
-              { label: 'Consumo por veículo', to: '/gestao/caminhoes' },
-            ]}
-          />
-        </PageContent>
-      </>
-    );
-  }
+  if (!env.enableMocks) return <CustosReais />;
 
   return (
     <>
@@ -377,6 +352,101 @@ export function CostsPage() {
             ) : null}
           </QueryState>
         </PageTabs>
+      </PageContent>
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Com dado real                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A tela de Custos quando a origem é a telemetria de verdade.
+ *
+ * <h2>Metade medida, metade ausente, e a tela diz qual é qual</h2>
+ *
+ * Até 06/09/2026 esta tela era só o aviso de origem ausente, e isso estava
+ * certo pela metade. O custo em REAIS de fato não tem origem: preço do diesel,
+ * nota da oficina e valor da multa não são coisas que o rastreador saiba. Mas o
+ * consumo em quilômetro por litro é medido pela rede CAN e existe para 30 dos
+ * 35 veículos que rodam.
+ *
+ * A ordem na tela é deliberada: primeiro o que está medido, depois o que falta.
+ * O contrário faria a pessoa fechar a página antes de ver que existe número
+ * confiável ali.
+ *
+ * ⚠️ **A conta de consumo foi corrigida no backend no mesmo dia.** Ela dividia a
+ * quilometragem rodada de toda a frota pelos litros de quem informa, e dava 14%
+ * a mais do que a realidade. O detalhe está em `Backend-web/docs/PLANO_DADO_REAL.md`.
+ */
+function CustosReais() {
+  /*
+   * Trinta dias, e não o seletor de período da tela simulada.
+   *
+   * O seletor oferece de 30 dias a 12 meses, e a telemetria retroage no máximo
+   * uma semana na carga inicial de cada cliente: oferecer "12 meses" devolveria
+   * a mesma janela com outro rótulo, que é pior que não oferecer.
+   */
+  const JANELA = 30;
+
+  const desempenho = useQuery({
+    queryKey: ['custos', 'desempenho-veiculos', JANELA],
+    queryFn: () => fetchVehiclePerformance(JANELA),
+  });
+
+  const operacao = useQuery({
+    queryKey: ['custos', 'operacao', JANELA],
+    queryFn: () => fetchOperations(JANELA),
+  });
+
+  const consumoDaFrota = operacao.data?.metrics.find((m) => m.id === 'consumo')?.value;
+  const motorOcioso = operacao.data?.metrics.find((m) => m.id === 'ocioso')?.value;
+
+  return (
+    <>
+      <PageBanner
+        size="inline"
+        title="Custos"
+        description="O que a telemetria mede sobre consumo, e o que ainda depende de lançamento."
+      />
+
+      <PageContent className="mt-0 sm:mt-0">
+        <QueryState
+          isPending={desempenho.isPending || operacao.isPending}
+          isError={desempenho.isError || operacao.isError}
+          label="o consumo da frota"
+        >
+          <FuelEfficiencyCard
+            vehicles={desempenho.data ?? []}
+            fleetAverage={consumoDaFrota}
+            idleHours={motorOcioso}
+            periodLabel={operacao.data?.periodLabel ?? 'últimos 30 dias'}
+          />
+        </QueryState>
+
+        {/*
+          O aviso continua, e continua inteiro: consumo medido não vira custo.
+          A lista de requisitos perdeu só a linha de combustível em litros, que
+          agora está logo acima, medida.
+        */}
+        <div className="mt-5">
+          <PendingSource
+            title="O custo em reais ainda não tem origem"
+            description="O custo por quilômetro é o número que o dono olha, e ele depende de lançamentos que o rastreador não conhece. O consumo acima é medido; o preço do diesel, a nota da oficina e o valor da multa vêm de fora."
+            requirements={[
+              'Abastecimento: preço por litro, posto e data',
+              'Manutenção: ordem de serviço, peças, oficina e valor',
+              'Multas: infração, valor, órgão e prazo de recurso',
+              'Custo fixo: parcela, seguro, licenciamento e depreciação',
+            ]}
+            meanwhile={[
+              { label: 'Comparação entre filiais', to: '/gestao/resultado' },
+              { label: 'Ficha e histórico de cada caminhão', to: '/gestao/caminhoes' },
+              { label: 'Percursos e paradas reais', to: '/gestao/viagens' },
+            ]}
+          />
+        </div>
       </PageContent>
     </>
   );

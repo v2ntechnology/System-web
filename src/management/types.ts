@@ -267,6 +267,14 @@ export interface VehiclePosition {
    */
   type?: string | undefined;
   odometerKm?: number | undefined;
+  /**
+   * A EMPRESA dona do veículo, e não a filial crua do fornecedor.
+   *
+   * O backend resolve a subida de `site` para `fleet_companies` e cai no
+   * nome cru só quando a filial ainda não subiu na árvore. Ausente quando nem
+   * isso existe, e a dica do mapa então omite a linha em vez de mostrar vazio.
+   */
+  company?: string | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

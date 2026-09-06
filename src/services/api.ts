@@ -25,7 +25,10 @@ import type {
   VehicleListParams,
   VehicleService,
 } from './contracts';
+import { env } from '@/app/environment';
+
 import { ApiError, mockResponse, paginate, sortBy } from './http';
+import { vehicleApiService } from './vehicle-api';
 
 /* -------------------------------------------------------------------------- */
 /* Dashboard                                                                   */
@@ -110,7 +113,7 @@ function applyFilters(items: Vehicle[], params: VehicleListParams): Vehicle[] {
   return result;
 }
 
-export const vehicleService: VehicleService = {
+const vehicleMockService: VehicleService = {
   async list(params = {}) {
     const filtered = applyFilters(store, params);
     const sorted = params.sortBy
@@ -157,6 +160,22 @@ export const vehicleService: VehicleService = {
 /* -------------------------------------------------------------------------- */
 /* Motoristas                                                                  */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * O serviço de veículos do painel do cliente.
+ *
+ * ⚠️ **Primeiro domínio do `/app` a falar com a API real** (06/09/2026). O
+ * painel inteiro era servido por mock daqui, e a chave `VITE_ENABLE_MOCKS` é a
+ * mesma que o `/gestao` já usa: não é fallback automático. Se o backend estiver
+ * fora, a tela mostra erro, e não dado de demonstração disfarçado de real.
+ *
+ * A tradução entre os dois modelos de veículo mora em `vehicle-api`, e não
+ * aqui: os painéis modelam situação, motorista e número de frota de formas
+ * diferentes, e isso não pode vazar para as telas.
+ */
+export const vehicleService: VehicleService = env.enableMocks
+  ? vehicleMockService
+  : vehicleApiService;
 
 export const driverService: DriverService = {
   async list(params: DriverListParams = {}) {

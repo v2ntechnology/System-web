@@ -99,8 +99,12 @@ export default function VehicleDetailPage() {
               {vehicle.fleetNumber} · <span className="font-mono">{plate}</span>
             </h1>
             <p className="text-sm text-muted-foreground">
-              {vehicle.manufacturer} {vehicle.model} · {VEHICLE_TYPE_LABEL[vehicle.type]} ·{' '}
-              {vehicle.year}
+              {vehicle.manufacturer} {vehicle.model} · {VEHICLE_TYPE_LABEL[vehicle.type]}
+              {/* ⚠️ Zero é AUSÊNCIA de ano, e não o ano zero. A MiX entrega ano
+                  de fabricação em cerca de um quarto dos ativos, e a ponte usa
+                  zero porque o tipo pede número. Escrever "· 0" ao lado do
+                  modelo lê como defeito; omitir lê como o que é. */}
+              {vehicle.year > 0 ? ` · ${vehicle.year}` : ''}
             </p>
           </div>
           <div className="flex items-center gap-2">

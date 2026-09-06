@@ -1,14 +1,50 @@
 import { Spinner, cn } from '@/management/ui';
+import type { VehicleStatus } from '@/management/types';
 import type { FeatureCollection } from 'geojson';
 import { Map as MapLibreMap, type GeoJSONSource } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 
 import { MAP_STYLE, mapStyleUrlNow } from '@/components/shared/map-style';
+import { STATUS_COLOR } from '@/management/features/live-map/status-color';
 import { useThemeStore } from '@/stores/theme-store';
 
-import type { ActiveTrip } from '../types';
+/**
+ * Um caminhão desenhado neste mapa.
+ *
+ * ⚠️ O componente NÃO conhece mais `ActiveTrip`, e a mudança é de propósito
+ * (06/09/2026): aquele tipo carrega destino, previsão de chegada e atraso, que
+ * são campos de FRETE e não existem na telemetria. Enquanto o mapa dependia
+ * dele, a visão geral só podia ser alimentada por mock.
+ *
+ * Com um ponto de três campos, quem chama decide o que é: aqui é a posição
+ * real da frota, e amanhã pode ser a viagem planejada, quando ela existir.
+ */
+export interface PontoDaFrota {
+  id: string;
+  plate: string;
+  /** `[longitude, latitude]`, a ordem que o MapLibre espera. */
+  position: [number, number];
+  /**
+   * A situação do veículo, que define a cor do ponto.
+   *
+   * ⚠️ Era um booleano de alerta, e o mapa pintava tudo de indigo com âmbar para
+   * quem estava sem sinal. O usuário pediu as MESMAS cores do mapa ao vivo em
+   * 06/09/2026, e com razão: duas telas mostrando a mesma frota com códigos de
+   * cor diferentes obrigam quem opera a manter duas legendas na cabeça.
+   */
+  status: VehicleStatus;
+}
 
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+/**
+ * O zoom para onde o mapa vai ao escolher uma placa.
+ *
+ * Treze é o mesmo do mapa ao vivo, e o motivo é o mesmo: mostra a cidade e a
+ * via, que é o que responde "onde ele está". Mais perto perde a referência da
+ * cidade, mais longe deixa o ponto no meio de um borrão de outros.
+ */
+const ZOOM_AO_ESCOLHER = 13;
 
 /* A base é a mesma dos outros mapas do produto e sai de um lugar só: duas bases
    diferentes na mesma sessão fazem o usuário achar que mudou de cidade. Ver
@@ -19,13 +55,13 @@ const LAYER_HALO = 'overview-fleet-halo';
 const LAYER_DOT = 'overview-fleet-dot';
 const LAYER_LABEL = 'overview-fleet-label';
 
-/* Cor literal porque o MapLibre pinta em canvas e não enxerga token de CSS.
-   São as mesmas âncoras da paleta: indigo da marca e o âmbar de atenção. */
-const INDIGO = '#6366F1';
-const AMBER = '#D97706';
+/* ⚠️ As cores saíram daqui em 06/09/2026 e vieram de `STATUS_COLOR`, a mesma
+   tabela do mapa ao vivo. Havia um par próprio (indigo da marca e âmbar de
+   atenção), e ele fazia esta tela pintar a frota com um código de cor e o mapa
+   ao vivo com outro, obrigando quem opera a manter duas legendas na cabeça. */
 
 export interface FleetMiniMapProps {
-  trips: ActiveTrip[];
+  trips: PontoDaFrota[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   className?: string | undefined;
@@ -192,7 +228,7 @@ export function FleetMiniMap({ trips, selectedId, onSelect, className }: FleetMi
         properties: {
           id: trip.id,
           placa: trip.plate,
-          cor: trip.delayMinutes > 0 ? AMBER : INDIGO,
+          cor: STATUS_COLOR[trip.status],
           destacado: trip.id === selectedId,
         },
       })),
@@ -215,8 +251,18 @@ export function FleetMiniMap({ trips, selectedId, onSelect, className }: FleetMi
     });
   }, [trips, ready]);
 
-  /* Escolher na lista leva o mapa até o caminhão, aproximando só quando ainda
-     está longe: puxar o zoom a cada clique faria perder a noção de onde se está. */
+  /**
+   * Escolher uma placa centraliza e APROXIMA o caminhão.
+   *
+   * ⚠️ Mudou em 06/09/2026, a pedido do usuário. O zoom era `max(atual, 7)`, e o
+   * enquadramento inicial da frota já para entre 7 e 9: na prática o clique só
+   * deslizava o mapa de lado, sem nunca aproximar, e o caminhão continuava um
+   * ponto no meio do estado.
+   *
+   * {@link ZOOM_AO_ESCOLHER} entra como PISO, e não como valor fixo: quem já
+   * estava com o mapa no zoom de rua não pode ser jogado para trás só por clicar
+   * noutra placa. É a mesma regra do mapa ao vivo, com o mesmo valor.
+   */
   useEffect(() => {
     const instance = map.current;
     if (!instance || !ready || selectedId === null) return;
@@ -224,10 +270,11 @@ export function FleetMiniMap({ trips, selectedId, onSelect, className }: FleetMi
     const trip = trips.find((item) => item.id === selectedId);
     if (!trip) return;
 
+    const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     instance.easeTo({
       center: trip.position,
-      zoom: Math.max(instance.getZoom(), 7),
-      duration: 650,
+      zoom: Math.max(instance.getZoom(), ZOOM_AO_ESCOLHER),
+      duration: reduzido ? 0 : 650,
     });
   }, [selectedId, trips, ready]);
 

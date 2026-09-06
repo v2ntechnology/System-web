@@ -65,6 +65,7 @@ interface PositionDto {
   place: string | null;
   type: string | null;
   odometerKm: number | null;
+  company: string | null;
 }
 
 interface DriverDto {
@@ -200,6 +201,7 @@ const toPosition = (dto: PositionDto): VehiclePosition => ({
   place: dto.place ?? undefined,
   type: dto.type ?? undefined,
   odometerKm: dto.odometerKm ?? undefined,
+  company: dto.company ?? undefined,
 });
 
 const toDriver = (dto: DriverDto): Driver => ({
@@ -646,6 +648,8 @@ export interface Journey {
   idleSeconds?: number | undefined;
   distanceKm?: number | undefined;
   maxSpeedKmh?: number | undefined;
+  /** Giro máximo do motor no trecho, da rede CAN. Nunca existe ao vivo. */
+  maxRpm?: number | undefined;
   avgSpeedKmh?: number | undefined;
   fuelUsedLitres?: number | undefined;
   fuelEfficiency?: number | undefined;
@@ -676,6 +680,7 @@ interface JourneyDto {
   idleSeconds: number | null;
   distanceKm: number | null;
   maxSpeedKmh: number | null;
+  maxRpm: number | null;
   avgSpeedKmh: number | null;
   fuelUsedLitres: number | null;
   fuelEfficiency: number | null;
@@ -721,6 +726,7 @@ export async function fetchJourneys(filters: JourneyFilters = {}): Promise<Journ
       idleSeconds: row.idleSeconds ?? undefined,
       distanceKm: row.distanceKm ?? undefined,
       maxSpeedKmh: row.maxSpeedKmh ?? undefined,
+      maxRpm: row.maxRpm ?? undefined,
       avgSpeedKmh: row.avgSpeedKmh ?? undefined,
       fuelUsedLitres: row.fuelUsedLitres ?? undefined,
       fuelEfficiency: row.fuelEfficiency ?? undefined,
@@ -1168,6 +1174,60 @@ interface VehiclePerformanceDto {
   fuelEfficiency: number | null;
   events: number;
   eventsPer1000Km: number | null;
+}
+
+/**
+ * Um alerta mecânico agregado: um tipo de evento, num veículo, no período.
+ *
+ * ⚠️ É CONTAGEM do que a rede CAN acusou, e não diagnóstico. "Pressão baixa do
+ * óleo" significa que o sensor disparou tantas vezes, não que o motor está com
+ * problema. Quem desenhar isto na tela precisa dizer o mesmo, senão vira laudo,
+ * e laudo tem consequência: caminhão parado indevidamente.
+ */
+export interface MechanicalAlert {
+  vehicleId: string;
+  plate: string;
+  model?: string | undefined;
+  unit?: string | undefined;
+  /** A descrição do tipo, como o fornecedor a nomeia. */
+  description: string;
+  severity: string;
+  occurrences: number;
+  firstAt: string;
+  lastAt: string;
+  /** Odômetro na última ocorrência: a oficina pergunta em que quilometragem foi. */
+  lastOdometerKm?: number | undefined;
+}
+
+interface MechanicalAlertDto {
+  vehicleId: string;
+  plate: string;
+  model: string | null;
+  unit: string | null;
+  description: string;
+  severity: string;
+  occurrences: number;
+  firstAt: string;
+  lastAt: string;
+  lastOdometerKm: number | null;
+}
+
+/** O que a rede CAN acusou de mecânico, já agregado por veículo e por tipo. */
+export async function fetchMechanicalAlerts(days = 30): Promise<MechanicalAlert[]> {
+  const rows = await httpRequest<MechanicalAlertDto[]>(`/v1/fleet/mechanical?days=${days}`);
+
+  return rows.map((row) => ({
+    vehicleId: row.vehicleId,
+    plate: row.plate,
+    model: row.model ?? undefined,
+    unit: row.unit ?? undefined,
+    description: row.description,
+    severity: row.severity,
+    occurrences: row.occurrences,
+    firstAt: row.firstAt,
+    lastAt: row.lastAt,
+    lastOdometerKm: row.lastOdometerKm ?? undefined,
+  }));
 }
 
 export async function fetchVehiclePerformance(days = 30): Promise<VehiclePerformance[]> {

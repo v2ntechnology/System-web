@@ -54,7 +54,7 @@ export function TopVehiclesCard({ ranking, highlightPlate, onSelectPlate }: TopV
                 type="button"
                 onClick={() => onSelectPlate?.(entry.plate)}
                 aria-label={`${entry.plate}: ${brl.format(entry.value)} acumulados`}
-                className="focus-visible:ring-secondary group flex h-full flex-col justify-end rounded-md focus-visible:outline-none focus-visible:ring-2"
+                className="focus-visible:ring-primary group flex h-full flex-col justify-end rounded-md focus-visible:outline-none focus-visible:ring-2"
               >
                 <span
                   className={cn(

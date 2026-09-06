@@ -12,7 +12,10 @@ import { QueryState } from '@/management/components/layout/query-state';
 import { env } from '@/app/environment';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
+import { fetchMechanicalAlerts } from '@/management/lib/fleet-api';
+
 import { getMaintenanceSummary } from '../api';
+import { MechanicalAlertsCard } from '../components/mechanical-alerts-card';
 
 const TABS = [
   { id: 'ORDENS', label: 'Ordens de serviço' },
@@ -64,33 +67,7 @@ export function MaintenancePage() {
    * tela cheia volta. O que não pode acontecer é número simulado ao lado da
    * frota verdadeira, porque quem olha não tem como saber que é enfeite.
    */
-  if (!env.enableMocks) {
-    return (
-      <>
-        <PageBanner
-          size="inline"
-          title="Manutenção"
-          description="Ordens de serviço, planos preventivos e desempenho das oficinas."
-        />
-
-        <PageContent className="mt-0 sm:mt-0">
-          <PendingSource
-            title="Manutenção ainda não tem origem no sistema"
-            description="A telemetria sabe o odômetro e o horímetro de cada veículo, que é metade do que um plano preventivo precisa. A outra metade, o plano em si e o que foi feito na oficina, não existe em lugar nenhum ainda."
-            requirements={[
-              'Plano preventivo: qual serviço, a cada quantos quilômetros ou horas',
-              'Ordem de serviço: abertura, oficina, peças, valor e conclusão',
-              'Tempo parado, que é o custo invisível da manutenção',
-            ]}
-            meanwhile={[
-              { label: 'Odômetro e horímetro de cada veículo', to: '/gestao/caminhoes' },
-              { label: 'Alertas mecânicos do rastreador', to: '/gestao/seguranca' },
-            ]}
-          />
-        </PageContent>
-      </>
-    );
-  }
+  if (!env.enableMocks) return <ManutencaoReal />;
 
   return (
     <>
@@ -390,6 +367,85 @@ export function MaintenancePage() {
             ) : null}
           </QueryState>
         </PageTabs>
+      </PageContent>
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Com dado real                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A tela de Manutenção quando a origem é a telemetria de verdade.
+ *
+ * <h2>Metade medida, metade ausente</h2>
+ *
+ * Até 06/09/2026 esta tela era só o aviso de origem ausente, e isso estava certo
+ * pela metade. Ordem de serviço, oficina e plano preventivo de fato não existem
+ * no sistema, e não é a telemetria que vai criá-los.
+ *
+ * Mas o rastreador acusa problema mecânico o tempo todo, e ninguém estava
+ * olhando: 22.307 ocorrências em 30 dias, em 33 veículos. Isso é exatamente o
+ * que uma oficina usa para decidir qual caminhão examinar primeiro.
+ *
+ * A ordem é deliberada: primeiro o que está medido, depois o que falta. O
+ * contrário faria a pessoa fechar a página antes de ver que existe informação
+ * confiável ali.
+ */
+function ManutencaoReal() {
+  /*
+   * Trinta dias, fixos.
+   *
+   * Alerta mecânico é padrão que se forma com repetição: numa janela de um dia,
+   * um caminhão com problema crônico aparece igual a um que disparou o sensor
+   * uma vez numa subida.
+   */
+  const JANELA = 30;
+
+  const alertas = useQuery({
+    queryKey: ['manutencao', 'alertas-mecanicos', JANELA],
+    queryFn: () => fetchMechanicalAlerts(JANELA),
+  });
+
+  return (
+    <>
+      <PageBanner
+        size="inline"
+        title="Manutenção"
+        description="O que o rastreador acusa de mecânico, e o que ainda depende de cadastro."
+      />
+
+      <PageContent className="mt-0 sm:mt-0">
+        <QueryState
+          isPending={alertas.isPending}
+          isError={alertas.isError}
+          label="os alertas mecânicos"
+        >
+          <MechanicalAlertsCard alerts={alertas.data ?? []} periodLabel="últimos 30 dias" />
+        </QueryState>
+
+        {/*
+          O aviso continua, e continua inteiro: alerta de sensor não é ordem de
+          serviço. A lista de requisitos perdeu só a menção ao alerta do
+          rastreador, que agora está logo acima.
+        */}
+        <div className="mt-5">
+          <PendingSource
+            title="A oficina e o plano ainda não têm origem"
+            description="Os alertas acima dizem o que o veículo está acusando. O que foi feito a respeito, quanto custou e quando vence o próximo serviço dependem de cadastro que ainda não existe."
+            requirements={[
+              'Plano preventivo: qual serviço, a cada quantos quilômetros ou horas',
+              'Ordem de serviço: abertura, oficina, peças, valor e conclusão',
+              'Tempo parado, que é o custo invisível da manutenção',
+            ]}
+            meanwhile={[
+              { label: 'Odômetro e horímetro de cada veículo', to: '/gestao/caminhoes' },
+              { label: 'Consumo por veículo', to: '/gestao/custos' },
+              { label: 'Eventos de condução', to: '/gestao/seguranca' },
+            ]}
+          />
+        </div>
       </PageContent>
     </>
   );

@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
 
+import { fetchVehiclePositions } from '@/management/lib/fleet-api';
+
 import { getFleetOverview } from '../api';
 import { BlockersSummaryCard } from '../components/blockers-summary-card';
 import { DecisionsCard } from '../components/decisions-card';
@@ -35,6 +37,23 @@ export function OverviewPage() {
   const { data, isPending, isError } = useQuery({
     queryKey: ['overview', 'fleet'],
     queryFn: getFleetOverview,
+  });
+
+  /*
+   * A posição real da frota, para o mapa de consulta rápida.
+   *
+   * ⚠️ Consulta SEPARADA do resto da visão geral, de propósito (06/09/2026). O
+   * `getFleetOverview` ainda é mock, e enquanto o mapa dependia dele a tela abria
+   * com placas `RKH...` sobre o interior de São Paulo, com a frota verdadeira no
+   * Rio de Janeiro. Separando, o mapa fica real hoje, sem esperar o resto da tela
+   * ganhar origem.
+   *
+   * A mesma chave do mapa ao vivo, então quem passa por lá e volta encontra o
+   * dado já em cache em vez de uma segunda ida ao servidor.
+   */
+  const posicoes = useQuery({
+    queryKey: ['fleet-positions'],
+    queryFn: fetchVehiclePositions,
   });
 
   return (
@@ -75,7 +94,11 @@ export function OverviewPage() {
                 </div>
 
                 <div className="flex min-w-0 flex-col gap-5">
-                  <OperationMapCard trips={data.trips} />
+                  {/* O mapa só aparece com posição de verdade. Um cartão de mapa
+                      vazio é melhor que um mapa com a frota de outra empresa. */}
+                  {posicoes.data && posicoes.data.length > 0 ? (
+                    <OperationMapCard vehicles={posicoes.data} />
+                  ) : null}
                   <TripsSummaryCard trips={data.trips} />
                 </div>
               </div>
