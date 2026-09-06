@@ -49,7 +49,32 @@ export function resolveHighPerformanceMode(): boolean {
   return getUserPreference() ?? isLowEndDevice();
 }
 
-/** Aplica o perfil de performance na raiz do documento. Chamar antes do render. */
+/**
+ * Aplica o perfil de performance na raiz do documento. Chamar antes do render.
+ *
+ * São duas classes porque são dois custos diferentes, ligados pela mesma
+ * heurística: `no-blur` desliga o vidro (custo de compositor) e `modo-leve`
+ * simplifica animação contínua (custo de GPU por quadro). Quem tem hardware
+ * modesto paga os dois.
+ */
 export function applyPerformanceProfile(): void {
-  document.documentElement.classList.toggle('no-blur', resolveHighPerformanceMode());
+  const leve = resolveHighPerformanceMode();
+  document.documentElement.classList.toggle('no-blur', leve);
+  document.documentElement.classList.toggle('modo-leve', leve);
+}
+
+/**
+ * O laço de animação deve ser simplificado?
+ *
+ * Vale para animação em JavaScript, que não enxerga classe de CSS: o globo do
+ * hub e a esfera de voz consultam isto para congelar ou reduzir o passo.
+ */
+export function prefersLightAnimation(): boolean {
+  if (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ) {
+    return true;
+  }
+  return resolveHighPerformanceMode();
 }

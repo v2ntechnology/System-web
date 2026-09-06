@@ -204,7 +204,7 @@ export function GlassSelect({
                teclado justifica. Ver a nota em `field-surfaces.ts`. */
             variant === 'well'
               ? styles.wellTrigger
-              : 'border-outline-variant bg-surface-lowest focus-visible:ring-secondary border focus-visible:outline-none focus-visible:ring-2',
+              : 'border-outline-variant bg-surface-lowest focus-visible:ring-primary border focus-visible:outline-none focus-visible:ring-2',
             styles.text,
             pill ? 'rounded-pill px-4' : 'px-3',
             error ? styles.wellError : styles.wellFocus,

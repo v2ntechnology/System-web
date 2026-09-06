@@ -52,7 +52,7 @@ export function PageTabs<T extends string>({
             key={tab.id}
             value={tab.id}
             className={cn(
-              'text-body-md rounded-pill focus-visible:ring-secondary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
+              'text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
               'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]',
               'data-[state=active]:bg-bright data-[state=active]:text-on-bright data-[state=active]:font-medium',
             )}

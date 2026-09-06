@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from './lib/cn';
 
 export interface AlertProps {
-  severity?: 'error' | 'warning' | 'info' | 'success' | undefined;
+  severity?: 'error' | 'warning' | 'info' | 'success' | 'brand' | undefined;
   children: ReactNode;
   className?: string | undefined;
 }
@@ -12,6 +12,9 @@ const severityStyles: Record<NonNullable<AlertProps['severity']>, string> = {
   warning: 'border-warning/40 bg-warning/10 text-warning',
   info: 'border-info/40 bg-info/10 text-info',
   success: 'border-success/40 bg-success/10 text-success',
+  /* Aviso da propria aplicacao, e nao um estado do dado. Existe para as telas
+     de acesso nao usarem o azul de `info`, que ali competia com a marca. */
+  brand: 'border-primary/40 bg-primary/10 text-primary-on-light',
 };
 
 /** Faixa de feedback inline. Sempre com role="alert" para leitores de tela. */

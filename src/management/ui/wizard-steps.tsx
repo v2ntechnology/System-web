@@ -306,7 +306,7 @@ export function WizardSteps<T extends string>({
             aria-invalid={step.invalid ? true : undefined}
             onClick={() => onValueChange(step.id)}
             className={cn(
-              'text-label-md rounded-pill focus-visible:ring-secondary flex shrink-0 items-center gap-2',
+              'text-label-md rounded-pill focus-visible:ring-primary flex shrink-0 items-center gap-2',
               'px-3.5 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
               atual
                 ? 'bg-bright text-on-bright font-medium'

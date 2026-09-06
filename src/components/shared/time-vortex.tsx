@@ -14,10 +14,10 @@ const THREAD_COUNT = 300;
 const PER_THREAD = 300;
 const POINT_COUNT = THREAD_COUNT * PER_THREAD;
 
-// Faixa de matiz da marca: ciano (#06B6D4 ≈ 189°) → índigo (#6366F1 ≈ 239°).
+// Faixa de matiz da marca: terracota (#D5623A ≈ 16°) → âmbar (#E7AD61 ≈ 33°).
 // Cada partícula pega um ponto dessa faixa, lembrando o gradiente da marca.
-const HUE_CYAN = (189 / 360).toFixed(6);
-const HUE_INDIGO = (239 / 360).toFixed(6);
+const HUE_TERRACOTA = (16 / 360).toFixed(6);
+const HUE_AMBAR = (33 / 360).toFixed(6);
 
 const VERTEX_SHADER = /* glsl */ `
   precision highp float;
@@ -58,7 +58,7 @@ const VERTEX_SHADER = /* glsl */ `
     vGlow = neckGlow;
     float edgeFade = smoothstep(0.0, 0.06, progress) * (1.0 - smoothstep(0.94, 1.0, progress));
     vAlpha = 0.23 + 0.62 * neckGlow * edgeFade;
-    vHue = mix(${HUE_CYAN}, ${HUE_INDIGO}, aRandom.z);
+    vHue = mix(${HUE_TERRACOTA}, ${HUE_AMBAR}, aRandom.z);
     vProgress = progress;
   }
 `;
@@ -206,10 +206,14 @@ export function TimeVortex({ className }: { className?: string }) {
     <div
       ref={mountRef}
       aria-hidden
-      className={cn(
-        'aspect-square bg-[radial-gradient(circle,var(--color-brand-night)_0%,transparent_70%)]',
-        className,
-      )}
+      /*
+       * Sem disco de fundo. Havia aqui um radial em `--color-brand-night` que
+       * existia para o `AdditiveBlending` das partículas render sobre algo
+       * escuro. No tema claro ele aparecia como uma mancha cinza em volta do
+       * vórtice, e o usuário pediu que saísse em 04/09/2026. As partículas
+       * continuam legíveis porque são claras e densas no centro.
+       */
+      className={cn('aspect-square', className)}
     />
   );
 }

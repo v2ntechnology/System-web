@@ -443,7 +443,7 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
                           <button
                             type="button"
                             onClick={() => setOpenWarning(warning)}
-                            className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
+                            className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-primary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                           >
                             <PlayIcon size={16} aria-hidden="true" />
                             Ver vídeo ({warning.media.durationSeconds}s)

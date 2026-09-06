@@ -104,7 +104,7 @@ export function GlassDateField({
                  existia porque a 8% o botão sumia sob o cursor, mas o problema
                  era o véu ser fraco demais, e não faltar véu: com a cor andando
                  para o texto cheio o botão responde sem tapar o desenho. */
-              className="acao-neutra focus-visible:ring-secondary flex size-8 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2"
+              className="acao-neutra focus-visible:ring-primary flex size-8 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2"
             >
               <CalendarIcon size={16} aria-hidden="true" />
             </button>

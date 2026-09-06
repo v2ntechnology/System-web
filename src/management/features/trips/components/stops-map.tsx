@@ -118,7 +118,7 @@ export function StopsMap({ stops, selectedIndex, onSelect, className }: StopsMap
             0.5,
             '#38BDF8',
             3,
-            '#818CF8',
+            '#e08a63',
             8,
             '#FBBF24',
           ],

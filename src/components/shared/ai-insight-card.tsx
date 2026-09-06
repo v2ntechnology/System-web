@@ -11,7 +11,7 @@ export function AIInsightCard({ insight }: { insight: AiInsight }) {
   const navigate = useNavigate();
 
   return (
-    <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-card to-accent/5">
+    <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-card to-primary/5">
       <CardContent className="pt-6">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-gradient text-primary-foreground">

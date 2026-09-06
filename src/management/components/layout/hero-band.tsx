@@ -9,7 +9,7 @@ import { AppTopbar } from './app-topbar';
  * Faixa colorida de abertura da tela.
  *
  * ⚠️ Só aqui, e de propósito: é o indigo da marca chapado (`bg-primary`, o
- * #6366F1 de `palette.css`), que nenhuma outra tela do painel usa como fundo.
+ * #d5623a de `palette.css`), que nenhuma outra tela do painel usa como fundo.
  *
  * A cor é a mesma nos dois temas, então o texto é branco (`on-primary`) sempre,
  * e o que for pequeno fica sobre `primary-strong`: o mesmo indigo um degrau mais

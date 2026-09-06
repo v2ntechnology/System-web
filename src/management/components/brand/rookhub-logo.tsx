@@ -31,7 +31,7 @@ export interface RookhubLogoProps {
  * Agora os dois painéis leem o mesmo mapa de ativos
  * (`components/shared/brand-assets.ts`), que é a mesma regra dos ícones: um
  * conceito, um desenho, nos quatro perfis. Sobre papel entra a
- * `logo-rookhub-dark.svg`, com a torre em gradiente e a palavra em azul-noite.
+ * `rookhub-full-dark.svg`, com a torre em gradiente e a palavra em pretonoite.
  *
  * ⚠️ Os arquivos vêm de `public/logo/` por caminho absoluto, e não por `import`
  * do `@imgs/`. É de propósito: a marca é trocada por quem cuida da identidade,

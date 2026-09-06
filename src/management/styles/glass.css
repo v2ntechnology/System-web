@@ -180,6 +180,20 @@
  * ícone ao entrar no popup, o popup fecharia, o mouse voltaria ao ícone e o
  * ciclo se repetiria. O resultado seria uma etiqueta piscando sem parar.
  */
+/*
+ * A dica do caminhão no mapa ao vivo.
+ *
+ * ⚠️ Redesenhada em 06/09/2026 a pedido do usuário. A anterior era uma caixa
+ * preta de três linhas soltas, com fundo fixo `rgb(11 11 14)`: ela não seguia a
+ * paleta da aplicação, e no tema claro parecia um balão de outro produto.
+ *
+ * O desenho agora é o mesmo dos cartões sobre o mapa: superfície do tema, traço
+ * de contorno da paleta, canto de 12px e a sombra de elevação. Os tokens vêm de
+ * `palette.css`, então ela acompanha o tema sem uma segunda lista de cores.
+ *
+ * A largura é limitada porque endereço é texto longo: sem o teto, um caminhão
+ * numa rua de nome comprido esticava a dica por meia tela.
+ */
 .fleet-popup {
   pointer-events: none;
 }
@@ -187,34 +201,145 @@
 .fleet-popup .maplibregl-popup-content {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.625rem;
-  border: 1px solid rgb(255 255 255 / 0.12);
-  background: rgb(11 11 14 / 0.92);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
-  color: #f0f0f2;
+  gap: 0.5rem;
+  min-width: 12.5rem;
+  max-width: 17rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-outline-variant);
+  background: var(--color-surface-low);
+  box-shadow:
+    0 12px 32px rgb(0 0 0 / 0.28),
+    0 2px 8px rgb(0 0 0 / 0.16);
+  color: var(--color-on-surface);
   font-size: 0.8125rem;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
-.fleet-popup .maplibregl-popup-content strong {
+/* Placa à esquerda, situação à direita: identidade e estado na mesma linha. */
+.fleet-popup__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+}
+
+.fleet-popup__placa {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+  font-size: 0.9375rem;
+  letter-spacing: 0.01em;
 }
 
-.fleet-popup .maplibregl-popup-content span {
-  color: rgb(240 240 242 / 0.7);
+/*
+ * O selo de situação, com o ponto na cor do status.
+ *
+ * ⚠️ As cores são as MESMAS da legenda e dos caminhões 3D. Três listas
+ * diferentes de cor viram três verdades diferentes, e a legenda existe
+ * justamente para explicar o que está desenhado.
+ */
+.fleet-popup__selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem 0.125rem 0.375rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-on-surface) 8%, transparent);
+  color: var(--color-on-surface-variant);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.fleet-popup__selo i {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.fleet-popup__selo[data-status='EM_VIAGEM'] i {
+  background: #38bdf8;
+}
+.fleet-popup__selo[data-status='DISPONIVEL'] i {
+  background: #34d399;
+}
+.fleet-popup__selo[data-status='MANUTENCAO'] i {
+  background: #fbbf24;
+}
+.fleet-popup__selo[data-status='BLOQUEADO'] i {
+  background: #fb7185;
+}
+.fleet-popup__selo[data-status='SEM_SINAL'] i {
+  background: #94a3b8;
+}
+
+/* A velocidade é o número que se lê de relance, então vem em corpo grande. */
+.fleet-popup__velocidade {
+  color: var(--color-on-surface-muted);
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
-.fleet-popup .maplibregl-popup-content em {
-  color: rgb(240 240 242 / 0.55);
-  font-style: normal;
+.fleet-popup__velocidade b {
+  color: var(--color-on-surface);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-right: 0.125rem;
+}
+
+/* Rótulo à esquerda, valor à direita: o mesmo desenho da ficha do drawer. */
+.fleet-popup__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  margin: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-outline-variant);
+}
+
+/* Sem nenhuma linha, a régua de cima sobraria sozinha embaixo da velocidade. */
+.fleet-popup__lista:empty {
+  display: none;
+}
+
+.fleet-popup__linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.fleet-popup__linha dt {
+  flex-shrink: 0;
+  color: var(--color-on-surface-muted);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.fleet-popup__linha dd {
+  margin: 0;
+  text-align: right;
   font-size: 0.75rem;
+  font-weight: 500;
+  /* Endereço longo quebra em duas linhas em vez de esticar a caixa. */
+  overflow-wrap: anywhere;
+}
+
+/* O valor longo desce, e alinha à esquerda: endereço alinhado à direita em
+   três linhas fica com o bordo serrilhado e difícil de ler. */
+.fleet-popup__linha--bloco {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.1875rem;
+}
+
+.fleet-popup__linha--bloco dd {
+  text-align: left;
 }
 
 .fleet-popup .maplibregl-popup-tip {
-  border-top-color: rgb(11 11 14 / 0.92);
-  border-bottom-color: rgb(11 11 14 / 0.92);
+  border-top-color: var(--color-surface-low);
+  border-bottom-color: var(--color-surface-low);
 }

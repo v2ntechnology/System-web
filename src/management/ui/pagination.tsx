@@ -95,7 +95,7 @@ export function Pagination({
               aria-label={`Página ${item}`}
               aria-current={item === page ? 'page' : undefined}
               className={cn(
-                'rounded-pill text-body-md focus-visible:ring-secondary tabular flex size-9 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2',
+                'rounded-pill text-body-md focus-visible:ring-primary tabular flex size-9 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2',
                 /* Pastilha preta na página atual, igual ao item ativo do menu e
                    da aba: é o mesmo conceito de "você está aqui" e precisa ser
                    o mesmo objeto em toda a aplicação. */
@@ -139,7 +139,7 @@ function Passo({
       disabled={disabled}
       aria-label={rotulo}
       title={rotulo}
-      className="acao-neutra rounded-pill focus-visible:ring-secondary flex size-9 items-center justify-center focus-visible:outline-none focus-visible:ring-2"
+      className="acao-neutra rounded-pill focus-visible:ring-primary flex size-9 items-center justify-center focus-visible:outline-none focus-visible:ring-2"
     >
       {children}
     </button>

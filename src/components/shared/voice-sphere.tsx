@@ -2,6 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import * as THREE from 'three';
 
 import { cn } from '@/lib/utils';
+import { resolveHighPerformanceMode } from '@/management/lib/performance';
 
 /**
  * Esfera de partículas do assistente de voz. Cada ponto oscila no próprio eixo
@@ -29,9 +30,9 @@ const CAMERA_DISTANCE = (MAX_RADIUS * 1.12) / Math.tan((FIELD_OF_VIEW / 2) * (Ma
 
 /** Azul-noite ao fundo e ciano da marca na frente: é o gradiente que dá volume. */
 const COLOR_BACK = new THREE.Color('#0B1220');
-const COLOR_FRONT = new THREE.Color('#06B6D4');
+const COLOR_FRONT = new THREE.Color('#E7AD61');
 /** Falando: laranja, para separar bem a voz da IA da escuta do usuário. */
-const COLOR_FRONT_SPEAKING = new THREE.Color('#F97316');
+const COLOR_FRONT_SPEAKING = new THREE.Color('#06B6D4');
 /*
  * Indigo do produto para o modo de consulta (decisão do usuário em 30/08/2026).
  *
@@ -39,7 +40,7 @@ const COLOR_FRONT_SPEAKING = new THREE.Color('#F97316');
  * A cor é a da marca, e não um cinza de espera: consultar é o que o produto faz
  * de mais próprio, e o momento merece a cor dele.
  */
-const COLOR_FRONT_CONSULTING = new THREE.Color('#6366F1');
+const COLOR_FRONT_CONSULTING = new THREE.Color('#d5623a');
 const COLOR_FRONT_ERROR = new THREE.Color('#EF4444');
 
 export type VoiceSphereStatus =
@@ -79,7 +80,14 @@ export function VoiceSphere({ levelRef, status, className }: VoiceSphereProps) {
       return;
     }
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    /*
+     * Em hardware modesto a esfera continua animando, mas mais barata: sem
+     * supersampling (`2` desenha quatro vezes mais pixels) e a metade dos
+     * quadros. O laço recalcula `POINT_COUNT` posições por quadro, então o
+     * custo é de CPU e de fillrate ao mesmo tempo.
+     */
+    const leve = resolveHighPerformanceMode();
+    renderer.setPixelRatio(leve ? 1 : Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 0);
     mount.appendChild(renderer.domElement);
     renderer.domElement.style.width = '100%';
@@ -169,9 +177,16 @@ export function VoiceSphere({ levelRef, status, className }: VoiceSphereProps) {
     let frame = 0;
     let time = 0;
     let smoothed = 0;
+    let alternado = false;
 
     function animate() {
       frame = requestAnimationFrame(animate);
+
+      // No modo leve, um quadro sim outro não: ~30fps, metade do trabalho.
+      if (leve) {
+        alternado = !alternado;
+        if (alternado) return;
+      }
 
       const current = statusRef.current;
       if (current !== paintedFor) paint(current);

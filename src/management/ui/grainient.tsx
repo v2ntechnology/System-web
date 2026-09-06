@@ -164,7 +164,7 @@ export function Grainient({
   centerY = 0,
   zoom = 0.9,
   color1 = '#FF9FFC',
-  color2 = '#5227FF',
+  color2 = '#97402A',
   color3 = '#B497CF',
   className,
 }: GrainientProps) {
@@ -225,8 +225,21 @@ export function Grainient({
 
     function setSize() {
       if (!container) return;
-      const rect = container.getBoundingClientRect();
-      renderer.setSize(Math.max(1, Math.floor(rect.width)), Math.max(1, Math.floor(rect.height)));
+      /*
+       * ⚠️ `offsetWidth`/`offsetHeight`, e NÃO `getBoundingClientRect()`.
+       *
+       * A tela roda dentro de `.tela-proporcional`, que aplica `zoom`. O rect
+       * já vem com o zoom aplicado, e o `setSize` do OGL grava esse número
+       * como `style.width` em px no canvas. Como o canvas está DENTRO do
+       * elemento com zoom, o valor encolhe de novo: com zoom 0,92 o canvas
+       * ficava 8% menor que o bloco e sobrava uma faixa sem desenho.
+       *
+       * `offsetWidth` é medida de layout e não sofre o zoom. O `style` volta
+       * para 100% logo abaixo porque o `setSize` o sobrescreve em px.
+       */
+      renderer.setSize(Math.max(1, container.offsetWidth), Math.max(1, container.offsetHeight));
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
       const resolution = program.uniforms.iResolution.value as Float32Array;
       resolution[0] = gl.drawingBufferWidth;
       resolution[1] = gl.drawingBufferHeight;

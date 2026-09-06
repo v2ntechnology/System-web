@@ -486,7 +486,7 @@ export function SafetyPage() {
                                         'O evento vira falso positivo e sai do score. A decisão exige motivo e vai para o log de auditoria.',
                                     })
                                   }
-                                  className="border-success/40 text-success text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
+                                  className="border-success/40 text-success text-label-md focus-visible:ring-primary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
                                 >
                                   <CheckCircleIcon size={14} aria-hidden="true" />
                                   Aceitar
@@ -499,7 +499,7 @@ export function SafetyPage() {
                                         'A advertência é mantida. O motivo da recusa fica registrado.',
                                     })
                                   }
-                                  className="border-error/40 text-error text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
+                                  className="border-error/40 text-error text-label-md focus-visible:ring-primary inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
                                 >
                                   <BlockedIcon size={14} aria-hidden="true" />
                                   Recusar

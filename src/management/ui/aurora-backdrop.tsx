@@ -30,7 +30,7 @@ export function AuroraBackdrop({ className }: AuroraBackdropProps) {
         className="absolute bottom-[-26vh] left-1/2 h-[88vh] w-[150vw] -translate-x-1/2 rounded-[50%]"
         style={{
           backgroundImage:
-            'radial-gradient(closest-side, rgba(124,122,246,0.82), rgba(99,102,241,0.26) 56%, transparent 100%)',
+            'radial-gradient(closest-side, rgba(214,106,60,0.82), rgba(190,90,53,0.26) 56%, transparent 100%)',
           filter: 'blur(70px)',
         }}
       />
@@ -39,7 +39,7 @@ export function AuroraBackdrop({ className }: AuroraBackdropProps) {
       <div
         className="absolute bottom-[-20vh] left-[4%] h-[60vh] w-[62vw] rounded-[50%]"
         style={{
-          backgroundImage: 'radial-gradient(closest-side, rgba(168,85,247,0.34), transparent 72%)',
+          backgroundImage: 'radial-gradient(closest-side, rgba(219,82,61,0.34), transparent 72%)',
           filter: 'blur(100px)',
         }}
       />

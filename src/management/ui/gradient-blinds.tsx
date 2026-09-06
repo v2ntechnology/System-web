@@ -35,7 +35,7 @@ function hexToRGB(hex: string): [number, number, number] {
 
 /** O shader tem oito uniformes de cor fixos; sobras repetem a última parada. */
 function prepStops(stops?: string[]) {
-  const base = (stops && stops.length ? stops : ['#FF9FFC', '#5227FF']).slice(0, MAX_COLORS);
+  const base = (stops && stops.length ? stops : ['#FF9FFC', '#97402A']).slice(0, MAX_COLORS);
   while (base.length < MAX_COLORS) base.push(base.at(-1) ?? '#000000');
 
   return {
@@ -257,13 +257,27 @@ export function GradientBlinds({
 
     function resize() {
       if (!container) return;
-      const rect = container.getBoundingClientRect();
-      renderer.setSize(rect.width, rect.height);
+      /*
+       * ⚠️ `offsetWidth`/`offsetHeight`, e NÃO `getBoundingClientRect()`.
+       *
+       * A tela roda dentro de `.tela-proporcional`, que aplica `zoom`. O rect
+       * já vem com o zoom aplicado, e o `setSize` do OGL grava esse número
+       * como `style.width` em px no canvas. Como o canvas está DENTRO do
+       * elemento com zoom, o valor encolhe de novo: com zoom 0,92 o canvas
+       * ficava 8% menor que o bloco e sobrava uma faixa sem desenho.
+       *
+       * `offsetWidth` é medida de layout e não sofre o zoom. O `style` volta
+       * para 100% logo abaixo porque o `setSize` o sobrescreve em px.
+       */
+      const larguraLayout = Math.max(1, container.offsetWidth);
+      renderer.setSize(larguraLayout, Math.max(1, container.offsetHeight));
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
       uniforms.iResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight, 1];
 
       // Persiana estreita demais vira moiré: `blindMinWidth` limita a contagem pela largura real.
       const maxByMinWidth =
-        blindMinWidth > 0 ? Math.max(1, Math.floor(rect.width / blindMinWidth)) : Infinity;
+        blindMinWidth > 0 ? Math.max(1, Math.floor(larguraLayout / blindMinWidth)) : Infinity;
       uniforms.uBlindCount.value = Math.max(1, Math.min(blindCount, maxByMinWidth));
 
       if (firstResize) {

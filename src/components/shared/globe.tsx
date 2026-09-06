@@ -18,6 +18,7 @@ import { geoEquirectangular, geoPath } from 'd3-geo';
 import type { GeoPermissibleObjects } from 'd3-geo';
 
 import { cn } from '@/lib/utils';
+import { prefersLightAnimation } from '@/management/lib/performance';
 
 /**
  * Globo de pontos girando: os continentes são desenhados como uma malha de
@@ -66,9 +67,9 @@ function latLngToPosition(lat: number, lng: number): Vector3 {
 
 export function Globe({
   className,
-  dotColor = '#6366F1',
-  gridColor = '#6366F1',
-  rimColor = '#06B6D4',
+  dotColor = '#d5623a',
+  gridColor = '#d5623a',
+  rimColor = '#E7AD61',
 }: GlobeProps) {
   const mountRef = useRef<HTMLDivElement>(null);
 
@@ -227,17 +228,23 @@ export function Globe({
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
 
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /*
+     * Em hardware modesto o globo para de girar: fica um quadro só, desenhado
+     * uma vez. Girar custa um `render` do three a cada quadro, e num notebook
+     * com GPU integrada é o que derruba o FPS da tela inteira. A mesma decisão
+     * vale para quem pediu `prefers-reduced-motion`.
+     */
+    const semGiro = prefersLightAnimation();
     let frame = 0;
     const render = () => {
-      globeGroup.rotation.y += 0.0016;
       renderer.render(scene, camera);
     };
     const animate = () => {
       frame = requestAnimationFrame(animate);
+      globeGroup.rotation.y += 0.0016;
       render();
     };
-    if (reduceMotion) render();
+    if (semGiro) render();
     else animate();
 
     return () => {

@@ -71,7 +71,7 @@ export function ReportDetailPanel({
                 description: 'Nosso time comercial entrará em contato.',
               })
             }
-            className="border-warning/40 text-warning text-label-md focus-visible:ring-secondary rounded-md border px-4 py-2 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
+            className="border-warning/40 text-warning text-label-md focus-visible:ring-primary rounded-md border px-4 py-2 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
           >
             Conhecer o módulo
           </button>
@@ -193,7 +193,7 @@ export function ReportDetailPanel({
                 key={format}
                 type="button"
                 onClick={() => download(format)}
-                className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-2 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
+                className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-primary inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-2 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
               >
                 <DownloadIcon size={16} aria-hidden="true" />
                 {format}

@@ -37,12 +37,12 @@ tela) · Documentação e próximos passos · Gotchas
 - O produto está dividido em **quatro** projetos irmãos, sem compartilhamento automático de
   código:
 
-  | Projeto           | Responsabilidade                  | Repositório                     |
-  | ----------------- | --------------------------------- | ------------------------------- |
-  | `System-web`      | esta aplicação React/Vite         | `v2ntechnology/System-web`      |
-  | `System-mobile`   | monorepo com painel e app Expo    | `v2ntechnology/System-mobile`   |
-  | `Backend-web`     | a API que serve os três clientes  | `v2ntechnology/Backend-web`     |
-  | `Website-rookhub` | site institucional Next.js        | `v2ntechnology/Website-rookhub` |
+  | Projeto           | Responsabilidade                 | Repositório                     |
+  | ----------------- | -------------------------------- | ------------------------------- |
+  | `System-web`      | esta aplicação React/Vite        | `v2ntechnology/System-web`      |
+  | `System-mobile`   | monorepo com painel e app Expo   | `v2ntechnology/System-mobile`   |
+  | `Backend-web`     | a API que serve os três clientes | `v2ntechnology/Backend-web`     |
+  | `Website-rookhub` | site institucional Next.js       | `v2ntechnology/Website-rookhub` |
 
 - O painel de gestão foi copiado de `System-mobile/apps/web` para `src/management`. A origem deve
   permanecer intacta até o usuário conferir e autorizar sua remoção; correções feitas aqui não são
@@ -83,8 +83,54 @@ tela) · Documentação e próximos passos · Gotchas
 
 ## Entrada, sessão e perfis
 
+- ⚠️ **A caixa do sino cortava a lista no DADO, não na altura** (corrigido em 04/09/2026). Os
+  dois componentes faziam `slice(0, 4)`: o da gestão
+  (`management/features/notifications/components/notifications-bell.tsx`) e o do operacional
+  (`components/layout/notification-menu.tsx`). Com 17 não lidas, treze não tinham como aparecer,
+  e a rolagem não tinha o que rolar. O operacional até já tinha `max-h-80 overflow-y-auto`, mas
+  com quatro itens fixos ela nunca chegava a ativar. Hoje os dois trazem até 12 e a área rola.
+- A caixa da gestão corta a altura em `max-h-[21rem]`, pouco mais de quatro itens, de propósito:
+  sempre sobra meia linha à mostra, e é isso que avisa que há mais abaixo. A barra continua
+  invisível, como em todo o sistema.
+- ⚠️ **A rolagem da caixa vazava para a página** (corrigido em 05/09/2026, relatado pelo usuário).
+  Chegando ao fim da lista, insistir na roda rolava a tela atrás da caixa aberta. A correção é
+  `overscroll-contain` no container que rola, nos **dois** componentes. Medido com a caixa no fim
+  da lista e 2000px de roda: sem a classe a página andava 810px, com ela fica em zero. Vale para os
+  quatro perfis, porque OWNER, MANAGER, OPERATOR e MAINTENANCE usam o mesmo `AppTopbar`.
+- **"Ver todas as notificações" é só o nome** (decisão do usuário em 05/09/2026, que substitui a
+  pastilha preenchida de 27/08). Sem fundo, sem seta e sem sublinhado: o hover é só a cor da
+  palavra, em `primary-on-light`, que é o único laranja da paleta que muda de valor com o tema e
+  por isso passa nos dois (5,00:1 sobre `surface-low` no escuro, 5,91:1 no claro). A caixa tem uma
+  ação só e ela não precisa de peso para ser encontrada. ⚠️
+  A armadilha de contraste de 27/08 continua valendo e é o motivo de a tinta ser `text-on-surface`:
+  o conteúdo é portalizado para fora de `.management-theme`, onde `text-secondary` vira o cinza de
+  controle do operacional (lê como desabilitado), e `text-primary-strong` como texto sobre
+  superfície escura fica abaixo de 4,5:1.
+
 - `/` é o login; `/login` só redireciona links antigos. O login, a recuperação e o convite vivem no
   mesmo módulo (`pages/login/login-page.tsx`) e usam o visual de `.management-theme`.
+- ⚠️ **Login, hub e assistente de voz cabem na janela inteira, sem rolagem vertical** (decisão do
+  usuário em 04/09/2026). As três usam a classe `.tela-proporcional` (`styles/globals.css`), que
+  aplica `zoom` calculado pela altura: `clamp(0.5, tan(atan2(100dvh, 1080px)), 1)`. Em 1080px de
+  altura o zoom é 1 e a tela fica idêntica ao desenho aprovado; abaixo disso **tudo encolhe na
+  mesma proporção**, inclusive os componentes compartilhados de altura fixa (campo `h-11`, botão
+  `h-13`), que não dá para escalar um a um sem mexer no sistema inteiro.
+- ⚠️ **Medir cada peça em `vh` foi tentado antes e não serve.** Cada elemento parava no próprio
+  piso do `clamp`, então em janela baixa a logo minguava enquanto os campos seguiam grandes. O
+  `zoom` resolve porque é um fator único para tudo. `tan(atan2(a, b))` é como se obtém número
+  adimensional de dois comprimentos: `calc()` não divide comprimento por comprimento.
+- ⚠️ **Dentro de `zoom`, `dvh` chega reduzido.** Por isso a classe usa
+  `height: calc(100dvh / var(--escala-tela))`: com `100dvh` puro a tela ocuparia só a fração
+  zoomada da janela e sobraria faixa vazia embaixo.
+- ⚠️ **Login, hub e assistente de voz cabem na janela, sem rolagem vertical** (decisão do usuário
+  em 04/09/2026). As medidas verticais das três telas são `clamp(piso, Nvh, teto)`: o teto
+  reproduz exatamente o desenho aprovado em 1080px de altura, e o piso impede que encolha até
+  ficar ilegível. Em janela mais baixa tudo diminui junto e a composição se mantém. Vale para
+  espaçamento, tipografia, altura de card e de botão.
+- ⚠️ **Decoração grande mede pelos dois eixos.** O globo do hub e a esfera da tela de voz mediam
+  só por `vw` (`min(100vw,900px)` e `clamp(17rem,39vw,26rem)`): numa janela larga e baixa eles
+  estouravam a altura e quebravam a perspectiva. Hoje usam `min(Nvw, Nvh)`, então encolhem junto
+  com o resto. Não repor medida vertical fixa nessas três telas.
 - O destino pós-login depende do perfil:
   - `OWNER`, `MANAGER` e `SUPER_ADMIN` entram em `/painel`, a hub protegida sem sidebar/topbar, e
     escolhem `/assistente` ou `/gestao`;
@@ -200,8 +246,49 @@ painéis**.
   `html.light` tem especificidade maior que o `:root` do `@theme`, então vence sem depender da ordem
   dos arquivos.
 - Âncoras: grafite `#212121` no escuro (o azul-noite `#0B1220` do painel operacional foi aposentado
-  porque puxava a tela para o roxo), papel `#F2F2F3` no claro, indigo `#6366F1` como primária e cyan
-  `#06B6D4` como secundária. Roxo só no gradiente Spectrum.
+  porque puxava a tela para o roxo), papel `#F2F2F3` no claro, **terracota `#D5623A` como primária**
+  e cyan `#06B6D4` como secundária.
+- ⚠️ **A primária virou terracota em 04/09/2026**, decisão do usuário, no lugar do indigo `#6366F1`.
+  Os derivados acompanharam, preservando a propriedade de contraste que cada um documentava:
+  `--color-primary-strong` `#5457EE` → **`#B35231`** (5,04:1 com branco, era 5,28:1),
+  `--color-primary-on-light` `#4338CA` → **`#A24A2C`** no claro e `#A5B4FC` → **`#DB7A58`** no
+  escuro, `--color-primary-container` `#3730A3` → **`#6F301D`** (mesma luminância).
+- ⚠️ **O anel de foco também ficou para trás na troca de paleta, e não é hex nem matiz: é token.**
+  Relatado pelo usuário em 05/09/2026 na tela de login, onde a caixa "Manter conectado" e o botão
+  "Entrar" acendiam cyan enquanto os campos ao lado acendiam terracota. A causa era `secondary` no
+  papel de cor de foco: `focus-visible:ring-secondary` em 46 lugares de `src/management/`, mais o
+  `outline: 2px solid var(--secondary)` do `.management-theme :focus-visible` no `theme.css`, que é
+  o piso de quem não desenha o próprio foco. Os campos escapavam porque o `FIELD_SURFACES` já usava
+  `primary`. Tudo passou a `primary` (#D5623A, 4,35:1 sobre o grafite e 3,31:1 sobre o papel, acima
+  do 3:1 que contorno pede), por decisão do usuário: vale na aplicação inteira, e não só no login.
+  Junto foram as três bordas de foco em cyan (`focus:border-secondary` do painel do assistente,
+  `focus-within:border-secondary` das buscas de motorista e de frota).
+- ⚠️ **Anel de foco é `ring-primary`, e não `ring-secondary`.** O cyan continua sendo a secundária
+  semântica, mas foco não é semântica: é estado, e estado segue a marca. Em portal vale o
+  `PORTAL_FOCUS_RING`, porque `primary` fora de `.management-theme` é outro token.
+- ⚠️ **Grep de hex não acha tudo numa troca de paleta.** Depois de trocar os `#6366F1`, sobraram dez
+  ocorrências em `rgb()`/`rgba()` e em hex fora da lista: o `--glow-indigo` do `theme.css`, os três
+  gradientes do `aurora-backdrop`, o `#5227FF` de `gradient-blinds` e `grainient`, e o `#8385F4` do
+  `login-page`. O que funcionou foi varrer **por matiz**, calculando o hue de cada cor e listando o
+  que caía na faixa 225-290 com saturação alta.
+- ⚠️ **O Spectrum Gradient precisou ser refeito inteiro, não remendado.** Trocar só o indigo dele
+  deixava a rampa magenta → roxo → **laranja** → azul → cyan, que não lê como gradiente. Os sete
+  stops foram remapeados para família quente, preservando a luminância de cada parada e, com ela, o
+  vale de contraste no meio da rampa.
+- O cyan `#06B6D4` continua sendo a secundária, mas saiu dos usos **decorativos** em 04/09/2026:
+  gradiente de marca, dígitos do 404, halos, órbita e onda da voz. Ele segue no que é semântico,
+  como `info`, cor de gráfico, status `EM_VIAGEM` e rota no mapa.
+- ⚠️ **Os estados da voz inverteram, e o significado é esse:** a IA **falando** é a única coisa em
+  azul (`--color-accent`), justamente para se distinguir; escutando e em repouso são laranja.
+  Vale nos três lugares que desenham voz: `.voice-orbit--*` e `.voice-waveform--*` no `globals.css`
+  e as constantes `COLOR_FRONT_*` do `voice-sphere.tsx`. Mexeu em um, confira os outros.
+- ⚠️ **`--color-primary-bright` (`#E7AD61`) existe para o gradiente não terminar no cyan.** Todo
+  gradiente de marca ia de `--color-primary` a `--color-accent`, e com a primária quente isso
+  virava laranja para azul. É decorativo: **não carrega texto** (1,9:1 com branco).
+- A marca em `public/logo/` seguiu a nomenclatura do `Website-rookhub` em 04/09/2026: três peças
+  (`rookhub-full-*`, `rookhub-symbol-*`, `rookhub-wordmark-*`) no par `-dark` (fundo claro) e
+  `-white` (fundo escuro). Os arquivos são os mesmos dos dois projetos, e `brand-assets.ts` mantém
+  as chaves antigas (`wordmark`, `mark`, `text`) porque são a API que o código consome.
 - `globals.css` **não** tem mais par `:root`/`.dark` de cor: um bloco só aponta os tokens da família
   shadcn (`--background`, `--card`…) para os `--color-*` da rampa. Redeclarar cor por tema ali é o
   que fazia os painéis divergirem.
@@ -511,6 +598,89 @@ Ajustes pedidos pelo usuário depois de conversar com a assistente de voz.
   de linha: pode trazer meia linha ou duas e meia. O leitor guarda o resto entre uma leitura e
   outra.
 
+#### Detecção de fala em lugar barulhento (05/09/2026)
+
+Relatado pelo usuário: em ambiente barulhento a conversa **trava**. Ele termina de falar, a
+assistente continua "ouvindo" o barulho da sala e a pergunta nunca é processada.
+
+- ⚠️ **A causa era o limiar FIXO** (`NIVEL_DE_FALA = 0.055`). Num pátio ou numa oficina o ruído de
+  fundo já passa desse valor, então `lastVoiceAtRef` era renovado a cada quadro e o relógio do
+  silêncio nunca andava. O teto que existia só valia quando NÃO havia pergunta, então, uma vez que
+  havia, não sobrava saída nenhuma.
+- A decisão saiu da tela para `pages/hub/speech-detection.ts`, com três defesas: **piso de ruído
+  adaptativo** (desce rápido, sobe devagar, para a própria fala não levantar o piso e se anular),
+  **persistência de 140 ms** (estalo e batida de porta não são fala) e **teto pelo reconhecedor**,
+  que é a rede de segurança: com pergunta na mão e 4 s sem texto novo do navegador, processa mesmo
+  que o microfone continue ouvindo barulho.
+- ⚠️ **`onSpeech` e `onResult` deixaram de ser a mesma coisa.** O evento do navegador dispara com
+  atividade de áudio, inclusive ruído; só `onResult` significa palavra reconhecida. Misturar os dois
+  era parte do travamento: o barulho renovava o relógio da "transcrição" que nunca tinha existido.
+- O nível medido passou a ser o da **faixa de 300 a 3400 Hz**, e não o espectro inteiro. Motor, ar
+  condicionado e vento vivem embaixo de 300 Hz; é a mesma faixa que o telefone transmite, e pelo
+  mesmo motivo. A animação da esfera continua usando o espectro cheio, que é o que ela quer.
+- ⚠️ **Isto é testável sem microfone, e por isso tem teste** (`speech-detection.test.ts`, 8 casos).
+  O defeito NÃO aparece em teste manual: quem testa está sentado numa sala silenciosa, onde o limiar
+  fixo funcionava. O caso do pátio (ruído constante em 0,30) é um teste nomeado.
+
+#### A conversa falada virou transcrição e ganhou memória (05/09/2026)
+
+⚠️ **Reverte a decisão de 30/08/2026 de a conversa falada não ser gravada.** A troca é do usuário, e
+o motivo é a pergunta que ela desbloqueia: "sobre o que a gente conversou semana passada?".
+
+- A tela abre a sessão em `POST /v1/assistant/voice/session` e passa o `conversationId` em cada
+  pergunta. O servidor decide entre retomar e abrir nova; a tela só recebe o fio de volta e desenha.
+- **A transcrição fica à esquerda, e some abaixo de 1024px.** Empilhada, ela empurraria a esfera
+  para fora da tela justamente quando a conversa fica longa. Em tela estreita, ler e falar ao mesmo
+  tempo não acontece, e o painel comeria o espaço de quem dá o retorno de que a assistente ouve.
+- ⚠️ **A transcrição é DERIVADA** (`turnos do servidor + turnos desta visita`), e não um terceiro
+  estado. Foi a segunda vez no dia que o `react-hooks/set-state-in-effect` cobrou isso: o efeito só
+  pode encostar em ref. Ver também o rodízio de voz, logo abaixo.
+- O efeito da sessão só escreve refs (`sessaoIdRef` e `historyRef`), e tem guarda pelo id: sem ela,
+  uma revalidação da consulta no meio da conversa apagaria o fio da sessão em andamento.
+- ⚠️ **O painel precisa de `min-h-0` na seção E na `aside`.** Sem isso, um filho de flex tem altura
+  mínima igual ao conteúdo: o painel crescia com a conversa, esticava a página e o começo do que foi
+  dito sumia da tela. Foi exatamente o que o usuário relatou. Tem `max-h-[70vh]` de reserva, para o
+  painel continuar limitado se algum ancestral perder a altura.
+- ⚠️ **A rolagem automática depende de `transcricao.length`, não do array**, e roda dentro de um
+  `requestAnimationFrame` com `scrollTop` direto. Medido: com `[transcricao]` a lista descia a cada
+  render, inclusive no meio de alguém lendo o histórico; sem o quadro de espera, o efeito rodava
+  antes de o turno ter altura e a caixa parava em zero ao abrir conversa guardada; e com
+  `behavior: 'smooth'` a animação continuava rolando enquanto a pessoa arrastava para cima,
+  brigando com a mão dela.
+- A tela aplica a troca de voz pedida por comando falado (evento `voice` do fluxo), chamando o mesmo
+  `trocarGenero` do botão. Ver a fronteira dessa função na memória do `Backend-web`.
+- ⚠️ **O teste `hub-flow` precisou de `QueryClientProvider`.** A tela passou a usar `useQuery` para o
+  catálogo de vozes e para a sessão, e sem o provedor ela nem monta. Os dois pedidos falham dentro do
+  teste de propósito: o que ele checa é o caminho do microfone indisponível.
+- As frases da tela passaram de 17 para 50 (20 de espera, 10 de "não ouvi", 8 de falha, 12 de
+  saudação), a pedido do usuário. Com seis frases de espera, quem conversa dez minutos ouve a mesma
+  três vezes: o sorteio sem repetir a anterior resolve o par seguido, não o ciclo curto.
+
+#### A pessoa escolhe o timbre (05/09/2026)
+
+Pedido do usuário: escolher entre voz feminina e masculina, a escolha sobreviver a sair e voltar, e
+**dentro do gênero a voz alternar a cada visita**, para não ser sempre a mesma.
+
+- **O que fica no `localStorage` é o gênero e um contador, nunca a voz.** Gravar a voz exata daria o
+  contrário do pedido, que é justamente não repetir o mesmo timbre.
+- ⚠️ **O catálogo vem do backend** (`GET /v1/voice/voices`), e não de uma lista no cliente: ele muda
+  com o provedor ativo e com o que foi baixado na imagem do sintetizador. Lista fixa aqui ofereceria
+  voz que não existe mais.
+- ⚠️ **O passo do rodízio anda dentro do `queryFn`**, e esse detalhe custou duas tentativas. Ele
+  escreve no `localStorage`, e escrever no render é erro de `react-hooks/purity`; mover para um
+  efeito esbarra em `react-hooks/set-state-in-effect`, que este projeto também trata como erro. O
+  `queryFn` é o único lugar da tela que roda uma vez por visita e fora do render. `staleTime: 0` e
+  `gcTime: 0` são o que fazem cada entrada buscar de novo e, com isso, girar a voz.
+- ⚠️ **Trocar a voz exige limpar o cache das frases de espera.** Ele guarda o ÁUDIO já sintetizado, e
+  não o texto: sem limpar, "só um segundo" continuaria saindo na voz anterior no meio de uma conversa
+  que já trocou de voz.
+- ⚠️ **Só existe UMA voz feminina em pt-BR** nos dois modelos locais (`pf_dora`, do Kokoro), então o
+  rodízio feminino não tem entre o que alternar. É limite de catálogo, não da tela: o mecanismo
+  alterna sozinho assim que houver uma segunda. O `Backend-web/docs/VOZ_DA_ASSISTENTE.md` lista os
+  dois caminhos para arrumar mais uma.
+- Quem prefere feminina e cai num provedor sem voz feminina (o Piper) ouve a masculina, em vez de a
+  assistente emudecer. O cabeçalho mostra o nome da voz no ar, senão o rodízio parece defeito.
+
 #### Eco do alto-falante e modo de consulta
 
 As armadilhas do lado do servidor (placa soletrada com tolerância de edição, prompt, NDJSON e
@@ -737,6 +907,365 @@ existia; o que faltava era onde o custo é de RENDERIZAÇÃO, que são os três 
   surgiriam de uma vez, que é o pisca-pisca que a tampa existe para evitar.
 - ⚠️ **O erro do GLTFLoader também avisa que terminou.** Quem espera esse retorno é a tampa: sem
   avisar, um 404 no modelo deixaria a tela em "Carregando o mapa" para sempre, sem erro visível.
+
+### A ficha virou drawer, e o mapa ganhou base e ângulo (05/09/2026)
+
+Pedido do usuário. A ficha do veículo era a terceira coluna do grid e virou drawer; o mapa encolhe
+enquanto ela está aberta e volta a esticar ao fechar.
+
+- ⚠️ **O `FleetMap` precisou de um `ResizeObserver` chamando `map.resize()`.** O MapLibre escuta o
+  `resize` da JANELA, e só ele: com o drawer encolhendo o container, o canvas ficava com a largura
+  antiga e o clique saía deslocado do que se via. Medido depois de ligar: linha 1140, coluna do mapa
+  784, canvas 782, drawer 340.
+- O drawer é IRMÃO do mapa numa linha flex, e não uma camada por cima: sobreposto, ele taparia
+  justamente o caminhão recém-escolhido.
+- ⚠️ **São DUAS animações ao mesmo tempo, e as duas precisam existir** (corrigido em 05/09/2026,
+  depois de o usuário apontar que "não era drawer"): a LARGURA do `aside` (`w-0` para `w-[340px]`),
+  que é o que faz o mapa encolher, e o DESLIZE do painel ancorado à direita (`translate-x-full` para
+  `translate-x-0`). Só a largura dava meio drawer: a caixa crescia e o conteúdo aparecia de um
+  quadro para o outro.
+- ⚠️ **O painel fica SEMPRE montado**, senão ele nasceria já na posição aberta e a entrada não
+  animaria: transição precisa de um estado anterior para sair dele.
+- ⚠️ **A ficha desenhada (`fichaId`) é estado SEPARADO da seleção (`selectedId`).** Fechar limpa só
+  a seleção; quem apaga a ficha é o `onTransitionEnd` da largura, filtrado por `propertyName` e por
+  `target === currentTarget` (o deslize do painel também borbulha até lá). Desmontando junto com a
+  seleção, a caixa encolhia vazia e não havia animação de saída nenhuma.
+- ⚠️ **Animação de 300 ms NÃO se verifica por captura de tela nem por `requestAnimationFrame` no
+  Playwright.** A captura demora mais que a transição e chega sempre no estado final; o `rAF` é
+  estrangulado e devolveu uma amostra só. O que funcionou foi ler o estilo computado 80 ms depois do
+  clique: largura em 128,25 px de 340, e `translate` em 28,157%. Perdi três rodadas concluindo que
+  a animação não existia quando o problema era a régua.
+- ⚠️ **No Tailwind 4, `translate-x-*` usa a propriedade CSS `translate`, e não `transform`.** Ler
+  `getComputedStyle(...).transform` devolve `none` mesmo com o deslize aplicado, e isso parece
+  defeito.
+- **Nem o drawer nem a lista têm moldura de cartão** (pedido do usuário em 05/09/2026). O drawer usa
+  a mesma receita do drawer do assistente: fundo `surface-low`, traço só à esquerda, canto quadrado
+  e altura cheia. Com borda em volta e canto arredondado ele lia como um terceiro cartão do layout,
+  e não como uma gaveta. A lista perdeu borda, canto e fundo próprio, e o que a separa do mapa é o
+  vão do grid.
+- ⚠️ **O drawer empurra o mapa em vez de flutuar sobre a tela, e essa é a ÚNICA diferença para o
+  drawer do assistente.** O do assistente é `fixed inset-y-0 right-0` e cobre a topbar; este vive
+  dentro da linha do grid, porque o pedido anterior do usuário foi que o mapa encolhesse ao abrir.
+  As duas coisas não convivem: gaveta que cobre a tela não empurra nada.
+- Os filtros de situação subiram para a linha do chip de leitura, e a lista ficou só com a busca por
+  placa. As contagens continuam sendo sobre a frota inteira, e não sobre o filtro aplicado.
+- **Cinco modos** (`MAP_BASES`), com os nomes do painel de referência do usuário: Minimalista
+  (positron), Ruas (liberty), Vivo (bright), Escuro (dark) e Noturno (fiord). Os cinco foram
+  conferidos contra o provedor, um a um: responderam 200 e trazem estilo de verdade (48 a 119
+  camadas). ⚠️ Estilo inexistente não dá erro visível, o mapa fica em branco.
+  E **não existe satélite** no OpenFreeMap: isso exigiria outro provedor, com chave, e chave no
+  navegador é chave publicada.
+- ⚠️ **A base escolhida VENCE o tema.** Quem escolheu o noturno escolheu o noturno, e uma troca de
+  tema não pode desfazer. O ouvinte de `styledata` continua sendo quem remonta as camadas depois do
+  `setStyle`, e foi conferido que os caminhões 3D sobrevivem à troca de base.
+- ⚠️ **Os três controles do mapa vivem JUNTOS no canto superior direito** (05/09/2026): o modo do
+  mapa em MENU (fechado ocupa a largura de um rótulo), mais os ícones de inclinar e de eventos na
+  rota. Em linha, os cinco modos mais a legenda mais dois ícones não cabiam com a ficha aberta:
+  quebravam para a linha de baixo e saíam do canto. O cartão de duas linhas dos eventos virou ícone
+  com dica no `title`: quem opera todo dia não precisa reler "ative o mapa de calor" toda vez.
+- O drawer virou seções com LINHAS (ícone e rótulo à esquerda, valor à direita), no lugar da grade
+  de duas colunas, que numa coluna estreita quebrava o rótulo e separava o valor do par.
+- ⚠️ **A frase sobre a rede CAN e a temperatura saiu da tela** a pedido do usuário em 05/09/2026. O
+  motivo dela continua valendo e está no cabeçalho do `vehicle-drawer.tsx`: o RPM é da viagem, e
+  temperatura não existe no schema. Quem for acrescentar temperatura precisa de origem primeiro.
+- ⚠️ **A inclinação não se julga por captura de tela.** Cheguei a concluir duas vezes que o botão
+  não funcionava, olhando o mapa em zoom regional: a 55 graus, sobre base sem prédio, a perspectiva
+  é sutil demais. O container agora escreve `data-pitch` e `data-bearing` no DOM, e a medição
+  mostrou 0 → 55 → 0. Julgar ângulo por imagem foi erro meu; o atributo existe para não repetir.
+- O drawer mostra o que a telemetria REALMENTE tem: velocidade, direção, odômetro e posição ao vivo,
+  mais RPM máximo, velocidade máxima, distância e combustível **da última viagem**. ⚠️ O RPM existia
+  no banco (`vehicle_journeys.max_rpm`) e não chegava ao frontend: foi exposto no DTO do
+  `Backend-web`. **Temperatura não existe em lugar nenhum do schema** (conferido coluna a coluna), e
+  por isso não aparece: a regra é não preencher com zero o campo que a telemetria não tem.
+- O modelo 3D gira no alto do drawer, hoje o mesmo `truck.glb` para toda placa. A escolha do arquivo
+  mora numa função só (`modeloDoVeiculo`), para o dia em que houver um GLB por tipo de veículo.
+- ⚠️ **A gaveta encosta na BORDA DA TELA por margem negativa** (pedido do usuário em 05/09/2026).
+  Aberta, o `aside` é `w-[380px] -mr-10`, e o `-mr-10` cancela o `xl:px-10` da página: sem isso
+  sobrava uma faixa de fundo à direita e parecia que a gaveta tinha parado antes de chegar. A
+  margem entra na MESMA transição da largura (`transition-[width,margin]`), senão os 40 pixels
+  apareceriam de um quadro para o outro. O 40 é literal: mudar o padding da página pede mudar aqui.
+  Medido com a gaveta aberta a 1720 de largura: `aside.right` = 1720, sem folga.
+- A ficha de dentro é `w-full`, e não mais `w-[340px]`: com largura fixa ela deixava 40 pixels de
+  vão dentro da própria gaveta depois que o `aside` passou a 380.
+- O giro do modelo 3D é `0.0022` radiano por quadro, uma volta a cada 48 segundos. Estava quase três
+  vezes mais rápido e o usuário pediu para desacelerar: quem lê a ficha ao lado não pode ter um
+  movimento puxando o olho o tempo todo.
+- **A tela ABRE inclinada e no modo Ruas** (pedido do usuário em 05/09/2026). O `pitch: 55` e o
+  `bearing: -20` estão na criação da instância, e são os MESMOS números do botão de inclinar: ele
+  decide o que fazer olhando `getPitch() > 5`, então um ângulo inicial diferente deixaria o ícone
+  dizendo uma coisa e a câmera mostrando outra. O estado `inclinado` da página nasce em `true` pelo
+  mesmo motivo. O `fitBounds` de abertura já preservava `pitch` e `bearing`, e é por isso que o
+  enquadramento inicial não desfaz o ângulo.
+- ⚠️ **O caminhão 3D some atrás da base quando o mapa está inclinado, e a correção é
+  `renderer.clearDepth()`.** O MapLibre grava profundidade nas camadas opacas do estilo, um degrau
+  por camada, e esse número é sintético: serve só para ordenar camadas 2D. A 55 graus, um caminhão
+  longe do observador é projetado com profundidade perto de 1, e numa base cheia de camadas (a de
+  Ruas tem 119) os degraus da base ficam abaixo disso: o teste reprova o caminhão e ele desaparece
+  atrás de uma área verde ou da água, sem erro no console. Quem olha conclui que a telemetria
+  parou. Limpar o buffer antes de `render` apaga os degraus; a profundidade ENTRE os caminhões
+  continua valendo, porque o three grava a dele depois. O preço aceito pelo usuário: prédio em 3D
+  também deixa de esconder o caminhão.
+- Conferido nas CINCO bases, com o mapa inclinado: Ruas, Escuro, Vivo, Noturno e Minimalista, todas
+  com a frota desenhada por cima.
+- O botão de trajeto virou RODAPÉ do drawer, com traço próprio e largura cheia. Quem rola agora é o
+  miolo, e não a caixa inteira: com a caixa rolando, o botão ficava no fim do conteúdo, saía da
+  tela numa ficha alta e encostava na última linha de dado numa ficha baixa.
+- ⚠️ **O miolo do drawer leva `overscroll-contain`**, pelo mesmo motivo da caixa de notificações:
+  chegar no fim e insistir na roda fazia o navegador passar a rolagem para a página, e a tela
+  inteira descia enquanto a pessoa achava que ainda estava lendo o veículo. Provado por contraste
+  no navegador, com a roda de verdade: com a contenção, a página fica em 0 depois de 1800 pixels de
+  insistência; desligando `overscroll-behavior` no ar e repetindo o mesmo gesto, ela vai para 46,
+  que é o fim dela. Toda caixa rolante nova desta tela precisa da mesma classe.
+- ⚠️ **A linha reta que o trajeto desenha em trecho sem rua NÃO é defeito do mapa** (apurado em
+  06/09/2026, a partir do RDU8D06). O desenho liga leitura a leitura, a consulta ordena por
+  `recorded_at` e a resposta real veio com zero pontos fora de ordem: a reta é a lacuna entre uma
+  posição e a seguinte. No RDU8D06 foram 413 posições em 72 horas, em 8 rajadas curtas, contra 46
+  viagens no mesmo período somando centenas de quilômetros (41, 55, 73, 80 km): as VIAGENS chegam
+  da MiX, as POSIÇÕES não chegam na mesma densidade. A frota inteira grava de 300 a 500 posições
+  por veículo por dia, uma a cada 3 a 5 minutos, e não as 2.863 diárias que o comentário do
+  `FleetController` assume.
+- ⚠️ **E não é culpa de o backend local ficar desligado.** A coleta guarda `since_token` por fluxo
+  e recupera retroativamente: a ingestão ficou 18 horas parada em 05/09 e, ao voltar às 21:42,
+  gravou posições com `recorded_at` das 15:02 daquele dia, dentro da janela parada. Nas horas em
+  que o RDU8D06 ficou mudo, outros veículos reportaram normalmente. Antes de culpar o ambiente
+  local, comparar a lacuna do veículo com a da frota na mesma hora: se a frota reportou, o buraco
+  é do fornecedor.
+- ⚠️ **CORREÇÃO (06/09/2026): era, sim, o backend local desligado.** A primeira conclusão foi
+  errada e a medição em produção provou: lá o mesmo RDU8D06 tem **13.565 posições em 72 horas**
+  contra 413 aqui, e **um único salto acima de 3 km** (3,3 km com zero minuto de intervalo, que é
+  ruído de GPS, não lacuna). Produção roda 12 ciclos por hora, sem nenhuma parada acima de 30
+  minutos em 7 dias, e grava de 4.000 a 4.400 posições por veículo por dia. A base local ficou
+  ligada cerca de 7 horas em 72, e o cursor não recupera o atrasado nesse ritmo: cada ciclo drena
+  cerca de 1.000 registros além do corrente, e 18 horas paradas acumulam 116 mil. Com o teto de 7
+  dias do `sinceToken`, o que não for drenado nessa janela se perde de vez.
+- **Conclusão para quem for depurar: buraco no trajeto local não é bug, é a base local.** Antes de
+  investigar código, comparar com produção (`ssh lucas@144.22.177.229`, container
+  `rookhub-postgres-1`). Comparar também a lacuna do veículo com a da frota na mesma hora.
+- **O mapa passou a separar trecho MEDIDO de LACUNA** (06/09/2026), que é o `gaps=split` do OSRM
+  feito por nós. `track-segments.ts` quebra a rota quando passa de 5 minutos ou 1 km entre
+  leituras, e descarta o ponto cuja velocidade implícita passe de 200 km/h, que é coordenada
+  impossível e não excesso de velocidade. O traço sólido é o que foi medido; o vão vira tracejado
+  fino e apagado, e o cartão diz quantos são e o tamanho do maior. ⚠️ **A lacuna é desenhada, não
+  apagada**: sumir com ela esconderia buraco de cobertura, que é informação de operação.
+- ⚠️ **Reta entre dois pontos não é errada por si.** A Geotab reduz a série com Ramer-Douglas-
+  Peucker (1116 pontos para 148 num exemplo publicado) e a garantia do método é que entre dois
+  pontos guardados o movimento é aceitavelmente linear. O que o nosso limiar separa é a reta que
+  só existe porque faltou dado.
+- O prop `track` do `FleetMap` recebe `TrajetoPreparado`, e não mais lista de coordenadas. A linha
+  virou `MultiLineString`, um traço por trecho.
+- ⚠️ **O replay engasgava porque avançava por ÍNDICE DE PONTO** (corrigido em 06/09/2026). O
+  índice mede quantidade de dado, não passagem de tempo: parado no semáforo, dezenas de leituras
+  iguais plantavam o caminhão; numa lacuna, duas leituras consecutivas a 20 km eram atravessadas
+  num décimo de segundo. Medido nos dados REAIS de produção (3.495 pontos em 24 h), com 240
+  amostras: por índice, o maior avanço era **9,5 vezes a média**; por tempo, **3,1 vezes**, com a
+  mesma média. `track-timeline.ts` é o relógio do replay.
+- O replay agora dura sempre 40 segundos a 1x, seja a janela de 6 ou de 72 horas. Parada longa é
+  comprimida (teto de 30 s de tempo real por passo) e lacuna custa um valor fixo, para o caminhão
+  atravessar o vão devagar e visivelmente em vez de teleportar.
+- **O marcador do replay é o caminhão 3D em âmbar** (`definirReplay` na `fleet-3d-layer`), 35%
+  maior que os da frota. O crachá 2D continua montado como PLANO B e é escondido por
+  `setLayoutProperty` quando `modelo3dPronto`: se o GLB falhar, o replay não fica sem marcador.
+- O giro do caminhão do replay PERSEGUE o rumo alvo (16% do que falta por quadro) em vez de saltar
+  para ele. Sem isso, uma curva de 90 graus acontecia num quadro e o modelo piscava. No arrasto do
+  slider a perseguição é desligada, senão ele rodopiaria até alcançar a direção nova.
+- ⚠️ **Parada NÃO é lacuna, e isso só apareceu nos dados de produção.** Com o critério só de tempo,
+  o RDU8D06 tinha 70 "trechos sem leitura" em 24 h, quase todos o caminhão parado no pátio. A
+  condição passou a exigir tempo longo E deslocamento acima de 50 m: os mesmos dados viraram **1
+  lacuna e 2 trechos**, com 3.486 dos 3.495 pontos dentro de trecho contínuo.
+- **Validar algoritmo de trajeto com dado de PRODUÇÃO, não com o local.** O caminho usado: exportar
+  o trajeto por `ssh` + `psql` para JSON e rodar as funções puras sobre ele num teste temporário. O
+  falso positivo da parada era invisível na base local, porque lá quase tudo é lacuna de verdade.
+- O selo de caminhão que ficava à direita de "Monitoramento da frota" saiu: não clicava, não
+  informava nada além do título, e num cabeçalho sem moldura lia como um botão que não é botão.
+- **Para ver a tela com dados de produção**, sem tocar no ambiente local: a API pública responde em
+  `https://api.rookhub.com.br` (401 sem token, que é o esperado), então basta uma segunda instância
+  do Vite, `VITE_API_BASE_URL=https://api.rookhub.com.br npx vite --port 5180`. O dev server da
+  pessoa continua intacto na 5173, e o login é com conta de PRODUÇÃO. ⚠️ A instância morre com a
+  sessão do agente, que é a regra do projeto: nada de agendador nem serviço.
+- **A dica do mapa foi redesenhada** (06/09/2026): placa, selo de situação com o ponto na cor do
+  status, velocidade em corpo grande, e então motorista, empresa e local. Linha sem dado não
+  aparece, em vez de aparecer vazia. O estilo saiu do preto fixo `rgb(11 11 14)` e passou a usar os
+  tokens da paleta, então ela acompanha o tema. ⚠️ Todo valor passa por `escapar`: nome de
+  motorista e de empresa vêm da telemetria do fornecedor, que é entrada externa.
+- ⚠️ **A EMPRESA precisou de mudança no `Backend-web`**: `vehicle_last_positions` não trazia nada
+  disso, e a consulta de posições passou a subir por `COMPANY_JOIN` até `fleet_companies`. É a
+  empresa, e não a filial crua da MiX, pelo motivo já registrado lá: 14 dos 40 caminhões moram no
+  "Default Site".
+
+### O replay ganhou animação e câmera de perseguição (06/09/2026)
+
+Pedido do usuário, e as três armadilhas abaixo custaram uma captura de tela cada.
+
+- **O caminhão do replay anda de verdade**: as rodas giram na conta física (um metro percorrido
+  gira a roda 1/raio radianos), o corpo balança de leve e sai fumaça do escapamento. Tudo
+  proporcional à VELOCIDADE REAL do marcador, medida entre dois quadros: animação por relógio solto
+  deixaria a roda girando com o caminhão parado no semáforo.
+- ⚠️ **`sizeAttenuation: true` NÃO funciona nesta camada.** O three calcula `gl_PointSize` a partir
+  do Z do espaço da câmera, e aqui a projeção inteira vem do MapLibre por uma matriz montada à mão,
+  com `modelViewMatrix` identidade: a conta dá tamanho perto de zero e a fumaça some, sem erro no
+  console. O tamanho é em PIXELS, como o do caminhão.
+- ⚠️ **`AdditiveBlending` some sobre base clara.** Aditivo com cor clara sobre branco continua
+  branco, e a fumaça sumia nos modos Ruas, Vivo e Minimalista. Mistura normal, com cinza médio.
+- ⚠️ **`PointsMaterial` sem `map` desenha QUADRADO sólido**, e 28 quadrados sobrepostos viram um
+  bloco com quinas. A textura é um disco com gradiente, desenhado em canvas na montagem.
+- ⚠️ **Partícula guarda MERCATOR, não a posição no espaço local.** O espaço local é recriado a cada
+  quadro com origem no centro visível: guardar a posição nele fazia a fumaça andar colada na tela
+  em vez de ficar para trás no chão.
+- O balanço vai no FILHO do grupo, e não no grupo: o grupo já gira em Z para apontar o rumo, e uma
+  segunda rotação nele acontece em torno de um eixo fixo do mundo, então o caminhão balançaria
+  sempre para o mesmo lado geográfico.
+- ⚠️ **A roda precisa de um PIVÔ no próprio eixo, senão ela orbita o caminhão.** O GLB do Quaternius traz as rodas como nós irmãos da carroceria, com a geometria já posicionada e o pivô na ORIGEM do modelo: `roda.rotation.x` fazia cada uma descrever uma órbita em volta do centro do veículo. Parado quase não se nota; numa curva fechada elas descolam e ficam boiando ao lado, que foi a reclamação do usuário em 06/09/2026. `comPivoNoEixo` mede a caixa da roda, cria um grupo no centro dela e a pendura ali. A função foi extraída para o módulo só para poder ser testada sem WebGL, e `wheel-pivot.test.ts` trava os dois lados: com o pivô o centro não se move nem numa meia-volta (menos de 1e-6), sem ele a roda anda mais de 0,9 unidade.
+- O acumulador do giro leva módulo de uma volta: a velocidade do marcador é alta (um dia cabe em 40 segundos) e sem isso ele chega à casa dos milhões, onde o `float32` da GPU já não distingue um quadro do seguinte.
+- ⚠️ **A fumaça é emitida por DISTÂNCIA percorrida, e não por quadro.** Emitindo por quadro, com vida de 1,4 s, o rastro ficava quilométrico: o replay comprime um dia em 40 segundos, então o marcador percorre centenas de metros por segundo de tela. Agora sai uma baforada a cada meio comprimento de modelo, com vida de meio segundo e 14 partículas, o que dá uma nuvem curta junto ao escapamento.
+- **A câmera segue o caminhão ao dar play**, em vista de perseguição (pitch 60, zoom 16, giro
+  acompanhando o rumo), e volta ao enquadramento anterior na pausa ou no fim. O enquadramento de
+  origem é guardado na entrada: sem isso a pessoa terminaria o replay num zoom de rua sem relação
+  com o que tinha antes.
+- ⚠️ **`jumpTo` CANCELA `easeTo`.** A entrada era animada com `easeTo` e o laço perseguia com
+  `jumpTo` a cada quadro: o `jumpTo` matava a animação no quadro seguinte e o pitch ficava nos 55
+  que a tela já tinha, sem nunca chegar aos 60. Agora o próprio laço aproxima zoom e inclinação e
+  solta os dois ao alcançá-los, para a pessoa poder dar zoom durante o replay.
+- O aviso de play sai de um EFEITO, e não do clique: o replay também termina sozinho ao chegar ao
+  fim, e ali não há clique nenhum. Sem isso a câmera ficaria presa na perseguição.
+
+### Hover do sair e contraste do menu superior (06/09/2026)
+
+- ⚠️ **O botão de sair do `/app` tinha DOIS defeitos, não um.** Medido: no hover a cor ia de
+  `rgb(225,29,72)` para `rgb(25,24,23)`, quase preto, E aparecia um anel vermelho de 2px.
+- A cor preta vinha do `focus:text-secondary-foreground` que o `DropdownMenuItem` traz na base. O
+  Radix FOCA o item quando o cursor passa por cima, então tudo que é `focus:` dispara com o mouse,
+  e o item só cancelava o fundo (`focus:bg-transparent`), não o texto.
+- ⚠️ **Um seletor mais específico não resolve isso.** Utilitário do Tailwind vence
+  `@layer components` por CAMADA. A regra precisou ir para `@layer utilities`, no fim do
+  `globals.css`, como `.acao-sair-no-menu`. Foi a segunda tentativa: a primeira, em `components`,
+  não pegou, e a medição mostrou a cor voltando ao preto.
+- O anel saiu por completo, e isso é a decisão registrada do projeto: hover de botão só-ícone move
+  a COR, nunca desenha forma nova. Ele estava em `focus-visible` no item, que disparava com mouse.
+- **O contraste do menu superior do `/gestao` subiu**, a pedido do usuário. O véu do item não
+  selecionado foi de 6% para 12% de `on-surface`: a 6% o fundo era indistinguível do papel, e o
+  único sinal acabava sendo o texto escurecer.
+- O degrau da pastilha ativa foi de `#2A2724` para `#3A3531` no tema claro, e de `#E9EDF2` para
+  `#DDE3EA` no escuro. ⚠️ Catorze pontos de luminosidade não se enxergam numa pastilha pequena;
+  com trinta a resposta ao cursor aparece. Contraste contra o texto segue em 10,8:1 e 14,4:1,
+  muito acima do mínimo AA de 4,5:1.
+### O painel `/app` começou a falar com a API real (06/09/2026)
+
+- Até aqui o `/app` inteiro era servido por `services/api.ts`, que importa os mocks diretamente.
+  **Veículos é o primeiro domínio a atravessar**, em `services/vehicle-api.ts`, e é o caminho que
+  os outros devem seguir. A chave é a mesma do `/gestao` (`VITE_ENABLE_MOCKS`), e não é fallback:
+  backend fora mostra erro, e não dado de demonstração disfarçado de real.
+- ⚠️ **Os dois painéis modelam veículo de formas diferentes**, e a tradução mora no adaptador, não
+  nas telas: situação (`EM_VIAGEM` contra `on_trip`), motorista (nome contra objeto com id) e
+  número de frota (`internalCode` contra `fleetNumber`).
+- ⚠️ **`SEM_SINAL` vira `stopped`, e a tradução PERDE informação.** São coisas diferentes: parado é
+  um caminhão que reportou e não anda; sem sinal é um caminhão que ninguém sabe onde está. O
+  `/app` não tem o segundo estado no vocabulário, e inventar um valor fora da união quebraria os
+  mapas de rótulo e de cor em silêncio. Acrescentar `no_signal` pede mexer em `status-maps`, nas
+  abas de filtro e na legenda do mapa.
+- **O backend passou a expor `criticality`** na rota de veículos: a coluna existia e não estava no
+  DTO. ⚠️ Os 40 veículos estão em `low`, que é o padrão da migration e não classificação de
+  ninguém. Quem usar isso para priorizar precisa saber que o campo espera curadoria.
+- Dois defeitos de apresentação que a ponte trouxe e foram corrigidos: o odômetro vinha com casas
+  decimais e a tela mostrava "206.572,953 km"; e o ano ausente virava "· 0" ao lado do modelo, o
+  que lê como defeito. Zero é AUSÊNCIA de ano, e agora é omitido.
+- ⚠️ Criação e edição de veículo continuam SEM caminho real e lançam 501. O backend tem as rotas,
+  mas o formulário do `/app` fala outro vocabulário: falhar alto é melhor que gravar metade do
+  formulário em silêncio.
+- A lista é paginada no CLIENTE: `/v1/vehicles` devolve a frota toda, 40 linhas. O sinal para
+  mudar isso é a resposta passar de alguns milhares.
+### O consumo passou a ser agrupado por categoria (06/09/2026)
+
+- A lista de consumo deixou de ser uma ordenação única e virou GRUPOS, cada um com a própria
+  média. Medido na tela: Caminhão com 19 veículos e média 3,54 km/l, Van com 6 e média 10,43.
+  Comparar os dois no mesmo ranking premiava a van todo mês.
+- A média do grupo é ponderada pela QUILOMETRAGEM, e não a média das médias: um veículo que rodou
+  200 km não pode pesar igual a um que rodou 3.000.
+- Um veículo é destacado em âmbar quando está mais de 10% abaixo da média do próprio grupo. ⚠️ O
+  corte existe para o destaque significar alguma coisa: marcar tudo abaixo da média marcaria
+  metade da lista por definição.
+- ⚠️ **O agrupamento EXPÕE o erro de cadastro em vez de escondê-lo**, e isso é proposital. Com os
+  dados de hoje, o TPS6B93 aparece em "Caminhão" fazendo 13,28 km/l, e a SET2H49 (uma Renault
+  MASTER) também. Os dois são erro de classificação, e agora estão visíveis para quem confere a
+  ficha corrigir.
+### Manutenção e ficha do veículo ganharam alerta mecânico (06/09/2026)
+
+- A tela de Manutenção era só o aviso de origem ausente, e isso estava certo pela metade: ordem de
+  serviço, oficina e plano de fato não existem, mas o rastreador acusa problema mecânico o tempo
+  todo. Medido: **22.307 ocorrências em 30 dias, em 33 veículos**.
+- A frota gera exatamente QUATRO tipos: pressão baixa do óleo Euro 6 (9.454), Euro 5 (9.435),
+  temperatura alta do motor acima de 87 (1.995) e carga baixa da bateria (1.423).
+- ⚠️ **CORREÇÃO: temperatura EXISTE, como evento.** O cabeçalho do `vehicle-drawer` dizia que ela
+  não existia em lugar nenhum do schema. Certo sobre COLUNA, errado sobre a informação. Como é
+  limiar disparado e não leitura contínua, continua não dando para mostrar "a temperatura agora",
+  mas dá para contar quantas vezes passou do limite. O comentário foi corrigido.
+- ⚠️ **A ressalva "não é diagnóstico" vem no CABEÇALHO do cartão, não num rodapé.** Quem lê "4.170
+  ocorrências de pressão baixa de óleo" forma opinião antes de chegar ao fim, e a consequência
+  aqui é caminhão parado indevidamente.
+- A ficha do veículo em `/gestao/caminhoes` reusa a MESMA chave de cache da tela de Manutenção e
+  filtra no cliente. São 40 linhas agregadas: uma rota por veículo custaria uma ida ao servidor a
+  cada clique na lista.
+- ⚠️ **A Entrega 4 do plano (detalhe do veículo em `/app`) é MAIOR do que o plano dizia.** A ficha
+  do `/gestao` já era real e só precisou do bloco novo. Mas o painel `/app` é servido por
+  `services/api.ts`, que importa mocks direto: não existe ponte para a API real ali. Fazer a
+  entrega lá significa construir essa ponte, começando por veículos, e é decisão de escopo.
+### O mapa da visão geral passou a ser real (06/09/2026)
+
+- O cartão `Mapa da operação` de `/gestao` recebia `ActiveTrip`, um tipo de FRETE com destino,
+  previsão de chegada e atraso. Nada disso existe na telemetria, então ele só podia ser alimentado
+  por mock: a tela abria com placas `RKH...`, que não existem nesta frota, sobre o interior de São
+  Paulo, com os caminhões verdadeiros no Rio de Janeiro. Um gestor que clicasse numa daquelas
+  placas procuraria um veículo que não é dele.
+- ⚠️ **O `FleetMiniMap` não conhece mais `ActiveTrip`.** Ele fala de `PontoDaFrota`, com id, placa,
+  posição e uma marca de alerta. Quem chama decide o que é: hoje é a posição real, e amanhã pode
+  ser a viagem planejada, quando ela existir.
+- A consulta de posições é SEPARADA do `getFleetOverview`, que continua mock. Foi o que permitiu o
+  mapa ficar real sem esperar o resto da tela ganhar origem. Usa a mesma chave do mapa ao vivo
+  (`fleet-positions`), então quem vai e volta encontra cache em vez de uma segunda requisição.
+- A faixa de placas ROLA na horizontal, e mostra a frota inteira (pedido do usuário em 06/09/2026,
+  para ganhar altura no cartão). Chegou a ter um corte em doze, que existia só porque a lista
+  quebrava em linhas: com a rolagem o motivo sumiu, e manter o corte passaria a esconder metade da
+  frota. Medido: 36 pastilhas em 3.421 pixels de largura, numa faixa de 644 visíveis e 40 de altura.
+- ⚠️ Três detalhes seguram a faixa: `shrink-0` nas pastilhas, senão o flex as espreme até caberem
+  todas e a placa fica ilegível; `overscroll-x-contain`, senão o fim da faixa passa o gesto adiante
+  e a página anda de lado; e `scrollIntoView` na pastilha ativa, porque dá para escolher o caminhão
+  CLICANDO NO MAPA e a placa dele pode estar rolada para fora.
+- No `scrollIntoView`, `block: 'nearest'` é obrigatório: o padrão é `start`, que rola a PÁGINA na
+  vertical para alinhar o elemento no topo, e a tela inteira saltaria a cada clique.
+- ⚠️ **A roda do mouse rola a faixa, e isso exige `addEventListener` com `passive: false`.** O
+  `onWheel` do React NÃO serve: o React registra ouvintes de roda como passivos, e listener passivo
+  não pode chamar `preventDefault`. Sem isso a faixa rolaria de lado E a página desceria junto, no
+  mesmo gesto. Medido: 4 giros de roda levam a faixa de 0 a 880 pixels com a página parada em 400.
+- A conversão só acontece quando o gesto é vertical (`|deltaY| > |deltaX|`): gesto horizontal de
+  trackpad já funciona sozinho. E nas pontas o ouvinte sai do caminho, devolvendo o gesto à página
+  em vez de deixá-lo morrer numa parede.
+- Clicar na placa APROXIMA de verdade, com `ZOOM_AO_ESCOLHER = 13`, o mesmo do mapa ao vivo. Era
+  `max(atual, 7)` e o enquadramento inicial da frota já para entre 7 e 9: na prática o clique só
+  deslizava o mapa de lado, sem nunca aproximar. Entra como PISO, para não jogar para trás quem já
+  estava no zoom de rua.
+- ⚠️ **`STATUS_COLOR` virou arquivo próprio** (`features/live-map/status-color.ts`) em 06/09/2026.
+  A tabela estava COPIADA em três lugares do mapa ao vivo (`fleet-map`, `vehicle-icons` e
+  `fleet-3d-layer`), iguais por sorte, e o pedido de usar as mesmas cores no mapa da visão geral
+  criaria uma quarta cópia. As três agora importam da fonte única, e `CORES_DA_GESTAO` é um alias
+  dela.
+- O painel do OPERADOR fica de fora: `components/shared/operation-map.tsx` tem paleta própria, com
+  tokens do tema e outros nomes de status (`on_trip`, `available`). Unificar os dois é decisão de
+  design, não de código.
+- O mini-mapa da visão geral pinta por STATUS, e não mais indigo com âmbar para quem está sem
+  sinal. Duas telas mostrando a mesma frota com códigos de cor diferentes obrigam quem opera a
+  manter duas legendas na cabeça.
+- ⚠️ **A rolagem da faixa é ANIMADA, e não um salto.** `scrollLeft += deltaY` joga a faixa uns
+  duzentos pixels de uma vez e o olho não acompanha as placas passando. A roda move um ALVO e um
+  laço aproxima a posição real dele a cada quadro, vencendo um quinto do que falta, com passo de
+  60% do que a roda pediu. É a mesma perseguição do giro do caminhão no replay.
+- O alvo é cravado nas pontas: sem isso, giros seguidos acumulam uma dívida enorme e a faixa fica
+  presa alguns segundos até pagar a diferença.
+- O cartão ganhou LEGENDA de cores logo abaixo do mapa, com quatro situações. ⚠️ Manutenção fica de fora por decisão do usuário: é a única das cinco que não vem da telemetria, e o card Em manutenção logo acima já a informa em número.
+- O rodapé mostra só o que a telemetria sabe: placa, motorista (ou "sem motorista identificado"),
+  endereço quando houver, e velocidade. Chegada prevista saiu, porque não tem origem. Conferido na
+  tela: "BAW1F62, sem motorista identificado, Rua Presidente Costa e Silva, 254, Barra do Piraí,
+  0 km/h".
+- ⚠️ O mapa só aparece com posição de verdade na mão. Cartão vazio é melhor que mapa com a frota
+  de outra empresa.
 
 ### A frota em 3D no mapa ao vivo
 
@@ -985,8 +1514,48 @@ a rota virou a própria `/gestao`. A antiga (`manager-home-page`) foi apagada.
   `light-container` como poço, e sobre o papel eles sumiriam.
 - O `Tile` local da tela de Equipe e os `metric-tile` de resumo de Viagens e Segurança saíram,
   substituídos pelo `HeroStats`.
+- ⚠️ **A visão do dono entrou no par em 05/09/2026**, a pedido do usuário: `/gestao` no papel OWNER
+  e no papel MANAGER são a mesma rota, e precisavam ser reconhecíveis uma na outra. Saíram dali a
+  foto do `PageBanner` e o `OwnerKpiStrip`; resultado, margem, receita, custo por km e km rodado
+  viraram cinco cards do `HeroStats`. O `OwnerKpiStrip` **continua em uso** em `/gestao/resultado`,
+  que é onde o número grande ainda faz sentido: não é código morto.
+- A fila de aprovações do dono virou `HeroLink` dentro da faixa. Continua no cabeçalho pelo motivo
+  de sempre: ocorrência grave mantém caminhão parado até ele decidir, e isso não é caixa de entrada.
+- No modo com dado real a fileira do dono é montada a partir de `metrics` do `GET
+  /v1/fleet/operations`, e o ícone sai de um mapa por `id` (`km`, `criticos`, `velocidade`,
+  `ocioso`, `consumo`) com `ChartIcon` de reserva. A lista é montada no backend: métrica nova chega
+  à tela antes de alguém desenhar um ícone para ela.
+- A saudação ("Boa noite, Fulano") está escrita duas vezes, em `overview-hero` e em `owner-hero`.
+  São quatro linhas, e centralizá-las obrigaria um dos dois slices a importar do outro só por isso.
 - No seletor de período de Viagens, que agora fica sobre a faixa, a pastilha ativa é
   `primary-strong`, e não o preto do resto do painel: preto sobre indigo lê como buraco na faixa.
+
+### A tela de aprovações do dono abre alertando (05/09/2026)
+
+Pedido do usuário: `/gestao/aprovacoes` precisava avisar o dono assim que ele entra, e não deixar
+que ele descubra sozinho que tem caminhão parado esperando decisão dele.
+
+- O resumo da fila era um `GlassCard` neutro que se lia como legenda. Virou `HeroBand` + `HeroStats`
+  (aguardando você, veículo bloqueado, espera mais longa, impacto em jogo, já decididas) mais um
+  `Alert` que muda de cor pelo que está em jogo: `error` com ocorrência grave, `warning` só com
+  espera, `success` com a fila vazia. O alerta fica FORA do painel claro de propósito: ele fala da
+  fila inteira, não da aba aberta.
+- O botão do alerta ("Abrir a mais grave") troca a aba para PENDENTES **e** seleciona o item. Sem a
+  troca de aba, quem estivesse em "Já decididas" clicava e não via nada acontecer.
+- ⚠️ **A fila pendente é ordenada por severidade e depois pela espera, não por data de chegada.**
+  Como o `useMasterDetail` abre o primeiro item, ordenar é o que faz a tela abrir já mostrando o
+  caso que bloqueia um caminhão. Um parecer leve pedido hoje na frente de uma liberação grave de
+  ontem é o defeito que a ordenação existe para evitar.
+- A linha da fila ganhou a faixa de severidade (`SEVERITY_RAIL` em `approval-meta`), no mesmo
+  padrão da fila de impedimentos. **Não** usar `StatusChip` aqui: a linha selecionada é
+  `bg-primary-strong`, e um chip `on-light` sobre ela fica ilegível.
+- Na fila a linha mostra "esperando há X"; na aba das decididas, o status e a data da decisão. Data
+  de pedido numa fila obriga o dono a fazer a subtração de cabeça.
+- ⚠️ `Date.now()` no corpo do componente é erro de lint (`react-hooks/purity`). O padrão do projeto
+  é `const [now] = useState(() => Date.now())`, como em `trucks-page`.
+- Aproveitei para trocar os três travessões de texto de interface desta tela (dois toasts e a dica
+  da justificativa, em `approval-detail-panel`). O resto do repositório ainda tem muitos, em
+  comentário e em texto.
 
 ### Gamificação em rota própria (01/09/2026)
 
@@ -1015,6 +1584,22 @@ a rota virou a própria `/gestao`. A antiga (`manager-home-page`) foi apagada.
   fecha os recortes do visor e da boca.
 
 ## Mapas, cenas e voz
+
+- ⚠️ **Animação pesada degrada sozinha em hardware modesto** (pedido do usuário em 04/09/2026).
+  `applyPerformanceProfile()` roda no `main.tsx` antes do primeiro render e marca a raiz com duas
+  classes pela mesma heurística (4 núcleos ou 4 GB, ou preferência salva): `no-blur`, que já
+  existia, e `modo-leve`, nova. Antes disso a função existia no repositório e **nunca era
+  chamada**, então o perfil não valia nada.
+- O que cada peça faz no modo leve: o **globo do hub congela** (desenha um quadro e não entra no
+  laço, como já fazia com `prefers-reduced-motion`); a **esfera de voz continua animando**, mas
+  com `setPixelRatio(1)` no lugar de 2 (quatro vezes menos pixels) e um quadro sim outro não; e
+  as **72 barras da órbita somem**, sobrando os dois arcos, com giro na metade da velocidade.
+  As 32 barras da onda perdem o `animation-delay` individual, que é o que impedia o navegador de
+  agrupá-las num só passo de composição.
+- ⚠️ **Contar `requestAnimationFrame` não serve para verificar isso no Playwright**: o navegador
+  sem compositor entrega ~1 quadro por segundo mesmo com a animação ligada. O que se mede é o
+  efeito observável: `display` da barra orbital, `animationDuration` do arco e a razão entre
+  `canvas.width` e a largura em CSS, que devolve o pixel ratio real.
 
 - `OperationMap` usa MapLibre 5 + OpenFreeMap, sem chave. A atribuição automática deve permanecer;
   o provedor público não oferece SLA. Rotas rodoviárias são geometrias estáticas pré-calculadas no
@@ -1130,6 +1715,71 @@ O fornecedor, os limites dele e as armadilhas da ingestão estão em
   `System-mobile`; migrar para TS 7 quando o ecossistema de lint suportar.
 
 ## Gotchas
+- ⚠️ **Apagar peça no Blender teleporta as filhas dela, e o estrago aparece longe do lugar.** Ao
+  tirar o segundo eixo direcional do `cavalo-8x4` para gerar o `cavalo-6x4` (06/09/2026), 30 peças
+  que deviam ficar eram filhas de peças removidas: perderam a transformação do pai e pularam até
+  4,6 m, com o X trocando de sinal, e foram parar boiando ao lado da cabine. A correção é reancorar
+  cada uma no ancestral sobrevivente ANTES de apagar, preservando `matrix_world` na mão.
+- ⚠️ **`matrix_world.translation.y -= x` não move objeto que tem pai.** A matriz é recalculada a
+  partir do pai no próximo update e a mudança se perde; pior, peça cujo pai também andou anda duas
+  vezes. Ou se atribui `matrix_world` inteira, ou se mexe nos vértices. E mover um nó arrasta toda a
+  sub-árvore: só dá para mover pelo objeto quando a sub-árvore inteira deve andar junto (aqui, 56
+  sub-árvores homogêneas), e o resto vai por vértice.
+- **Como se confere um encurtamento desses:** dump das posições do .blend original para JSON e
+  comparação peça a peça, exigindo que cada uma esteja ou parada ou deslocada exatamente o recuo.
+  Fechou em 642 paradas, 842 movidas e 2 encurtadas por vértice (chassi e cardã, cujo centro anda
+  metade do recuo, o que é o certo). Olhar o render não pega isso: as peças erradas ficam fora do
+  quadro.
+- ⚠️ **Metade do modelo do 3D Warehouse vem com as faces viradas para dentro, e só a luz revela.**
+  No `cavalo-8x4` (o Scania V8, renomeado a pedido do usuário em 05/09/2026), 460 peças do lado
+  esquerdo têm escala negativa, que é como o SketchUp guarda componente espelhado, contra 129 do
+  direito. Escala negativa inverte a orientação da face: sob luz de verdade aquele lado perde o
+  sombreado e o farol vira um retângulo cinza chapado. Relatado pelo usuário em 05/09/2026 como
+  "de um lado tem a lanterna e do outro não", e não era peça faltando: medido, os dois faróis têm
+  967 e 1.060 vértices, mesma textura e mesma UV. A correção é inverter as faces das peças de
+  determinante negativo, uma vez por malha (⚠️ duas desfazem) e copiando a malha antes quando ela
+  é compartilhada com peças de determinante positivo.
+- ⚠️ **Conferir modelo 3D pelo Workbench mente, e conferir por código sem GPU mente também.** O
+  Workbench desenha uma aproximação do material: ele mostrou os faróis chapados num arquivo em que
+  eles estavam perfeitos, e mostrou o veículo uniforme num arquivo com metade das faces invertidas.
+  E o `GLTFLoader` do three rodando em Node não carrega imagem nenhuma, então todo material volta
+  como "sem textura", o que não prova nada sobre textura. O que serve para conferir aparência é
+  **EEVEE**, e o que serve para conferir conteúdo é ler o JSON do GLB direto.
+- ⚠️ **Triângulo por malha armazenada não é triângulo desenhado.** O exportador do Blender
+  reaproveita a mesma malha em várias instâncias, então a contagem por malha despencou de 241.745
+  para 180.330 num arquivo que na verdade perdeu 1.568 triângulos de 333.042 (0,5%, exatamente a
+  escrita da grade que o usuário mandou remover). Comparar arquivos exige percorrer a cena e somar
+  por instância, senão o relatório acusa uma perda de 25% que não existe.
+
+- ⚠️ **O Tailwind lê `.glb` como código, e um modelo grande no projeto mata o `vite build`.** A
+  detecção automática de conteúdo do Tailwind 4 varre a pasta do projeto atrás de nome de classe e
+  pula binário por extensão, mas `.glb` não está na lista do scanner (`@tailwindcss/oxide`: lá
+  dentro estão `jpg`, `png`, `mp4`, `webm`, `woff2`, `zip`, e nenhum formato 3D). Com o `truck.glb`
+  de 326 KB ninguém percebia. Com os 71 MB convertidos do 3D Warehouse em 05/09/2026, o build
+  tentou alocar **16 GB**, morreu em `transforming...` e travou a máquina do usuário por três
+  minutos. O sintoma engana duas vezes: a mensagem é só `memory allocation failed`, sem dizer qual
+  arquivo, e mover a pasta para fora de `public/` **não** resolve, porque a varredura é do projeto
+  inteiro. A correção são os dois `@source not` no topo do `globals.css`. Modelo novo entra numa
+  pasta já excluída ou ganha o próprio `@source not`.
+- ⚠️ **Os GLB originais moram em `public/original-models/` e o Git ignora a pasta** (decisão do
+  usuário em 05/09/2026). São 90 MB convertidos do 3D Warehouse, e este repositório é público:
+  quem clonar não recebe nenhum deles, e o `npm run build` copia a pasta inteira para o `dist`,
+  que passou de 7,8 MB para 92 MB. Os sete modelos são `cavalo-8x4`, `cavalo-6x4` (derivado do 8x4 em 06/09/2026: saiu o
+  segundo eixo direcional e o chassi encurtou 60 cm),
+  `conjunto-6x4-basculante-fixo`, `conjunto-8x4-basculante-fixo`,
+  `conjunto-quaditrem-basculante`, `conjunto-rodotrem-basculante` e
+  `implemento-3-eixo-basculante` (nomes dados pelo usuário em 05/09/2026, em pt-BR: são
+  nomenclatura de frota, não identificador de código). Nenhum deles
+  é usado por código ainda: o mapa continua no `truck.glb` do Quaternius. ⚠️ Todos saíram do
+  conversor com **um material por primitiva** (de 2.121 a 7.040 cada, contra 3 do `truck.glb`),
+  então abrem e inspecionam bem, mas não aguentam a frota inteira em tempo real sem uma passagem
+  de deduplicação.
+- ⚠️ **O 3D Warehouse exporta COLLADA que o COLLADA2GLTF não converte, e o erro é silencioso.** O
+  SketchUp põe cada componente em `<library_nodes>` e o referencia por `<instance_node>`; o
+  COLLADA2GLTF 2.1.5 ignora essa indireção. Ele termina com sucesso, sem aviso, e o GLB sai com
+  768 bytes: a câmera do SketchUp e nenhuma geometria. O jeito de perceber é conferir o tamanho do
+  arquivo. `scripts/flatten-dae.py` copia o nó alvo para o lugar da instância antes de converter.
+  ⚠️ O Blender não é saída aqui: o importador COLLADA foi removido, a 5.2 não tem `collada_import`.
 
 - ⚠️ **Não** reintroduzir a foto do banner, a borda dos cards nem o vidro no tema claro. Os três
   saíram no redesign de 30/08/2026 e cada um deixou rastro em vários arquivos. Ver

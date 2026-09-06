@@ -69,3 +69,8 @@ rookhub_frontend_kit/
 
 # Relatorio com a frota real do cliente: este repositorio e publico.
 docs/pdf/relatorio_frota_servioeste.pdf
+
+# Modelos 3D originais convertidos do 3D Warehouse: 84 MB de binário que este
+# repositório público não precisa carregar. Ficam em public/ para o navegador
+# poder pedi-los, mas cada dev baixa e converte os seus.
+/public/original-models/

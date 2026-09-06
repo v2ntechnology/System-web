@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="public/logo/logo-rookhub-white.svg"/>
-    <img alt="RookHub" src="public/logo/logo-rookhub-dark.svg" width="230"/>
+    <source media="(prefers-color-scheme: dark)" srcset="public/logo/rookhub-full-white.svg"/>
+    <img alt="RookHub" src="public/logo/rookhub-full-dark.svg" width="230"/>
   </picture>
 </p>
 

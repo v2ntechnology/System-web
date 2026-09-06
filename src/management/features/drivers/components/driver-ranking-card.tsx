@@ -64,7 +64,7 @@ export function DriverRankingCard({
                 aria-pressed={active}
                 onClick={() => onPeriodChange(option.id)}
                 className={cn(
-                  'rounded-pill text-label-md focus-visible:ring-secondary px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                  'rounded-pill text-label-md focus-visible:ring-primary px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
                   active
                     ? 'bg-primary-strong text-on-primary'
                     : 'text-on-surface-variant hover:text-on-surface',
@@ -94,7 +94,7 @@ export function DriverRankingCard({
                   onClick={() => onSelectDriver(entry.driverId)}
                   aria-label={`${entry.position}º — ${entry.name}, score ${entry.score}`}
                   className={cn(
-                    'focus-visible:ring-secondary flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
+                    'focus-visible:ring-primary flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
                     active ? 'bg-on-surface/8' : 'hover:bg-on-surface/5',
                   )}
                 >

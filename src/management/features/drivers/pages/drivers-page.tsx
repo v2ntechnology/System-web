@@ -222,7 +222,7 @@ export function DriversPage() {
             options={SORTS.map((option) => ({ value: option.id, label: option.label }))}
           />
 
-          <div className="border-outline-variant bg-surface-lowest rounded-pill focus-within:border-secondary flex min-w-0 basis-full items-center gap-2 border px-4 sm:max-w-72 sm:flex-1 sm:basis-auto">
+          <div className="border-outline-variant bg-surface-lowest rounded-pill focus-within:border-primary flex min-w-0 basis-full items-center gap-2 border px-4 sm:max-w-72 sm:flex-1 sm:basis-auto">
             <SearchIcon size={18} className="text-on-surface-muted shrink-0" aria-hidden="true" />
             <label htmlFor="driver-search" className="sr-only">
               Buscar motorista pelo nome

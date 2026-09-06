@@ -19,7 +19,9 @@ export default function SessionExpiredPage() {
       />
 
       <div className="flex translate-y-12 flex-col items-center gap-8">
-        <TimeVortex className="w-[clamp(14rem,40vw,20rem)]" />
+        {/* Maior que os 14-20rem originais: sem o disco de fundo, o vórtice
+            passou a ser o único elemento gráfico da tela e ganhou espaço. */}
+        <TimeVortex className="w-[clamp(18rem,52vw,28rem)]" />
 
         <div className="space-y-2">
           <h1 className="font-display text-2xl font-semibold tracking-tight">Sua sessão expirou</h1>

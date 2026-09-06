@@ -34,7 +34,7 @@ export function BlindsBackdrop({ className }: BlindsBackdropProps) {
            * e devolve o AA (regra 7).
            */
           className="absolute inset-0 opacity-40"
-          gradientColors={['#06B6D4', '#6366F1']}
+          gradientColors={['#E7AD61', '#D5623A']}
           angle={20}
           noise={0.5}
           blindCount={16}

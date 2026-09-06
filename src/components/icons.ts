@@ -86,6 +86,10 @@ export {
   LuCircleParking as ParkingIcon,
   LuPackage as PackageIcon,
   LuBoxes as BoxesIcon,
+  /* Escolher a base cartográfica no mapa ao vivo. */
+  LuLayers as LayersIcon,
+  /* Inclinar o mapa e voltar à vista de cima, no mapa ao vivo. */
+  LuRotate3D as TiltIcon,
   LuClipboardList as ChecklistIcon,
   LuClipboardCheck as ChecklistDoneIcon,
   LuNotebookPen as EntryIcon,

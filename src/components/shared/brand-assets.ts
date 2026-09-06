@@ -35,16 +35,16 @@ export interface BrandAssets {
 
 /** A arte sobre fundo escuro: branco chapado. */
 export const BRAND_ON_DARK: BrandAssets = {
-  wordmark: '/logo/logo-rookhub-white.svg',
-  mark: '/logo/logo-rookhub-white-html.svg',
-  text: '/logo/logo-rookhub-white-text.svg',
+  wordmark: '/logo/rookhub-full-white.svg',
+  mark: '/logo/rookhub-symbol-white.svg',
+  text: '/logo/rookhub-wordmark-white.svg',
 };
 
-/** A arte sobre papel: torre em gradiente indigo, palavra em azul-noite. */
+/** A arte sobre papel: torre em gradiente terracota, palavra em preto. */
 export const BRAND_ON_LIGHT: BrandAssets = {
-  wordmark: '/logo/logo-rookhub-dark.svg',
-  mark: '/logo/logo-rookhub-dark-html.svg',
-  text: '/logo/logo-rookhub-dark-text.svg',
+  wordmark: '/logo/rookhub-full-dark.svg',
+  mark: '/logo/rookhub-symbol-dark.svg',
+  text: '/logo/rookhub-wordmark-dark.svg',
 };
 
 /**

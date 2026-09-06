@@ -262,7 +262,7 @@ export function SettingsPage() {
                                     description: 'Nosso time comercial entrará em contato.',
                                   })
                                 }
-                                className="border-warning/40 text-warning text-label-md focus-visible:ring-secondary rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
+                                className="border-warning/40 text-warning text-label-md focus-visible:ring-primary rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
                               >
                                 Conhecer
                               </button>

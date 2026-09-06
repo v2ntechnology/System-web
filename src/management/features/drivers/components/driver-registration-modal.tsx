@@ -533,7 +533,7 @@ export function DriverRegistrationModal({
                 type="button"
                 onClick={limpar}
                 disabled={isSubmitting || save.isPending}
-                className="text-on-surface-muted hover:text-on-surface hover:bg-on-surface/[0.06] rounded-pill focus-visible:ring-secondary text-label-md flex items-center gap-1.5 px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40"
+                className="text-on-surface-muted hover:text-on-surface hover:bg-on-surface/[0.06] rounded-pill focus-visible:ring-primary text-label-md flex items-center gap-1.5 px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <EraserIcon size={14} aria-hidden="true" />
                 Limpar formulário

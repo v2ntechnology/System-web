@@ -27,7 +27,7 @@ export function AssistantFab() {
       aria-haspopup="dialog"
       aria-expanded={open}
       title="Pergunte à sua frota (Ctrl+K)"
-      className="bg-primary-strong focus-visible:ring-secondary focus-visible:ring-offset-background fixed bottom-5 right-5 z-30 flex size-14 items-center justify-center rounded-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:bottom-8 sm:right-8"
+      className="bg-primary-strong focus-visible:ring-primary focus-visible:ring-offset-background fixed bottom-5 right-5 z-30 flex size-14 items-center justify-center rounded-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:bottom-8 sm:right-8"
     >
       <span className={cn('flex', animation)} onAnimationEnd={handleAnimationEnd}>
         <img src={logoMark} alt="" aria-hidden="true" className="h-7 w-auto" />

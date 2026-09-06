@@ -60,7 +60,9 @@ export function ThemeSwitch() {
             aria-checked={active}
             aria-disabled={blocked}
             aria-label={label}
-            title={blocked ? 'Tema escuro em breve. A interface está sendo refeita no claro.' : label}
+            title={
+              blocked ? 'Tema escuro em breve. A interface está sendo refeita no claro.' : label
+            }
             /* Sem roubar o foco do menu: quem clica com o mouse deixaria o foco
                preso neste botão, e as setas parariam de andar pelos itens. */
             onMouseDown={(event) => event.preventDefault()}
@@ -74,7 +76,7 @@ export function ThemeSwitch() {
               setTheme(value);
             }}
             className={cn(
-              'rounded-pill focus-visible:ring-secondary relative z-10 flex size-9 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2',
+              'rounded-pill focus-visible:ring-primary relative z-10 flex size-9 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2',
               active ? 'text-on-surface' : 'text-on-surface-muted hover:text-on-surface',
               /* `aria-disabled` em vez de `disabled`: o botão continua no fluxo
                  do leitor de tela, anunciando que a opção existe e está

@@ -74,7 +74,7 @@
    */
   --secondary: #06b6d4;
   --secondary-foreground: #00212b;
-  --ring: #06b6d4;
+  --ring: #d5623a;
 
   /*
    * Raio. Subiu no redesign de 30/08/2026: container 20px, elemento interno
@@ -99,16 +99,16 @@
   /* Spectrum Gradient — variação magenta (aprovada). Uso PARCIMONIOSO. */
   --spectrum-gradient: linear-gradient(
     135deg,
-    #e879f9 0%,
-    #a855f7 17%,
-    #6366f1 33%,
-    #4f7df3 50%,
-    #3b9ef5 67%,
-    #06b6d4 83%,
-    #22d3ee 100%
+    #ff4d64 0%,
+    #dc5142 17%,
+    #bc5b38 33%,
+    #c06f39 50%,
+    #d08a3f 67%,
+    #d39d3f 83%,
+    #e7bb45 100%
   );
 
-  --glow-indigo: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  --glow-indigo: radial-gradient(circle, rgba(190, 90, 53, 0.15) 0%, transparent 70%);
   --glow-cyan: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
 
   /* Profundidade do fundo — tom mais fechado que a âncora, para vinheta e topo. */
@@ -153,8 +153,8 @@ html.light .management-theme {
   --glass-border-from: transparent;
   --glass-border-to: transparent;
   --glass-shadow: 0 1px 2px rgba(28, 26, 24, 0.04), 0 8px 24px -12px rgba(28, 26, 24, 0.14);
-  --glass-shadow-elevated: 0 2px 4px rgba(28, 26, 24, 0.05),
-    0 24px 48px -20px rgba(28, 26, 24, 0.22);
+  --glass-shadow-elevated:
+    0 2px 4px rgba(28, 26, 24, 0.05), 0 24px 48px -20px rgba(28, 26, 24, 0.22);
   --glow-indigo: none;
   --glow-cyan: none;
   --backdrop-deep: #eae7e2;
@@ -187,11 +187,15 @@ html.light .management-theme {
  * `GlassInput` ganhava dois traços verticais dentro do campo — o outline do
  * `<input>`, cujas bordas de cima e de baixo somem atrás do poço.
  *
- * ⚠️ E a cor sai de `--secondary`, não de `--color-secondary`. O System-web
- * declara `--color-secondary: var(--secondary)` em `@theme inline`: a
- * substituição acontece **no `:root`**, onde a regra foi escrita, então o valor
- * herdado já vem resolvido e ignora o `--secondary` do escopo. O foco saía no
- * cinza-azulado do painel operacional em vez do cyan da marca.
+ * ⚠️ E a cor sai de `--primary`, não de `--color-primary`. O System-web
+ * declara `--color-primary: var(--primary)` em `@theme inline`: a substituição
+ * acontece **no `:root`**, onde a regra foi escrita, então o valor herdado já
+ * vem resolvido e ignora o que o escopo declarar.
+ *
+ * ⚠️ O foco era cyan (`--secondary`) até 05/09/2026, e ficou para trás na troca
+ * de paleta de 04/09: com a primária terracota, só o anel de foco continuava
+ * azul. Agora ele acompanha a marca, aqui e nos utilitários `ring-primary` que
+ * os componentes escrevem.
  */
 @layer base {
   /* RNF-027 — números alinhados em tabelas e métricas. */
@@ -206,7 +210,7 @@ html.light .management-theme {
   }
 
   .management-theme :focus-visible {
-    outline: 2px solid var(--secondary);
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
   }
 }

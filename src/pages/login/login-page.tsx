@@ -58,7 +58,7 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
                campo (o `leading` do GlassInput, que é `on-surface-muted`), e por
                isso ela é escrita aqui em vez de vir da `.acao-neutra`, que
                nasce um degrau mais escura. */
-            className="rounded-pill text-on-surface-muted hover:text-on-surface focus-visible:ring-secondary -mr-1 shrink-0 p-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
+            className="rounded-pill text-on-surface-muted hover:text-on-surface focus-visible:ring-primary -mr-1 shrink-0 p-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
           >
             {visible ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}
           </button>
@@ -78,11 +78,11 @@ function AuthLayout({ children }: { children: ReactNode }) {
   const noBlur = useNoBlur();
 
   return (
-    <main className="management-theme bg-surface h-dvh overflow-hidden p-4 sm:p-6">
+    <main className="tela-proporcional management-theme bg-surface p-4 sm:p-6">
       <div className="grid h-full gap-4 sm:gap-6 lg:grid-cols-[1fr_34rem] lg:gap-12">
         {/*
          * Painel de marca. Superfície indigo com texto branco usa
-         * `primary-strong` (#5457EE): o `primary` dá 4,47:1 com branco e reprova
+         * `primary-strong` (#b35231): o `primary` dá 4,47:1 com branco e reprova
          * AA por uma casa.
          */}
         <aside className="bg-primary-strong relative hidden min-w-0 flex-col justify-between overflow-hidden rounded-lg p-10 lg:flex">
@@ -94,17 +94,25 @@ function AuthLayout({ children }: { children: ReactNode }) {
           {noBlur ? null : (
             <Grainient
               className="absolute inset-0"
-              color1="#8385F4"
-              color2="#6366F1"
-              color3="#06B6D4"
+              color1="#DE733E"
+              color2="#d5623a"
+              color3="#E7AD61"
               timeSpeed={0.25}
-              colorBalance={0}
+              /*
+               * Estes dois fazem o gradiente chegar na borda. O shader mistura as
+               * cores entre `edge0 = -0.3 - balance - softness` e
+               * `edge1 = 0.2 - balance + softness`, e `tuv.x` vai a ±0.5/zoom,
+               * ou seja ±0.556 aqui. Com os padrões (0 e 0.05) a transição
+               * terminava em 0.25 e os 28% da direita saíam chapados. Estes
+               * valores põem as duas bordas exatamente em ±0.556.
+               */
+              colorBalance={-0.05}
               warpStrength={1}
               warpFrequency={5}
               warpSpeed={2}
               warpAmplitude={50}
               blendAngle={0}
-              blendSoftness={0.05}
+              blendSoftness={0.306}
               rotationAmount={500}
               noiseScale={2}
               grainAmount={0.1}
@@ -247,7 +255,7 @@ export default function LoginPage() {
          * marca fica sobre a superfície, não sobre foto, então no claro entra a
          * arte colorida e no escuro a branca.
          */}
-        <BrandLogo className="h-11" />
+        <BrandLogo className="h-13" />
 
         <h1 className="font-sora text-on-surface mt-6 text-balance text-[24px] font-bold leading-8 sm:text-[26px] sm:leading-9">
           Bem-vindo de volta
@@ -313,7 +321,7 @@ export default function LoginPage() {
 
             <Link
               to="/esqueci-minha-senha"
-              className="text-body-md text-on-surface-variant hover:text-on-surface focus-visible:ring-secondary focus-visible:ring-offset-background rounded-sm underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
+              className="text-body-md text-on-surface-variant hover:text-on-surface focus-visible:ring-primary focus-visible:ring-offset-background rounded-sm underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
             >
               Esqueci minha senha
             </Link>
@@ -361,7 +369,7 @@ export default function LoginPage() {
           Ainda não usa o RookHub?{' '}
           <a
             href="https://rookhub.com.br"
-            className="text-on-surface hover:text-secondary focus-visible:ring-secondary focus-visible:ring-offset-background rounded-sm font-semibold underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
+            className="text-on-surface hover:text-primary focus-visible:ring-primary focus-visible:ring-offset-background rounded-sm font-semibold underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
           >
             Fale com nosso time
           </a>
@@ -437,7 +445,7 @@ export function ForgotPasswordPage() {
               noValidate
               className="mt-10 flex flex-col gap-4"
             >
-              <Alert severity="info">
+              <Alert severity="brand">
                 Nesta versão o envio é simulado — nenhum e-mail sai de fato.
               </Alert>
 
@@ -479,7 +487,7 @@ export function ForgotPasswordPage() {
         <div className="mt-8 flex justify-center">
           <Link
             to="/"
-            className="text-body-md text-on-surface-variant hover:text-on-surface focus-visible:ring-secondary focus-visible:ring-offset-background inline-flex items-center gap-2 rounded-sm underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
+            className="text-body-md text-on-surface-variant hover:text-on-surface focus-visible:ring-primary focus-visible:ring-offset-background inline-flex items-center gap-2 rounded-sm underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
           >
             <ArrowLeftIcon size={16} />
             Voltar para o login

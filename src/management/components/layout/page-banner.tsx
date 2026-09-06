@@ -93,7 +93,9 @@ export function PageBanner({ title, description, size = 'compact', actions }: Pa
           ) : null}
         </div>
 
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div> : null}
+        {actions ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div>
+        ) : null}
       </div>
     </section>
   );

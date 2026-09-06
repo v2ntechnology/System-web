@@ -31,7 +31,7 @@ const SURFACES = {
     box: 'border-outline bg-surface-lowest',
     label: 'text-on-surface',
     description: 'text-on-surface-muted',
-    ring: 'focus-visible:ring-secondary',
+    ring: 'focus-visible:ring-primary',
     hover: 'group-hover:border-on-surface/40',
   },
   light: {

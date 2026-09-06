@@ -51,7 +51,7 @@ export function PendingSource({ title, description, requirements, meanwhile }: P
               <a
                 key={atalho.label}
                 href={atalho.to}
-                className="bg-on-light/8 text-on-light-variant text-label-md hover:text-on-light focus-visible:ring-secondary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2"
+                className="bg-on-light/8 text-on-light-variant text-label-md hover:text-on-light focus-visible:ring-primary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2"
               >
                 {atalho.label}
               </a>

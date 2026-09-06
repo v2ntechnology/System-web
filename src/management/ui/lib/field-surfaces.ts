@@ -22,9 +22,9 @@
  */
 export const FIELD_SURFACES = {
   dark: {
-    well: 'glass-well focus-within:border-secondary focus-within:ring-secondary/60 focus-within:ring-1',
+    well: 'glass-well focus-within:border-primary focus-within:ring-primary/60 focus-within:ring-1',
     wellTrigger:
-      'glass-well focus-visible:border-secondary focus-visible:ring-secondary/60 focus-visible:ring-1 focus-visible:outline-none',
+      'glass-well focus-visible:border-primary focus-visible:ring-primary/60 focus-visible:ring-1 focus-visible:outline-none',
     wellFocus: '',
     wellError:
       'border-error focus-within:border-error focus-within:ring-error/60 ring-1 ring-error/60',

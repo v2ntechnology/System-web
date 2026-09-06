@@ -93,7 +93,7 @@ export function ReportHistory() {
                     <button
                       type="button"
                       onClick={() => toast.success(`Baixando "${run.reportTitle}"`)}
-                      className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
+                      className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-primary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                     >
                       <DownloadIcon size={14} aria-hidden="true" />
                       Baixar
@@ -108,7 +108,7 @@ export function ReportHistory() {
                   <button
                     type="button"
                     onClick={() => toast.info(`Gerando "${run.reportTitle}" novamente`)}
-                    className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
+                    className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-primary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                   >
                     <RefreshIcon size={14} aria-hidden="true" />
                     Tentar de novo

@@ -71,7 +71,7 @@ export function AppTopbar() {
         <Link
           to="/gestao"
           aria-label="RookHub — ir para a visão geral"
-          className="focus-visible:ring-secondary shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2"
+          className="focus-visible:ring-primary shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2"
         >
           {/* ⚠️ `adaptive`, e não o `media` padrão. A marca deixou de flutuar
               sobre a foto escura do banner (redesign de 30/08/2026) e passou a
@@ -90,7 +90,7 @@ export function AppTopbar() {
               <button
                 type="button"
                 aria-label={`Conta de ${session?.user.name ?? 'usuário'}`}
-                className="rounded-pill focus-visible:ring-secondary focus-visible:ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="rounded-pill focus-visible:ring-primary focus-visible:ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 {/* Sobre a foto do banner: o anel é branco nos dois temas. */}
                 <Avatar
@@ -233,7 +233,7 @@ export function AppTopbar() {
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
             className={cn(
-              'acao-neutra rounded-pill focus-visible:ring-secondary flex size-10 items-center justify-center focus-visible:outline-none focus-visible:ring-2 lg:hidden',
+              'acao-neutra rounded-pill focus-visible:ring-primary flex size-10 items-center justify-center focus-visible:outline-none focus-visible:ring-2 lg:hidden',
             )}
           >
             {menuOpen ? <CloseIcon size={22} /> : <MenuIcon size={22} />}
