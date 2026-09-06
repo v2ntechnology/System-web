@@ -6,7 +6,7 @@ import {
   MicOffIcon,
   VolumeIcon,
 } from '@/components/icons';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 
 import { BrandLogo, RookMark } from '@/components/shared/brand-logo';
@@ -14,7 +14,7 @@ import { VoiceSphere } from '@/components/shared/voice-sphere';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { VoiceTurn } from '@/management/features/assistant/api';
-import { converse } from '@/management/features/assistant/api';
+import { converse, openVoiceSession } from '@/management/features/assistant/api';
 import { useSpeechRecognition } from '@/management/features/assistant/use-speech-recognition';
 import {
   proximaEspera,
@@ -22,7 +22,18 @@ import {
   proximaSaudacao,
   proximoNaoOuvi,
 } from '@/management/features/assistant/voice-phrases';
-import { synthesizeAssistantSpeech } from '@/services';
+import { fetchAssistantVoices, synthesizeAssistantSpeech } from '@/services';
+import type { AssistantVoice, VoiceGender } from '@/services';
+import { useQuery } from '@tanstack/react-query';
+
+import { criarDetectorDeFala, nivelDaFaixaDeFala } from './speech-detection';
+import {
+  generosDisponiveis,
+  gravarGeneroPreferido,
+  lerGeneroPreferido,
+  escolherVoz,
+  proximoPassoDoRodizio,
+} from './voice-preference';
 
 type VoiceStatus = 'idle' | 'listening' | 'processing' | 'consulting' | 'speaking' | 'error';
 
@@ -89,19 +100,15 @@ const SEM_PERGUNTA =
 const AVISO_VOZ_CAIDA =
   'O serviço de voz está indisponível; usando temporariamente a voz do dispositivo.';
 
-const SILENCIO_PARA_ENCERRAR_MS = 2400;
-
-/**
- * Volume a partir do qual consideramos que há voz.
+/*
+ * ⚠️ O limiar de fala, o silêncio que encerra e o teto de espera saíram daqui
+ * para `speech-detection.ts` em 05/09/2026.
  *
- * O valor sai da mesma medição que anima a esfera, já normalizada entre 0 e 1.
- * Baixo de propósito: fim de frase costuma sair mais fraco que o começo, e um
- * limite alto cortaria justamente a última palavra.
+ * Não foi arrumação: o limiar era um número FIXO, e num pátio ou numa oficina o
+ * ruído de fundo já passa dele. O relógio do silêncio nunca andava e a pergunta
+ * nunca era processada, que é o que o usuário relatou. Lá o limiar acompanha o
+ * ambiente, e a lógica ficou testável sem microfone.
  */
-const NIVEL_DE_FALA = 0.055;
-
-/** Sem nenhuma fala por este tempo, a escuta se encerra em vez de ficar aberta. */
-const ESPERA_SEM_FALA_MS = 15000;
 
 /** Depois de falar, o microfone espera o rabo do áudio sair do ambiente. */
 const PAUSA_DEPOIS_DE_FALAR_MS = 500;
@@ -173,6 +180,151 @@ export default function VoiceAssistantPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [vozCaida, setVozCaida] = useState(false);
 
+  /*
+   * A escolha de timbre (decisão do usuário em 05/09/2026).
+   *
+   * ⚠️ O que fica gravado no navegador é o GÊNERO, e não a voz. Quem escolheu
+   * feminina volta a ouvir feminina, mas não necessariamente a mesma voz: era
+   * exatamente isso o pedido, não repetir sempre o mesmo timbre. O rodízio mora
+   * em `voice-preference.ts`.
+   */
+  const [genero, setGenero] = useState<VoiceGender>(() => lerGeneroPreferido() ?? 'FEMININA');
+  /* Ref além do estado: quem pede a voz são funções assíncronas, que rodam fora
+     do render e não podem esperar o próximo. */
+  const vozAtivaRef = useRef<AssistantVoice | null>(null);
+
+  /**
+   * A transcrição do que foi conversado, e a sessão que a guarda.
+   *
+   * ⚠️ Isto reverte a decisão de 30/08/2026 de a conversa falada não ser
+   * gravada. O usuário pediu a troca em 05/09: quem fecha a tela e volta uma
+   * semana depois quer poder perguntar "sobre o que a gente falou?", e sem
+   * gravar não havia resposta possível.
+   *
+   * O `historyRef` continua existindo e continua sendo o fio curto que vai na
+   * requisição. A transcrição é outra coisa: é o que a PESSOA lê na tela, e ela
+   * não é podada em dez turnos.
+   */
+  const [turnosDaVisita, setTurnosDaVisita] = useState<VoiceTurn[]>([]);
+  const sessaoIdRef = useRef<string | null>(null);
+  const transcricaoRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * Abre a conversa da visita assim que a tela monta.
+   *
+   * O servidor decide entre retomar a última e abrir uma nova, pela janela de
+   * tempo desde a última fala. Falhar aqui não pode impedir a conversa: sem
+   * sessão, a tela funciona como antes, com o fio vivendo só no navegador.
+   */
+  const sessaoQuery = useQuery({
+    queryKey: ['voice', 'session'],
+    queryFn: openVoiceSession,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  /*
+   * ⚠️ Só REF aqui dentro, nunca estado.
+   *
+   * `setState` dentro de efeito é erro de lint neste projeto, e com razão. O que
+   * a tela desenha é derivado logo abaixo; o que este efeito faz é preparar o
+   * que as funções assíncronas leem: o identificador da sessão e o fio curto que
+   * vai na requisição. Sem devolver os turnos ao fio, a primeira pergunta depois
+   * de voltar chegaria ao modelo sem o que já foi dito, e um "e o outro?" não
+   * teria a que se referir.
+   */
+  useEffect(() => {
+    const sessao = sessaoQuery.data;
+    if (!sessao || sessaoIdRef.current === sessao.conversationId) return;
+    sessaoIdRef.current = sessao.conversationId;
+    historyRef.current = sessao.turns.slice(-10);
+  }, [sessaoQuery.data]);
+
+  /* O que a pessoa lê: o que já estava gravado, mais o que ela falou agora.
+     Derivado, e não um terceiro estado a manter em dia. */
+  const transcricao = useMemo(
+    () => [...(sessaoQuery.data?.turns ?? []), ...turnosDaVisita],
+    [sessaoQuery.data?.turns, turnosDaVisita],
+  );
+
+  /*
+   * A transcrição desce sozinha a cada turno novo.
+   *
+   * ⚠️ Depende do TAMANHO da conversa, e não do array: com `[transcricao]` a
+   * lista descia a cada render, inclusive no meio de alguém lendo o que foi dito
+   * antes. Assim ela só desce quando entra turno novo, que é quando a pessoa
+   * acabou de falar ou de ser respondida, e a rolagem manual fica livre no resto
+   * do tempo. Comportamento pedido pelo usuário em 05/09/2026.
+   */
+  useEffect(() => {
+    const caixa = transcricaoRef.current;
+    if (!caixa) return;
+
+    /*
+     * ⚠️ Depois do quadro, e sem animação.
+     *
+     * Sem o `requestAnimationFrame`, o efeito roda antes de o turno novo ter
+     * altura, e a caixa desce para onde ela ainda não termina: medido, ficava em
+     * zero ao abrir uma conversa guardada. E `behavior: smooth` cria uma
+     * animação longa que continua rodando enquanto a pessoa rola para cima,
+     * brigando com a mão dela; instantâneo não tem esse problema.
+     */
+    const quadro = requestAnimationFrame(() => {
+      caixa.scrollTop = caixa.scrollHeight;
+    });
+    return () => cancelAnimationFrame(quadro);
+  }, [transcricao.length]);
+
+  /*
+   * O catálogo é do servidor: ele muda com o provedor ativo e com o que foi
+   * baixado na imagem do sintetizador. Uma lista fixa aqui ofereceria timbre que
+   * não vai sair.
+   *
+   * ⚠️ O passo do rodízio é avançado AQUI DENTRO, e não no render nem num
+   * efeito. Ele escreve no navegador, e o `queryFn` é o único lugar desta tela
+   * que roda uma vez por visita e fora do render. `staleTime: 0` é o que faz
+   * cada entrada na tela buscar de novo e, com isso, girar a voz.
+   */
+  const vozesQuery = useQuery({
+    queryKey: ['voice', 'voices'],
+    queryFn: async () => {
+      const catalogo = await fetchAssistantVoices();
+      return { ...catalogo, passo: proximoPassoDoRodizio() };
+    },
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+  });
+
+  const catalogo = vozesQuery.data?.voices;
+  const generos = generosDisponiveis(catalogo ?? []);
+
+  /* Quem prefere feminina e cai num provedor que só tem masculina ouve a
+     masculina: emudecer por causa de uma preferência guardada é pior, e o
+     cabeçalho mostra qual voz está no ar. */
+  const generoEfetivo = generos.includes(genero) ? genero : (generos[0] ?? genero);
+
+  const vozAtiva = useMemo(
+    () => escolherVoz(catalogo ?? [], generoEfetivo, vozesQuery.data?.passo ?? 0),
+    [catalogo, generoEfetivo, vozesQuery.data?.passo],
+  );
+
+  /*
+   * ⚠️ Limpar o cache das frases quando a voz muda é obrigatório. Ele guarda o
+   * ÁUDIO já sintetizado, não o texto: sem limpar, "só um segundo" continuaria
+   * saindo na voz anterior no meio de uma conversa que já trocou de voz.
+   *
+   * O ref existe porque quem pede a síntese são funções assíncronas, que leem
+   * fora do render. É seguro aqui, e não é sempre: o ref só é lido bem depois do
+   * clique que troca a voz, nunca dentro do mesmo `await`.
+   */
+  useEffect(() => {
+    vozAtivaRef.current = vozAtiva;
+    phraseAudioRef.current.clear();
+  }, [vozAtiva]);
+
   /**
    * A última resposta, para a tela mostrar em texto o que foi falado.
    *
@@ -192,8 +344,24 @@ export default function VoiceAssistantPage() {
   /* A transcrição chega por callback e é lida ao encerrar a escuta. Estado aqui
      provocaria render a cada palavra reconhecida, sem nada mudar na tela. */
   const transcriptRef = useRef('');
-  /** Instante do último sinal de fala, de volume ou de transcrição. */
-  const lastVoiceAtRef = useRef(0);
+  /**
+   * O detector da escuta em andamento, criado a cada abertura do microfone.
+   *
+   * Ele guarda o piso de ruído medido naquela sala, e por isso não sobrevive de
+   * uma escuta para a outra: entre uma pergunta e a seguinte a pessoa pode ter
+   * saído do escritório para o pátio.
+   */
+  const detectorRef = useRef<ReturnType<typeof criarDetectorDeFala> | null>(null);
+
+  /**
+   * Instante em que o RECONHECEDOR entregou texto pela última vez.
+   *
+   * ⚠️ É o sinal mais confiável que existe aqui, e o que salva a conversa em
+   * lugar barulhento: o navegador sabe distinguir voz de ruído, e quando ele
+   * fica calado é porque não havia voz, por mais alto que o microfone esteja
+   * ouvindo.
+   */
+  const ultimaTranscricaoRef = useRef(0);
   /** A conversa está aberta? É o que faz a escuta voltar depois da resposta. */
   const conversationActiveRef = useRef(false);
   /** Os turnos desta sessão. Some ao sair da tela, de propósito. */
@@ -219,11 +387,18 @@ export default function VoiceAssistantPage() {
          entrega a fala em vários trechos finais, e sobrescrever deixaria só o
          último pedaço: "e o RTI9F65?" no lugar da pergunta inteira. */
       transcriptRef.current = `${transcriptRef.current} ${texto}`.trim();
-      lastVoiceAtRef.current = Date.now();
+      ultimaTranscricaoRef.current = Date.now();
+      detectorRef.current?.marcarFala(Date.now());
       setLastQuestion(transcriptRef.current);
     },
+    /*
+     * ⚠️ `onSpeech` marca fala, mas NÃO marca transcrição, e a diferença é o
+     * ponto da correção. O evento do navegador dispara com atividade de áudio,
+     * inclusive barulho; só `onResult` significa que houve palavra reconhecida.
+     * Misturar os dois foi o que deixava a conversa presa em sala barulhenta.
+     */
     onSpeech: () => {
-      lastVoiceAtRef.current = Date.now();
+      detectorRef.current?.marcarFala(Date.now());
     },
   });
   const waveformRef = useRef<HTMLDivElement>(null);
@@ -514,6 +689,11 @@ export default function VoiceAssistantPage() {
    * gastaria créditos da ElevenLabs de novo e ainda somaria a latência da
    * síntese ao silêncio que a frase existe para preencher.
    */
+  function trocarGenero(novo: VoiceGender) {
+    setGenero(novo);
+    gravarGeneroPreferido(novo);
+  }
+
   async function phraseAudio(frase: string): Promise<AudioBuffer | null> {
     const guardado = phraseAudioRef.current.get(frase);
     if (guardado) return guardado;
@@ -522,7 +702,7 @@ export default function VoiceAssistantPage() {
     if (!context) return null;
 
     try {
-      const audio = await synthesizeAssistantSpeech(frase);
+      const audio = await synthesizeAssistantSpeech(frase, { voice: vozAtivaRef.current?.id });
       const buffer = await context.decodeAudioData(await audio.arrayBuffer());
       phraseAudioRef.current.set(frase, buffer);
       return buffer;
@@ -599,15 +779,30 @@ export default function VoiceAssistantPage() {
        * quem avisa é o backend, no instante em que o modelo pede a primeira
        * função.
        */
-      const { text: resposta } = await converse(pergunta, historyRef.current, () => {
-        if (controller.signal.aborted) return;
-        /* ⚠️ O modo de consulta continua DEPOIS da frase acabar, e não só
+      const { text: resposta } = await converse(
+        pergunta,
+        historyRef.current,
+        sessaoIdRef.current,
+        () => {
+          if (controller.signal.aborted) return;
+          /* ⚠️ O modo de consulta continua DEPOIS da frase acabar, e não só
            enquanto ela toca (decisão do usuário em 30/08/2026). A busca é o que
            demora; se a esfera voltasse ao normal ao fim da frase, ela ficaria
            parada justamente durante a espera que a frase anunciou. */
-        setStatus('consulting');
-        fillerPlayingRef.current = sayPhrase(proximaEspera(), 'consulting');
-      });
+          setStatus('consulting');
+          fillerPlayingRef.current = sayPhrase(proximaEspera(), 'consulting');
+        },
+        (novoGenero) => {
+          /*
+           * A troca de timbre pedida por voz.
+           *
+           * É a MESMA função do botão do cabeçalho: grava a preferência, limpa o
+           * cache das frases e sorteia a voz nova. O evento chega antes da
+           * resposta, então a confirmação já é falada na voz pedida.
+           */
+          trocarGenero(novoGenero);
+        },
+      );
       if (controller.signal.aborted) return;
 
       // Deixa a frase de espera terminar: cortá-la no meio de uma palavra soa
@@ -629,8 +824,12 @@ export default function VoiceAssistantPage() {
         { role: 'assistant', text: resposta },
       ];
       historyRef.current = [...historyRef.current, ...novos].slice(-10);
+      setTurnosDaVisita((atual) => [...atual, ...novos]);
 
-      const audio = await synthesizeAssistantSpeech(resposta, controller.signal);
+      const audio = await synthesizeAssistantSpeech(resposta, {
+        voice: vozAtivaRef.current?.id,
+        signal: controller.signal,
+      });
       const context = playbackAudioContextRef.current;
       if (!context) throw new Error('audio_context_unavailable');
 
@@ -752,7 +951,10 @@ export default function VoiceAssistantPage() {
       setStatus('listening');
 
       const abertaEm = Date.now();
-      lastVoiceAtRef.current = 0;
+      ultimaTranscricaoRef.current = abertaEm;
+      /* Um detector por escuta: o piso de ruído é daquela sala, e entre uma
+         pergunta e a seguinte a pessoa pode ter saído para o pátio. */
+      detectorRef.current = criarDetectorDeFala(abertaEm);
 
       function sampleVoice() {
         analyser.getByteFrequencyData(frequencyData);
@@ -772,19 +974,23 @@ export default function VoiceAssistantPage() {
         /*
          * Quem decide que a fala acabou é este trecho, e não o navegador.
          *
-         * ⚠️ Duas fontes de "ainda está falando", e as duas são necessárias: o
-         * volume do microfone, medido aqui, e a transcrição chegando, que marca
-         * o mesmo relógio pelo `onSpeech`. Só o volume confundiria ar
-         * condicionado com voz; só a transcrição perderia a pausa curta entre
-         * duas frases, porque ela chega em blocos.
+         * ⚠️ As duas fontes continuam valendo, e pelo mesmo motivo de sempre: só
+         * o volume confundiria ar condicionado com voz, e só a transcrição
+         * perderia a pausa curta entre duas frases, porque ela chega em blocos.
+         * O que mudou em 05/09/2026 é COMO o volume é lido: a medida agora é a
+         * faixa da fala e não o espectro inteiro, e o limiar acompanha o ruído
+         * da sala em vez de ser um número fixo. A decisão mora em
+         * `speech-detection.ts`, testada sem microfone.
          */
         const agora = Date.now();
-        if (voiceLevelRef.current > NIVEL_DE_FALA) lastVoiceAtRef.current = agora;
+        const leitura = detectorRef.current?.amostrar({
+          nivel: nivelDaFaixaDeFala(frequencyData, audioContext.sampleRate),
+          agora,
+          temPergunta: transcriptRef.current.trim().length > 0,
+          ultimaTranscricaoEm: ultimaTranscricaoRef.current,
+        });
 
-        const temPergunta = transcriptRef.current.trim().length > 0;
-        const calado = agora - lastVoiceAtRef.current;
-
-        if (temPergunta && calado > SILENCIO_PARA_ENCERRAR_MS) {
+        if (leitura?.decisao === 'encerrar') {
           finishListening();
           return;
         }
@@ -799,7 +1005,7 @@ export default function VoiceAssistantPage() {
          * outra condição exigia transcrição para encerrar. Nenhuma das duas
          * fechava, e o microfone ficava aberto para sempre.
          */
-        if (!temPergunta && agora - abertaEm > ESPERA_SEM_FALA_MS) {
+        if (leitura?.decisao === 'desistir') {
           finishListening();
           return;
         }
@@ -896,8 +1102,8 @@ export default function VoiceAssistantPage() {
       : 'Iniciar conversa';
 
   return (
-    <main className="relative min-h-svh overflow-x-hidden bg-background">
-      <div className="relative z-10 mx-auto flex min-h-svh w-full max-w-[1500px] flex-col px-4 py-4 sm:px-7 sm:py-6 lg:px-10">
+    <main className="tela-proporcional relative bg-background">
+      <div className="relative z-10 mx-auto flex h-full w-full max-w-[1500px] flex-col px-4 py-4 sm:px-7 sm:py-6 lg:px-10">
         <header className="flex items-center gap-4 border-b border-border/60 pb-4">
           <Button asChild variant="ghost" size="icon" className="rounded-full" title="Voltar">
             <Link to="/painel" aria-label="Voltar para a escolha de acesso">
@@ -908,10 +1114,100 @@ export default function VoiceAssistantPage() {
             <BrandLogo className="hidden h-8 sm:block" />
             <RookMark className="h-8 w-8 sm:hidden" />
           </Link>
+
+          {/*
+           * A escolha de timbre fica no cabeçalho, longe da esfera: é ajuste de
+           * preferência, não parte da conversa. Só aparecem os gêneros que o
+           * provedor ativo tem, porque oferecer um que não existe seria prometer
+           * uma voz que nunca sai.
+           */}
+          {generos.length > 0 ? (
+            <div className="ml-auto flex items-center gap-2">
+              <span className="hidden text-xs text-muted-foreground sm:inline">Voz</span>
+              <div
+                role="group"
+                aria-label="Voz da assistente"
+                className="flex gap-1 rounded-full bg-muted/60 p-1"
+              >
+                {generos.map((opcao) => {
+                  const ativo = (vozAtiva?.gender ?? genero) === opcao;
+                  return (
+                    <button
+                      key={opcao}
+                      type="button"
+                      aria-pressed={ativo}
+                      onClick={() => trocarGenero(opcao)}
+                      className={cn(
+                        'rounded-full px-3 py-1 text-xs transition-colors',
+                        ativo
+                          ? 'bg-background font-medium text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {opcao === 'FEMININA' ? 'Feminina' : 'Masculina'}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* O nome da voz da vez: sem ele, o rodízio parece defeito. */}
+              {vozAtiva ? (
+                <span className="hidden text-xs text-muted-foreground lg:inline">
+                  {vozAtiva.label}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
-        <section className="flex flex-1 items-center justify-center py-8 lg:py-10">
-          <div className="flex min-w-0 flex-col items-center text-center">
+        {/* ⚠️ `min-h-0` é o que faz a transcrição rolar sozinha em vez de esticar
+            a página. Um filho de flex tem altura mínima igual ao conteúdo por
+            padrão: sem isto, o painel crescia com a conversa, empurrava a página
+            para baixo e o começo do que foi dito sumia da tela. */}
+        <section className="flex min-h-0 flex-1 items-start justify-center gap-8 py-8 lg:py-10">
+          {/*
+           * A transcrição fica à ESQUERDA e a esfera no meio da sobra, e não uma
+           * embaixo da outra: a conversa é o registro do que já foi dito, e
+           * empilhada ela empurraria a esfera para fora da tela justamente
+           * quando a conversa fica longa.
+           *
+           * Some abaixo de 1024px. Numa tela estreita, ler a conversa e falar ao
+           * mesmo tempo não acontece, e o painel comeria o espaço da esfera, que
+           * é quem dá o retorno de que a assistente está ouvindo.
+           */}
+          {transcricao.length > 0 ? (
+            <aside className="hidden min-h-0 w-80 shrink-0 flex-col self-stretch lg:flex xl:w-96">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Conversa
+              </h2>
+              {/* `max-h` além do `flex-1`: se algum ancestral perder a altura, o
+                  painel continua limitado e rolando, em vez de esticar a
+                  página. A barra some, como em todo o sistema, e a rolagem
+                  continua funcionando. */}
+              <div
+                ref={transcricaoRef}
+                className="mt-3 max-h-[70vh] min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 text-left"
+              >
+                {transcricao.map((turno, indice) => (
+                  <div
+                    key={`${turno.role}-${indice}`}
+                    className={cn(
+                      'rounded-xl border px-3 py-2 text-sm leading-relaxed',
+                      turno.role === 'user'
+                        ? 'border-border/60 bg-card/60'
+                        : 'border-transparent bg-muted/50',
+                    )}
+                  >
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {turno.role === 'user' ? 'Você' : 'Assistente'}
+                    </p>
+                    <p className="mt-1 whitespace-pre-line">{turno.text}</p>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          ) : null}
+
+          <div className="flex min-w-0 flex-1 flex-col items-center text-center">
             <div className="voice-core" aria-hidden>
               <VoiceSphere levelRef={voiceLevelRef} status={status} className="voice-core-sphere" />
               <div ref={orbitRef} className={cn('voice-orbit', `voice-orbit--${status}`)}>

@@ -52,7 +52,7 @@ export function ConversationPanel() {
               ? `Limite de ${MAX_ASSISTANT_CONVERSATIONS} conversas atingido. Exclua uma para começar outra.`
               : 'Começar uma conversa nova'
           }
-          className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary bg-on-surface/[0.03] hover:bg-on-surface/[0.07] flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40"
+          className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-primary bg-on-surface/[0.03] hover:bg-on-surface/[0.07] flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <PlusIcon size={16} />
           Nova conversa
@@ -87,7 +87,7 @@ export function ConversationPanel() {
                         }
                         if (event.key === 'Escape') setEditing(null);
                       }}
-                      className="glass-well text-body-md text-on-surface focus:border-secondary min-w-0 flex-1 rounded-md px-2 py-1.5 focus:outline-none"
+                      className="glass-well text-body-md text-on-surface focus:border-primary min-w-0 flex-1 rounded-md px-2 py-1.5 focus:outline-none"
                     />
                     <button
                       type="button"
@@ -154,7 +154,7 @@ export function ConversationPanel() {
                     onClick={() => void selectConversation(conversa.id)}
                     aria-current={ativa ? 'true' : undefined}
                     className={cn(
-                      'text-body-md focus-visible:ring-secondary w-full rounded-md py-2 pl-3 pr-16 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
+                      'text-body-md focus-visible:ring-primary w-full rounded-md py-2 pl-3 pr-16 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
                       /* ⚠️ Ativo e hover são EXCLUSIVOS. Somados, o hover
                          apagaria a pastilha justamente quando a pessoa aponta
                          para o item ativo. */

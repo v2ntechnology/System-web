@@ -91,7 +91,7 @@ export function AssistantTurn({ turn, onNavigate }: { turn: Turn; onNavigate: ()
                         key={action.label}
                         to={action.to}
                         onClick={onNavigate}
-                        className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
+                        className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-primary inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                       >
                         {action.label}
                         <ArrowRightIcon size={14} />

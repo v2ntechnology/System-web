@@ -126,7 +126,7 @@ export function AssistantOrb({ state, size = 320, level = 0, className }: Assist
 
       /* Uma cor só para todos os pontos: trocar `fillStyle` por ponto custa
          mais que desenhar, e a variação de brilho vem do `globalAlpha`. */
-      context.fillStyle = '#06B6D4';
+      context.fillStyle = '#D5623A';
 
       for (let i = 0; i < COUNT; i += 1) {
         const x = points[i * 4]!;

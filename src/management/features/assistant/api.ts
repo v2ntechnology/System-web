@@ -120,7 +120,9 @@ export interface VoiceTurn {
 
 /** Uma linha do fluxo da conversa falada. */
 interface VoiceEventDto {
-  type: 'consulting' | 'answer';
+  type: 'consulting' | 'answer' | 'voice';
+  /** Só no evento 'voice': o gênero que a tela deve passar a usar. */
+  gender?: 'FEMININA' | 'MASCULINA';
   answer?: string;
   sources?: string[];
   millis?: number;
@@ -133,13 +135,16 @@ interface VoiceEventDto {
  * lida em voz alta, e lista com marcador, tabela e oito linhas de texto não
  * funcionam faladas.
  *
- * O histórico vai daqui porque a conversa falada não é gravada: ela vive
- * enquanto a tela está aberta. Ele é o fio da conversa, e não autorização, que
- * continua saindo do token no backend.
+ * ⚠️ Com `conversationId`, o histórico é do BANCO e o turno fica gravado: é o
+ * que faz a assistente lembrar de outro dia (mudança pedida pelo usuário em
+ * 05/09/2026, que reverte a decisão de 30/08 de não gravar a conversa falada).
+ * Sem ele, o fio vai daqui e some ao sair da tela, que é o caminho de quando a
+ * sessão não pôde ser aberta.
  */
 export async function converse(
   question: string,
   history: VoiceTurn[],
+  conversationId: string | null,
   /**
    * Avisado no instante em que o assistente vai CONSULTAR o sistema.
    *
@@ -149,6 +154,13 @@ export async function converse(
    * de consulta que nunca aconteceu (relatado pelo usuário em 30/08/2026).
    */
   onConsulting?: () => void,
+  /**
+   * A pessoa pediu para trocar o timbre, e o modelo concordou.
+   *
+   * ⚠️ Chega ANTES da resposta, de propósito: a tela troca a voz e só então
+   * sintetiza a confirmação, que por isso já sai na voz nova.
+   */
+  onVoiceChange?: (genero: 'FEMININA' | 'MASCULINA') => void,
 ): Promise<{ text: string; sources: string[] }> {
   if (env.enableMocks) {
     const { answer } = await mockAssistant.ask(question, undefined, false);
@@ -157,7 +169,7 @@ export async function converse(
 
   const response = await httpStream('/v1/assistant/voice', {
     method: 'POST',
-    body: JSON.stringify({ question, history }),
+    body: JSON.stringify({ question, history, ...(conversationId ? { conversationId } : {}) }),
   });
 
   /*
@@ -182,6 +194,7 @@ export async function converse(
       if (!linha.trim()) continue;
       const evento = JSON.parse(linha) as VoiceEventDto;
       if (evento.type === 'consulting') onConsulting?.();
+      if (evento.type === 'voice' && evento.gender) onVoiceChange?.(evento.gender);
       if (evento.type === 'answer') {
         resultado = { text: evento.answer ?? '', sources: evento.sources ?? [] };
       }
@@ -190,6 +203,26 @@ export async function converse(
 
   if (!resultado) throw new Error('A resposta da conversa não chegou.');
   return resultado;
+}
+
+/** A conversa falada da visita, com o que já foi dito nela. */
+export interface VoiceSession {
+  conversationId: string;
+  title: string;
+  /** Verdadeiro quando a tela reabriu uma conversa que já existia. */
+  resumed: boolean;
+  turns: VoiceTurn[];
+}
+
+/**
+ * Abre (ou retoma) a conversa falada.
+ *
+ * Retomar é do servidor: ele decide pela janela de tempo desde a última fala. A
+ * tela só recebe o fio de volta, e é com ele que a transcrição aparece já
+ * preenchida quando a pessoa volta em vez de uma tela em branco.
+ */
+export async function openVoiceSession(): Promise<VoiceSession> {
+  return httpRequest<VoiceSession>('/v1/assistant/voice/session', { method: 'POST' });
 }
 
 export async function listConversations(): Promise<AssistantConversation[]> {

@@ -143,7 +143,7 @@ export function AssistantDrawer() {
                 aria-expanded={historyOpen}
                 aria-label={historyOpen ? 'Fechar as conversas' : 'Abrir as conversas'}
                 title="Conversas"
-                className="acao-neutra rounded-pill focus-visible:ring-secondary flex size-9 shrink-0 items-center justify-center focus-visible:outline-none focus-visible:ring-2"
+                className="acao-neutra rounded-pill focus-visible:ring-primary flex size-9 shrink-0 items-center justify-center focus-visible:outline-none focus-visible:ring-2"
               >
                 <MenuIcon size={20} />
               </button>
@@ -155,7 +155,7 @@ export function AssistantDrawer() {
 
               <DialogPrimitive.Close
                 aria-label="Fechar"
-                className="acao-neutra rounded-pill focus-visible:ring-secondary flex size-9 shrink-0 items-center justify-center focus-visible:outline-none focus-visible:ring-2"
+                className="acao-neutra rounded-pill focus-visible:ring-primary flex size-9 shrink-0 items-center justify-center focus-visible:outline-none focus-visible:ring-2"
               >
                 <CloseIcon size={20} />
               </DialogPrimitive.Close>
@@ -199,7 +199,7 @@ export function AssistantDrawer() {
               }}
               className="border-outline-variant shrink-0 border-t p-4"
             >
-              <div className="glass-well rounded-pill focus-within:border-secondary focus-within:ring-secondary/60 flex items-center gap-2 pl-4 pr-2 focus-within:ring-1">
+              <div className="glass-well rounded-pill focus-within:border-primary focus-within:ring-primary/60 flex items-center gap-2 pl-4 pr-2 focus-within:ring-1">
                 <label htmlFor="assistant-question" className="sr-only">
                   Sua pergunta
                 </label>
@@ -228,7 +228,7 @@ export function AssistantDrawer() {
                   type="submit"
                   aria-label="Enviar pergunta"
                   disabled={busy || question.trim().length === 0}
-                  className="bg-primary-strong text-on-primary rounded-pill focus-visible:ring-secondary flex size-9 shrink-0 items-center justify-center transition-opacity hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 disabled:opacity-40"
+                  className="bg-primary-strong text-on-primary rounded-pill focus-visible:ring-primary flex size-9 shrink-0 items-center justify-center transition-opacity hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 disabled:opacity-40"
                 >
                   <ArrowUpIcon size={18} />
                 </button>

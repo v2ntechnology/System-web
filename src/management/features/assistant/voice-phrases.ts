@@ -15,7 +15,14 @@
  * pode passar os olhos: a frase inteira é tempo gasto.
  */
 
-/** Enquanto a consulta corre. */
+/**
+ * Enquanto a consulta corre.
+ *
+ * ⚠️ São muitas de propósito (pedido do usuário em 05/09/2026). Com seis, quem
+ * conversa dez minutos ouve a mesma frase três vezes e percebe a gravação; o
+ * sorteio sem repetir a anterior resolve o par seguido, mas não o ciclo curto.
+ * Vinte frases fazem o ciclo durar mais que a paciência de qualquer conversa.
+ */
 const AGUARDE = [
   'Só um segundo, estou verificando isso.',
   'Deixa eu olhar aqui.',
@@ -23,6 +30,20 @@ const AGUARDE = [
   'Já vejo isso para você.',
   'Certo, só um instante.',
   'Estou buscando aqui, um momentinho.',
+  'Peraí que eu confiro.',
+  'Deixa eu conferir no sistema.',
+  'Um instantinho, estou puxando a informação.',
+  'Já te falo, só estou olhando aqui.',
+  'Boa pergunta, deixa eu buscar.',
+  'Estou dando uma olhada nisso agora.',
+  'Aguenta um pouquinho que eu já respondo.',
+  'Deixa eu ver o que tem aqui.',
+  'Estou analisando os dados, um segundo.',
+  'Já estou vendo isso, é rapidinho.',
+  'Só localizar aqui e eu te digo.',
+  'Deixa comigo, estou procurando.',
+  'Um segundinho enquanto eu consulto.',
+  'Estou puxando isso agora mesmo.',
 ];
 
 /** Quando a captação não trouxe nada. */
@@ -31,6 +52,12 @@ const NAO_OUVI = [
   'Desculpa, não peguei o que você disse.',
   'Acho que não captei nada. Tenta de novo, por favor.',
   'Não entendi. Pode repetir?',
+  'Não chegou nada aqui. Pode falar mais uma vez?',
+  'Me perdi agora. Repete, por favor?',
+  'Ficou meio abafado. Fala de novo?',
+  'Não consegui entender direito. Como é mesmo?',
+  'Passou batido aqui. Pode repetir?',
+  'Desculpa, se perdeu no caminho. O que você disse?',
 ];
 
 /** Quando a resposta não veio, por falha de rede ou do provedor. */
@@ -38,6 +65,11 @@ const FALHOU = [
   'Não consegui consultar agora. Tenta de novo daqui a pouco.',
   'Deu um problema aqui na consulta. Pode repetir a pergunta?',
   'Não obtive resposta agora. Vamos tentar de novo?',
+  'A consulta não voltou. Tenta mais uma vez?',
+  'Alguma coisa travou do meu lado. Pergunta de novo, por favor.',
+  'Não deu certo dessa vez. Quer tentar outra vez?',
+  'Fiquei sem resposta aqui. Repete que eu tento de novo.',
+  'Falhou a busca agora. Daqui a pouco deve voltar.',
 ];
 
 /** Abertura da conversa, quando a pessoa começa a falar. */
@@ -46,6 +78,14 @@ const SAUDACAO = [
   'Estou ouvindo.',
   'Oi, o que você quer saber?',
   'Pode perguntar.',
+  'Oi, como você está?',
+  'Olá! Tudo certo por aí?',
+  'Bom te ouvir. O que você precisa?',
+  'E aí, como vão as coisas?',
+  'Oi, em que posso te ajudar hoje?',
+  'Prontinho, pode mandar.',
+  'Oi! Diga aí.',
+  'Estou aqui. O que você quer ver?',
 ];
 
 /**

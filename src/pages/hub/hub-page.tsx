@@ -51,6 +51,8 @@ interface HubOption {
   ActionIcon: IconType;
   actionClass: string;
   borderClass: string;
+  /** Gradiente da barra do painel: ela acompanha o cartao ativo. */
+  barClass: string;
   art: string;
   /**
    * Altura e ancoragem da arte no card. Cada PNG tem margem transparente
@@ -82,6 +84,7 @@ const ASSISTANT_OPTION: HubOption = {
   ActionIcon: SparklesIcon,
   actionClass: 'bg-primary-strong text-on-primary',
   borderClass: 'border-primary/40 hover:border-primary/70',
+  barClass: 'bg-brand-gradient',
   art: '/images/hub-robot.png',
   artSizeClass: 'bottom-0 h-[78%]',
   artDarkClass: 'dark:[filter:grayscale(1)_brightness(0.62)_contrast(2.2)]',
@@ -131,6 +134,7 @@ const PLATFORM_OPTION: HubOption = {
   ActionIcon: GridIcon,
   actionClass: 'bg-accent text-accent-foreground',
   borderClass: 'border-accent/40 hover:border-accent/70',
+  barClass: 'bg-accent-gradient',
   art: '/images/hub-rook.png',
   artSizeClass: '-bottom-[10%] h-[94%]',
   artDarkClass: 'dark:[filter:grayscale(1)_contrast(1.15)]',
@@ -174,7 +178,7 @@ export default function HubPage() {
   const panel = activeOption.panel;
 
   return (
-    <main className="relative isolate min-h-svh overflow-hidden bg-background">
+    <main className="tela-proporcional relative isolate bg-background">
       <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <Globe className="absolute -right-[26%] top-[62%] w-[min(100vw,900px)] -translate-y-1/2 opacity-30 lg:-right-[14%]" />
         <svg
@@ -238,7 +242,7 @@ export default function HubPage() {
         </svg>
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-svh w-full max-w-[1400px] flex-col gap-8 px-5 py-8 sm:px-8 lg:gap-10 lg:px-12 lg:py-12">
+      <div className="relative z-10 mx-auto flex h-full w-full max-w-[1400px] flex-col gap-8 px-5 py-8 sm:px-8 lg:gap-10 lg:px-12 lg:py-12">
         <header className="flex flex-col items-center gap-4 text-center">
           <BrandLogo className="h-12 sm:h-14" />
           <p className="flex items-center gap-3 text-sm text-muted-foreground sm:text-base">
@@ -330,7 +334,7 @@ export default function HubPage() {
               <span className={activeOption.highlightClass}>{panel.titleHighlight}</span>
               {panel.titleEnd}
             </h1>
-            <span aria-hidden className="mt-6 h-1 w-28 rounded-full bg-brand-gradient" />
+            <span aria-hidden className={cn('mt-6 h-1 w-28 rounded-full', activeOption.barClass)} />
             <p className="mt-6 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
               {panel.description}
             </p>
