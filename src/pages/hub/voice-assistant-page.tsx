@@ -113,6 +113,27 @@ const AVISO_VOZ_CAIDA =
 /** Depois de falar, o microfone espera o rabo do áudio sair do ambiente. */
 const PAUSA_DEPOIS_DE_FALAR_MS = 500;
 
+/**
+ * A mesma pausa, no celular.
+ *
+ * ⚠️ Lá o alto-falante fica a centímetros do microfone e não há como afastar
+ * um do outro, então a última palavra dela volta com muito mais força que no
+ * computador. O `semEco` corta o que ela acabou de dizer, mas só depois de a
+ * frase ter entrado: meio segundo a mais evita que ela entre.
+ */
+const PAUSA_DEPOIS_DE_FALAR_NO_CELULAR_MS = 1000;
+
+/**
+ * O aparelho é de toque, sem mouse?
+ *
+ * Não é detecção de sistema operacional, que envelhece mal: o que importa aqui
+ * é a distância entre o alto-falante e o microfone, e ela acompanha o formato
+ * do aparelho, não a marca.
+ */
+function ehAparelhoDeToque(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+}
+
 /** Minúsculas, sem acento e sem pontuação, para comparar frase com frase. */
 function normalizar(texto: string): string {
   return (
@@ -189,6 +210,7 @@ export default function VoiceAssistantPage() {
    * em `voice-preference.ts`.
    */
   const [genero, setGenero] = useState<VoiceGender>(() => lerGeneroPreferido() ?? 'FEMININA');
+  const [trocasFeitas, setTrocasFeitas] = useState(0);
   /* Ref além do estado: quem pede a voz são funções assíncronas, que rodam fora
      do render e não podem esperar o próximo. */
   const vozAtivaRef = useRef<AssistantVoice | null>(null);
@@ -472,6 +494,29 @@ export default function VoiceAssistantPage() {
     voiceLevelRef.current = 0;
   }
 
+  /**
+   * Garante o contexto que toca a voz da assistente.
+   *
+   * ⚠️ Precisa ser chamado de dentro do toque da pessoa, e ANTES de qualquer
+   * espera. O iPhone só deixa tocar áudio em contexto criado ou retomado
+   * durante um gesto: nascido depois do primeiro `await`, ele fica suspenso
+   * para sempre e a assistente emudece sem erro nenhum aparecer, que é metade
+   * do que o usuário relatou em 06/09/2026. Como efeito colateral, a saudação
+   * volta a ser falada na primeira vez: antes ela era pedida com o contexto
+   * ainda inexistente e saía calada.
+   */
+  function garantirContextoDeReproducao() {
+    /* Navegador sem Web Audio sai por aqui e cai no mesmo caminho de sempre: é
+       `playBuffer` quem reclama de contexto ausente, e é `startListening` quem
+       avisa a pessoa. Aqui não há tela para mostrar nada. */
+    if (typeof AudioContext === 'undefined') return;
+
+    if (!playbackAudioContextRef.current) {
+      playbackAudioContextRef.current = new AudioContext();
+    }
+    void playbackAudioContextRef.current.resume();
+  }
+
   function stopAudioCapture() {
     if (animationFrameRef.current !== null) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -689,9 +734,18 @@ export default function VoiceAssistantPage() {
    * gastaria créditos da ElevenLabs de novo e ainda somaria a latência da
    * síntese ao silêncio que a frase existe para preencher.
    */
+  /**
+   * A troca de timbre, venha do botão ou do comando falado.
+   *
+   * ⚠️ Os dois caminhos passam por aqui de propósito, e é o que faz a animação
+   * do seletor valer para os dois sem existir um segundo caminho para manter em
+   * pé: a pílula desliza porque segue o gênero no ar, e o contador faz o anel
+   * piscar de novo a cada troca.
+   */
   function trocarGenero(novo: VoiceGender) {
     setGenero(novo);
     gravarGeneroPreferido(novo);
+    setTrocasFeitas((feitas) => feitas + 1);
   }
 
   async function phraseAudio(frase: string): Promise<AudioBuffer | null> {
@@ -872,15 +926,17 @@ export default function VoiceAssistantPage() {
     /* A pausa deixa o fim do áudio sair do ambiente antes de o microfone
        reabrir. Sem ela, a última palavra dela costuma entrar na transcrição
        seguinte. */
-    window.setTimeout(() => {
-      if (!conversationActiveRef.current) return;
-      void startListening({ saudar: false });
-    }, PAUSA_DEPOIS_DE_FALAR_MS);
+    window.setTimeout(
+      () => {
+        if (!conversationActiveRef.current) return;
+        void startListening({ saudar: false });
+      },
+      ehAparelhoDeToque() ? PAUSA_DEPOIS_DE_FALAR_NO_CELULAR_MS : PAUSA_DEPOIS_DE_FALAR_MS,
+    );
   }
 
-  function finishListening() {
+  async function finishListening() {
     stopAudioCapture();
-    speech.stop();
     setStatus('processing');
     /* O texto vem do reconhecimento, que corre em paralelo à captura de áudio:
        a captura alimenta a animação da esfera, a transcrição alimenta a
@@ -888,6 +944,17 @@ export default function VoiceAssistantPage() {
        outra. */
     const pergunta = semEco(transcriptRef.current, ultimaFalaRef.current);
     transcriptRef.current = '';
+    /*
+     * ⚠️ A resposta só começa depois de o microfone voltar para o sistema.
+     *
+     * `stopAudioCapture` solta o nosso stream, mas o reconhecedor segura o
+     * microfone por conta própria até encerrar de verdade, e no celular isso
+     * demora. Falar por cima disso é o defeito relatado em 06/09/2026: no
+     * iPhone o áudio sai pelo alto-falante da orelha e parece que ela emudeceu,
+     * e nos dois aparelhos a voz dela volta para a captação e vira a próxima
+     * pergunta, com o microfone reabrindo sozinho.
+     */
+    await speech.stop();
     void speakResponse(pergunta);
   }
 
@@ -915,10 +982,7 @@ export default function VoiceAssistantPage() {
     }
 
     try {
-      if (!playbackAudioContextRef.current) {
-        playbackAudioContextRef.current = new AudioContext();
-      }
-      void playbackAudioContextRef.current.resume();
+      garantirContextoDeReproducao();
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -991,7 +1055,7 @@ export default function VoiceAssistantPage() {
         });
 
         if (leitura?.decisao === 'encerrar') {
-          finishListening();
+          void finishListening();
           return;
         }
 
@@ -1006,7 +1070,7 @@ export default function VoiceAssistantPage() {
          * fechava, e o microfone ficava aberto para sempre.
          */
         if (leitura?.decisao === 'desistir') {
-          finishListening();
+          void finishListening();
           return;
         }
 
@@ -1062,7 +1126,9 @@ export default function VoiceAssistantPage() {
     closeConversation();
     historyRef.current = [];
     stopAudioCapture();
-    speech.stop();
+    /* Aqui ninguém espera o fim: a conversa acabou, e não há resposta para
+       tocar depois dele. */
+    void speech.stop();
     stopSpeaking();
   }
 
@@ -1077,6 +1143,9 @@ export default function VoiceAssistantPage() {
       endConversation();
       return;
     }
+    /* ⚠️ Aqui, e de forma síncrona: é o único instante da conversa em que existe
+       um toque da pessoa para o iPhone aceitar. Ver `garantirContextoDeReproducao`. */
+    garantirContextoDeReproducao();
     void startListening();
   }
 
@@ -1127,27 +1196,61 @@ export default function VoiceAssistantPage() {
               <div
                 role="group"
                 aria-label="Voz da assistente"
-                className="flex gap-1 rounded-full bg-muted/60 p-1"
+                className="relative rounded-full border border-outline bg-surface p-1 shadow-sm"
               >
-                {generos.map((opcao) => {
-                  const ativo = (vozAtiva?.gender ?? genero) === opcao;
-                  return (
-                    <button
-                      key={opcao}
-                      type="button"
-                      aria-pressed={ativo}
-                      onClick={() => trocarGenero(opcao)}
-                      className={cn(
-                        'rounded-full px-3 py-1 text-xs transition-colors',
-                        ativo
-                          ? 'bg-background font-medium text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {opcao === 'FEMININA' ? 'Feminina' : 'Masculina'}
-                    </button>
-                  );
-                })}
+                {/*
+                 * O anel que marca a troca recém-feita.
+                 *
+                 * ⚠️ A `key` é o contador de trocas, e é ela que faz a animação
+                 * rodar de novo: sem trocar a chave, o React reaproveita o
+                 * elemento e o keyframe não recomeça. Foi assim, e não com um
+                 * relógio guardado em ref, porque o ref lido no cleanup faz o
+                 * compilador do React desistir de otimizar a tela inteira.
+                 */}
+                {trocasFeitas > 0 ? (
+                  <span
+                    key={trocasFeitas}
+                    aria-hidden
+                    className="animate-voice-switch-flash pointer-events-none absolute -inset-px rounded-full ring-2 ring-primary"
+                  />
+                ) : null}
+                {/* Colunas iguais: "Feminina" e "Masculina" têm larguras
+                    diferentes, e sem igualar a pílula mudaria de tamanho no meio
+                    do caminho. */}
+                <div
+                  className="relative grid"
+                  style={{ gridTemplateColumns: `repeat(${generos.length}, minmax(0, 1fr))` }}
+                >
+                  {/* A pílula que desliza. Ela segue o gênero no ar, então anda
+                      igual pelo clique e pelo comando falado. */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-primary shadow-sm transition-transform duration-300 ease-out motion-reduce:transition-none"
+                    style={{
+                      width: `${100 / generos.length}%`,
+                      transform: `translateX(${Math.max(0, generos.indexOf(vozAtiva?.gender ?? genero)) * 100}%)`,
+                    }}
+                  />
+                  {generos.map((opcao) => {
+                    const ativo = (vozAtiva?.gender ?? genero) === opcao;
+                    return (
+                      <button
+                        key={opcao}
+                        type="button"
+                        aria-pressed={ativo}
+                        onClick={() => trocarGenero(opcao)}
+                        /* `relative` para o texto ficar acima da pílula, que é
+                           irmã posicionada de forma absoluta. */
+                        className={cn(
+                          'relative rounded-full px-4 py-1.5 text-xs font-medium transition-colors',
+                          ativo ? 'text-on-primary' : 'text-on-surface-muted hover:text-on-surface',
+                        )}
+                      >
+                        {opcao === 'FEMININA' ? 'Feminina' : 'Masculina'}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               {/* O nome da voz da vez: sem ele, o rodízio parece defeito. */}
               {vozAtiva ? (
