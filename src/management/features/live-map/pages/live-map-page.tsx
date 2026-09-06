@@ -2,17 +2,20 @@ import {
   CloseIcon,
   GaugeIcon,
   MapPinIcon,
+  LayersIcon,
   RadarIcon,
   RouteIcon,
+  TiltIcon,
   SearchIcon,
-  TruckIcon,
 } from '@/components/icons';
 import type { VehiclePosition, VehicleStatus } from '@/management/types';
 import { cn } from '@/management/ui';
+import * as Popover from '@radix-ui/react-popover';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { MAP_BASES, type MapBaseId } from '@/components/shared/map-style';
 import { PageBanner } from '@/management/components/layout/page-banner';
 import { QueryState } from '@/management/components/layout/query-state';
 import {
@@ -24,6 +27,8 @@ import { getEventHeatmap, getVehiclePositions, getVehicleTrack } from '../api';
 import { CORES_DA_GESTAO } from '../components/fleet-3d-layer';
 import { FleetMap, type FleetMapHandle } from '../components/fleet-map';
 import { TrackReplay } from '../components/track-replay';
+import { descreverLacuna, prepararTrajeto } from '../track-segments';
+import { VehicleDrawer } from '../components/vehicle-drawer';
 
 /**
  * De quanto em quanto tempo a tela repergunta a posição.
@@ -173,6 +178,23 @@ export function LiveMapPage() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [showHeat, setShowHeat] = useState(false);
   const [trajetoAberto, setTrajetoAberto] = useState(false);
+  /* A base escolhida na tela e o ângulo da câmera (05/09/2026). A base vence o
+     tema: quem escolheu o noturno escolheu o noturno. */
+  const [base, setBase] = useState<MapBaseId>('liberty');
+  /* ⚠️ Nasce ligado porque o mapa é criado já inclinado (pedido do usuário em
+     05/09/2026, em `fleet-map.tsx`). Com `false` aqui, o botão abriria apagado
+     sobre um mapa inclinado, e o primeiro clique pareceria não fazer nada: ele
+     desinclinaria, que é o contrário do que o ícone prometia. */
+  const [inclinado, setInclinado] = useState(true);
+  const [menuDeBase, setMenuDeBase] = useState(false);
+  /**
+   * A ficha DESENHADA no drawer, que não é a mesma coisa que a seleção.
+   *
+   * ⚠️ Ela sobrevive ao fechamento até a animação terminar. Sem isso não há
+   * animação de saída nenhuma: o conteúdo desmonta no clique e o que resta é a
+   * largura encolhendo sozinha.
+   */
+  const [fichaId, setFichaId] = useState<string | null>(null);
 
   /* O caminhão do replay é escrito direto na fonte do MapLibre por este handle.
      Ver a nota em `TrackReplay`: passar a posição por estado re-renderizava a
@@ -224,6 +246,13 @@ export function LiveMapPage() {
     [positions, selectedId],
   );
 
+  /* O veículo que o drawer está mostrando: continua o anterior enquanto ele
+     desliza para fora. */
+  const fichaVeiculo = useMemo(
+    () => positions.find((vehicle) => vehicle.vehicleId === fichaId) ?? null,
+    [positions, fichaId],
+  );
+
   /*
    * ⚠️ Trocar de veículo fecha o trajeto, e isso é feito AQUI e não num efeito.
    *
@@ -235,17 +264,39 @@ export function LiveMapPage() {
   const select = useCallback(
     (vehicleId: string) => {
       setSelectedId(vehicleId);
+      setFichaId(vehicleId);
       if (vehicleId !== selectedId) setTrajetoAberto(false);
     },
     [selectedId],
   );
 
+  /**
+   * Fechar limpa a SELEÇÃO, e não a ficha desenhada.
+   *
+   * ⚠️ É o que faz o drawer ter animação de saída. Desmontando o conteúdo junto
+   * com a seleção, a ficha sumia no ato e só a largura animava: pela metade, um
+   * drawer que abre deslizando e fecha piscando. Quem apaga a ficha é o fim da
+   * transição, lá embaixo.
+   */
   const limparSelecao = useCallback(() => {
     setSelectedId(null);
     setTrajetoAberto(false);
   }, []);
 
-  const trackPoints = trackQuery.data ?? [];
+  /* O `??` sai do caminho do `useMemo` abaixo: um literal `[]` novo a cada
+     render invalidaria a memória em todo quadro, que é o oposto do que ela
+     existe para fazer. */
+  const trackPoints = useMemo(() => trackQuery.data ?? [], [trackQuery.data]);
+
+  /*
+   * A rota separada em trechos medidos e lacunas.
+   *
+   * ⚠️ Derivado em RENDER, e não em efeito com estado: o resultado depende só
+   * dos pontos, e guardá-lo em `useState` criaria um quadro em que a linha e
+   * os pontos discordam. O `useMemo` existe pelo custo, não pela correção: são
+   * até milhares de leituras por abertura.
+   */
+  const trajeto = useMemo(() => prepararTrajeto(trackPoints), [trackPoints]);
 
   /**
    * O aviso de veículos mudos, flutuante.
@@ -288,18 +339,41 @@ export function LiveMapPage() {
 
       <main className="w-full px-4 pb-24 sm:px-6 xl:px-10">
         <QueryState isPending={isPending} isError={isError} label="as posições">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <span className="text-primary-strong text-label-md inline-flex items-center gap-2 normal-case">
-                <RadarIcon size={16} aria-hidden="true" />
-                Central de comando
-              </span>
-              <p className="text-on-surface-variant text-body-md mt-2 max-w-2xl">
-                Priorize o que está em movimento, encontre uma placa e abra os detalhes sem perder a
-                visão do território.
-              </p>
-            </div>
+          {/*
+            Os filtros de situação subiram para cá em 05/09/2026, a pedido do
+            usuário: eles dividem a linha com o chip da leitura, e a lista à
+            esquerda ficou só com a busca por placa.
 
+            ⚠️ As contagens continuam sendo sobre a frota INTEIRA, e não sobre o
+            que está filtrado. Seguindo o filtro, escolher "sem sinal" zeraria os
+            outros números e quem opera perderia a noção do todo, que é a mesma
+            regra já registrada para a fila de impedimentos.
+          */}
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+            <div role="group" aria-label="Filtrar por situação" className="flex flex-wrap gap-1.5">
+              {SITUACOES.map((option) => {
+                const total =
+                  option.id === 'TODOS' ? positions.length : (countByStatus.get(option.id) ?? 0);
+                if (total === 0 && option.id !== 'TODOS') return null;
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setSituacao(option.id)}
+                    aria-pressed={situacao === option.id}
+                    className={cn(
+                      'text-label-md focus-visible:ring-primary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                      situacao === option.id
+                        ? 'bg-primary-strong text-on-primary'
+                        : 'bg-on-surface/8 text-on-surface-variant hover:text-on-surface',
+                    )}
+                  >
+                    {option.label} <span className="tabular opacity-70">{total}</span>
+                  </button>
+                );
+              })}
+            </div>
             {/* Ver `idadeDaLeitura`: o que o chip promete é a idade do dado, e
                 não o intervalo do polling. */}
             <span
@@ -345,24 +419,31 @@ export function LiveMapPage() {
           <section
             className={cn(
               'grid gap-5 2xl:h-[clamp(32rem,calc(100dvh-22rem),52rem)]',
-              selectedVehicle
-                ? '2xl:grid-cols-[320px_300px_minmax(0,1fr)]'
-                : '2xl:grid-cols-[360px_minmax(0,1fr)]',
+              /*
+               * ⚠️ Duas colunas SEMPRE, desde 05/09/2026.
+               *
+               * A ficha era uma terceira coluna e virou drawer, a pedido do
+               * usuário. Quem encolhe com o drawer aberto é o MAPA, e não a
+               * lista: a lista tem largura de leitura, e espremê-la quebraria a
+               * placa em duas linhas.
+               */
+              '2xl:grid-cols-[360px_minmax(0,1fr)]',
             )}
           >
-            <aside className="border-outline-variant bg-surface-container flex min-h-0 flex-col rounded-2xl border p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-on-surface text-body-md font-semibold">
-                    Monitoramento da frota
-                  </p>
-                  <p className="text-on-surface-muted text-label-md mt-1 normal-case">
-                    {visibleVehicles.length} de {positions.length} veículos
-                  </p>
-                </div>
-                <span className="bg-primary-strong/12 text-primary-strong flex size-9 items-center justify-center rounded-lg">
-                  <TruckIcon size={18} aria-hidden="true" />
-                </span>
+            {/* ⚠️ SEM moldura de cartão (pedido do usuário em 05/09/2026): sem
+                borda, sem canto e sem fundo próprio, a lista encosta na margem
+                da tela e devolve o espaço que a caixa tomava. O que separa a
+                lista do mapa é o vão do grid, e não um traço. */}
+            <aside className="flex min-h-0 flex-col pr-1">
+              {/* ⚠️ SEM o selo de caminhão que ficava à direita do título (pedido do
+                  usuário em 05/09/2026). Ele era decoração: não clicava, não
+                  informava nada que o título já não dissesse, e num cabeçalho sem
+                  moldura sobrava como um botão que não é botão. */}
+              <div>
+                <p className="text-on-surface text-body-md font-semibold">Monitoramento da frota</p>
+                <p className="text-on-surface-muted text-label-md mt-1 normal-case">
+                  {visibleVehicles.length} de {positions.length} veículos
+                </p>
               </div>
 
               <label className="border-outline-variant bg-surface-lowest mt-5 flex items-center gap-2 rounded-xl border px-3 py-2.5">
@@ -381,37 +462,8 @@ export function LiveMapPage() {
                 />
               </label>
 
-              <div
-                role="group"
-                aria-label="Filtrar por situação"
-                className="mt-3 flex flex-wrap gap-1.5"
-              >
-                {SITUACOES.map((option) => {
-                  const total =
-                    option.id === 'TODOS' ? positions.length : (countByStatus.get(option.id) ?? 0);
-                  if (total === 0 && option.id !== 'TODOS') return null;
-
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setSituacao(option.id)}
-                      aria-pressed={situacao === option.id}
-                      className={cn(
-                        'text-label-md rounded-full px-2.5 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary',
-                        situacao === option.id
-                          ? 'bg-primary-strong text-on-primary'
-                          : 'bg-on-surface/8 text-on-surface-variant hover:text-on-surface',
-                      )}
-                    >
-                      {option.label} <span className="tabular opacity-70">{total}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
               <ul
-                className="mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
+                className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
                 aria-label="Veículos encontrados"
               >
                 {visibleVehicles.map((vehicle) => {
@@ -429,7 +481,7 @@ export function LiveMapPage() {
                         onBlur={() => setHoveredId(null)}
                         aria-current={active ? 'true' : undefined}
                         className={cn(
-                          'border-outline-variant w-full rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary',
+                          'border-outline-variant w-full rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                           active
                             ? 'border-primary-strong bg-primary-strong text-on-primary'
                             : 'bg-surface-lowest hover:border-primary-strong/45 hover:bg-surface-high',
@@ -500,95 +552,19 @@ export function LiveMapPage() {
               </ul>
             </aside>
 
-            {/* A ficha do escolhido: coluna própria, ao lado da lista. */}
-            {selectedVehicle ? (
-              <aside
-                aria-label={`Detalhes de ${selectedVehicle.plate}`}
-                className="border-outline-variant bg-surface-container flex min-h-0 flex-col overflow-y-auto rounded-2xl border p-4 sm:p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="tabular text-on-surface text-lg font-semibold">
-                      {selectedVehicle.plate}
-                    </p>
-                    <p className="text-on-surface-muted text-label-md mt-1 normal-case">
-                      {selectedVehicle.driverName ?? 'Motorista não vinculado'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={limparSelecao}
-                    className="acao-neutra -mr-1 -mt-1 flex size-8 shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
-                    aria-label="Fechar detalhes"
-                    title="Fechar detalhes"
-                  >
-                    <CloseIcon size={16} aria-hidden="true" />
-                  </button>
-                </div>
+            {/*
+              Empilhado, o mapa vem primeiro: é o que a tela existe para
+              mostrar. Lado a lado, ele vai para a direita.
 
-                <div className="mt-4">
-                  <VehicleStatusChip status={selectedVehicle.status} surface="dark" />
-                </div>
-
-                <dl className="mt-5 grid grid-cols-2 gap-4">
-                  <div>
-                    <dt className="text-on-surface-muted text-[11px] font-medium uppercase tracking-wide">
-                      Velocidade
-                    </dt>
-                    <dd className="text-on-surface mt-1.5 inline-flex items-center gap-1.5 text-sm font-semibold">
-                      <GaugeIcon size={14} aria-hidden="true" />
-                      {selectedVehicle.speedKmh.toLocaleString('pt-BR', {
-                        maximumFractionDigits: 0,
-                      })}{' '}
-                      km/h
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-on-surface-muted text-[11px] font-medium uppercase tracking-wide">
-                      Último sinal
-                    </dt>
-                    <dd
-                      className={cn(
-                        'tabular text-on-surface mt-1.5 text-sm font-semibold',
-                        isStale(selectedVehicle) && 'text-warning',
-                      )}
-                    >
-                      {time.format(new Date(selectedVehicle.lastSyncAt))}
-                    </dd>
-                  </div>
-                </dl>
-
-                <div className="mt-5">
-                  <p className="text-on-surface-muted text-[11px] font-medium uppercase tracking-wide">
-                    Posição
-                  </p>
-                  <p className="text-on-surface-variant text-body-md mt-1.5 flex items-start gap-1.5">
-                    <MapPinIcon size={14} className="mt-1 shrink-0" aria-hidden="true" />
-                    <span className="min-w-0">{locationLabel(selectedVehicle)}</span>
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setTrajetoAberto((aberto) => !aberto)}
-                  aria-pressed={trajetoAberto}
-                  className={cn(
-                    'text-label-md mt-auto flex items-center gap-2 rounded-xl border px-3.5 py-3 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary',
-                    trajetoAberto
-                      ? 'border-primary-strong bg-primary-strong text-on-primary'
-                      : 'border-outline-variant bg-surface-lowest text-on-surface-variant hover:text-on-surface',
-                  )}
-                >
-                  <RouteIcon size={16} aria-hidden="true" />
-                  {trajetoAberto ? 'Ocultar trajeto' : 'Ver trajeto no mapa'}
-                </button>
-              </aside>
-            ) : null}
-
-            {/* Empilhado, o mapa vem primeiro: é o que a tela existe para
-                mostrar. Lado a lado, ele vai para a direita. */}
-            <div className="order-first flex min-w-0 flex-col 2xl:order-none">
-              {/*
+              ⚠️ O mapa e o drawer são IRMÃOS numa linha flex, e não um por cima
+              do outro. Foi o pedido do usuário em 05/09/2026: o mapa encolhe
+              enquanto a ficha está aberta e volta a esticar quando ela fecha.
+              Sobreposto, o drawer taparia justamente o caminhão que a pessoa
+              acabou de escolher.
+            */}
+            <div className="order-first flex min-w-0 2xl:order-none">
+              <div className="flex min-w-0 flex-1 flex-col">
+                {/*
                 ⚠️ Fundo de PAPEL, e não o grafite de antes.
                 
                 O container tem canto de 20px e o mapa dentro dele tinha canto
@@ -599,165 +575,347 @@ export function LiveMapPage() {
                 `overflow-hidden` daqui já corta, e o que sobra do fundo agora é
                 da cor do papel.
               */}
-              <div className="border-outline-variant bg-surface-lowest relative min-h-0 flex-1 overflow-hidden rounded-2xl border">
-                <FleetMap
-                  ref={mapa}
-                  positions={positions}
-                  selectedId={selectedId}
-                  onSelect={select}
-                  /*
-                   * ⚠️ A rota só desce para o mapa com o painel aberto, e isso
-                   * não é economia: é o `FleetMap` que enquadra o trajeto
-                   * inteiro ao recebê-lo. Mandando sempre, escolher uma placa
-                   * afastaria a câmera para caber o dia todo, desfazendo o foco
-                   * no veículo que acabou de ser pedido.
-                   */
-                  track={trajetoAberto ? trackPoints.map((point) => point.coordinates) : undefined}
-                  heat={showHeat ? heatQuery.data : undefined}
-                  hoveredId={hoveredId}
-                  className="h-full min-h-[560px]"
-                />
+                <div
+                  className={cn(
+                    'border-outline-variant bg-surface-lowest relative min-h-0 flex-1 overflow-hidden rounded-2xl border',
+                    /* Canto reto do lado da gaveta: com o arredondado, sobrava uma
+                     lasca de fundo entre o mapa e o painel, e os dois pareciam
+                     duas peças soltas em vez de uma gaveta encostada. */
+                    selectedVehicle && '2xl:rounded-r-none 2xl:border-r-0',
+                  )}
+                >
+                  <FleetMap
+                    ref={mapa}
+                    positions={positions}
+                    basemap={base}
+                    selectedId={selectedId}
+                    onSelect={select}
+                    /*
+                     * ⚠️ A rota só desce para o mapa com o painel aberto, e isso
+                     * não é economia: é o `FleetMap` que enquadra o trajeto
+                     * inteiro ao recebê-lo. Mandando sempre, escolher uma placa
+                     * afastaria a câmera para caber o dia todo, desfazendo o foco
+                     * no veículo que acabou de ser pedido.
+                     */
+                    track={trajetoAberto ? trajeto : undefined}
+                    heat={showHeat ? heatQuery.data : undefined}
+                    hoveredId={hoveredId}
+                    className="h-full min-h-[560px]"
+                  />
 
-                {/*
-                 * A barra do topo (pedido do usuário em 30/08/2026): legenda à
-                 * esquerda, porque ela explica o crachá e precisa estar onde o
-                 * olho entra no mapa; mapa de calor à direita, que é onde o
-                 * usuário pediu.
-                 *
-                 * ⚠️ O canto direito só ficou livre porque o zoom do MapLibre
-                 * desceu para o rodapé (ver `fleet-map.tsx`). Devolver o zoom
-                 * para cima traz de volta a sobreposição.
-                 */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
-                  <div
-                    className={cn(
-                      SOBRE_O_MAPA,
-                      'flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[11px]',
-                    )}
-                  >
-                    {LEGENDA.map((item) => (
-                      <span key={item.status} className="flex items-center gap-1.5">
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: item.cor }}
-                          aria-hidden="true"
-                        />
-                        {item.label}
-                      </span>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowHeat((value) => !value)}
-                    aria-pressed={showHeat}
-                    className={cn(
-                      'focus-visible:ring-primary-strong text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2',
-                      showHeat
-                        ? 'border-primary-strong bg-primary-strong text-on-primary pointer-events-auto rounded-md border px-3 py-2'
-                        : cn(SOBRE_O_MAPA, 'hover:bg-surface px-3 py-2'),
-                    )}
-                  >
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <RadarIcon
-                        size={14}
-                        aria-hidden="true"
-                        className={showHeat ? '' : 'text-primary-strong'}
-                      />
-                      Eventos na rota
-                    </span>
-                    <span className={cn('mt-0.5 block', showHeat ? 'opacity-80' : 'opacity-70')}>
-                      {showHeat
-                        ? heatQuery.isPending
-                          ? 'Carregando concentrações'
-                          : `${(heatQuery.data ?? []).length.toLocaleString('pt-BR')} pontos nos últimos 7 dias`
-                        : 'Ative o mapa de calor'}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Controles do canto inferior esquerdo. */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-start gap-3 p-4 sm:p-5">
-                  {trajetoAberto && selectedVehicle ? (
-                    <section
-                      aria-label={`Trajeto de ${selectedVehicle.plate}`}
-                      className={cn(SOBRE_O_MAPA, 'w-full max-w-xl p-3')}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-on-surface text-xs font-semibold">
-                            Trajeto de {selectedVehicle.plate}
-                          </p>
-                          <p className="mt-0.5 text-[11px]">
-                            {trackQuery.isPending
-                              ? 'Traçando rota'
-                              : trackQuery.isError
-                                ? 'Não foi possível carregar a rota'
-                                : trackPoints.length < 2
-                                  ? 'Sem leituras suficientes no período'
-                                  : `${trackPoints.length.toLocaleString('pt-BR')} pontos para consultar`}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className="bg-on-surface/8 flex gap-1 rounded-full p-1">
-                            {TRACK_WINDOWS.map((window) => (
-                              <button
-                                key={window.hours}
-                                type="button"
-                                onClick={() => setTrackHours(window.hours)}
-                                aria-pressed={trackHours === window.hours}
-                                className={cn(
-                                  'focus-visible:ring-primary-strong rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2',
-                                  trackHours === window.hours
-                                    ? 'bg-primary-strong text-on-primary'
-                                    : 'text-on-surface-variant hover:text-on-surface',
-                                )}
-                              >
-                                {window.label}
-                              </button>
-                            ))}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setTrajetoAberto(false)}
-                            className="acao-neutra focus-visible:ring-primary-strong flex size-7 shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2"
-                            aria-label="Fechar o trajeto"
-                            title="Fechar o trajeto"
-                          >
-                            <CloseIcon size={15} aria-hidden="true" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {trackPoints.length >= 2 ? (
-                        <TrackReplay
-                          key={`${selectedId}-${trackHours}`}
-                          points={trackPoints}
-                          onPose={(pose) => mapa.current?.setReplayPose(pose)}
-                          className="border-outline-variant/60 bg-on-surface/[0.04] mt-3 rounded-md border p-2.5"
-                        />
-                      ) : null}
-                    </section>
-                  ) : null}
-
-                  {selectedVehicle && !trajetoAberto ? (
-                    <button
-                      type="button"
-                      onClick={() => setTrajetoAberto(true)}
+                  {/*
+                   * A barra do topo (pedido do usuário em 30/08/2026): legenda à
+                   * esquerda, porque ela explica o crachá e precisa estar onde o
+                   * olho entra no mapa; mapa de calor à direita, que é onde o
+                   * usuário pediu.
+                   *
+                   * ⚠️ O canto direito só ficou livre porque o zoom do MapLibre
+                   * desceu para o rodapé (ver `fleet-map.tsx`). Devolver o zoom
+                   * para cima traz de volta a sobreposição.
+                   */}
+                  <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
+                    <div
                       className={cn(
                         SOBRE_O_MAPA,
-                        'focus-visible:ring-primary-strong hover:text-on-surface hover:bg-surface flex size-9 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2',
+                        'flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[11px]',
                       )}
-                      aria-label={`Ver o trajeto de ${selectedVehicle.plate}`}
-                      title={`Trajeto de ${selectedVehicle.plate}`}
                     >
-                      <RouteIcon size={18} aria-hidden="true" />
-                    </button>
-                  ) : null}
+                      {LEGENDA.map((item) => (
+                        <span key={item.status} className="flex items-center gap-1.5">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: item.cor }}
+                            aria-hidden="true"
+                          />
+                          {item.label}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/*
+                      Os três controles do mapa, juntos e em ÍCONE.
+
+                      ⚠️ Eram um cartão de duas linhas (eventos), mais um grupo
+                      de pastilhas e um botão no canto de baixo. Viraram uma
+                      barra só, a pedido do usuário em 05/09/2026: o painel de
+                      referência dele agrupa os controles do mapa num canto e
+                      deixa o território livre, e três caixas em dois cantos
+                      diferentes competiam com o que a tela existe para mostrar.
+
+                      O que era legenda de duas linhas virou `title`: quem opera
+                      todo dia não precisa ler "ative o mapa de calor" a cada
+                      abertura da tela.
+                    */}
+                    <div className="pointer-events-auto flex items-center gap-2">
+                      {/*
+                        ⚠️ MENU, e não cinco pastilhas lado a lado.
+
+                        Em linha, os cinco modos mais a legenda mais os dois
+                        ícones não cabem na largura do mapa com a ficha aberta:
+                        eles quebravam para a linha de baixo e saíam do canto.
+                        Fechado, o menu ocupa a largura de um rótulo.
+                      */}
+                      <Popover.Root open={menuDeBase} onOpenChange={setMenuDeBase}>
+                        <Popover.Trigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              SOBRE_O_MAPA,
+                              'focus-visible:ring-primary-strong hover:bg-surface hover:text-on-surface flex h-9 items-center gap-1.5 px-3 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2',
+                            )}
+                            aria-label="Modo do mapa"
+                          >
+                            <LayersIcon size={14} aria-hidden="true" />
+                            {MAP_BASES.find((opcao) => opcao.id === base)?.label}
+                          </button>
+                        </Popover.Trigger>
+
+                        <Popover.Portal>
+                          <Popover.Content
+                            align="end"
+                            sideOffset={6}
+                            className="bg-surface border-outline-variant z-50 flex w-44 flex-col rounded-md border p-1 shadow-lg"
+                          >
+                            {MAP_BASES.map((opcao) => (
+                              <button
+                                key={opcao.id}
+                                type="button"
+                                onClick={() => {
+                                  setBase(opcao.id);
+                                  setMenuDeBase(false);
+                                }}
+                                aria-pressed={base === opcao.id}
+                                title={opcao.hint}
+                                className={cn(
+                                  'focus-visible:ring-primary-strong rounded px-2.5 py-1.5 text-left text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2',
+                                  base === opcao.id
+                                    ? 'bg-primary-strong text-on-primary'
+                                    : 'text-on-surface-variant hover:bg-on-surface/8 hover:text-on-surface',
+                                )}
+                              >
+                                {opcao.label}
+                              </button>
+                            ))}
+                          </Popover.Content>
+                        </Popover.Portal>
+                      </Popover.Root>
+
+                      <button
+                        type="button"
+                        onClick={() => setInclinado(mapa.current?.alternarInclinacao() ?? false)}
+                        aria-pressed={inclinado}
+                        className={cn(
+                          'focus-visible:ring-primary-strong flex size-9 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2',
+                          inclinado
+                            ? 'border-primary-strong bg-primary-strong text-on-primary rounded-md border'
+                            : cn(SOBRE_O_MAPA, 'hover:bg-surface hover:text-on-surface'),
+                        )}
+                        aria-label={inclinado ? 'Voltar à vista de cima' : 'Inclinar o mapa'}
+                        title={inclinado ? 'Voltar à vista de cima' : 'Inclinar o mapa'}
+                      >
+                        <TiltIcon size={16} aria-hidden="true" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowHeat((value) => !value)}
+                        aria-pressed={showHeat}
+                        className={cn(
+                          'focus-visible:ring-primary-strong flex size-9 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2',
+                          showHeat
+                            ? 'border-primary-strong bg-primary-strong text-on-primary rounded-md border'
+                            : cn(SOBRE_O_MAPA, 'hover:bg-surface hover:text-on-surface'),
+                        )}
+                        aria-label="Eventos na rota"
+                        title={
+                          showHeat
+                            ? heatQuery.isPending
+                              ? 'Eventos na rota: carregando concentrações'
+                              : `Eventos na rota: ${(heatQuery.data ?? []).length.toLocaleString('pt-BR')} pontos nos últimos 7 dias`
+                            : 'Eventos na rota: ativar o mapa de calor'
+                        }
+                      >
+                        <RadarIcon size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Controles do canto inferior esquerdo. */}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-start gap-3 p-4 sm:p-5">
+                    {trajetoAberto && selectedVehicle ? (
+                      <section
+                        aria-label={`Trajeto de ${selectedVehicle.plate}`}
+                        className={cn(SOBRE_O_MAPA, 'w-full max-w-xl p-3')}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-on-surface text-xs font-semibold">
+                              Trajeto de {selectedVehicle.plate}
+                            </p>
+                            <p className="mt-0.5 text-[11px]">
+                              {trackQuery.isPending
+                                ? 'Traçando rota'
+                                : trackQuery.isError
+                                  ? 'Não foi possível carregar a rota'
+                                  : trackPoints.length < 2
+                                    ? 'Sem leituras suficientes no período'
+                                    : `${trackPoints.length.toLocaleString('pt-BR')} pontos para consultar`}
+                            </p>
+                            {/*
+                              ⚠️ A lacuna é DITA, e não só desenhada. O tracejado
+                              no mapa mostra onde faltou leitura, mas só entende
+                              quem já sabe o que ele significa. A frase diz
+                              quantos vãos existem e o tamanho do maior, que é o
+                              número que decide se a rota serve para responder
+                              "por onde ele passou".
+                            */}
+                            {trajeto.lacunas.length > 0 ? (
+                              <p className="text-on-surface-muted mt-0.5 text-[11px]">
+                                {trajeto.lacunas.length === 1
+                                  ? '1 trecho sem leitura'
+                                  : `${trajeto.lacunas.length} trechos sem leitura`}
+                                {', o maior de '}
+                                {descreverLacuna(
+                                  Math.max(...trajeto.lacunas.map((lacuna) => lacuna.minutos)),
+                                )}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="bg-on-surface/8 flex gap-1 rounded-full p-1">
+                              {TRACK_WINDOWS.map((window) => (
+                                <button
+                                  key={window.hours}
+                                  type="button"
+                                  onClick={() => setTrackHours(window.hours)}
+                                  aria-pressed={trackHours === window.hours}
+                                  className={cn(
+                                    'focus-visible:ring-primary-strong rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2',
+                                    trackHours === window.hours
+                                      ? 'bg-primary-strong text-on-primary'
+                                      : 'text-on-surface-variant hover:text-on-surface',
+                                  )}
+                                >
+                                  {window.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setTrajetoAberto(false)}
+                              className="acao-neutra focus-visible:ring-primary-strong flex size-7 shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2"
+                              aria-label="Fechar o trajeto"
+                              title="Fechar o trajeto"
+                            >
+                              <CloseIcon size={15} aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {trackPoints.length >= 2 ? (
+                          <TrackReplay
+                            key={`${selectedId}-${trackHours}`}
+                            points={trackPoints}
+                            onPose={(pose) => mapa.current?.setReplayPose(pose)}
+                            onPlayingChange={(tocando) => mapa.current?.seguirReplay(tocando)}
+                            className="border-outline-variant/60 bg-on-surface/[0.04] mt-3 rounded-md border p-2.5"
+                          />
+                        ) : null}
+                      </section>
+                    ) : null}
+
+                    {selectedVehicle && !trajetoAberto ? (
+                      <button
+                        type="button"
+                        onClick={() => setTrajetoAberto(true)}
+                        className={cn(
+                          SOBRE_O_MAPA,
+                          'focus-visible:ring-primary-strong hover:text-on-surface hover:bg-surface flex size-9 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2',
+                        )}
+                        aria-label={`Ver o trajeto de ${selectedVehicle.plate}`}
+                        title={`Trajeto de ${selectedVehicle.plate}`}
+                      >
+                        <RouteIcon size={18} aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
+
+              {/*
+                O DRAWER da ficha, e ele é um drawer de verdade.
+
+                São duas animações ao mesmo tempo, e as duas precisam existir:
+
+                1. A LARGURA do `aside`, que é o que faz o mapa encolher e
+                   esticar. Quem avisa o MapLibre a cada passo é o
+                   `ResizeObserver` do FleetMap; sem ele o canvas fica do tamanho
+                   antigo e o clique sai deslocado do que se vê.
+                2. O DESLIZE do painel, que entra e sai pela direita. Sem ele o
+                   conteúdo aparecia de um quadro para o outro dentro de uma
+                   caixa que crescia, que é meio drawer: abria deslizando e
+                   fechava piscando (apontado pelo usuário em 05/09/2026).
+
+                ⚠️ O conteúdo continua montado durante a saída, por causa do
+                `fichaVeiculo`. Desmontar junto com a seleção deixava a caixa
+                encolher vazia, e a animação de saída não existia de fato. Quem
+                apaga a ficha é o `onTransitionEnd`, depois que ela terminou.
+              */}
+              <aside
+                aria-label={fichaVeiculo ? `Detalhes de ${fichaVeiculo.plate}` : undefined}
+                aria-hidden={selectedVehicle ? undefined : true}
+                onTransitionEnd={(evento) => {
+                  /* Só a transição de LARGURA deste elemento encerra a ficha: o
+                     deslize do painel de dentro também borbulha até aqui, e sem
+                     o filtro a ficha sumiria no meio da animação. */
+                  if (evento.target === evento.currentTarget && evento.propertyName === 'width') {
+                    if (!selectedId) setFichaId(null);
+                  }
+                }}
+                className={cn(
+                  'relative hidden shrink-0 overflow-hidden transition-[width,margin] duration-300 ease-out 2xl:block',
+                  /*
+                   * ⚠️ A margem NEGATIVA é o que leva a gaveta até a borda da
+                   * tela (pedido do usuário em 05/09/2026): a página tem
+                   * `xl:px-10`, e sem cancelar esse respiro sobrava uma faixa de
+                   * fundo à direita, como se a gaveta tivesse parado antes de
+                   * chegar. Ela entra na MESMA transição da largura, senão os 40
+                   * pixels apareceriam de um quadro para o outro.
+                   *
+                   * O 40 é literal de propósito: a gaveta só existe a partir de
+                   * 2xl, e nessa largura o respiro da página é sempre o
+                   * `xl:px-10`. Mudar o padding da página pede mudar aqui.
+                   */
+                  selectedVehicle ? 'w-[380px] -mr-10' : 'mr-0 w-0',
+                )}
+              >
+                {/*
+                  ⚠️ O painel fica SEMPRE montado, ancorado na direita.
+
+                  Montado só quando há ficha, ele nasceria já na posição aberta e
+                  a entrada não animaria: transição precisa de um estado anterior
+                  para sair dele. Ancorado à direita, ele desliza para dentro
+                  enquanto a caixa abre, e para fora enquanto ela fecha, que é o
+                  movimento de um drawer.
+                */}
+                <div
+                  className={cn(
+                    'absolute inset-y-0 right-0 w-[380px] transition-transform duration-300 ease-out',
+                    selectedVehicle ? 'translate-x-0' : 'translate-x-full',
+                  )}
+                >
+                  {fichaVeiculo ? (
+                    <VehicleDrawer
+                      vehicle={fichaVeiculo}
+                      onClose={limparSelecao}
+                      trajetoAberto={trajetoAberto}
+                      onToggleTrajeto={() => setTrajetoAberto((aberto) => !aberto)}
+                    />
+                  ) : null}
+                </div>
+              </aside>
             </div>
           </section>
         </QueryState>

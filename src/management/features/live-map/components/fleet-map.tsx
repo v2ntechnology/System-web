@@ -1,4 +1,4 @@
-import type { VehiclePosition, VehicleStatus } from '@/management/types';
+import type { VehiclePosition } from '@/management/types';
 import type { FeatureCollection, Point } from 'geojson';
 import { Spinner, cn } from '@/management/ui';
 import {
@@ -12,10 +12,18 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { MAP_STYLE, mapStyleUrlNow } from '@/components/shared/map-style';
+import {
+  MAP_STYLE,
+  mapBaseUrl,
+  mapStyleUrlNow,
+  type MapBaseId,
+} from '@/components/shared/map-style';
 import { useThemeStore } from '@/stores/theme-store';
 
 import { criarFleet3dLayer, type Fleet3dLayer } from './fleet-3d-layer';
+
+import { STATUS_COLOR } from '../status-color';
+import type { TrajetoPreparado } from '../track-segments';
 import {
   REPLAY_ARROW,
   REPLAY_BADGE,
@@ -88,6 +96,8 @@ const TAMANHO_DA_SETA: ['interpolate', ['linear'], ['zoom'], ...number[]] = [
 const SOURCE_TRACK = 'track';
 const LAYER_TRACK = 'track-line';
 const LAYER_TRACK_GLOW = 'track-glow';
+const SOURCE_TRACK_GAPS = 'track-gaps';
+const LAYER_TRACK_GAPS = 'track-gaps-line';
 const SOURCE_TRACK_ENDS = 'track-ends';
 const LAYER_TRACK_ENDS = 'track-ends-circle';
 
@@ -98,6 +108,33 @@ const SOURCE_PLAYHEAD = 'playhead';
 /* Duas camadas, pelo mesmo motivo dos veículos: a seta gira, o crachá não. */
 const LAYER_PLAYHEAD_ARROW = 'playhead-arrow';
 const LAYER_PLAYHEAD_BADGE = 'playhead-badge';
+
+/**
+ * A câmera de perseguição do replay (pedido do usuário em 06/09/2026).
+ *
+ * O pedido foi literal: "como se fosse o Waze". Três coisas fazem essa
+ * sensação, e nenhuma delas sozinha basta:
+ *
+ *   1. INCLINAÇÃO alta. A 60 graus a via corre para o horizonte e o caminhão
+ *      ganha volume; de cima ele é um adesivo sobre um desenho.
+ *   2. GIRO acompanhando o rumo, para o caminhão apontar sempre para cima da
+ *      tela. É o que transforma "olhar um mapa" em "ir junto".
+ *   3. ZOOM de rua. No zoom regional a perspectiva não aparece e a perseguição
+ *      não se distingue de um mapa parado.
+ *
+ * ⚠️ A câmera é movida com `jumpTo`, e NUNCA com `easeTo`. O `easeTo` agenda
+ * uma animação própria, e chamá-lo sessenta vezes por segundo empilha animações
+ * que brigam entre si: o resultado é uma câmera que treme e fica para trás. A
+ * suavização é feita por nós, interpolando o alvo a cada quadro, que é o mesmo
+ * princípio da perseguição de giro do caminhão.
+ */
+const PITCH_DA_PERSEGUICAO = 60;
+const ZOOM_DA_PERSEGUICAO = 16;
+
+/** Quanto do que falta a câmera vence por quadro. Menor é mais macio. */
+const SUAVIDADE_DA_CAMERA = 0.12;
+/** O giro é mais lento que a posição: câmera que gira rápido embrulha o estômago. */
+const SUAVIDADE_DO_GIRO = 0.06;
 
 /**
  * Duração do deslize entre uma leitura e a seguinte.
@@ -131,14 +168,6 @@ const ZOOM_DE_FOCO = 13;
  */
 const ESPERA_MAXIMA_MS = 15_000;
 
-const STATUS_COLOR: Record<VehicleStatus, string> = {
-  EM_VIAGEM: '#38BDF8',
-  DISPONIVEL: '#34D399',
-  MANUTENCAO: '#FBBF24',
-  BLOQUEADO: '#FB7185',
-  SEM_SINAL: '#94A3B8',
-};
-
 interface Desenhado {
   lng: number;
   lat: number;
@@ -164,13 +193,39 @@ export interface ReplayPose {
  */
 export interface FleetMapHandle {
   setReplayPose: (pose: ReplayPose | null) => void;
+  /**
+   * Inclina a câmera ou devolve a vista de cima.
+   *
+   * ⚠️ Mora aqui, e não na página, porque quem tem a instância do mapa é este
+   * componente. A página só diz o que quer, e lê o estado pelo retorno.
+   */
+  alternarInclinacao: () => boolean;
+  estaInclinado: () => boolean;
+
+  /**
+   * Liga e desliga o acompanhamento da câmera durante o replay.
+   *
+   * Ligado, a câmera vai atrás do caminhão numa vista de perseguição, como um
+   * aplicativo de navegação. Desligado, a câmera fica onde a pessoa deixou.
+   */
+  seguirReplay: (ligado: boolean) => void;
 }
 
 export interface FleetMapProps {
   positions: VehiclePosition[];
   selectedId: string | null;
   onSelect: (vehicleId: string) => void;
-  track?: [number, number][] | undefined;
+  /**
+   * A rota do veículo escolhido, já separada em trechos medidos e lacunas.
+   *
+   * ⚠️ Recebe o resultado de `prepararTrajeto`, e NÃO a lista crua de
+   * coordenadas. A diferença é o ponto todo: com a lista crua o mapa liga
+   * leitura a leitura sem saber quanto tempo passou entre uma e outra, e
+   * desenha como percurso uma reta de 20 km que ninguém mediu.
+   */
+  track?: TrajetoPreparado | undefined;
+  /** A base cartográfica escolhida na tela. Ausente segue o tema. */
+  basemap?: MapBaseId | undefined;
   /** Células do mapa de calor. Vazio ou ausente esconde a camada. */
   heat?: { coordinates: [number, number]; total: number }[] | undefined;
   /**
@@ -209,6 +264,8 @@ function toGeoJson(
           vehicleId: vehicle.vehicleId,
           plate: vehicle.plate,
           driverName: vehicle.driverName ?? '',
+          company: vehicle.company ?? '',
+          place: vehicle.place ?? '',
           speedKmh: Math.round(vehicle.speedKmh),
           status: vehicle.status,
           color: STATUS_COLOR[vehicle.status],
@@ -244,15 +301,96 @@ function interpolarAngulo(de: number, para: number, fracao: number): number {
 /** Suaviza a ponta da animação: começa e termina devagar. */
 const suavizar = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
-const temRota = (track: [number, number][] | undefined): track is [number, number][] =>
-  Array.isArray(track) && track.length >= 2;
+/** Os rótulos dos status, iguais aos da legenda logo acima do mapa. */
+const ROTULO_DO_STATUS: Record<string, string> = {
+  EM_VIAGEM: 'Em viagem',
+  DISPONIVEL: 'Disponível',
+  MANUTENCAO: 'Manutenção',
+  BLOQUEADO: 'Bloqueado',
+  SEM_SINAL: 'Sem sinal',
+};
 
-function toTrackLine(track: [number, number][]): FeatureCollection {
+/**
+ * A dica que aparece ao passar o cursor sobre um caminhão.
+ *
+ * ⚠️ HTML montado à mão porque o MapLibre pede string, e por isso TODO valor
+ * passa por `escapar`: placa, nome de motorista e nome de empresa vêm da
+ * telemetria do fornecedor, que é entrada externa. Um nome com `<` viraria
+ * marcação dentro da nossa página.
+ *
+ * Ordem pensada para a leitura de quem opera: a placa identifica, o status e a
+ * velocidade dizem o que ele está fazendo agora, e embaixo vem de quem ele é e
+ * onde está. Linha sem dado não aparece, em vez de aparecer vazia: dica com
+ * campo em branco parece defeito.
+ */
+function dicaDoVeiculo(p: Record<string, unknown>): string {
+  const status = String(p.status ?? '');
+  /*
+   * `bloco` é para o valor longo, como o endereço: ele desce para a linha de
+   * baixo em vez de espremer o rótulo até quebrar a palavra. É a mesma decisão
+   * já tomada na ficha do drawer, e pelo mesmo motivo.
+   */
+  const linha = (rotulo: string, valor: string, bloco = false) =>
+    valor
+      ? `<div class="fleet-popup__linha${bloco ? ' fleet-popup__linha--bloco' : ''}">` +
+        `<dt>${rotulo}</dt><dd>${escapar(valor)}</dd></div>`
+      : '';
+
+  return (
+    `<div class="fleet-popup__topo">` +
+    `<span class="fleet-popup__placa">${escapar(String(p.plate ?? ''))}</span>` +
+    `<span class="fleet-popup__selo" data-status="${escapar(status)}">` +
+    `<i></i>${escapar(ROTULO_DO_STATUS[status] ?? status)}</span>` +
+    `</div>` +
+    `<div class="fleet-popup__velocidade">` +
+    `<b>${Number(p.speedKmh ?? 0).toLocaleString('pt-BR')}</b> km/h` +
+    `</div>` +
+    `<dl class="fleet-popup__lista">` +
+    linha('Motorista', String(p.driverName ?? '')) +
+    linha('Empresa', String(p.company ?? '')) +
+    linha('Local', String(p.place ?? ''), true) +
+    `</dl>`
+  );
+}
+
+const temRota = (track: TrajetoPreparado | undefined): track is TrajetoPreparado =>
+  track != null && track.coordenadas.length >= 2;
+
+/**
+ * Os trechos MEDIDOS, cada um como uma linha própria.
+ *
+ * Um `MultiLineString` em vez de uma linha única: é o que impede o traço sólido
+ * de atravessar a lacuna. O mesmo que o `gaps=split` do OSRM faz do lado do
+ * motor de rota.
+ */
+function toTrackLine(segmentos: TrajetoPreparado['segmentos']): FeatureCollection {
   return {
     type: 'FeatureCollection',
     features: [
-      { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: track } },
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'MultiLineString', coordinates: segmentos },
+      },
     ],
+  };
+}
+
+/**
+ * As LACUNAS, que existem na tela mas não afirmam caminho.
+ *
+ * Desenhadas, e não apagadas: sumir com elas esconderia que a frota tem buraco
+ * de cobertura, que é informação de operação. O tracejado diz "aqui não houve
+ * leitura", e o `title` do popup diz de quanto foi.
+ */
+function toTrackGaps(lacunas: TrajetoPreparado['lacunas']): FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: lacunas.map((lacuna) => ({
+      type: 'Feature',
+      properties: { minutos: lacuna.minutos, km: lacuna.km },
+      geometry: { type: 'LineString', coordinates: [lacuna.de, lacuna.para] },
+    })),
   };
 }
 
@@ -308,7 +446,7 @@ function toTrackEnds(track: [number, number][]): FeatureCollection<Point> {
  * recebida, e o resultado é um veículo que anda.
  */
 export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function FleetMap(
-  { positions, selectedId, onSelect, track, heat, hoveredId, className },
+  { positions, selectedId, onSelect, track, heat, hoveredId, basemap, className },
   ref,
 ) {
   const container = useRef<HTMLDivElement>(null);
@@ -325,6 +463,37 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
    * spinner existe para evitar.
    */
   const [modelo3dPronto, setModelo3dPronto] = useState(false);
+
+  /*
+   * O acompanhamento do replay.
+   *
+   * ⚠️ Em `ref`, e não em estado: isto é lido dentro do laço de animação, que
+   * roda por quadro. Estado aqui re-renderizaria a página inteira sessenta vezes
+   * por segundo, que é o defeito já registrado no player do trajeto.
+   */
+  const seguindo = useRef(false);
+  /*
+   * ⚠️ A entrada na perseguição é feita PELO MESMO laço que persegue, e não por
+   * um `easeTo` à parte.
+   *
+   * A primeira versão animava a entrada com `easeTo` e deixava o laço cuidar do
+   * resto. Não funciona: `jumpTo` cancela qualquer animação em curso, e como o
+   * laço roda a cada quadro, ele matava o `easeTo` no quadro seguinte. Medido:
+   * o pitch ficava nos 55 que a tela já tinha, sem nunca chegar aos 60 pedidos.
+   *
+   * Enquanto esta marca está ligada, o laço também aproxima zoom e inclinação.
+   * Ao alcançá-los ela desliga, e a partir daí os dois ficam na mão de quem está
+   * olhando: continuar corrigindo impediria a pessoa de dar zoom durante o
+   * replay, e tirar o controle é pior que uma entrada menos precisa.
+   */
+  const entrandoNaPerseguicao = useRef(false);
+  /* A câmera de onde a perseguição partiu, para devolver ao terminar. */
+  const cameraAntesDoReplay = useRef<{
+    center: [number, number];
+    zoom: number;
+    pitch: number;
+    bearing: number;
+  } | null>(null);
 
   /* Handler em ref: trocar de veículo selecionado não pode recriar o listener. */
   const onSelectRef = useRef(onSelect);
@@ -369,6 +538,20 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
       style: mapStyleUrlNow(),
       center: [-43.25, -22.88],
       zoom: 9.4,
+      /*
+       * ⚠️ A tela ABRE inclinada (pedido do usuário em 05/09/2026).
+       *
+       * São os mesmos números do botão de inclinar, e precisam continuar
+       * iguais: o botão decide o que fazer olhando `getPitch() > 5`, então um
+       * ângulo inicial diferente deixaria o ícone dizendo uma coisa e a câmera
+       * mostrando outra.
+       *
+       * O giro entra junto pelo motivo já registrado no botão: inclinar com o
+       * norte para cima é justamente o ângulo em que um caminhão se esconde
+       * atrás do outro.
+       */
+      pitch: 55,
+      bearing: -20,
       /* Sempre aberta, nunca em botão: a atribuição do OpenStreetMap é
          obrigatória, e no modo compacto ela saltava para cima a cada clique.
          O desenho e o motivo completo ficam em `styles/globals.css`. */
@@ -533,6 +716,7 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
       /* A rota entra antes dos veículos: o MapLibre desenha na ordem de
          inserção, e a linha por cima passaria em cima do caminhão. */
       fonte(SOURCE_TRACK, { type: 'geojson', data: vazio() });
+      fonte(SOURCE_TRACK_GAPS, { type: 'geojson', data: vazio() });
       fonte(SOURCE_TRACK_ENDS, { type: 'geojson', data: vazio() });
       fonte(SOURCE_PLAYHEAD, { type: 'geojson', data: vazio() });
 
@@ -549,6 +733,25 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
         source: SOURCE_TRACK,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': '#38BDF8', 'line-width': 2.5, 'line-opacity': 0.9 },
+      });
+      /*
+       * A lacuna, em tracejado fino e apagado.
+       *
+       * ⚠️ Vem ANTES do traço sólido de propósito, e mais fina: ela é a ausência
+       * de dado, e não pode competir com o que foi medido. Sem cor própria, para
+       * não parecer um segundo tipo de rota.
+       */
+      camada({
+        id: LAYER_TRACK_GAPS,
+        type: 'line',
+        source: SOURCE_TRACK_GAPS,
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': claro ? '#94A3B8' : '#64748B',
+          'line-width': 1.5,
+          'line-opacity': 0.75,
+          'line-dasharray': [2, 3],
+        },
       });
       camada({
         id: LAYER_TRACK_ENDS,
@@ -740,14 +943,7 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
         const p = feature.properties ?? {};
         const coordenadas = (feature.geometry as Point).coordinates.slice() as [number, number];
 
-        popup
-          .setLngLat(coordenadas)
-          .setHTML(
-            `<strong>${escapar(String(p.plate ?? ''))}</strong>` +
-              `<span>${Number(p.speedKmh ?? 0)} km/h</span>` +
-              (p.driverName ? `<em>${escapar(String(p.driverName))}</em>` : ''),
-          )
-          .addTo(mapa);
+        popup.setLngLat(coordenadas).setHTML(dicaDoVeiculo(p)).addTo(mapa);
       });
 
       mapa.on('mouseleave', LAYER_ICON, () => {
@@ -827,10 +1023,81 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
    * e é justamente por isso que precisa estar certo: quem religar o escuro
    * não vai descobrir sozinho que `setStyle` apaga as camadas.
    */
+  /**
+   * O mapa precisa ser avisado quando o CONTAINER muda de tamanho.
+   *
+   * ⚠️ O MapLibre escuta o `resize` da JANELA, e só ele. Quando o drawer da
+   * ficha abre, o container encolhe sem a janela mudar de tamanho: sem este
+   * observador o canvas continua com a largura antiga, e o mapa aparece
+   * esticado e com o clique deslocado do que se vê. Foi o que quase escapou ao
+   * transformar a ficha em drawer (05/09/2026).
+   */
+  useEffect(() => {
+    const alvo = container.current;
+    if (!alvo) return;
+
+    const observador = new ResizeObserver(() => map.current?.resize());
+    observador.observe(alvo);
+    return () => observador.disconnect();
+  }, []);
+
+  /**
+   * O ângulo da câmera, escrito no DOM.
+   *
+   * O MapLibre não expõe a instância para fora do componente, e sem isto não há
+   * como conferir de fora se a câmera está inclinada: no zoom de cidade a
+   * diferença entre 0 e 55 graus é sutil demais para julgar por captura de tela.
+   * Com o atributo, um teste lê o número em vez de opinar sobre a imagem.
+   */
+  useEffect(() => {
+    const instancia = map.current;
+    const alvo = container.current;
+    if (!instancia || !alvo) return;
+
+    const anotar = () => {
+      alvo.dataset.pitch = String(Math.round(instancia.getPitch()));
+      alvo.dataset.bearing = String(Math.round(instancia.getBearing()));
+    };
+
+    anotar();
+    instancia.on('move', anotar);
+    return () => {
+      instancia.off('move', anotar);
+    };
+  }, [ready]);
+
+  /**
+   * O marcador 2D do replay some quando o caminhão 3D existe.
+   *
+   * ⚠️ Depende de `ready` além de `modelo3dPronto`: a camada só pode ser
+   * escondida depois de montada, e trocar de base remonta tudo, o que devolve
+   * a visibilidade padrão. Por isso ele roda de novo a cada remontagem.
+   */
+  useEffect(() => {
+    const instancia = map.current;
+    if (!ready || !instancia) return;
+
+    const visibilidade = modelo3dPronto ? 'none' : 'visible';
+    for (const camada of [LAYER_PLAYHEAD_ARROW, LAYER_PLAYHEAD_BADGE]) {
+      if (instancia.getLayer(camada)) {
+        instancia.setLayoutProperty(camada, 'visibility', visibilidade);
+      }
+    }
+  }, [ready, modelo3dPronto]);
+
   const theme = useThemeStore((state) => state.theme);
   useEffect(() => {
-    map.current?.setStyle(MAP_STYLE[theme]);
-  }, [theme]);
+    /*
+     * ⚠️ A base ESCOLHIDA na tela vence o tema.
+     *
+     * Quem escolheu o noturno escolheu o noturno, e não quer que uma troca de
+     * tema desfaça isso. Sem a escolha, o tema continua mandando, como sempre
+     * mandou. Em qualquer um dos dois casos o que estava desenhado por cima
+     * volta pelo ouvinte de `styledata`, que é o que impede o `setStyle` de
+     * apagar os caminhões para sempre.
+     */
+    map.current?.setStyle(basemap ? mapBaseUrl(basemap) : MAP_STYLE[theme]);
+  }, [theme, basemap]);
 
   /**
    * Posição nova: anima do desenhado até o recebido.
@@ -1014,19 +1281,22 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
     if (!ready || !map.current) return;
 
     const linha = map.current.getSource(SOURCE_TRACK) as GeoJSONSource | undefined;
+    const vaos = map.current.getSource(SOURCE_TRACK_GAPS) as GeoJSONSource | undefined;
     const pontas = map.current.getSource(SOURCE_TRACK_ENDS) as GeoJSONSource | undefined;
 
     if (!temRota(track)) {
       linha?.setData(vazio());
+      vaos?.setData(vazio());
       pontas?.setData(vazio());
       return;
     }
 
-    linha?.setData(toTrackLine(track));
-    pontas?.setData(toTrackEnds(track));
+    linha?.setData(toTrackLine(track.segmentos));
+    vaos?.setData(toTrackGaps(track.lacunas));
+    pontas?.setData(toTrackEnds(track.coordenadas));
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    map.current.fitBounds(envolver(track), {
+    map.current.fitBounds(envolver(track.coordenadas), {
       /* `maxZoom` alto porque uma rota curta, de entrega urbana, precisa de zoom
          de rua para a linha não virar um borrão de dois pixels. */
       padding: 72,
@@ -1060,10 +1330,69 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
    * Não move a câmera junto, de propósito: seguir o ponto faria o mapa correr
    * sozinho enquanto o gestor tenta olhar um cruzamento específico.
    */
+  /**
+   * Leva a câmera atrás do caminhão, um quadro por vez.
+   *
+   * ⚠️ Só interpola o que precisa: o centro e o giro perseguem o alvo, mas zoom
+   * e inclinação são cravados uma vez, na entrada. Interpolá-los todo quadro
+   * impediria a pessoa de dar zoom durante o replay, e tirar o controle da mão
+   * de quem está olhando é pior que uma transição menos bonita.
+   */
+  const perseguir = (pose: ReplayPose) => {
+    const instancia = map.current;
+    if (!seguindo.current || !instancia) return;
+
+    const centro = instancia.getCenter();
+    const alvoGiro = pose.heading;
+    const giroAtual = instancia.getBearing();
+    /* Menor arco: sem isto, ir de 350 para 10 graus faria a câmera dar a volta
+       inteira pelo lado errado. */
+    const diferenca = ((((alvoGiro - giroAtual) % 360) + 540) % 360) - 180;
+
+    const camera: Parameters<typeof instancia.jumpTo>[0] = {
+      center: [
+        centro.lng + (pose.lng - centro.lng) * SUAVIDADE_DA_CAMERA,
+        centro.lat + (pose.lat - centro.lat) * SUAVIDADE_DA_CAMERA,
+      ],
+      bearing: giroAtual + diferenca * SUAVIDADE_DO_GIRO,
+    };
+
+    if (entrandoNaPerseguicao.current) {
+      const zoom = instancia.getZoom();
+      const pitch = instancia.getPitch();
+      camera.zoom = zoom + (ZOOM_DA_PERSEGUICAO - zoom) * SUAVIDADE_DA_CAMERA;
+      camera.pitch = pitch + (PITCH_DA_PERSEGUICAO - pitch) * SUAVIDADE_DA_CAMERA;
+
+      /* Chegou perto o bastante: solta os dois. Meio grau e um centésimo de
+         nível de zoom são menores que qualquer diferença perceptível. */
+      if (
+        Math.abs(ZOOM_DA_PERSEGUICAO - zoom) < 0.01 &&
+        Math.abs(PITCH_DA_PERSEGUICAO - pitch) < 0.5
+      ) {
+        entrandoNaPerseguicao.current = false;
+      }
+    }
+
+    instancia.jumpTo(camera);
+  };
+
   useImperativeHandle(
     ref,
     () => ({
       setReplayPose: (pose) => {
+        /*
+         * ⚠️ Quem desenha o caminhão do replay é a camada 3D, e o crachá 2D
+         * ficou como PLANO B (pedido do usuário em 06/09/2026: "não só uma
+         * setinha").
+         *
+         * Os dois recebem a pose, mas só um aparece: o 2D é escondido assim que
+         * o GLB carrega, no efeito de `modelo3dPronto`. Se o modelo falhar, o
+         * crachá continua lá e o replay não fica sem marcador nenhum, que é o
+         * mesmo cuidado que a frota já tem.
+         */
+        layer3d.current?.definirReplay(pose);
+        if (pose) perseguir(pose);
+
         const fonte = map.current?.getSource(SOURCE_PLAYHEAD) as GeoJSONSource | undefined;
         if (!fonte) return;
 
@@ -1079,6 +1408,74 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
               ]
             : [],
         });
+      },
+
+      /**
+       * Inclina a câmera, ou devolve a vista de cima.
+       *
+       * ⚠️ `easeTo`, e não `setPitch`: o salto seco de 0 para 55 graus tira a
+       * referência de quem está olhando, porque o território inteiro muda de
+       * forma num quadro. A curva de um segundo mantém a orientação.
+       *
+       * O giro (`bearing`) vai junto com a inclinação de propósito. Inclinar sem
+       * girar dá uma vista em perspectiva com o norte ainda para cima, que é
+       * justamente o ângulo em que os prédios e os caminhões se escondem uns
+       * atrás dos outros.
+       */
+      alternarInclinacao: () => {
+        const instancia = map.current;
+        if (!instancia) return false;
+
+        const inclinado = instancia.getPitch() > 5;
+        instancia.easeTo({
+          pitch: inclinado ? 0 : 55,
+          bearing: inclinado ? 0 : -20,
+          duration: 900,
+        });
+        return !inclinado;
+      },
+
+      estaInclinado: () => (map.current?.getPitch() ?? 0) > 5,
+
+      /**
+       * Entra na vista de perseguição, e devolve a câmera anterior ao sair.
+       *
+       * ⚠️ A câmera de origem é GUARDADA na entrada. Sem isso, terminar o replay
+       * deixaria a pessoa num zoom de rua olhando um cruzamento, sem relação com
+       * o enquadramento que ela tinha antes de dar play, e a única saída seria
+       * afastar o mapa na mão.
+       */
+      seguirReplay: (ligado) => {
+        const instancia = map.current;
+        if (!instancia || seguindo.current === ligado) return;
+
+        seguindo.current = ligado;
+        const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        if (ligado) {
+          const centro = instancia.getCenter();
+          cameraAntesDoReplay.current = {
+            center: [centro.lng, centro.lat],
+            zoom: instancia.getZoom(),
+            pitch: instancia.getPitch(),
+            bearing: instancia.getBearing(),
+          };
+          if (reduzido) {
+            /* Quem pediu menos movimento recebe o corte seco, e não uma
+               aproximação de um segundo. */
+            instancia.jumpTo({ zoom: ZOOM_DA_PERSEGUICAO, pitch: PITCH_DA_PERSEGUICAO });
+          } else {
+            entrandoNaPerseguicao.current = true;
+          }
+          return;
+        }
+
+        entrandoNaPerseguicao.current = false;
+        const anterior = cameraAntesDoReplay.current;
+        cameraAntesDoReplay.current = null;
+        if (anterior) {
+          instancia.easeTo({ ...anterior, duration: reduzido ? 0 : 900 });
+        }
       },
     }),
     [],

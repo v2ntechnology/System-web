@@ -1,5 +1,7 @@
 import type { VehicleStatus } from '@/management/types';
 
+import { STATUS_COLOR } from '../status-color';
+
 /**
  * Marcadores de veículo do mapa.
  *
@@ -46,14 +48,6 @@ const CENTRO = TAMANHO / 2;
 const RAIO = 44;
 
 /** Cores por status, espelhando `features/trucks/vehicle-status.tsx`. */
-const STATUS_COLOR: Record<VehicleStatus, string> = {
-  EM_VIAGEM: '#38BDF8',
-  DISPONIVEL: '#34D399',
-  MANUTENCAO: '#FBBF24',
-  BLOQUEADO: '#FB7185',
-  SEM_SINAL: '#94A3B8',
-};
-
 /**
  * A cor do caminhão que refaz o trajeto.
  *

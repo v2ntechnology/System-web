@@ -31,6 +31,57 @@ import { useThemeStore, type Theme } from '@/stores/theme-store';
  * a atribuição do OpenStreetMap é inserida pela própria biblioteca. Chave de
  * mapa no navegador é chave publicada, e trocá-la depois é mudar esta constante.
  */
+/**
+ * As bases que a pessoa pode escolher no mapa ao vivo (05/09/2026).
+ *
+ * ⚠️ As cinco foram CONFERIDAS contra o provedor, uma a uma, e todas
+ * responderam 200, com estilo de verdade dentro (48 a 119 camadas). Listar um estilo que não existe não dá erro visível: o mapa
+ * fica em branco e parece que a tela quebrou.
+ *
+ * O OpenFreeMap publica só estas cinco, e é bom saber o que cada uma é para não
+ * prometer o que não há: NÃO existe imagem de satélite aqui. Satélite exige
+ * outro provedor, com chave e com custo, e chave no navegador é chave publicada.
+ */
+export const MAP_BASES = [
+  {
+    id: 'positron',
+    label: 'Minimalista',
+    hint: 'Base apagada: o caminhão é a única coisa que salta.',
+    url: 'https://tiles.openfreemap.org/styles/positron',
+  },
+  {
+    id: 'liberty',
+    label: 'Ruas',
+    hint: 'O detalhado: nome de via, quadra, verde e construção.',
+    url: 'https://tiles.openfreemap.org/styles/liberty',
+  },
+  {
+    id: 'bright',
+    label: 'Vivo',
+    hint: 'Cor forte nas vias, para enxergar a malha de longe.',
+    url: 'https://tiles.openfreemap.org/styles/bright',
+  },
+  {
+    id: 'dark',
+    label: 'Escuro',
+    hint: 'Fundo escuro, para monitorar de madrugada sem cansar a vista.',
+    url: 'https://tiles.openfreemap.org/styles/dark',
+  },
+  {
+    id: 'fiord',
+    label: 'Noturno',
+    hint: 'Escuro azulado, com menos contraste que o Escuro.',
+    url: 'https://tiles.openfreemap.org/styles/fiord',
+  },
+] as const;
+
+export type MapBaseId = (typeof MAP_BASES)[number]['id'];
+
+/** A URL de uma base escolhida, ou a do tema quando ninguém escolheu. */
+export function mapBaseUrl(id: MapBaseId): string {
+  return MAP_BASES.find((base) => base.id === id)?.url ?? MAP_BASES[0].url;
+}
+
 export const MAP_STYLE = {
   /**
    * O detalhado, que é o que a operação vê hoje.
