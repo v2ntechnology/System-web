@@ -120,7 +120,7 @@ function DesempenhoReal() {
               onClick={() => setDias(opcao.dias)}
               aria-pressed={dias === opcao.dias}
               className={cn(
-                'text-label-md focus-visible:ring-secondary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                'text-label-md focus-visible:ring-primary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
                 dias === opcao.dias
                   ? 'bg-primary-strong text-on-primary'
                   : 'bg-on-surface/8 text-on-surface-variant hover:text-on-surface',

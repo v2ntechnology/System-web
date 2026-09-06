@@ -124,7 +124,7 @@ export function NotificationsPage() {
                         notifications.filter((item) => !item.read).map((item) => item.id),
                       )
                     }
-                    className="text-label-md focus-visible:ring-secondary rounded-full bg-on-light/8 whitespace-nowrap px-3 py-1 normal-case text-on-light-variant transition-colors hover:text-on-light focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
+                    className="text-label-md focus-visible:ring-primary rounded-full bg-on-light/8 whitespace-nowrap px-3 py-1 normal-case text-on-light-variant transition-colors hover:text-on-light focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
                   >
                     {marcarLidas.isPending ? (
                       'marcando…'
@@ -258,7 +258,7 @@ export function NotificationsPage() {
                         {item.actionTo ? (
                           <Link
                             to={item.actionTo}
-                            className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-secondary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
+                            className="border-outline-variant hover:border-outline text-on-surface text-label-md focus-visible:ring-primary ml-auto inline-flex items-center gap-1.5 rounded-md border bg-on-surface/5 px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/10 focus-visible:outline-none focus-visible:ring-2"
                           >
                             {item.actionLabel ?? 'Abrir'}
                             <ArrowRightIcon size={14} aria-hidden="true" />

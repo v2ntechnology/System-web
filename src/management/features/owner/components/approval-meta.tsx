@@ -53,6 +53,18 @@ export const SEVERITY_LABEL: Record<WarningSeverity, string> = {
   GRAVE: 'Grave',
 };
 
+/**
+ * Faixa vertical da linha na fila, como na fila de impedimentos.
+ *
+ * Tokens `on-light` porque a lista mora no painel claro. A cor repete o rótulo
+ * de severidade, nunca substitui: a linha continua dizendo "Grave" por escrito.
+ */
+export const SEVERITY_RAIL: Record<WarningSeverity, string> = {
+  LEVE: 'bg-on-light-muted',
+  MEDIA: 'bg-warning-on-light',
+  GRAVE: 'bg-error-on-light',
+};
+
 export const STATUS_META: Record<OwnerApprovalStatus, { label: string; tone: StatusTone }> = {
   PENDENTE: { label: 'Aguardando você', tone: 'attention' },
   APROVADA: { label: 'Aprovada', tone: 'positive' },

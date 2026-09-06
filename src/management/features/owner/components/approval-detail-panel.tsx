@@ -55,11 +55,11 @@ export function ApprovalDetailPanel({ approval }: ApprovalDetailPanelProps) {
 
       if (updated.status === 'APROVADA') {
         toast.success('Aprovação registrada', {
-          description: `${updated.title} — a decisão foi para o log de auditoria.`,
+          description: `${updated.title}. A decisão foi para o log de auditoria.`,
         });
       } else {
         toast.info('Recusa registrada', {
-          description: `${updated.title} — o gestor foi notificado.`,
+          description: `${updated.title}. O gestor foi notificado.`,
         });
       }
     },
@@ -186,7 +186,7 @@ export function ApprovalDetailPanel({ approval }: ApprovalDetailPanelProps) {
             Justificativa da decisão
           </label>
           <p className="text-on-light-muted text-label-md mt-1 normal-case">
-            Obrigatória — vai para o log de auditoria junto com o seu nome.
+            Obrigatória, vai para o log de auditoria junto com o seu nome.
           </p>
 
           <textarea

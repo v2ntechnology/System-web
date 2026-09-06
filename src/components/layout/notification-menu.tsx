@@ -16,7 +16,9 @@ export function NotificationMenu() {
   const openAlerts = (alerts ?? []).filter(
     (a) => a.status === 'open' || a.status === 'in_progress',
   );
-  const preview = openAlerts.slice(0, 4);
+  /* Até doze, e a caixa rola: o `max-h-80` abaixo já existia, mas com quatro
+     itens fixos nunca chegava a rolar. */
+  const preview = openAlerts.slice(0, 12);
   const badge = openAlerts.length > 9 ? '9+' : String(openAlerts.length);
 
   return (
@@ -48,7 +50,10 @@ export function NotificationMenu() {
           <p className="font-display text-sm font-semibold">Notificações</p>
           <span className="text-xs text-muted-foreground">{openAlerts.length} ativas</span>
         </div>
-        <div className="max-h-80 overflow-y-auto">
+        {/* `overscroll-contain`: chegar no fim da lista e insistir na roda
+            rolava a página atrás da caixa. Mesmo defeito do sino do painel de
+            gestão, relatado pelo usuário em 05/09/2026. */}
+        <div className="max-h-80 overflow-y-auto overscroll-contain">
           {preview.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">
               Nenhuma notificação ativa.

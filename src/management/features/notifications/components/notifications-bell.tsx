@@ -1,4 +1,4 @@
-import { ArrowRightIcon, BellIcon } from '@/components/icons';
+import { BellIcon } from '@/components/icons';
 import * as Popover from '@radix-ui/react-popover';
 import { POPOVER_LAYER, PORTAL_FOCUS_RING, Spinner, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -22,7 +22,14 @@ export function NotificationsBell() {
   });
 
   const unread = data?.filter((item) => !item.read).length ?? 0;
-  const latest = data?.slice(0, 4) ?? [];
+  /*
+   * A caixa mostra até doze e ROLA a partir da quinta.
+   *
+   * ⚠️ Antes cortava em quatro, e o corte era no dado, não na altura: com 17
+   * não lidas, treze não tinham como aparecer e a rolagem não tinha o que
+   * rolar. Quem quisesse ver o resto precisava abrir a página inteira.
+   */
+  const latest = data?.slice(0, 12) ?? [];
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -34,7 +41,7 @@ export function NotificationsBell() {
              símbolo e a contagem, como no painel operacional. Como aqui ele fica
              sobre a fotografia do banner, a cor é `on-media` e o véu do hover é
              branco fixo, igual ao botão de menu ao lado. */
-          className="acao-neutra rounded-pill focus-visible:ring-secondary focus-visible:ring-offset-surface relative flex size-10 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          className="acao-neutra rounded-pill focus-visible:ring-primary focus-visible:ring-offset-surface relative flex size-10 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >
           <BellIcon size={22} />
           {unread > 0 ? (
@@ -82,7 +89,15 @@ export function NotificationsBell() {
               Nenhuma notificação por aqui.
             </p>
           ) : (
-            <ul className="my-1 flex flex-col">
+            /* A altura corta em pouco mais de quatro itens, então sempre fica
+               meia linha à mostra: é o que avisa que há mais abaixo. A barra
+               não aparece, como em todo o sistema.
+
+               ⚠️ `overscroll-contain` é o que impede a rolagem de vazar para a
+               página (relatado pelo usuário em 05/09/2026): ao chegar no fim da
+               lista, insistir na roda rolava a tela atrás da caixa, e o dono
+               perdia de vista o que estava lendo. */
+            <ul className="my-1 flex max-h-[21rem] flex-col overflow-y-auto overscroll-contain">
               {latest.map((item) => {
                 const severity = SEVERITY[item.severity];
                 const SeverityIcon = severity.icon;
@@ -153,29 +168,35 @@ export function NotificationsBell() {
 
           <div className="border-outline-variant border-t pt-2">
             {/*
-             * Ação preenchida, e não texto colorido.
+             * Só o nome (decisão do usuário em 05/09/2026, que substitui a
+             * pastilha preenchida de 27/08). A caixa tem uma ação só, ela não
+             * precisa de peso para ser encontrada, e a pastilha disputava
+             * atenção com as notificações que a pessoa veio ler. Sem seta, sem
+             * véu e sem sublinhado: o retorno do hover é a cor da própria
+             * palavra.
              *
-             * ⚠️ Duas armadilhas de contraste, nesta ordem. Era
-             * `text-secondary`, que fora de `.management-theme` vira o cinza de
-             * controle do painel operacional: o link lia como desabilitado.
-             * Trocar por `text-primary-strong` resolveu no claro e continuou
-             * ruim no escuro, porque #5457ee como TEXTO sobre superfície escura
-             * fica abaixo de 4,5:1 — esse token foi medido para levar branco em
-             * cima dele, não para ser a tinta.
+             * ⚠️ A tinta em repouso é `text-on-surface`, e as duas escolhas
+             * óbvias já falharam aqui. `text-secondary` fora de
+             * `.management-theme` vira o cinza de controle do painel
+             * operacional, e o link lê como desabilitado (27/08/2026).
+             * `text-primary-strong` como TEXTO sobre superfície escura fica
+             * abaixo de 4,5:1: aquele token foi medido para levar branco em cima
+             * dele, não para ser a tinta.
              *
-             * Branco sobre `primary-strong` dá 5,3:1 nos dois temas, e de
-             * quebra a única ação da caixa passa a parecer uma ação.
+             * O hover usa `primary-on-light`, que é o único laranja da paleta
+             * que muda de valor com o tema e por isso passa nos dois: 5,00:1
+             * sobre `surface-low` no escuro (#db7a58 sobre #262626) e 5,91:1 no
+             * claro (#a24a2c sobre branco).
              */}
             <Link
               to="/gestao/notificacoes"
               onClick={() => setOpen(false)}
               className={cn(
-                'bg-primary-strong text-on-primary text-body-md flex items-center justify-center gap-1.5 rounded-md px-3 py-2 font-medium transition-colors hover:bg-[color-mix(in_oklab,var(--color-primary-strong)_86%,black)]',
+                'text-on-surface text-body-md hover:text-primary-on-light mx-auto flex w-fit items-center rounded-md px-4 py-2.5 font-medium transition-colors',
                 PORTAL_FOCUS_RING,
               )}
             >
               Ver todas as notificações
-              <ArrowRightIcon size={14} aria-hidden="true" />
             </Link>
           </div>
         </Popover.Content>
