@@ -755,6 +755,59 @@ Pedido do usuário: escolher entre voz feminina e masculina, a escolha sobrevive
 - Quem prefere feminina e cai num provedor sem voz feminina (o Piper) ouve a masculina, em vez de a
   assistente emudecer. O cabeçalho mostra o nome da voz no ar, senão o rodízio parece defeito.
 
+#### A conversa falada no celular (06/09/2026)
+
+Relatado pelo usuário, no Chrome do Android **e** no Safari do iPhone: ele começa a conversar, e na
+hora de a assistente responder o microfone reabre sozinho, ela volta a falar do começo e a resposta
+nunca chega. No computador a mesma tela funciona.
+
+- ⚠️ **`stop()` do reconhecimento é um pedido, não um fato.** A tela chamava `speech.stop()` e
+  seguia direto para tocar a resposta. No computador o encerramento vem em poucos milissegundos e
+  ninguém percebe; no celular ele demora, e a resposta começava com o reconhecedor **ainda segurando
+  o microfone**. No iPhone isso joga a saída no alto-falante da orelha, e a voz some; nos dois, a
+  fala dela volta para a captação e vira a pergunta seguinte. O `stop` agora devolve promessa que só
+  cumpre no `onend`, com teto de 1,5 s para navegador que engole o evento, e `finishListening` espera
+  por ela antes de falar.
+- ⚠️ **`abort()` e não `stop()` para encerrar.** `stop()` ainda entrega os trechos finais que estavam
+  na fila, e eles chegam **depois** de a pergunta ter sido enviada, sujando a próxima. Quem chama já
+  leu a transcrição.
+- ⚠️ **`start()` não significa que o microfone abriu.** O hook marcava `listening` no pedido, e no
+  celular o pedido é recusado quando a sessão anterior não fechou: a tela dizia "Estou ouvindo" com o
+  microfone fechado, o detector desistia por silêncio e a assistente respondia "não ouvi" em ciclo.
+  Quem marca agora é o `onstart` do navegador.
+- ⚠️ **O `AudioContext` do iPhone precisa nascer no toque.** Ele era criado dentro de
+  `startListening`, **depois** do `await` da saudação: fora do gesto, o iOS o deixa suspenso para
+  sempre e a assistente fica muda sem erro nenhum. Agora `garantirContextoDeReproducao` roda de forma
+  síncrona no `onClick`. Efeito colateral bem-vindo: a saudação voltou a ser falada na primeira vez,
+  que antes saía calada porque o contexto ainda não existia quando `phraseAudio` era chamado.
+- A pausa antes de reabrir o microfone é de 1 s em aparelho de ponteiro grosso, contra 500 ms no
+  computador. Lá o alto-falante fica a centímetros do microfone e não há como afastar um do outro.
+- ⚠️ **Isto tem teste porque não aparece em teste manual no computador**
+  (`use-speech-recognition.test.ts`, 6 casos). O reconhecimento falso só dispara os eventos quando o
+  teste manda, que é como se reproduz o celular lento. Mesma lição do `speech-detection.test.ts`.
+
+#### O seletor de voz virou animação (06/09/2026)
+
+Pedido do usuário: ver o seletor trocar, **inclusive quando a troca é pedida por voz**, e o seletor
+ficar mais visível.
+
+- A pílula desliza porque é posicionada pelo **gênero no ar**, e não por quem pediu a troca. Clique
+  e comando falado passam os dois por `trocarGenero`, então não existe um segundo caminho para
+  manter em pé. Um anel pisca junto, e ele existe pela troca falada: quem fala está olhando para a
+  esfera, e a mudança no cabeçalho aconteceria fora do campo de visão.
+- As colunas do seletor são iguais (`grid` com `1fr`) porque "Feminina" e "Masculina" têm larguras
+  diferentes: sem igualar, a pílula mudaria de tamanho no meio do caminho.
+- ⚠️ **O anel pisca de novo por causa da `key`.** Ela é o contador de trocas: sem trocar a chave, o
+  React reaproveita o elemento e o keyframe não recomeça. O keyframe é `voice-switch-flash`, no
+  `@theme` do `globals.css`.
+- ⚠️ **Não usar `setTimeout` guardado em ref para isso.** Foi a primeira tentativa, e o `ref` lido no
+  cleanup do efeito fez o compilador do React desistir de otimizar a tela inteira: o lint saltou de
+  0 para **7 erros de uma vez**, e nenhum deles apontava para o código novo (apontavam para
+  `useMemo`, `Date.now` e refs que já estavam lá havia semanas). O erro que importa é o primeiro,
+  `Compilation Skipped` no `useMemo`; os outros seis são consequência. Quando o lint explodir assim
+  depois de uma mudança pequena, o caminho é bissectar a própria mudança, não perseguir os
+  diagnósticos.
+
 #### Eco do alto-falante e modo de consulta
 
 As armadilhas do lado do servidor (placa soletrada com tolerância de edição, prompt, NDJSON e

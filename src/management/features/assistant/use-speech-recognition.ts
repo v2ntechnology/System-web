@@ -40,6 +40,7 @@ interface SpeechRecognitionLike {
   abort(): void;
   onresult: ((event: SpeechResultEvent) => void) | null;
   onerror: ((event: SpeechErrorEvent) => void) | null;
+  onstart: (() => void) | null;
   onend: (() => void) | null;
 }
 
@@ -63,6 +64,15 @@ const ERROR_MESSAGES: Record<string, string> = {
   'audio-capture': 'Nenhum microfone encontrado neste dispositivo.',
   network: 'Sem conexão para transcrever o áudio. Você pode digitar a pergunta.',
 };
+
+/**
+ * Quanto esperar pelo `onend` antes de seguir sem ele.
+ *
+ * Medido no celular: o encerramento costuma chegar em menos de 300 ms, mas
+ * passa disso quando o reconhecedor está enviando o último trecho. Um segundo e
+ * meio cobre a folga sem deixar a conversa parada.
+ */
+const TETO_DO_ENCERRAMENTO_MS = 1500;
 
 export interface UseSpeechRecognitionOptions {
   /** Chamado a cada trecho final. Em conversa longa vem mais de uma vez. */
@@ -109,6 +119,22 @@ export function useSpeechRecognition({ onResult, onSpeech }: UseSpeechRecognitio
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   /** A escuta ainda é desejada? É o que separa o fim nosso do fim do navegador. */
   const wantedRef = useRef(false);
+  /**
+   * Há uma sessão aberta no navegador, pedida e ainda sem `onend`?
+   *
+   * ⚠️ Não é o mesmo que `listening`, que é estado de tela. Este ref responde
+   * "o microfone ainda está na mão do reconhecedor?", e é o que `stop` precisa
+   * saber para prometer um fim de verdade.
+   */
+  const sessionRef = useRef(false);
+  /** Quem está esperando o `onend` desta sessão. */
+  const endWaitersRef = useRef<(() => void)[]>([]);
+
+  const resolveEndWaiters = useCallback(() => {
+    const fila = endWaitersRef.current;
+    endWaitersRef.current = [];
+    fila.forEach((avisar) => avisar());
+  }, []);
 
   /* Refs para os callbacks: trocá-los não pode reiniciar a escuta. */
   const onResultRef = useRef(onResult);
@@ -157,8 +183,23 @@ export function useSpeechRecognition({ onResult, onSpeech }: UseSpeechRecognitio
       setListening(false);
     };
 
+    /**
+     * ⚠️ Quem confirma a escuta é o navegador, e não o nosso pedido.
+     *
+     * `start()` só significa "pedi": no celular a sessão anterior pode ainda
+     * estar fechando, e o pedido é recusado. Marcar `listening` na hora do
+     * pedido pintava a tela de "Estou ouvindo" com o microfone fechado, e a
+     * pergunta nunca chegava.
+     */
+    recognition.onstart = () => {
+      sessionRef.current = true;
+      setListening(true);
+    };
+
     recognition.onend = () => {
+      sessionRef.current = false;
       setInterim('');
+      resolveEndWaiters();
       if (!wantedRef.current) {
         setListening(false);
         return;
@@ -166,6 +207,7 @@ export function useSpeechRecognition({ onResult, onSpeech }: UseSpeechRecognitio
       // O navegador encerrou por conta própria e a conversa continua: religa.
       try {
         recognition.start();
+        sessionRef.current = true;
       } catch {
         setListening(false);
       }
@@ -177,11 +219,16 @@ export function useSpeechRecognition({ onResult, onSpeech }: UseSpeechRecognitio
       wantedRef.current = false;
       recognition.onresult = null;
       recognition.onerror = null;
+      recognition.onstart = null;
       recognition.onend = null;
       recognition.abort();
       recognitionRef.current = null;
+      sessionRef.current = false;
+      /* Sem isto, quem estivesse esperando o fim da sessão ficaria pendurado
+         para sempre: o `onend` acabou de ser desligado. */
+      resolveEndWaiters();
     };
-  }, []);
+  }, [resolveEndWaiters]);
 
   const start = useCallback(() => {
     const recognition = recognitionRef.current;
@@ -189,19 +236,60 @@ export function useSpeechRecognition({ onResult, onSpeech }: UseSpeechRecognitio
 
     setError(null);
     wantedRef.current = true;
+    if (sessionRef.current) return;
+
     try {
       recognition.start();
-      setListening(true);
+      sessionRef.current = true;
     } catch {
-      /* `start()` numa sessão já ativa lança: o estado já é o desejado. */
-      setListening(true);
+      /* A sessão anterior ainda não fechou. `wantedRef` já está de pé, então o
+         `onend` dela religa: insistir aqui só lançaria de novo. */
     }
   }, []);
 
-  const stop = useCallback(() => {
+  /**
+   * Fecha a escuta e só resolve quando o microfone volta de fato para o sistema.
+   *
+   * ⚠️ A espera é o conserto do celular. `stop()` é um pedido assíncrono, e no
+   * Android e no iPhone ele leva bem mais que os poucos milissegundos do
+   * computador. Quem chamava seguia direto para tocar a resposta com o
+   * reconhecedor ainda segurando o microfone: no iPhone o áudio sai pelo
+   * alto-falante da orelha e some, e nos dois a voz dela volta para a captação e
+   * abre outra pergunta. O sintoma que o usuário relatou em 06/09/2026 é esse:
+   * o microfone reabre sozinho e a resposta nunca chega.
+   *
+   * ⚠️ `abort()` e não `stop()`: `stop()` ainda entrega os trechos finais que
+   * estavam na fila, e eles chegariam DEPOIS de a pergunta ter sido enviada,
+   * sujando a próxima. Quem chama já leu a transcrição.
+   */
+  const stop = useCallback((): Promise<void> => {
     wantedRef.current = false;
-    recognitionRef.current?.stop();
-    setListening(false);
+    const recognition = recognitionRef.current;
+
+    if (!recognition || !sessionRef.current) {
+      setListening(false);
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve) => {
+      let encerrado = false;
+      const encerrar = () => {
+        if (encerrado) return;
+        encerrado = true;
+        setListening(false);
+        resolve();
+      };
+
+      endWaitersRef.current.push(encerrar);
+      try {
+        recognition.abort();
+      } catch {
+        encerrar();
+      }
+      /* Rede de segurança: navegador de celular às vezes engole o `onend`, e
+         uma conversa travada é pior que meio segundo de eco. */
+      window.setTimeout(encerrar, TETO_DO_ENCERRAMENTO_MS);
+    });
   }, []);
 
   return { supported, listening, interim, error, start, stop };
