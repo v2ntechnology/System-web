@@ -214,7 +214,8 @@ export function TrucksPage() {
       />
 
       {/* -------------------------------------------------------------------
-       * Situação da frota, despesas do período e filtros
+       * Situação da frota e despesas do período
+       * (os filtros desceram para dentro do painel claro em 08/09/2026)
        * ----------------------------------------------------------------- */}
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Situação e despesas da frota no período</h2>
@@ -277,10 +278,6 @@ export function TrucksPage() {
             </p>
           </div>
         ) : null}
-
-        <div className="mt-6">
-          <FleetFilters value={filters} onChange={setFilters} brands={brands} />
-        </div>
       </section>
 
       {/* -------------------------------------------------------------------
@@ -293,6 +290,19 @@ export function TrucksPage() {
           onValueChange={setTab}
           label="Situação dos caminhões"
         >
+          {/*
+           * ⚠️ Os filtros moram DENTRO do painel branco (decisão do usuário em
+           * 08/09/2026), e não no papel acima dele.
+           *
+           * Eles recortam a lista que está aqui embaixo, então ficar do lado de
+           * fora separava o controle do que ele controla, e ainda deixava a barra
+           * na família de token do papel: um cinza frio ao lado do branco. Dentro
+           * do painel a ordem é a do funil, aba primeiro e refino depois.
+           */}
+          <div className="mb-5">
+            <FleetFilters value={filters} onChange={setFilters} brands={brands} />
+          </div>
+
           <QueryState
             isPending={vehiclesQuery.isPending}
             isError={vehiclesQuery.isError}
@@ -301,7 +311,9 @@ export function TrucksPage() {
             <div className="grid gap-6 pb-4 xl:grid-cols-[minmax(0,380px)_1fr]">
               <div className="min-w-0">
                 <div className="mb-3 flex items-baseline justify-between gap-3">
-                  <h2 className="font-sora text-primary text-headline-md">Frota</h2>
+                  {/* ⚠️ `on-light`, e não a marca. Título de painel deixou de ser colorido
+                      em 30/08/2026: a cor de marca é de ação, link e série de gráfico. */}
+                  <h2 className="font-sora text-on-light text-headline-md">Frota</h2>
                   {/* Enquanto a janela não corta nada, o contador é o de
                       sempre (quantos o filtro deixou passar, de quantos existem).
                       Quando corta, ele passa a contar o que está na caixa. */}
@@ -346,12 +358,16 @@ export function TrucksPage() {
                 )}
               </div>
 
-              <div className="min-w-0">
+              {/* `xl:sticky`: no monitor a lista rola e o caminhão aberto fica.
+                  `self-start` é o que dá altura ao grudado dentro do grid. */}
+              <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
                 {selected ? (
                   <VehicleDetailPanel vehicle={selected} />
                 ) : (
-                  <div className="bg-surface-lowest flex min-h-80 items-center justify-center rounded-xl p-6">
-                    <p className="text-on-surface-muted text-body-md text-center">
+                  /* Tokens `light`: este bloco mora dentro do painel claro.
+                     Com `surface-lowest` ele era o poço do tema, outra família. */
+                  <div className="bg-light-container flex min-h-72 items-center justify-center rounded-xl p-6">
+                    <p className="text-on-light-muted text-body-md max-w-xs text-center text-balance">
                       Selecione um caminhão para ver custo, consumo, manutenção e eventos.
                     </p>
                   </div>

@@ -14,10 +14,12 @@ const THREAD_COUNT = 300;
 const PER_THREAD = 300;
 const POINT_COUNT = THREAD_COUNT * PER_THREAD;
 
-// Faixa de matiz da marca: terracota (#D5623A ≈ 16°) → âmbar (#E7AD61 ≈ 33°).
-// Cada partícula pega um ponto dessa faixa, lembrando o gradiente da marca.
+// ⚠️ Faixa de matiz COLAPSADA na terracota (#D5623A ≈ 16°) em 08/09/2026, com o
+// laranja único: as duas pontas passaram a ser a mesma matiz. Era terracota → âmbar
+// (#E7AD61 ≈ 33°), e cada partícula pegava um ponto da faixa. Os nomes ficam porque
+// o shader lê os dois: devolver o âmbar ao `HUE_AMBAR` devolve o degradê.
 const HUE_TERRACOTA = (16 / 360).toFixed(6);
-const HUE_AMBAR = (33 / 360).toFixed(6);
+const HUE_AMBAR = (16 / 360).toFixed(6);
 
 const VERTEX_SHADER = /* glsl */ `
   precision highp float;

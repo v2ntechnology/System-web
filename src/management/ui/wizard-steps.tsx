@@ -308,9 +308,31 @@ export function WizardSteps<T extends string>({
             className={cn(
               'text-label-md rounded-pill focus-visible:ring-primary flex shrink-0 items-center gap-2',
               'px-3.5 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+              /*
+               * ⚠️ Etapa atual em MARINHO cheio, e não na tinta preta
+               * (08/09/2026).
+               *
+               * O preto era o maior contraste da tela gasto numa barra de
+               * navegação interna de formulário, e ficou destoando depois que as
+               * abas da página adotaram o marinho. Marinho é a cor de controle
+               * do sistema, e é a família certa para "onde estou".
+               *
+               * ⚠️ Aqui é CHEIO, e não a pastilha clara que sobe do poço como nas
+               * abas: esta barra mora dentro do diálogo, cuja superfície já é a
+               * mais alta da tela. Uma pastilha clara sobre ela seria branco
+               * sobre branco, e só a sombra sustentaria o estado.
+               *
+               * ⚠️ A etapa RESOLVIDA fica com o texto cheio, e a que ainda não
+               * foi visitada continua apagada. Antes as duas eram o mesmo cinza,
+               * e só o tamanho do sinal de visto separava o que já foi feito do
+               * que falta, que é a pergunta que uma barra de etapas existe para
+               * responder.
+               */
               atual
-                ? 'bg-bright text-on-bright font-medium'
-                : 'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]',
+                ? 'bg-accent text-on-secondary font-medium'
+                : step.done && !step.invalid
+                  ? 'text-on-surface hover:bg-on-surface/[0.06]'
+                  : 'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]',
             )}
           >
             {/*
@@ -325,6 +347,10 @@ export function WizardSteps<T extends string>({
                 'flex size-4 shrink-0 items-center justify-center',
                 step.invalid && !atual && 'text-error',
                 step.done && !step.invalid && !atual && 'text-success',
+                /* Dentro da pastilha cheia o sinal herda o contraste dela: verde
+                   e vermelho sobre o marinho reprovam, e o estado já está dito
+                   pelo próprio desenho do ícone. */
+                atual && 'text-on-secondary',
               )}
             >
               {step.invalid ? (

@@ -400,7 +400,7 @@ export default function SettingsPage() {
 
       <p className="text-xs text-muted-foreground">
         Precisa conectar fontes de dados? Acesse{' '}
-        <Link to="/app/integracoes" className="text-primary hover:underline">
+        <Link to="/app/integracoes" className="text-accent hover:underline">
           Integrações
         </Link>
         .

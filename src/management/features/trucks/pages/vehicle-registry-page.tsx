@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 
 import { HeroBand } from '@/management/components/layout/hero-band';
 import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
+import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
 import {
   deleteVehicle,
@@ -26,7 +27,6 @@ import {
 } from '@/management/lib/fleet-api';
 import {
   Alert,
-  GlassCard,
   GlassInput,
   GlassModal,
   GlassSelect,
@@ -372,22 +372,32 @@ export function VehicleRegistryPage() {
         description="Cada caminhão que a plataforma conhece, em que empresa está e quem já foi conferido por uma pessoa."
       />
 
-      <section className="w-full px-4 pb-24 sm:px-6 xl:px-10">
-        <QueryState isPending={isPending} isError={isError} label="a frota">
-          {/* A subida fica no conteúdo, e não na seção: em volta do `QueryState`
-              ela jogaria o carregamento e o erro por cima da faixa colorida. */}
-          <div className="-mt-16 flex flex-col gap-5 sm:-mt-20">
-            {/* ---------------------------------------------------------- */}
-            {/* O tamanho do trabalho                                       */}
-            {/* ---------------------------------------------------------- */}
-            <HeroStats items={stats} />
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+        <h2 className="sr-only">O tamanho do cadastro</h2>
 
-            {/* ---------------------------------------------------------- */}
-            {/* Filtros                                                     */}
-            {/* ---------------------------------------------------------- */}
-            <GlassCard className="flex flex-col gap-4 p-5">
+        <QueryState isPending={isPending} isError={isError} label="a frota">
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
+              ela jogaria o carregamento e o erro por cima da faixa colorida. */}
+          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+        </QueryState>
+      </section>
+
+      {/*
+       * ⚠️ Painel branco, como nas demais rotas do painel (08/09/2026). A tela
+       * abria dois `GlassCard` empilhados sobre o papel, filtros num e lista
+       * noutro: duas molduras para um assunto só, e nenhuma das outras telas se
+       * parecia com isso.
+       *
+       * Os dois viraram um bloco só aqui dentro, separados por espaço e por uma
+       * divisória, que é o que o painel já usa para separar sem empilhar caixa.
+       */}
+      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+        <QueryState isPending={isPending} isError={isError} label="a frota">
+          <>
+            <div className="flex flex-col gap-4">
               <div className="grid items-end gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_auto]">
                 <GlassInput
+                  surface="light"
                   label="Buscar"
                   placeholder="Placa, número de frota ou modelo"
                   value={search}
@@ -396,6 +406,7 @@ export function VehicleRegistryPage() {
                 />
 
                 <GlassSelect
+                  surface="light"
                   label="Empresa"
                   options={companyOptions}
                   value={company}
@@ -403,6 +414,7 @@ export function VehicleRegistryPage() {
                 />
 
                 <GlassSelect
+                  surface="light"
                   label="Situação"
                   options={SITUATION_OPTIONS}
                   value={situation}
@@ -410,6 +422,7 @@ export function VehicleRegistryPage() {
                 />
 
                 <GlassSelect
+                  surface="light"
                   label="Conferência"
                   options={REVIEW_OPTIONS}
                   value={review}
@@ -429,7 +442,7 @@ export function VehicleRegistryPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-on-surface-muted text-label-md normal-case">
+                <p className="text-on-light-muted text-label-md normal-case">
                   {filtered.length === vehicles.length
                     ? `${vehicles.length} veículos`
                     : `${filtered.length} de ${vehicles.length} veículos`}
@@ -441,20 +454,20 @@ export function VehicleRegistryPage() {
                   </SpectrumButton>
                 ) : null}
               </div>
-            </GlassCard>
+            </div>
 
             {/* ---------------------------------------------------------- */}
             {/* A lista                                                     */}
             {/* ---------------------------------------------------------- */}
-            <GlassCard className="p-5">
+            <div className="border-light-outline mt-6 border-t pt-6">
               {filtered.length === 0 ? (
                 <div className="py-14 text-center">
-                  <p className="text-on-surface text-body-md font-medium">
+                  <p className="text-on-light text-body-md font-medium">
                     {vehicles.length === 0
                       ? 'Nenhum veículo na frota.'
                       : 'Nenhum veículo com esses filtros.'}
                   </p>
-                  <p className="text-on-surface-muted text-label-md mt-1 normal-case">
+                  <p className="text-on-light-muted text-label-md mt-1 normal-case">
                     {vehicles.length === 0
                       ? 'Use "Cadastrar caminhão" para começar, ou sincronize a telemetria para trazer quem já tem rastreador.'
                       : 'Limpe os filtros para ver a lista inteira.'}
@@ -468,7 +481,7 @@ export function VehicleRegistryPage() {
                   <table className="min-w-180 w-full border-collapse text-left">
                     <caption className="sr-only">Veículos cadastrados</caption>
                     <thead>
-                      <tr className="border-outline-variant border-b">
+                      <tr className="border-light-outline border-b">
                         {/* Largura em porcentagem somando 100: o navegador
                             distribui a sobra proporcionalmente e o espaçamento
                             fica regular em qualquer largura de tela. Deixar o
@@ -518,13 +531,13 @@ export function VehicleRegistryPage() {
                   total={filtered.length}
                   onPageChange={setPage}
                   label="veículos"
-                  className="border-outline-variant mt-5 border-t pt-5"
+                  className="border-light-outline mt-5 border-t pt-5"
                 />
               ) : null}
-            </GlassCard>
-          </div>
+            </div>
+          </>
         </QueryState>
-      </section>
+      </PageContent>
 
       <VehicleRegistryModal
         open={dialog.open}
@@ -574,7 +587,7 @@ function Th({
     <th
       scope="col"
       className={cn(
-        'text-on-surface-variant text-label-md py-2.5 pr-4 font-medium normal-case',
+        'text-on-light-variant text-label-md py-2.5 pr-4 font-medium normal-case',
         align === 'right' && 'text-right',
         hideOnMobile && 'hidden lg:table-cell',
         nowrap && 'whitespace-nowrap',
@@ -616,7 +629,7 @@ function VehicleRow({
         if (!(event.target as HTMLElement).closest('button')) onEdit();
       }}
       className={cn(
-        'border-outline-variant/60 hover:bg-on-surface/[0.04] cursor-pointer border-b transition-colors last:border-0',
+        'border-light-outline/60 hover:bg-on-light/[0.04] cursor-pointer border-b transition-colors last:border-0',
         /* Inativo sai da frota, e a linha precisa dizer isso antes de qualquer
            chip: numa lista longa, a cor cheia dá o mesmo peso a um caminhão
            vendido e a um que está rodando agora. */
@@ -624,11 +637,11 @@ function VehicleRow({
       )}
     >
       <td className="py-3 pr-4 whitespace-nowrap">
-        <p className="text-on-surface text-body-md tabular font-medium">{vehicle.plate}</p>
+        <p className="text-on-light text-body-md tabular font-medium">{vehicle.plate}</p>
         {/* A segunda linha só existe quando tem o que dizer: uma linha em branco
             por baixo de 40 placas desalinha a lista inteira. */}
         {numero ? (
-          <p className="text-on-surface-muted text-label-sm normal-case">frota {numero}</p>
+          <p className="text-on-light-muted text-label-sm normal-case">frota {numero}</p>
         ) : null}
       </td>
 
@@ -638,30 +651,30 @@ function VehicleRow({
           ao contrário da reticência. */}
       <td className="max-w-0 py-3 pr-4">
         {modelo ? (
-          <p className="text-on-surface text-body-sm overflow-x-auto overscroll-x-contain whitespace-nowrap">
+          <p className="text-on-light text-body-sm overflow-x-auto overscroll-x-contain whitespace-nowrap">
             {modelo}
             {vehicle.year ? ` · ${vehicle.year}` : ''}
           </p>
         ) : (
-          <span className="text-on-surface-muted text-body-sm">–</span>
+          <span className="text-on-light-muted text-body-sm">–</span>
         )}
       </td>
 
       <td className="max-w-0 py-3 pr-4">
         {vehicle.companyName ? (
-          <p className="text-on-surface text-body-sm overflow-x-auto overscroll-x-contain whitespace-nowrap">
+          <p className="text-on-light text-body-sm overflow-x-auto overscroll-x-contain whitespace-nowrap">
             {vehicle.companyName}
           </p>
         ) : (
-          <span className="text-on-surface-muted text-body-sm">–</span>
+          <span className="text-on-light-muted text-body-sm">–</span>
         )}
       </td>
 
       {/* `whitespace-nowrap`: "sem sinal" quebrava em duas linhas e esticava a
           altura da linha sozinho. */}
       <td className="hidden py-3 pr-4 text-right whitespace-nowrap lg:table-cell">
-        <p className="text-on-surface text-body-sm tabular">{km(vehicle.odometerKm)}</p>
-        <p className="text-on-surface-muted text-label-sm normal-case">
+        <p className="text-on-light text-body-sm tabular">{km(vehicle.odometerKm)}</p>
+        <p className="text-on-light-muted text-label-sm normal-case">
           {vehicle.lastSeenAt ? dataCurta.format(new Date(vehicle.lastSeenAt)) : 'sem sinal'}
         </p>
       </td>
@@ -789,7 +802,7 @@ function ConfirmToggle({
       className="w-[calc(100vw-2rem)] max-w-[480px]"
     >
       <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6">
-        <p className="text-on-surface text-body-md">
+        <p className="text-on-light text-body-md">
           {ativando ? 'Devolver ' : 'Tirar '}
           <strong>{vehicle?.plate}</strong>
           {ativando
@@ -848,7 +861,7 @@ function ConfirmDelete({
       className="w-[calc(100vw-2rem)] max-w-[480px]"
     >
       <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6">
-        <p className="text-on-surface text-body-md">
+        <p className="text-on-light text-body-md">
           Excluir <strong>{vehicle?.plate}</strong>? O cadastro é apagado e não tem como voltar.
         </p>
 

@@ -1,11 +1,14 @@
 import {
+  ClockIcon,
   CloseIcon,
   GaugeIcon,
   MapPinIcon,
   LayersIcon,
   RadarIcon,
   RouteIcon,
+  SatelliteIcon,
   TiltIcon,
+  TruckIcon,
   SearchIcon,
 } from '@/components/icons';
 import type { VehiclePosition, VehicleStatus } from '@/management/types';
@@ -16,7 +19,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { MAP_BASES, type MapBaseId } from '@/components/shared/map-style';
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HERO_PILL, HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
+import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
 import {
   VEHICLE_STATUS_LABELS,
@@ -218,6 +223,9 @@ export function LiveMapPage() {
   const positions = useMemo(() => data ?? [], [data]);
   const staleCount = positions.filter(isStale).length;
   const idade = idadeDaLeitura(positions);
+  /* Ver `idadeDaLeitura`: o que a pastilha promete é a idade do DADO, e não o
+     intervalo do polling. */
+  const leituraEmDia = idade != null && idade <= STALE_SYNC_MINUTES * 60_000;
 
   const visibleVehicles = useMemo(() => {
     const term = busca.trim().toLowerCase();
@@ -329,15 +337,81 @@ export function LiveMapPage() {
     );
   }, [staleCount]);
 
+  const semSinal = countByStatus.get('SEM_SINAL') ?? 0;
+
+  const stats: HeroStat[] = [
+    {
+      key: 'rastreada',
+      label: 'Frota rastreada',
+      value: positions.length,
+      hint: 'veículos com posição conhecida',
+      icon: RadarIcon,
+    },
+    {
+      key: 'viagem',
+      label: 'Em viagem',
+      value: countByStatus.get('EM_VIAGEM') ?? 0,
+      hint: 'rodando agora',
+      icon: RouteIcon,
+    },
+    {
+      key: 'disponiveis',
+      label: 'Disponíveis',
+      value: countByStatus.get('DISPONIVEL') ?? 0,
+      hint: 'prontos para sair',
+      icon: TruckIcon,
+    },
+    {
+      key: 'sem-sinal',
+      label: 'Sem sinal',
+      value: semSinal,
+      hint: 'a parte da frota sobre a qual não se sabe',
+      icon: SatelliteIcon,
+      tone: semSinal > 0 ? 'alert' : 'neutral',
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Mapa ao vivo"
         description="Uma central de comando para acompanhar a frota e agir antes que a operação pare."
-      />
+      >
+        {/*
+         * ⚠️ O frescor da leitura é status DA PÁGINA, e por isso mora na faixa,
+         * como as pastilhas das outras telas do par. Ele estava numa linha solta
+         * acima do mapa, disputando espaço com os filtros, que são outra coisa:
+         * controle da lista.
+         *
+         * ⚠️ O estado NÃO é um ponto colorido aqui. Sobre a faixa laranja o
+         * verde escurecido some e o âmbar é laranja sobre laranja. Quem diz o
+         * estado é a própria pastilha: em dia ela é o contorno branco de sempre,
+         * atrasada ela INVERTE para branco cheio com texto laranja, que é a
+         * única ênfase que a faixa comporta.
+         */}
+        <span
+          className={cn(
+            HERO_PILL,
+            leituraEmDia ? 'text-on-primary' : 'bg-on-primary text-primary font-medium',
+          )}
+          title={`A tela confere o banco a cada ${REFETCH_MS / 1000} segundos. A posição em si só muda quando a coleta da MiX traz leitura nova, num ciclo bem mais longo.`}
+        >
+          <ClockIcon size={15} aria-hidden="true" />
+          {idade == null ? 'Sem leitura recebida' : `Leitura mais recente ${haQuantoTempo(idade)}`}
+        </span>
+      </HeroBand>
 
-      <main className="w-full px-4 pb-24 sm:px-6 xl:px-10">
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+        <h2 className="sr-only">Situação da frota</h2>
+
+        <QueryState isPending={isPending} isError={isError} label="as posições">
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
+              ela puxaria também o estado de carregando para dentro da faixa. */}
+          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+        </QueryState>
+      </section>
+
+      <PageContent className="rounded-t-4xl bg-light mt-0 pb-24 sm:mt-0 sm:rounded-t-[40px]">
         <QueryState isPending={isPending} isError={isError} label="as posições">
           {/*
             Os filtros de situação subiram para cá em 05/09/2026, a pedido do
@@ -349,8 +423,22 @@ export function LiveMapPage() {
             outros números e quem opera perderia a noção do todo, que é a mesma
             regra já registrada para a fila de impedimentos.
           */}
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-            <div role="group" aria-label="Filtrar por situação" className="flex flex-wrap gap-1.5">
+          {/*
+           * ⚠️ Mesmo desenho das abas da página (`PageTabs`), a pedido do
+           * usuário em 08/09/2026: trilho de poço e o escolhido é a pastilha
+           * clara que SOBE dele, com a escrita na secundária. Os dois são a
+           * mesma coisa (um segmentado que filtra uma lista) e não faziam
+           * sentido com desenhos diferentes na mesma tela.
+           *
+           * Tokens `light` e não `surface`: aqui a barra vive dentro do painel
+           * branco, e o trilho do `PageTabs` mora sobre o papel.
+           */}
+          <div className="mb-5 flex flex-wrap items-center gap-4">
+            <div
+              role="group"
+              aria-label="Filtrar por situação"
+              className="bg-light-container rounded-pill flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
+            >
               {SITUACOES.map((option) => {
                 const total =
                   option.id === 'TODOS' ? positions.length : (countByStatus.get(option.id) ?? 0);
@@ -363,36 +451,25 @@ export function LiveMapPage() {
                     onClick={() => setSituacao(option.id)}
                     aria-pressed={situacao === option.id}
                     className={cn(
-                      'text-label-md focus-visible:ring-primary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                      'group text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
                       situacao === option.id
-                        ? 'bg-primary-strong text-on-primary'
-                        : 'bg-on-surface/8 text-on-surface-variant hover:text-on-surface',
+                        ? 'bg-light text-accent font-medium shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]'
+                        : 'text-on-light-variant hover:text-on-light hover:bg-on-light/[0.06]',
                     )}
                   >
-                    {option.label} <span className="tabular opacity-70">{total}</span>
+                    {option.label}
+                    <span
+                      className={cn(
+                        'tabular ml-2 opacity-70',
+                        situacao === option.id && 'opacity-100',
+                      )}
+                    >
+                      {total}
+                    </span>
                   </button>
                 );
               })}
             </div>
-            {/* Ver `idadeDaLeitura`: o que o chip promete é a idade do dado, e
-                não o intervalo do polling. */}
-            <span
-              className="border-outline-variant bg-surface-container text-on-surface-variant text-label-md inline-flex items-center gap-2 rounded-full border px-3 py-2 normal-case"
-              title={`A tela confere o banco a cada ${REFETCH_MS / 1000} segundos. A posição em si só muda quando a coleta da MiX traz leitura nova, num ciclo bem mais longo.`}
-            >
-              <span
-                className={cn(
-                  'size-2 rounded-full',
-                  idade != null && idade <= STALE_SYNC_MINUTES * 60_000
-                    ? 'bg-success'
-                    : 'bg-warning',
-                )}
-                aria-hidden="true"
-              />
-              {idade == null
-                ? 'Sem leitura recebida'
-                : `Leitura mais recente ${haQuantoTempo(idade)}`}
-            </span>
           </div>
 
           {/*
@@ -418,7 +495,7 @@ export function LiveMapPage() {
            */}
           <section
             className={cn(
-              'grid gap-5 2xl:h-[clamp(32rem,calc(100dvh-22rem),52rem)]',
+              'grid gap-5 2xl:h-[clamp(32rem,calc(100dvh-30rem),52rem)]',
               /*
                * ⚠️ Duas colunas SEMPRE, desde 05/09/2026.
                *
@@ -919,7 +996,7 @@ export function LiveMapPage() {
             </div>
           </section>
         </QueryState>
-      </main>
+      </PageContent>
     </>
   );
 }

@@ -1,6 +1,13 @@
-import { InfoIcon, MedalIcon, RouteIcon, ShieldAlertIcon, UsersIcon } from '@/components/icons';
+import {
+  InfoIcon,
+  MedalIcon,
+  RouteIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  UsersIcon,
+} from '@/components/icons';
 import type { Driver, RankingPeriod } from '@/management/types';
-import { GlassCard, LightCard, Pagination, StatusChip, cn } from '@/management/ui';
+import { GlassInput, Pagination, SpectrumButton, StatusChip, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -10,8 +17,9 @@ import { HeroStats, type HeroStat } from '@/management/components/layout/hero-st
 import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
 
-import { getDrivers } from '../api';
-import { DriverRankingCard } from '../components/driver-ranking-card';
+import { getDriverRanking, getDrivers } from '../api';
+import { DriverPodium } from '../components/driver-podium';
+import { MEDAL_COLOR, MEDAL_LABEL } from '../medals';
 
 const km = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 
@@ -37,8 +45,17 @@ export function GamificationPage() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<RankingPeriod>('MES');
   const [pagina, setPagina] = useState(1);
+  const [busca, setBusca] = useState('');
 
   const { data, isPending, isError } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers });
+
+  /* O pódio vem de outra consulta, e de propósito: a classificação da tabela é
+     a nota corrente dos últimos 30 dias, e o ranking sabe responder também pelo
+     ano, com a média ponderada pelos quilômetros. */
+  const ranking = useQuery({
+    queryKey: ['driver-ranking', period],
+    queryFn: () => getDriverRanking(period),
+  });
 
   const drivers = data ?? [];
   const classificados = drivers
@@ -52,7 +69,7 @@ export function GamificationPage() {
           classificados.reduce((soma, driver) => soma + driver.score, 0) / classificados.length,
         )
       : 0;
-  const lider = classificados[0];
+  const kmDaEquipe = classificados.reduce((soma, driver) => soma + driver.kmDriven, 0);
   const eventos = drivers.reduce((soma, driver) => soma + driver.criticalEvents, 0);
 
   const stats: HeroStat[] = [
@@ -67,18 +84,21 @@ export function GamificationPage() {
       icon: UsersIcon,
     },
     {
-      key: 'lider',
-      label: 'Líder do período',
-      value: lider?.score ?? '–',
-      hint: lider?.name ?? 'ninguém com nota ainda',
-      icon: MedalIcon,
+      /* ⚠️ Era "Líder do período", que o pódio logo abaixo passou a dizer com
+         nome, foto e medalha. Aqui entra o que o pódio NÃO diz: o tamanho da
+         amostra que sustenta as notas. */
+      key: 'km',
+      label: 'Km no período',
+      value: km.format(kmDaEquipe),
+      hint: 'rodados por quem está classificado',
+      icon: RouteIcon,
     },
     {
       key: 'media',
       label: 'Score médio',
       value: media,
       hint: 'a régua é a própria frota',
-      icon: RouteIcon,
+      icon: MedalIcon,
     },
     {
       key: 'eventos',
@@ -90,9 +110,24 @@ export function GamificationPage() {
     },
   ];
 
-  const totalPaginas = Math.max(1, Math.ceil(classificados.length / POR_PAGINA));
+  /*
+   * ⚠️ A busca RECORTA a lista, e não reordena: a posição continua sendo a da
+   * classificação inteira. Renumerar o resultado da busca faria o motorista
+   * procurado aparecer como "1º" numa reunião, que é exatamente o oposto do que
+   * a tela existe para responder.
+   */
+  const termo = busca.trim().toLocaleLowerCase('pt-BR');
+  const comPosicao = classificados.map((driver, indice) => ({ driver, posicao: indice + 1 }));
+  const filtrados =
+    termo === ''
+      ? comPosicao
+      : comPosicao.filter((item) => item.driver.name.toLocaleLowerCase('pt-BR').includes(termo));
+
+  /* A página é presa ao total durante o render, e não corrigida por efeito:
+     buscar estando na página 3 deixaria a tabela vazia. */
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
-  const daPagina = classificados.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA);
+  const daPagina = filtrados.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA);
 
   return (
     <>
@@ -109,23 +144,27 @@ export function GamificationPage() {
         <QueryState isPending={isPending} isError={isError} label="a classificação">
           <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
         </QueryState>
-
-        {/* O pódio traz o próprio seletor de período: no mês vale o score
-            corrente, no ano a média ponderada pelos km. */}
-        <GlassCard className="mt-5 flex p-5 sm:p-6">
-          <DriverRankingCard
-            period={period}
-            onPeriodChange={setPeriod}
-            /* A ficha mora na tela de motoristas: o pódio leva para lá em vez
-               de repetir aqui os mesmos dados. */
-            onSelectDriver={() => navigate('/gestao/motoristas')}
-          />
-        </GlassCard>
       </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
+      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+        {/* ⚠️ O pódio mora DENTRO do painel, e não num cartão de vidro sobre o
+            papel: ele é o assunto da tela, e o painel é onde o assunto mora nas
+            outras rotas. A ficha continua na tela de motoristas, então o cartão
+            leva para lá em vez de repetir aqui os mesmos dados. */}
+        <DriverPodium
+          entries={ranking.data ?? []}
+          period={period}
+          onPeriodChange={setPeriod}
+          onSelectDriver={() => navigate('/gestao/motoristas')}
+          isPending={ranking.isPending}
+          isError={ranking.isError}
+        />
+
         <QueryState isPending={isPending} isError={isError} label="a classificação">
-          <LightCard title="Classificação completa">
+          <section className="border-light-outline mt-8 border-t pt-8">
+            <h2 className="font-sora text-on-light text-headline-md mb-4 tracking-[-0.02em]">
+              Classificação completa
+            </h2>
             <p className="text-on-light-variant text-body-md mb-4 flex items-start gap-2">
               <InfoIcon size={16} className="mt-0.5 shrink-0" aria-hidden="true" />A nota é relativa
               a esta frota: 100 é quem não gerou evento na configuração de telemetria daqui, e não
@@ -133,9 +172,60 @@ export function GamificationPage() {
               transportadora.
             </p>
 
-            {classificados.length === 0 ? (
+            {/* ⚠️ Os dois recortes não são o mesmo, e a tela diz qual é qual: a
+                tabela é sempre a nota corrente dos últimos 30 dias, e o pódio
+                acima segue o período escolhido. Sem esta linha, "no ano" no
+                pódio e um primeiro lugar diferente na tabela pareceriam erro. */}
+            <p className="text-on-light-muted text-label-md mb-4 normal-case">
+              Ordenada pela nota corrente dos últimos 30 dias, com os quilômetros como desempate.
+            </p>
+
+            {/* ⚠️ `surface="light"`: o campo mora dentro do painel branco, e a
+                versão escura dele inverte a hierarquia da tela. A busca serve à
+                pergunta pontual ("em que posição está o Fulano?"), que numa lista
+                de 81 nomes é rolagem cega sem ela. */}
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <GlassInput
+                id="ranking-busca"
+                surface="light"
+                label="Buscar motorista"
+                placeholder="Nome do motorista"
+                value={busca}
+                onChange={(event) => {
+                  setBusca(event.target.value);
+                  setPagina(1);
+                }}
+                leading={<SearchIcon size={16} aria-hidden="true" />}
+                className="w-full sm:max-w-80"
+              />
+
+              {termo !== '' ? (
+                <div className="flex flex-wrap items-center gap-3 pb-1.5">
+                  <p className="text-on-light-muted text-label-md normal-case">
+                    {filtrados.length === 1
+                      ? '1 motorista encontrado'
+                      : `${filtrados.length} de ${classificados.length} motoristas`}
+                  </p>
+                  <SpectrumButton
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setBusca('');
+                      setPagina(1);
+                    }}
+                  >
+                    Limpar busca
+                  </SpectrumButton>
+                </div>
+              ) : null}
+            </div>
+
+            {filtrados.length === 0 ? (
               <p className="text-on-light-variant text-body-md py-10 text-center">
-                Ninguém tem nota no período ainda.
+                {classificados.length === 0
+                  ? 'Ninguém tem nota no período ainda.'
+                  : 'Nenhum motorista com esse nome na classificação.'}
               </p>
             ) : (
               <>
@@ -169,9 +259,7 @@ export function GamificationPage() {
                     </thead>
 
                     <tbody>
-                      {daPagina.map((driver, indice) => {
-                        const posicao = (paginaAtual - 1) * POR_PAGINA + indice + 1;
-
+                      {daPagina.map(({ driver, posicao }, indice) => {
                         return (
                           <tr
                             key={driver.id}
@@ -187,19 +275,14 @@ export function GamificationPage() {
                             <td className="text-on-light text-body-md py-2.5 pr-4">
                               <span className="flex flex-wrap items-center gap-2">
                                 {driver.name}
-                                {/* Medalha só no pódio da página um: em outra
-                                    página, "1º" já é a coluna da esquerda. */}
+                                {/* Medalha só nos três primeiros da classificação
+                                    inteira: mais abaixo, o número da coluna da
+                                    esquerda já diz a posição. */}
                                 {posicao <= 3 ? (
                                   <MedalIcon
                                     size={15}
-                                    aria-label={`${posicao}º lugar`}
-                                    className={cn(
-                                      posicao === 1
-                                        ? 'text-[#B8860B]'
-                                        : posicao === 2
-                                          ? 'text-on-light-muted'
-                                          : 'text-[#A0522D]',
-                                    )}
+                                    aria-label={MEDAL_LABEL[posicao]}
+                                    className={MEDAL_COLOR[posicao]}
                                   />
                                 ) : null}
                                 {driver.status === 'AFASTADO' ? (
@@ -240,14 +323,14 @@ export function GamificationPage() {
                 <Pagination
                   className="mt-5"
                   page={paginaAtual}
-                  total={classificados.length}
+                  total={filtrados.length}
                   pageSize={POR_PAGINA}
                   onPageChange={setPagina}
                   label="motoristas"
                 />
               </>
             )}
-          </LightCard>
+          </section>
         </QueryState>
       </PageContent>
     </>

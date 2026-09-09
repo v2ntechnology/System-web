@@ -1,20 +1,23 @@
 import {
   AlertCircleIcon,
+  BoxesIcon,
   CheckCircleIcon,
   IntegrationIcon,
   LockIcon,
   PlusIcon,
   ShieldAlertIcon,
   ShieldCheckIcon,
+  UsersIcon,
   WarningIcon,
 } from '@/components/icons';
 import type { IntegrationHealth, Role } from '@/management/types';
-import { Avatar, GlassCard, LightCard, StatusChip, cn, type StatusTone } from '@/management/ui';
+import { Avatar, SpectrumButton, StatusChip, cn, type StatusTone } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
@@ -71,10 +74,49 @@ export function SettingsPage() {
   const withoutMfa = data?.members.filter((m) => m.active && !m.mfaEnabled).length ?? 0;
   const unhealthy = data?.integrations.filter((i) => i.health !== 'OK').length ?? 0;
 
+  const ativos = data?.members.filter((m) => m.active).length ?? 0;
+  const contratados = data?.modules.filter((m) => m.contracted).length ?? 0;
+
+  const stats: HeroStat[] = [
+    {
+      key: 'usuarios',
+      label: 'Usuários ativos',
+      value: ativos,
+      outOf: data?.members.length,
+      hint: 'com acesso ao painel',
+      icon: UsersIcon,
+    },
+    {
+      /* ⚠️ Sem 2FA é o número que manda agir, e por isso ele tem tom: cada conta
+         sem verificação é uma senha entre a operação e quem quiser entrar. */
+      key: 'sem-2fa',
+      label: 'Sem verificação em duas etapas',
+      value: withoutMfa,
+      hint: 'contas ativas com só a senha',
+      icon: ShieldAlertIcon,
+      tone: withoutMfa > 0 ? 'alert' : 'neutral',
+    },
+    {
+      key: 'modulos',
+      label: 'Módulos contratados',
+      value: contratados,
+      outOf: data?.modules.length,
+      hint: 'o resto aparece bloqueado',
+      icon: BoxesIcon,
+    },
+    {
+      key: 'integracoes',
+      label: 'Integrações com problema',
+      value: unhealthy,
+      hint: 'integração parada é número velho',
+      icon: IntegrationIcon,
+      tone: unhealthy > 0 ? 'warn' : 'neutral',
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Configurações"
         description="Quem tem acesso, o que o plano inclui e a saúde das integrações com os fornecedores."
       />
@@ -83,37 +125,9 @@ export function SettingsPage() {
         <h2 className="sr-only">Resumo da conta</h2>
 
         <QueryState isPending={isPending} isError={isError} label="as configurações">
-          {data ? (
-            <GlassCard className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
-              {[
-                { label: 'Usuários ativos', value: data.members.filter((m) => m.active).length },
-                {
-                  label: 'Sem verificação em duas etapas',
-                  value: withoutMfa,
-                  alert: withoutMfa > 0,
-                },
-                {
-                  label: 'Módulos contratados',
-                  value: `${data.modules.filter((m) => m.contracted).length} de ${data.modules.length}`,
-                },
-                { label: 'Integrações com problema', value: unhealthy, alert: unhealthy > 0 },
-              ].map((metric) => (
-                <div key={metric.label} className="metric-tile">
-                  <p className="text-on-surface-variant text-label-md normal-case">
-                    {metric.label}
-                  </p>
-                  <p
-                    className={cn(
-                      'tabular font-sora mt-2 text-[28px] font-bold leading-none',
-                      metric.alert ? 'text-warning' : 'text-on-surface',
-                    )}
-                  >
-                    {metric.value}
-                  </p>
-                </div>
-              ))}
-            </GlassCard>
-          ) : null}
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
+              ela jogaria o carregando e o erro por cima da faixa colorida. */}
+          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
         </QueryState>
       </section>
 
@@ -126,31 +140,38 @@ export function SettingsPage() {
                  * Usuários e papéis (RF-003 a RF-007)
                  * ----------------------------------------------------- */}
                 {tab === 'USUARIOS' ? (
-                  <LightCard
-                    title="Usuários"
-                    action={
-                      <button
+                  /* ⚠️ Sem `LightCard` em volta (08/09/2026): é cartão dentro de
+                     cartão. O conteúdo já mora no painel branco da página, e a
+                     moldura não separava nada, porque não divide a tela com
+                     ninguém. Título e respiro fazem a separação, como no resto
+                     do painel. */
+                  <section>
+                    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+                      <h2 className="font-sora text-on-light text-headline-md tracking-[-0.02em]">
+                        Usuários
+                      </h2>
+                      <SpectrumButton
                         type="button"
+                        size="sm"
                         onClick={() =>
                           toast.info('Convidar usuário', {
                             description: 'O fluxo de convite entra numa próxima etapa.',
                           })
                         }
-                        className="bg-primary-strong text-on-primary text-label-md focus-visible:ring-primary-on-light inline-flex items-center gap-1.5 rounded-md px-4 py-2 normal-case transition-opacity hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
                       >
                         <PlusIcon size={14} aria-hidden="true" />
                         Convidar
-                      </button>
-                    }
-                  >
+                      </SpectrumButton>
+                    </div>
+
                     <p className="text-on-light-variant text-body-md mb-5">
                       O papel define o que a pessoa vê e faz. A verificação real acontece no
-                      servidor a cada requisição — a interface só reflete a decisão dele.
+                      servidor a cada requisição: a interface só reflete a decisão dele.
                     </p>
 
                     <ul className="flex flex-col gap-3">
                       {data.members.map((member) => (
-                        <li key={member.id} className="bg-surface-lowest rounded-lg p-4">
+                        <li key={member.id} className="bg-light-container rounded-lg p-4">
                           <div className="flex flex-wrap items-center gap-3">
                             <Avatar name={member.name} className="size-10" />
 
@@ -158,37 +179,52 @@ export function SettingsPage() {
                               <p
                                 className={cn(
                                   'font-semibold',
-                                  member.active ? 'text-on-surface' : 'text-on-surface-muted',
+                                  member.active ? 'text-on-light' : 'text-on-light-muted',
                                 )}
                               >
                                 {member.name}
                               </p>
-                              <p className="tabular text-on-surface-muted text-label-md truncate normal-case">
+                              <p className="tabular text-on-light-muted text-label-md truncate normal-case">
                                 {member.email}
                               </p>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
-                              <StatusChip tone="info">{ROLE_LABELS[member.role]}</StatusChip>
+                              {/* ⚠️ `surface="light"` em todos: a lista mora no
+                                  painel claro, e o par semântico do grafite
+                                  reprova AA sobre o branco. */}
+                              <StatusChip tone="info" surface="light">
+                                {ROLE_LABELS[member.role]}
+                              </StatusChip>
 
                               {member.mfaEnabled ? (
-                                <StatusChip tone="positive" icon={<ShieldCheckIcon size={14} />}>
+                                <StatusChip
+                                  tone="positive"
+                                  surface="light"
+                                  icon={<ShieldCheckIcon size={14} />}
+                                >
                                   2FA ativa
                                 </StatusChip>
                               ) : member.active ? (
-                                <StatusChip tone="attention" icon={<ShieldAlertIcon size={14} />}>
+                                <StatusChip
+                                  tone="attention"
+                                  surface="light"
+                                  icon={<ShieldAlertIcon size={14} />}
+                                >
                                   Sem 2FA
                                 </StatusChip>
                               ) : null}
 
                               {!member.active ? (
-                                <StatusChip tone="neutral">Inativo</StatusChip>
+                                <StatusChip tone="neutral" surface="light">
+                                  Inativo
+                                </StatusChip>
                               ) : null}
                             </div>
                           </div>
 
                           {member.lastAccessAt ? (
-                            <p className="border-outline-variant text-on-surface-muted text-label-md mt-3 border-t pt-3 normal-case">
+                            <p className="border-light-outline text-on-light-muted text-label-md mt-3 border-t pt-3 normal-case">
                               Último acesso {relative(member.lastAccessAt)} ·{' '}
                               {dateTime.format(new Date(member.lastAccessAt))}
                             </p>
@@ -196,21 +232,23 @@ export function SettingsPage() {
                         </li>
                       ))}
                     </ul>
-                  </LightCard>
+                  </section>
                 ) : tab === 'PLANO' ? (
                   /* -----------------------------------------------------
                    * Plano e módulos (RF-002 / RN-004)
                    * --------------------------------------------------- */
-                  <LightCard
-                    title="Plano e módulos"
-                    action={
+                  <section>
+                    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+                      <h2 className="font-sora text-on-light text-headline-md tracking-[-0.02em]">
+                        Plano e módulos
+                      </h2>
                       <span className="text-on-light-muted text-label-md normal-case">
                         {data.planName}
                       </span>
-                    }
-                  >
+                    </div>
+
                     <p className="text-on-light-variant text-body-md mb-5">
-                      Módulo fora do plano continua visível no produto, em estado bloqueado — some
+                      Módulo fora do plano continua visível no produto, em estado bloqueado: some
                       com ele e o cliente nem sabe que existe.
                     </p>
 
@@ -220,14 +258,14 @@ export function SettingsPage() {
                           key={module.id}
                           className={cn(
                             'flex min-w-0 flex-col rounded-lg p-4',
-                            module.contracted ? 'bg-surface-lowest' : 'bg-surface-lowest/60',
+                            module.contracted ? 'bg-light-container' : 'bg-light-container/60',
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <h3
                               className={cn(
                                 'font-semibold',
-                                module.contracted ? 'text-on-surface' : 'text-on-surface-variant',
+                                module.contracted ? 'text-on-light' : 'text-on-light-variant',
                               )}
                             >
                               {module.label}
@@ -235,57 +273,62 @@ export function SettingsPage() {
                             {module.contracted ? (
                               <CheckCircleIcon
                                 size={18}
-                                className="text-success shrink-0"
+                                className="text-success-on-light shrink-0"
                                 aria-label="Contratado"
                               />
                             ) : (
                               <LockIcon
                                 size={18}
-                                className="text-warning shrink-0"
+                                className="text-warning-on-light shrink-0"
                                 aria-label="Não contratado"
                               />
                             )}
                           </div>
 
-                          <p className="text-on-surface-muted text-label-md mt-1 normal-case">
+                          <p className="text-on-light-muted text-label-md mt-1 normal-case">
                             {module.description}
                           </p>
 
                           <div className="mt-auto pt-4">
                             {module.contracted ? (
-                              <StatusChip tone="positive">Incluído no plano</StatusChip>
+                              <StatusChip tone="positive" surface="light">
+                                Incluído no plano
+                              </StatusChip>
                             ) : (
-                              <button
+                              <SpectrumButton
                                 type="button"
+                                variant="ghost"
+                                size="sm"
                                 onClick={() =>
                                   toast.info(`${module.label} não está no seu plano`, {
                                     description: 'Nosso time comercial entrará em contato.',
                                   })
                                 }
-                                className="border-warning/40 text-warning text-label-md focus-visible:ring-primary rounded-md border px-3 py-1.5 normal-case transition-colors hover:bg-on-surface/5 focus-visible:outline-none focus-visible:ring-2"
                               >
                                 Conhecer
-                              </button>
+                              </SpectrumButton>
                             )}
                           </div>
                         </li>
                       ))}
                     </ul>
-                  </LightCard>
+                  </section>
                 ) : (
                   /* -----------------------------------------------------
                    * Integrações (RN-140 / RN-141)
                    * --------------------------------------------------- */
-                  <LightCard
-                    title="Integrações"
-                    action={
-                      unhealthy > 0 ? (
+                  <section>
+                    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+                      <h2 className="font-sora text-on-light text-headline-md tracking-[-0.02em]">
+                        Integrações
+                      </h2>
+                      {unhealthy > 0 ? (
                         <StatusChip tone="attention" surface="light">
                           {unhealthy} com problema
                         </StatusChip>
-                      ) : null
-                    }
-                  >
+                      ) : null}
+                    </div>
+
                     <p className="text-on-light-variant text-body-md mb-5">
                       Integração parada significa número velho no painel inteiro. Por isso o horário
                       da última sincronização bem-sucedida fica visível aqui, e não escondido no
@@ -300,20 +343,24 @@ export function SettingsPage() {
                         return (
                           <li
                             key={integration.id}
-                            className="bg-surface-lowest flex min-w-0 flex-col rounded-lg p-4"
+                            className="bg-light-container flex min-w-0 flex-col rounded-lg p-4"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <h3 className="text-on-surface flex items-center gap-2 font-semibold">
+                                <h3 className="text-on-light flex items-center gap-2 font-semibold">
                                   <IntegrationIcon size={16} aria-hidden="true" />
                                   {integration.provider}
                                 </h3>
-                                <p className="text-on-surface-muted text-label-md mt-0.5 normal-case">
+                                <p className="text-on-light-muted text-label-md mt-0.5 normal-case">
                                   {integration.kind}
                                 </p>
                               </div>
 
-                              <StatusChip tone={health.tone} icon={<HealthIcon size={14} />}>
+                              <StatusChip
+                                tone={health.tone}
+                                surface="light"
+                                icon={<HealthIcon size={14} />}
+                              >
                                 {health.label}
                               </StatusChip>
                             </div>
@@ -322,18 +369,20 @@ export function SettingsPage() {
                               <p
                                 className={cn(
                                   'text-label-md mt-3 normal-case',
-                                  integration.health === 'FALHA' ? 'text-error' : 'text-warning',
+                                  integration.health === 'FALHA'
+                                    ? 'text-error-on-light'
+                                    : 'text-warning-on-light',
                                 )}
                               >
                                 {integration.note}
                               </p>
                             ) : null}
 
-                            <div className="border-outline-variant mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-3">
-                              <span className="tabular text-on-surface-muted text-label-md normal-case">
+                            <div className="border-light-outline mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-3">
+                              <span className="tabular text-on-light-muted text-label-md normal-case">
                                 Última sincronização {relative(integration.lastSuccessfulSyncAt)}
                               </span>
-                              <span className="tabular text-on-surface-muted text-label-md normal-case">
+                              <span className="tabular text-on-light-muted text-label-md normal-case">
                                 {integration.vehiclesCovered} veículos
                               </span>
                             </div>
@@ -341,7 +390,7 @@ export function SettingsPage() {
                         );
                       })}
                     </ul>
-                  </LightCard>
+                  </section>
                 )}
               </div>
             ) : null}

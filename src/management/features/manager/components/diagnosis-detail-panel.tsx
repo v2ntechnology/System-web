@@ -12,7 +12,7 @@ import { ApiError } from '@/management/mocks/latency';
 
 import { saveDiagnosis } from '../api';
 import { diagnosisSchema, stepsFromText, type DiagnosisValues } from '../schema';
-import { SEVERITY_LABEL, SEVERITY_TONE } from '../severity';
+import { SEVERITY_LABEL } from '../severity';
 
 export const CATEGORY_LABEL: Record<DiagnosisCategory, string> = {
   CUSTO: 'Custo',
@@ -125,24 +125,55 @@ export function DiagnosisDetailPanel({ anomaly, diagnosis }: DiagnosisDetailPane
         )
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusChip tone="info" surface="light">
-          {CATEGORY_LABEL[anomaly.category]}
-        </StatusChip>
-        <StatusChip tone={SEVERITY_TONE[anomaly.severity]} surface="light">
-          Severidade {SEVERITY_LABEL[anomaly.severity].toLowerCase()}
-        </StatusChip>
-        <span className="text-on-light-muted text-label-md normal-case">
-          Detectada em {dateTime.format(new Date(anomaly.detectedAt))}
+      {/*
+       * ⚠️ ZONA 1: o VEREDITO, e ele sobe para cá.
+       *
+       * O aviso de "grave precisa subir" ficava lá embaixo, depois das
+       * evidências e colado no formulário, enquanto uma pastilha "Severidade
+       * grave" dizia a mesma coisa aqui em cima. O gestor lia a regra que muda o
+       * que ele pode fazer DEPOIS de já ter lido tudo. Agora é uma coisa só, no
+       * topo, e a pastilha redundante saiu.
+       *
+       * No caso não-grave o bloco continua existindo e diz o que vale ali: o
+       * parecer aceita rascunho.
+       */}
+      <div
+        className={cn(
+          'text-body-md mt-4 flex items-start gap-2 rounded-lg p-3.5 font-medium',
+          mustEscalate
+            ? 'bg-error-on-light/10 text-error-on-light'
+            : 'bg-light-container text-on-light-variant',
+        )}
+      >
+        <InfoIcon size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          {mustEscalate
+            ? 'Anomalia grave: o parecer precisa subir para o proprietário. Não há rascunho aqui.'
+            : `Severidade ${SEVERITY_LABEL[anomaly.severity].toLowerCase()}: o parecer pode ficar em rascunho antes de subir.`}
         </span>
       </div>
 
+      {/*
+       * ⚠️ ZONA 2: o CONTEXTO, numa linha só e num peso só. Categoria e data de
+       * detecção dizem QUAL anomalia é esta, e estavam partidas entre uma
+       * pastilha e um texto solto ao lado dela.
+       */}
+      <p className="text-on-light-muted text-label-md mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 normal-case">
+        <span className="text-on-light-variant font-medium">
+          {CATEGORY_LABEL[anomaly.category]}
+        </span>
+        <span aria-hidden="true">·</span>
+        <span>detectada em {dateTime.format(new Date(anomaly.detectedAt))}</span>
+      </p>
+
       <p className="text-on-light text-body-md mt-4">{anomaly.description}</p>
 
-      <h3 className="text-on-light-variant text-body-md mt-5 font-semibold">
+      {/* Mais respiro acima do título do que abaixo: é o que separa a zona da
+          anterior sem precisar de traço. */}
+      <h3 className="text-on-light-variant text-body-md mt-7 font-semibold">
         O que disparou a detecção
       </h3>
-      <dl className="mt-2 grid gap-3 sm:grid-cols-2">
+      <dl className="mt-2.5 grid gap-3 sm:grid-cols-2">
         {anomaly.evidence.map((item) => (
           <div key={item.label} className="bg-light-container min-w-0 rounded-md p-3">
             <dt className="text-on-light-muted text-label-md normal-case">{item.label}</dt>
@@ -150,13 +181,6 @@ export function DiagnosisDetailPanel({ anomaly, diagnosis }: DiagnosisDetailPane
           </div>
         ))}
       </dl>
-
-      {mustEscalate ? (
-        <p className="bg-error-on-light/10 text-error-on-light text-body-md mt-5 flex items-start gap-2 rounded-lg p-3">
-          <InfoIcon size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-          Anomalia grave: o parecer precisa subir para o proprietário. Não há rascunho aqui.
-        </p>
-      ) : null}
 
       <form className="border-light-outline mt-6 rounded-lg border p-4" noValidate>
         <label
@@ -229,13 +253,7 @@ export function DiagnosisDetailPanel({ anomaly, diagnosis }: DiagnosisDetailPane
           </SpectrumButton>
 
           {!mustEscalate ? (
-            <SpectrumButton
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              onClick={submit(false)}
-              className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
-            >
+            <SpectrumButton type="button" variant="ghost" disabled={busy} onClick={submit(false)}>
               <SaveIcon size={18} aria-hidden="true" />
               Salvar rascunho
             </SpectrumButton>

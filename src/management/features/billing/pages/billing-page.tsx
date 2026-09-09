@@ -333,7 +333,7 @@ export function BillingPage() {
                           <dt className="text-body-md">
                             <Link
                               to="/gestao/extensoes"
-                              className="text-primary-on-light underline-offset-4 hover:underline"
+                              className="text-accent underline-offset-4 hover:underline"
                             >
                               Extensões contratadas
                             </Link>
@@ -490,9 +490,6 @@ export function BillingPage() {
                             description: 'Disponível no ciclo anual. Fale com o time comercial.',
                           })
                         }
-                        /* Ghost é desenhado para o grafite: sobre o painel claro
-                           precisa da borda e do texto escuros para não sumir. */
-                        className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
                       >
                         Trocar para boleto ou Pix
                       </SpectrumButton>

@@ -152,7 +152,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
 
           <Link
             to="/gestao/motoristas"
-            className="text-primary-on-light text-label-md focus-visible:ring-primary-on-light mt-3 inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
+            className="text-accent text-label-md focus-visible:ring-primary-on-light mt-3 inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
           >
             {canAct ? 'Abrir ficha e advertências' : 'Ver ficha completa'}
             <ArrowRightIcon size={14} aria-hidden="true" />
@@ -183,7 +183,7 @@ export function PersonCard({ person, canAct }: PersonCardProps) {
 
           <Link
             to="/gestao/configuracoes"
-            className="text-primary-on-light text-label-md focus-visible:ring-primary-on-light mt-3 inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
+            className="text-accent text-label-md focus-visible:ring-primary-on-light mt-3 inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
           >
             Gerenciar acesso
             <ArrowRightIcon size={14} aria-hidden="true" />

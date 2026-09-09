@@ -3,7 +3,7 @@
  *
  * ⚠️ MUDANÇA DE 19/08/2026: a cor saiu daqui. Os dois painéis passaram a dividir
  * a mesma rampa, que vive em `src/styles/palette.css` (grafite no escuro, papel
- * no claro, marca indigo/cyan nos dois). O que sobra neste arquivo é o que o
+ * no claro, marca terracota e marinho nos dois). O que sobra neste arquivo é o que o
  * painel de gestão tem de próprio e continua valendo só dentro dele: raio de
  * canto, tipografia Sora, gradiente Spectrum e as camadas de vidro.
  *
@@ -68,12 +68,16 @@
  * ----------------------------------------------------------------------- */
 .management-theme {
   /*
-   * Cyan da marca no papel de cor de apoio. No painel operacional o mesmo cyan
+   * Marinho da marca no papel de cor de apoio. No painel operacional a mesma cor
    * atende por `--accent` e `--secondary` é o cinza de controle; aqui o nome
-   * herdado do System-mobile aponta para a cor, e são os dois o mesmo #06B6D4.
+   * herdado do System-mobile aponta para a cor.
+   *
+   * ⚠️ Aponta para o token, e não repete o hex: desde 08/09/2026 a secundária
+   * troca de valor entre os temas (#010066 no papel, #A0A6FF no grafite), e um
+   * literal aqui deixaria o painel de gestão parado num dos dois.
    */
-  --secondary: #06b6d4;
-  --secondary-foreground: #00212b;
+  --secondary: var(--accent);
+  --secondary-foreground: var(--accent-foreground);
   --ring: #d5623a;
 
   /*
@@ -108,8 +112,11 @@
     #e7bb45 100%
   );
 
-  --glow-indigo: radial-gradient(circle, rgba(190, 90, 53, 0.15) 0%, transparent 70%);
-  --glow-cyan: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+  /* ⚠️ O nome é herança do indigo. rgba do #D5623A: laranja único desde 08/09/2026. */
+  --glow-indigo: radial-gradient(circle, rgba(213, 98, 58, 0.15) 0%, transparent 70%);
+  /* Halo da secundária. É decorativo e vive só sobre o grafite, então usa a
+     versão clara do marinho: o #010066 a 15% sobre fundo escuro é invisível. */
+  --glow-accent: radial-gradient(circle, rgba(160, 166, 255, 0.15) 0%, transparent 70%);
 
   /* Profundidade do fundo — tom mais fechado que a âncora, para vinheta e topo. */
   --backdrop-deep: #141414;
@@ -156,7 +163,7 @@ html.light .management-theme {
   --glass-shadow-elevated:
     0 2px 4px rgba(28, 26, 24, 0.05), 0 24px 48px -20px rgba(28, 26, 24, 0.22);
   --glow-indigo: none;
-  --glow-cyan: none;
+  --glow-accent: none;
   --backdrop-deep: #eae7e2;
 }
 

@@ -56,13 +56,24 @@ export const SEVERITY_LABEL: Record<WarningSeverity, string> = {
 /**
  * Faixa vertical da linha na fila, como na fila de impedimentos.
  *
- * Tokens `on-light` porque a lista mora no painel claro. A cor repete o rótulo
- * de severidade, nunca substitui: a linha continua dizendo "Grave" por escrito.
+ * ⚠️ Faixa usa a família de PREENCHIMENTO (`error`, `warning`), e não a `-on-light`.
+ *
+ * Relatado pelo usuário em 08/09/2026: não dava para distinguir os degraus. A
+ * `-on-light` existe para TEXTO sobre a matiz diluída, e por isso é escurecida
+ * até passar 4,5:1. Como tinta chapada ela vira #9F1239 (vinho) e #6B3F0A
+ * (marrom oliva): duas cores escuras e dessaturadas que não leem como perigo
+ * nem como atenção, e que não se separam uma da outra.
+ *
+ * Faixa é elemento gráfico: pede 3:1, não 4,5:1, e precisa ser reconhecida pela
+ * MATIZ. `#E11D48` e `#B45309` resolvem as duas coisas. No tema escuro as duas
+ * famílias têm o mesmo valor, então lá nada muda.
+ *
+ * A cor continua repetindo um rótulo escrito, e nunca é o único portador.
  */
 export const SEVERITY_RAIL: Record<WarningSeverity, string> = {
   LEVE: 'bg-on-light-muted',
-  MEDIA: 'bg-warning-on-light',
-  GRAVE: 'bg-error-on-light',
+  MEDIA: 'bg-warning',
+  GRAVE: 'bg-error',
 };
 
 export const STATUS_META: Record<OwnerApprovalStatus, { label: string; tone: StatusTone }> = {

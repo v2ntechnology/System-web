@@ -14,7 +14,7 @@ import { VoiceSphere } from '@/components/shared/voice-sphere';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { VoiceTurn } from '@/management/features/assistant/api';
-import { converse, openVoiceSession } from '@/management/features/assistant/api';
+import { converse, loadMessages, openVoiceSession } from '@/management/features/assistant/api';
 import { useSpeechRecognition } from '@/management/features/assistant/use-speech-recognition';
 import {
   proximaEspera,
@@ -26,6 +26,7 @@ import { fetchAssistantVoices, synthesizeAssistantSpeech } from '@/services';
 import type { AssistantVoice, VoiceGender } from '@/services';
 import { useQuery } from '@tanstack/react-query';
 
+import { AssistantSidebar } from './assistant-sidebar';
 import { criarDetectorDeFala, nivelDaFaixaDeFala } from './speech-detection';
 import {
   generosDisponiveis,
@@ -206,6 +207,16 @@ export default function VoiceAssistantPage() {
    * não é podada em dez turnos.
    */
   const [turnosDaVisita, setTurnosDaVisita] = useState<VoiceTurn[]>([]);
+
+  /* A conversa antiga aberta para LEITURA. `null` é a conversa desta visita, que
+     é a única em que a esfera escreve. */
+  const [conversaAberta, setConversaAberta] = useState<string | null>(null);
+
+  const conversaLida = useQuery({
+    queryKey: ['assistant-conversation', conversaAberta],
+    queryFn: () => loadMessages(conversaAberta ?? ''),
+    enabled: conversaAberta !== null,
+  });
   const sessaoIdRef = useRef<string | null>(null);
   const transcricaoRef = useRef<HTMLDivElement>(null);
 
@@ -1101,19 +1112,64 @@ export default function VoiceAssistantPage() {
       ? 'Tentar novamente'
       : 'Iniciar conversa';
 
+  /*
+   * "Nova conversa" esquece o FIO desta visita, e não o histórico gravado: a
+   * próxima pergunta chega ao modelo sem o assunto anterior colado nela. As
+   * conversas continuam na lista da barra lateral, porque ninguém espera que
+   * começar de novo apague o que já perguntou.
+   */
+  function novaConversa() {
+    endConversation();
+    setTurnosDaVisita([]);
+  }
+
+  const turnosLidos: VoiceTurn[] =
+    conversaLida.data?.map((mensagem) => ({
+      role: mensagem.role === 'user' ? 'user' : 'assistant',
+      text: mensagem.content,
+    })) ?? [];
+
+  /* Na conversa antiga a tela LÊ; na conversa da visita ela escreve. O painel é
+     o mesmo, e o cabeçalho diz qual das duas está aberta. */
+  const turnosNaTela = conversaAberta === null ? transcricao : turnosLidos;
+
   return (
-    <main className="tela-proporcional relative bg-background">
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-[1500px] flex-col px-4 py-4 sm:px-7 sm:py-6 lg:px-10">
-        <header className="flex items-center gap-4 border-b border-border/60 pb-4">
-          <Button asChild variant="ghost" size="icon" className="rounded-full" title="Voltar">
-            <Link to="/painel" aria-label="Voltar para a escolha de acesso">
-              <ArrowLeftIcon className="h-4 w-4" />
+    <main className="tela-proporcional relative flex bg-background">
+      <AssistantSidebar
+        selectedId={conversaAberta}
+        onSelect={setConversaAberta}
+        onNewConversation={novaConversa}
+      />
+
+      {/* ⚠️ `min-w-0 flex-1`: num flex, o `w-full` do miolo media a casca INTEIRA
+          e ele transbordava a largura da barra lateral para fora da tela. */}
+      <div className="relative z-10 mx-auto flex h-full w-full min-w-0 max-w-[1500px] flex-1 flex-col px-4 py-4 sm:px-7 sm:py-6 lg:px-10">
+        {/*
+         * ⚠️ A volta e a marca só existem abaixo de 1024px, que é onde a barra
+         * lateral não aparece. No monitor as duas estavam repetidas: a barra já
+         * traz a marca no topo e o atalho para a escolha de acesso, e a faixa
+         * ficava ocupando altura para dizer o que já estava dito ao lado.
+         *
+         * O cabeçalho inteiro some no monitor quando não há escolha de voz, para
+         * não sobrar uma linha divisória sem nada em cima dela.
+         */}
+        <header
+          className={cn(
+            'flex items-center gap-4 border-b border-border/60 pb-4',
+            generos.length === 0 && 'lg:hidden',
+          )}
+        >
+          <div className="flex items-center gap-4 lg:hidden">
+            <Button asChild variant="ghost" size="icon" className="rounded-full" title="Voltar">
+              <Link to="/painel" aria-label="Voltar para a escolha de acesso">
+                <ArrowLeftIcon className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Link to="/painel" aria-label="RookHub, início">
+              <BrandLogo className="hidden h-8 sm:block" />
+              <RookMark className="h-8 w-8 sm:hidden" />
             </Link>
-          </Button>
-          <Link to="/painel" aria-label="RookHub — início">
-            <BrandLogo className="hidden h-8 sm:block" />
-            <RookMark className="h-8 w-8 sm:hidden" />
-          </Link>
+          </div>
 
           {/*
            * A escolha de timbre fica no cabeçalho, longe da esfera: é ajuste de
@@ -1174,11 +1230,25 @@ export default function VoiceAssistantPage() {
            * mesmo tempo não acontece, e o painel comeria o espaço da esfera, que
            * é quem dá o retorno de que a assistente está ouvindo.
            */}
-          {transcricao.length > 0 ? (
+          {turnosNaTela.length > 0 || conversaAberta !== null ? (
             <aside className="hidden min-h-0 w-80 shrink-0 flex-col self-stretch lg:flex xl:w-96">
-              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Conversa
-              </h2>
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {conversaAberta === null ? 'Conversa' : 'Conversa gravada'}
+                </h2>
+                {/* ⚠️ A volta é explícita: sem ela, quem abriu uma conversa
+                    antiga falaria achando que estava continuando aquela, e a
+                    fala entraria na conversa da visita sem aviso. */}
+                {conversaAberta !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => setConversaAberta(null)}
+                    className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  >
+                    Voltar à conversa atual
+                  </button>
+                ) : null}
+              </div>
               {/* `max-h` além do `flex-1`: se algum ancestral perder a altura, o
                   painel continua limitado e rolando, em vez de esticar a
                   página. A barra some, como em todo o sistema, e a rolagem
@@ -1187,7 +1257,17 @@ export default function VoiceAssistantPage() {
                 ref={transcricaoRef}
                 className="mt-3 max-h-[70vh] min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 text-left"
               >
-                {transcricao.map((turno, indice) => (
+                {conversaAberta !== null && conversaLida.isPending ? (
+                  <p className="text-xs text-muted-foreground">Carregando a conversa…</p>
+                ) : null}
+
+                {conversaAberta !== null && conversaLida.isError ? (
+                  <p className="text-xs text-muted-foreground">
+                    Não foi possível abrir esta conversa.
+                  </p>
+                ) : null}
+
+                {turnosNaTela.map((turno, indice) => (
                   <div
                     key={`${turno.role}-${indice}`}
                     className={cn(

@@ -39,11 +39,12 @@ const buttonVariants = cva(
           'active:translate-y-px',
         ],
         /**
-         * Ação de peso igual ao `primary`, na âncora Cyan.
+         * Ação de peso igual ao `primary`, na âncora Marinho.
          *
          * Existe para telas com **duas escolhas equivalentes**, onde rebaixar uma
          * delas a `ghost` mentiria sobre a hierarquia. Não é "botão secundário":
-         * é o outro caminho. O par `secondary`/`on-secondary` dá 6,8:1.
+         * é o outro caminho. O par `secondary`/`on-secondary` dá 17,5:1 no claro,
+         * onde a secundária é o marinho #010066 com texto branco.
          */
         secondary: [
           'bg-secondary text-on-secondary',
@@ -52,12 +53,20 @@ const buttonVariants = cva(
           'hover:bg-[color-mix(in_oklab,var(--secondary)_86%,black)]',
           'active:translate-y-px',
         ],
-        /** Ação secundária sobre vidro. */
+        /**
+         * Ação secundária: traço e escrita na secundária, sem preenchimento.
+         *
+         * ⚠️ Desenho pedido pelo usuário em 08/09/2026. O botão que não é
+         * terracota passa a ser o contorno marinho, e é assim que ele se separa
+         * da ação preenchida sem virar mais um bloco cinza na tela.
+         *
+         * `/60` no traço, e não `/40`: a 40% sobre o papel a linha dá 2,7:1 e
+         * fica abaixo do mínimo de 3:1 que contorno de componente pede. A 60%
+         * ela dá 5,2:1. O texto cheio dá 15,6:1.
+         */
         ghost: [
-          /* `on-surface` e não branco: o véu precisa clarear no escuro e escurecer
-             no claro, senão o botão some sobre o papel. */
-          'border border-outline-variant bg-on-surface/[0.04] text-on-surface',
-          'hover:border-outline hover:bg-on-surface/[0.08]',
+          'border border-accent/60 bg-transparent text-accent',
+          'hover:border-accent hover:bg-accent/[0.06]',
         ],
         /** Link textual. */
         link: 'text-secondary underline-offset-4 hover:underline',

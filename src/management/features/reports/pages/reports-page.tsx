@@ -1,18 +1,29 @@
-import { LockIcon, SearchIcon } from '@/components/icons';
+import {
+  CalendarIcon,
+  LockIcon,
+  MoneyIcon,
+  RouteIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  TrendDownIcon,
+  TrendUpIcon,
+} from '@/components/icons';
 import type { ReportCategory, ReportDefinition, AnalyticsPeriod } from '@/management/types';
-import { cn } from '@/management/ui';
+import { GlassInput, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand, HeroPill } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 import { useSession } from '@/management/features/auth/store';
 
-import { getReports } from '../api';
+import { getReportIndicators, getReports } from '../api';
 import { PeriodIndicators } from '../components/period-indicators';
+import { PERIOD_LABELS } from '@/management/components/layout/period-labels';
 import { PeriodPicker } from '@/management/components/layout/period-picker';
 import { ReportDetailPanel } from '../components/report-detail-panel';
 import { ReportHistory } from '../components/report-history';
@@ -34,6 +45,14 @@ const CATEGORIES: { id: ReportCategory | 'TODOS'; label: string }[] = [
   { id: 'MANUTENCAO', label: 'Manutenção' },
 ];
 
+const brl = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  maximumFractionDigits: 0,
+});
+const brlPrecise = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const numero = new Intl.NumberFormat('pt-BR');
+
 export function ReportsPage() {
   const { data, isPending, isError } = useQuery({ queryKey: ['reports'], queryFn: getReports });
   const session = useSession();
@@ -42,6 +61,13 @@ export function ReportsPage() {
   const [period, setPeriod] = useState<AnalyticsPeriod>('6M');
   const [category, setCategory] = useState<ReportCategory | 'TODOS'>('TODOS');
   const [search, setSearch] = useState('');
+
+  /* Mesma chave do gráfico de disponibilidade: os dois dividem o cache, e os
+     números da faixa não custam uma segunda consulta. */
+  const indicadores = useQuery({
+    queryKey: ['report-indicators', period],
+    queryFn: () => getReportIndicators(period),
+  });
 
   const reports = useMemo(() => data ?? [], [data]);
   const contracted = session?.tenant.modules ?? [];
@@ -80,23 +106,80 @@ export function ReportsPage() {
     [reports],
   );
 
+  /* Em custo, CAIR é bom: a semântica do indicador é invertida em relação a um
+     número comum, e por isso a seta e a cor não seguem o sinal. */
+  const custoCaindo = (indicadores.data?.costDelta ?? 0) < 0;
+  const SetaDoCusto = custoCaindo ? TrendDownIcon : TrendUpIcon;
+
+  const stats: HeroStat[] = indicadores.data
+    ? [
+        {
+          key: 'custo-km',
+          label: 'Custo por km',
+          value: brlPrecise.format(indicadores.data.costPerKm),
+          hint: `${indicadores.data.costDelta > 0 ? '+' : ''}${indicadores.data.costDelta.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}% contra o período anterior`,
+          icon: SetaDoCusto,
+          tone: custoCaindo ? 'neutral' : 'warn',
+        },
+        {
+          key: 'viagens',
+          label: 'Viagens concluídas',
+          value: numero.format(indicadores.data.tripsCompleted),
+          hint: 'no período escolhido',
+          icon: RouteIcon,
+        },
+        {
+          key: 'eventos',
+          label: 'Eventos críticos',
+          value: numero.format(indicadores.data.criticalEvents),
+          hint: 'somados no período',
+          icon: ShieldAlertIcon,
+          tone: indicadores.data.criticalEvents > 0 ? 'warn' : 'neutral',
+        },
+        {
+          key: 'manutencao',
+          label: 'Gasto com manutenção',
+          value: brl.format(indicadores.data.maintenanceCost),
+          hint: 'peças e serviço somados',
+          icon: MoneyIcon,
+        },
+      ]
+    : [];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Relatórios"
-        description="Exporte os números da operação com a memória de cálculo junto — para auditoria, contabilidade ou negociação com fornecedor."
-      />
+        description="Exporte os números da operação com a memória de cálculo junto, para auditoria, contabilidade ou negociação com fornecedor."
+      >
+        <HeroPill icon={CalendarIcon}>{PERIOD_LABELS[period]}</HeroPill>
+      </HeroBand>
 
       {/* -------------------------------------------------------------------
-       * Faixa escura: indicadores do período + seletor
+       * Números do período mordendo a faixa, seletor e disponibilidade
        * ----------------------------------------------------------------- */}
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Indicadores do período</h2>
-        <PeriodIndicators period={period} />
 
+        <QueryState
+          isPending={indicadores.isPending}
+          isError={indicadores.isError}
+          label="os indicadores do período"
+        >
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
+              ela jogaria o carregando e o erro por cima da faixa colorida. */}
+          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+        </QueryState>
+
+        {/* ⚠️ O seletor vem ANTES do gráfico e depois dos números: ele governa
+            os dois, e um controle escondido no fim da seção faz o gráfico
+            parecer fixo. */}
         <div className="mt-6">
           <PeriodPicker value={period} onChange={setPeriod} />
+        </div>
+
+        <div className="mt-5">
+          <PeriodIndicators period={period} />
         </div>
       </section>
 
@@ -108,10 +191,12 @@ export function ReportsPage() {
           {tab === 'CATALOGO' ? (
             <QueryState isPending={isPending} isError={isError} label="os relatórios">
               <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                {/* ⚠️ Mesmo segmentado das viagens e das notificações: poço em
+                    pílula com a pastilha clara subindo quando escolhida. */}
                 <div
                   role="group"
                   aria-label="Filtrar por categoria"
-                  className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+                  className="bg-light-container rounded-pill flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
                 >
                   {CATEGORIES.map((option) => {
                     const active = category === option.id;
@@ -122,40 +207,38 @@ export function ReportsPage() {
                         aria-pressed={active}
                         onClick={() => setCategory(option.id)}
                         className={cn(
-                          'rounded-pill text-label-md focus-visible:ring-primary-on-light shrink-0 px-3.5 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+                          'group text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
                           active
-                            ? 'bg-primary-strong text-on-primary'
-                            : 'text-on-light-variant hover:bg-light-container border-light-outline border',
+                            ? 'bg-light text-accent font-medium shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]'
+                            : 'text-on-light-variant hover:bg-on-light/[0.06] hover:text-on-light',
                         )}
                       >
                         {option.label}
-                        <span className="tabular ml-1.5 opacity-70">{counts[option.id]}</span>
+                        <span className={cn('tabular ml-2 opacity-70', active && 'opacity-100')}>
+                          {counts[option.id]}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
 
-                <div className="rounded-pill focus-within:border-primary-on-light bg-light-container border-light-outline flex min-w-0 items-center gap-2 border px-4 xl:w-72">
-                  <SearchIcon
-                    size={18}
-                    className="text-on-light-muted shrink-0"
-                    aria-hidden="true"
-                  />
-                  <label htmlFor="report-search" className="sr-only">
-                    Buscar relatório
-                  </label>
-                  <input
-                    id="report-search"
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Nome do relatório"
-                    className="text-body-md text-on-light placeholder:text-placeholder h-11 w-full bg-transparent focus:outline-none"
-                  />
-                </div>
+                {/* ⚠️ `GlassInput` com `surface="light"`, e não um `<input>`
+                    montado à mão: é o campo do sistema, e só ele traz o foco, o
+                    poço e o rótulo acessível iguais aos das outras telas. */}
+                <GlassInput
+                  id="report-search"
+                  surface="light"
+                  label="Buscar relatório"
+                  hideLabel
+                  placeholder="Nome do relatório"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  leading={<SearchIcon size={16} aria-hidden="true" />}
+                  className="xl:w-72"
+                />
               </div>
 
-              <div className="grid gap-6 pb-4 xl:grid-cols-[minmax(0,340px)_1fr]">
+              <div className="grid gap-6 pb-4 xl:grid-cols-[minmax(0,380px)_1fr]">
                 <div className="min-w-0">
                   {visible.length === 0 ? (
                     <p className="text-on-light-variant text-body-md py-10 text-center">
@@ -214,7 +297,9 @@ export function ReportsPage() {
                   )}
                 </div>
 
-                <div className="min-w-0">
+                {/* `xl:sticky`: no monitor a lista rola e o relatório aberto
+                    fica. `self-start` é o que dá altura ao grudado no grid. */}
+                <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
                   {selected ? (
                     <ReportDetailPanel
                       report={selected}
@@ -222,8 +307,11 @@ export function ReportsPage() {
                       locked={isLocked(selected)}
                     />
                   ) : (
-                    <div className="bg-surface-lowest flex min-h-80 items-center justify-center rounded-xl p-6">
-                      <p className="text-on-surface-muted text-body-md text-center">
+                    /* Tokens `light`: este bloco mora dentro do painel claro.
+                       Com `surface-lowest` ele era o poço do tema, outra
+                       família. */
+                    <div className="bg-light-container flex min-h-72 items-center justify-center rounded-xl p-6">
+                      <p className="text-on-light-muted text-body-md max-w-xs text-center text-balance">
                         Selecione um relatório para ver a prévia e exportar.
                       </p>
                     </div>

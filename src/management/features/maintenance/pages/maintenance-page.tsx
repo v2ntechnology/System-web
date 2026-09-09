@@ -1,21 +1,40 @@
-import { MaintenanceIcon, WarningIcon } from '@/components/icons';
-import type { ServiceOrder, ServiceOrderStatus } from '@/management/types';
-import { GlassCard, LightCard, StatusChip, cn, type StatusTone } from '@/management/ui';
+import {
+  ChevronDownIcon,
+  ClockIcon,
+  MaintenanceIcon,
+  MoneyIcon,
+  SearchIcon,
+  TruckIcon,
+  WarningIcon,
+} from '@/components/icons';
+import type { ServiceOrderStatus } from '@/management/types';
+import {
+  GlassInput,
+  GlassSelect,
+  SpectrumButton,
+  StatusChip,
+  cn,
+  type StatusTone,
+} from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand, HeroPill } from '@/management/components/layout/hero-band';
+import { HeroStats } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { PendingSource } from '@/management/components/layout/pending-source';
 import { QueryState } from '@/management/components/layout/query-state';
 import { env } from '@/app/environment';
-import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
 import { fetchMechanicalAlerts } from '@/management/lib/fleet-api';
 
 import { getMaintenanceSummary } from '../api';
-import { MechanicalAlertsCard } from '../components/mechanical-alerts-card';
+import { aggregateMechanicalAlerts, formatAlertDescription } from '../alerts';
+import {
+  MechanicalAlertsQueue,
+  MechanicalKindFilters,
+} from '../components/mechanical-alerts-queue';
 
 const TABS = [
   { id: 'ORDENS', label: 'Ordens de serviço' },
@@ -32,8 +51,29 @@ const STATUS: Record<ServiceOrderStatus, { label: string; tone: StatusTone }> = 
   ATRASADA: { label: 'Atrasada', tone: 'critical' },
 };
 
+/**
+ * Faixa vertical da linha, no desenho das outras filas do painel.
+ *
+ * ⚠️ Existe para o estado SOBREVIVER à seleção: o chip era escondido na linha
+ * escolhida (`active ? null : <StatusChip/>`), porque o tonal não se lê sobre o
+ * laranja. Abrir uma OS ATRASADA apagava justamente o motivo de ela ser urgente.
+ *
+ * Família de PREENCHIMENTO, nunca `-on-light`: aquela é de texto e como tinta
+ * chapada vira vinho e marrom, que não se separam.
+ */
+const STATUS_RAIL: Record<ServiceOrderStatus, string> = {
+  ABERTA: 'bg-info',
+  EM_EXECUCAO: 'bg-warning',
+  CONCLUIDA: 'bg-success',
+  ATRASADA: 'bg-error',
+};
+
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const km = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const inteiro = km;
+
+/** Valor do seletor de unidade quando nenhuma foi escolhida. */
+const TODAS_UNIDADES = 'TODAS';
 const date = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: 'short',
@@ -49,8 +89,6 @@ export function MaintenancePage() {
   const [tab, setTab] = useState<TabId>('ORDENS');
 
   const orders = useMemo(() => data?.orders ?? [], [data]);
-  const orderId = useCallback((order: ServiceOrder) => order.id, []);
-  const { selectedId, setSelectedId, selected } = useMasterDetail(orders, orderId);
 
   const open = orders.filter((o) => o.status !== 'CONCLUIDA').length;
   const late = orders.filter((o) => o.status === 'ATRASADA').length;
@@ -71,8 +109,7 @@ export function MaintenancePage() {
 
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Manutenção"
         description="Ordens de serviço, planos preventivos e o desempenho de cada oficina."
       />
@@ -81,26 +118,43 @@ export function MaintenancePage() {
         <h2 className="sr-only">Resumo de manutenção</h2>
 
         <QueryState isPending={isPending} isError={isError} label="a manutenção">
-          <GlassCard className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
-            {[
-              { label: 'OS abertas', value: open },
-              { label: 'Atrasadas', value: late, alert: late > 0 },
-              { label: 'Custo no período', value: brl.format(cost) },
-              { label: 'Parada média', value: `${avgDowntime} h` },
-            ].map((metric) => (
-              <div key={metric.label} className="metric-tile">
-                <p className="text-on-surface-variant text-label-md normal-case">{metric.label}</p>
-                <p
-                  className={cn(
-                    'tabular font-sora mt-2 text-[28px] font-bold leading-none',
-                    metric.alert ? 'text-error' : 'text-on-surface',
-                  )}
-                >
-                  {metric.value}
-                </p>
-              </div>
-            ))}
-          </GlassCard>
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
+              ela puxaria o carregando e o erro para dentro da faixa. */}
+          <HeroStats
+            className="-mt-16 sm:-mt-20"
+            items={[
+              {
+                key: 'abertas',
+                label: 'OS abertas',
+                value: open,
+                hint: 'aguardando execução',
+                icon: MaintenanceIcon,
+                tone: open > 0 ? 'warn' : 'neutral',
+              },
+              {
+                key: 'atrasadas',
+                label: 'Atrasadas',
+                value: late,
+                hint: 'o veículo roda com pendência',
+                icon: WarningIcon,
+                tone: late > 0 ? 'alert' : 'neutral',
+              },
+              {
+                key: 'custo',
+                label: 'Custo no período',
+                value: brl.format(cost),
+                hint: 'peças e serviço somados',
+                icon: MoneyIcon,
+              },
+              {
+                key: 'parada',
+                label: 'Parada média',
+                value: `${avgDowntime} h`,
+                hint: 'do veículo por ordem',
+                icon: ClockIcon,
+              },
+            ]}
+          />
 
           {late > 0 ? (
             <div className="bg-error/10 border-error/30 text-error mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
@@ -121,143 +175,134 @@ export function MaintenancePage() {
             {data ? (
               <div className="pb-4">
                 {tab === 'ORDENS' ? (
-                  <div className="grid gap-6 xl:grid-cols-[minmax(0,340px)_1fr]">
-                    <div className="min-w-0">
-                      <div className="mb-3 flex items-baseline justify-between gap-3">
-                        <h2 className="font-sora text-primary text-headline-md">Ordens</h2>
-                        <span className="text-on-light-muted text-label-md tabular normal-case">
-                          {orders.length}
-                        </span>
-                      </div>
+                  <section>
+                    {/*
+                     * ⚠️ FILA ÚNICA, no desenho de `/gestao/impedimentos` (decisão
+                     * do usuário em 08/09/2026), e não mais lista estreita com
+                     * painel de detalhe ao lado.
+                     *
+                     * A ordem de serviço não pede master-detail: ela tem meia dúzia
+                     * de fatos, e todos cabem na própria linha. O que sobrava para o
+                     * painel era a quebra de itens, que virou uma revelação dentro
+                     * da linha. Em troca, o código, a oficina e o prazo deixam de
+                     * viver numa coluna de 340px espremida.
+                     */}
+                    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+                      <h2 className="font-sora text-on-light text-headline-md">Ordens</h2>
+                      <span className="text-on-light-muted text-label-md tabular normal-case">
+                        {orders.length} {orders.length === 1 ? 'ordem' : 'ordens'}
+                      </span>
+                    </div>
 
-                      <ul className="flex flex-col gap-2">
+                    {orders.length === 0 ? (
+                      <p className="text-on-light-variant text-body-md py-10 text-center">
+                        Nenhuma ordem de serviço no período.
+                      </p>
+                    ) : (
+                      <ol className="flex flex-col">
                         {orders.map((order) => {
-                          const active = order.id === selectedId;
                           const status = STATUS[order.status];
 
                           return (
-                            <li key={order.id} className="min-w-0">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedId(order.id)}
-                                aria-current={active ? 'true' : undefined}
+                            <li
+                              key={order.id}
+                              className="border-light-outline flex items-stretch gap-4 border-b py-4 last:border-b-0"
+                            >
+                              {/* A cor repete o rótulo, nunca o substitui. */}
+                              <span
                                 className={cn(
-                                  'focus-visible:ring-primary-on-light w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
-                                  active ? 'bg-primary-strong' : 'hover:bg-light-container',
+                                  'w-1 shrink-0 rounded-full',
+                                  STATUS_RAIL[order.status],
                                 )}
-                              >
-                                <span className="flex items-center justify-between gap-2">
-                                  <span
-                                    className={cn(
-                                      'tabular font-semibold',
-                                      active ? 'text-on-primary' : 'text-on-light',
-                                    )}
-                                  >
+                                aria-hidden="true"
+                              />
+
+                              <span className="bg-on-light/[0.06] text-on-light-variant mt-0.5 hidden size-10 shrink-0 items-center justify-center rounded-md sm:flex">
+                                <MaintenanceIcon size={18} aria-hidden="true" />
+                              </span>
+
+                              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="tabular font-sora text-on-light text-body-lg font-bold tracking-[-0.01em]">
                                     {order.code}
                                   </span>
-                                  {active ? null : (
-                                    <StatusChip tone={status.tone} surface="light">
-                                      {status.label}
-                                    </StatusChip>
-                                  )}
+                                  <StatusChip tone={status.tone} surface="light">
+                                    {status.label}
+                                  </StatusChip>
+                                  <StatusChip surface="light">
+                                    {order.type === 'PREVENTIVA' ? 'Preventiva' : 'Corretiva'}
+                                  </StatusChip>
+                                </div>
+
+                                <p className="text-on-light-variant text-body-md">
+                                  {order.service}
+                                </p>
+
+                                <p className="text-on-light-muted text-label-sm normal-case">
+                                  <span className="tabular">{order.plate}</span> · {order.model} ·{' '}
+                                  {order.workshop} · prazo em{' '}
+                                  <span className="tabular">
+                                    {date.format(new Date(order.dueAt))}
+                                  </span>
+                                </p>
+
+                                {/* ⚠️ `<details>` nativo: a quebra de itens é o único
+                                    fato que não cabe na linha, e ela não justifica
+                                    estado em React nem uma segunda coluna. */}
+                                {order.items.length > 0 ? (
+                                  <details className="group mt-1">
+                                    <summary className="text-accent text-label-md focus-visible:ring-primary inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md normal-case hover:underline focus-visible:outline-none focus-visible:ring-2">
+                                      <ChevronDownIcon
+                                        size={14}
+                                        aria-hidden="true"
+                                        className="transition-transform group-open:rotate-180"
+                                      />
+                                      {order.items.length}{' '}
+                                      {order.items.length === 1 ? 'item' : 'itens'}
+                                    </summary>
+
+                                    <ul className="mt-2 flex flex-col gap-1.5">
+                                      {order.items.map((item) => (
+                                        <li
+                                          key={item.label}
+                                          className="bg-light-container flex items-center justify-between gap-3 rounded-md px-3 py-2"
+                                        >
+                                          <span className="text-on-light text-label-md normal-case">
+                                            {item.label}
+                                          </span>
+                                          <span className="tabular text-on-light text-label-md shrink-0 normal-case">
+                                            {brl.format(item.cost)}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </details>
+                                ) : null}
+                              </div>
+
+                              <div className="flex shrink-0 flex-col items-end gap-1">
+                                <span className="tabular font-sora text-on-light text-body-lg font-bold">
+                                  {brl.format(order.cost)}
                                 </span>
-                                <span
-                                  className={cn(
-                                    'text-label-md mt-1 block truncate normal-case',
-                                    active ? 'text-on-primary' : 'text-on-light-muted',
-                                  )}
-                                >
-                                  <span className="tabular">{order.plate}</span> · {order.service}
+                                <span className="tabular text-on-light-muted text-label-sm normal-case">
+                                  {order.downtimeHours} h parado
                                 </span>
-                              </button>
+                              </div>
                             </li>
                           );
                         })}
-                      </ul>
-                    </div>
-
-                    <div className="min-w-0">
-                      {selected ? (
-                        <section
-                          aria-label={`Detalhes da ordem ${selected.code}`}
-                          className="bg-surface-lowest flex min-w-0 flex-col rounded-xl p-5 sm:p-6"
-                        >
-                          <header className="border-outline-variant flex flex-wrap items-start justify-between gap-3 border-b pb-4">
-                            <div className="min-w-0">
-                              <h3 className="tabular font-sora text-on-surface text-headline-md font-bold">
-                                {selected.code}
-                              </h3>
-                              <p className="text-on-surface-variant text-body-md mt-1">
-                                {selected.service}
-                              </p>
-                              <p className="text-on-surface-muted text-label-md mt-0.5 normal-case">
-                                <span className="tabular">{selected.plate}</span> · {selected.model}
-                              </p>
-                            </div>
-                            <div className="flex flex-col items-end gap-2">
-                              <StatusChip tone={STATUS[selected.status].tone}>
-                                {STATUS[selected.status].label}
-                              </StatusChip>
-                              <StatusChip tone="neutral">
-                                {selected.type === 'PREVENTIVA' ? 'Preventiva' : 'Corretiva'}
-                              </StatusChip>
-                            </div>
-                          </header>
-
-                          <dl className="mt-4 grid gap-3 sm:grid-cols-4">
-                            {[
-                              { label: 'Oficina', value: selected.workshop },
-                              {
-                                label: 'Aberta em',
-                                value: date.format(new Date(selected.openedAt)),
-                              },
-                              { label: 'Prazo', value: date.format(new Date(selected.dueAt)) },
-                              { label: 'Parada', value: `${selected.downtimeHours} h` },
-                            ].map((field) => (
-                              <div
-                                key={field.label}
-                                className="bg-on-surface/4 min-w-0 rounded-md p-3"
-                              >
-                                <dt className="text-on-surface-muted text-label-md normal-case">
-                                  {field.label}
-                                </dt>
-                                <dd className="tabular text-on-surface text-body-md mt-1 truncate">
-                                  {field.value}
-                                </dd>
-                              </div>
-                            ))}
-                          </dl>
-
-                          <div className="mt-6">
-                            <h4 className="text-on-surface-variant text-body-md mb-3">
-                              Itens da ordem
-                            </h4>
-                            <ul className="flex flex-col gap-2">
-                              {selected.items.map((item) => (
-                                <li
-                                  key={item.label}
-                                  className="bg-on-surface/4 flex items-center justify-between gap-3 rounded-md px-3 py-2.5"
-                                >
-                                  <span className="text-on-surface text-body-md">{item.label}</span>
-                                  <span className="tabular text-on-surface text-body-md">
-                                    {brl.format(item.cost)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                            <p className="border-outline-variant mt-3 flex items-center justify-between gap-3 border-t pt-3">
-                              <span className="text-on-surface-variant text-body-md">Total</span>
-                              <span className="tabular font-sora text-on-surface text-headline-md font-bold">
-                                {brl.format(selected.cost)}
-                              </span>
-                            </p>
-                          </div>
-                        </section>
-                      ) : null}
-                    </div>
-                  </div>
+                      </ol>
+                    )}
+                  </section>
                 ) : tab === 'PLANOS' ? (
-                  <LightCard title="Planos preventivos">
+                  <section>
+                    {/* ⚠️ Sem `LightCard`: era cartão dentro de cartão. Ele
+                        embrulhava o conteúdo INTEIRO da aba, e esse conteúdo é uma
+                        grade de blocos, dentro do painel branco da página. Título e
+                        respiro fazem a separação, que é como o resto do painel faz. */}
+                    <h2 className="font-sora text-on-light text-headline-md mb-5">
+                      Planos preventivos
+                    </h2>
                     <p className="text-on-light-variant text-body-md mb-5">
                       O plano dispara pela quilometragem, não pelo calendário — é o que evita
                       manutenção cedo demais em veículo parado e tarde demais em veículo que roda.
@@ -267,18 +312,18 @@ export function MaintenancePage() {
                       {data.plans.map((plan) => (
                         <li
                           key={plan.id}
-                          className="bg-surface-lowest flex min-w-0 flex-col rounded-lg p-4"
+                          className="bg-light-container flex min-w-0 flex-col rounded-lg p-4"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <h3 className="text-on-surface font-semibold">{plan.name}</h3>
-                              <p className="text-on-surface-muted text-label-md mt-0.5 normal-case">
+                              <h3 className="text-on-light font-semibold">{plan.name}</h3>
+                              <p className="text-on-light-muted text-label-md mt-0.5 normal-case">
                                 a cada {km.format(plan.intervalKm)} km · {plan.appliesTo}
                               </p>
                             </div>
                             <MaintenanceIcon
                               size={18}
-                              className="text-on-surface-muted shrink-0"
+                              className="text-on-light-muted shrink-0"
                               aria-hidden="true"
                             />
                           </div>
@@ -291,13 +336,13 @@ export function MaintenancePage() {
                             </p>
                           ) : null}
 
-                          <ul className="border-outline-variant mt-auto flex flex-col gap-1.5 border-t pt-3">
+                          <ul className="border-light-outline mt-auto flex flex-col gap-1.5 border-t pt-3">
                             {plan.nextVehicles.map((vehicle) => (
                               <li
                                 key={vehicle.plate}
                                 className="flex items-center justify-between gap-2"
                               >
-                                <span className="tabular text-on-surface-variant text-label-md normal-case">
+                                <span className="tabular text-on-light-variant text-label-md normal-case">
                                   {vehicle.plate}
                                 </span>
                                 <span
@@ -305,7 +350,7 @@ export function MaintenancePage() {
                                     'tabular text-label-md normal-case',
                                     vehicle.kmToService < 1000
                                       ? 'text-warning'
-                                      : 'text-on-surface-muted',
+                                      : 'text-on-light-muted',
                                   )}
                                 >
                                   em {km.format(vehicle.kmToService)} km
@@ -316,9 +361,10 @@ export function MaintenancePage() {
                         </li>
                       ))}
                     </ul>
-                  </LightCard>
+                  </section>
                 ) : (
-                  <LightCard title="Oficinas">
+                  <section>
+                    <h2 className="font-sora text-on-light text-headline-md mb-5">Oficinas</h2>
                     <p className="text-on-light-variant text-body-md mb-5">
                       Custo médio e tempo de parada por oficina — é o que sustenta a negociação de
                       contrato.
@@ -326,34 +372,34 @@ export function MaintenancePage() {
 
                     <ul className="grid gap-3 xl:grid-cols-3">
                       {data.workshops.map((workshop) => (
-                        <li key={workshop.id} className="bg-surface-lowest rounded-lg p-4">
-                          <h3 className="text-on-surface font-semibold">{workshop.name}</h3>
-                          <p className="text-on-surface-muted text-label-md mt-0.5 normal-case">
+                        <li key={workshop.id} className="bg-light-container rounded-lg p-4">
+                          <h3 className="text-on-light font-semibold">{workshop.name}</h3>
+                          <p className="text-on-light-muted text-label-md mt-0.5 normal-case">
                             {workshop.city}
                           </p>
 
-                          <dl className="border-outline-variant mt-4 grid grid-cols-3 gap-2 border-t pt-3 text-center">
+                          <dl className="border-light-outline mt-4 grid grid-cols-3 gap-2 border-t pt-3 text-center">
                             <div>
-                              <dt className="text-on-surface-muted text-label-sm normal-case">
+                              <dt className="text-on-light-muted text-label-sm normal-case">
                                 Ordens
                               </dt>
-                              <dd className="tabular text-on-surface mt-0.5 font-semibold">
+                              <dd className="tabular text-on-light mt-0.5 font-semibold">
                                 {workshop.ordersInPeriod}
                               </dd>
                             </div>
                             <div>
-                              <dt className="text-on-surface-muted text-label-sm normal-case">
+                              <dt className="text-on-light-muted text-label-sm normal-case">
                                 Custo médio
                               </dt>
-                              <dd className="tabular text-on-surface mt-0.5 font-semibold">
+                              <dd className="tabular text-on-light mt-0.5 font-semibold">
                                 {brl.format(workshop.averageCost)}
                               </dd>
                             </div>
                             <div>
-                              <dt className="text-on-surface-muted text-label-sm normal-case">
+                              <dt className="text-on-light-muted text-label-sm normal-case">
                                 Parada
                               </dt>
-                              <dd className="tabular text-on-surface mt-0.5 font-semibold">
+                              <dd className="tabular text-on-light mt-0.5 font-semibold">
                                 {workshop.averageDowntimeHours} h
                               </dd>
                             </div>
@@ -361,7 +407,7 @@ export function MaintenancePage() {
                         </li>
                       ))}
                     </ul>
-                  </LightCard>
+                  </section>
                 )}
               </div>
             ) : null}
@@ -402,35 +448,222 @@ function ManutencaoReal() {
    * uma vez numa subida.
    */
   const JANELA = 30;
+  const PERIODO = 'últimos 30 dias';
 
   const alertas = useQuery({
     queryKey: ['manutencao', 'alertas-mecanicos', JANELA],
     queryFn: () => fetchMechanicalAlerts(JANELA),
   });
 
+  const [tipo, setTipo] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
+  const [unidade, setUnidade] = useState(TODAS_UNIDADES);
+  const [pagina, setPagina] = useState(1);
+
+  const resumo = useMemo(() => aggregateMechanicalAlerts(alertas.data ?? []), [alertas.data]);
+
+  /* A busca é por placa E modelo: quem procura "Actros" está atrás da família
+     inteira, e quem digita a placa está atrás de um caminhão só. */
+  const termo = busca.trim().toLocaleLowerCase('pt-BR');
+
+  const filtrados = useMemo(
+    () =>
+      resumo.veiculos.filter(
+        (veiculo) =>
+          (tipo === null || veiculo.tipos.some((t) => t.description === tipo)) &&
+          (unidade === TODAS_UNIDADES || veiculo.unidade === unidade) &&
+          (termo === '' ||
+            veiculo.plate.toLocaleLowerCase('pt-BR').includes(termo) ||
+            (veiculo.model ?? '').toLocaleLowerCase('pt-BR').includes(termo)),
+      ),
+    [resumo.veiculos, tipo, unidade, termo],
+  );
+
+  const filtrando = tipo !== null || unidade !== TODAS_UNIDADES || termo !== '';
+
+  /* Todo filtro volta para a primeira página: recortar a fila estando na quarta
+     é a forma mais rápida de olhar para uma lista vazia. */
+  const escolherTipo = (proximo: string | null) => {
+    setTipo(proximo);
+    setPagina(1);
+  };
+
+  const escolherUnidade = (proxima: string) => {
+    setUnidade(proxima);
+    setPagina(1);
+  };
+
+  const escolherBusca = (proxima: string) => {
+    setBusca(proxima);
+    setPagina(1);
+  };
+
+  const limpar = () => {
+    setTipo(null);
+    setUnidade(TODAS_UNIDADES);
+    setBusca('');
+    setPagina(1);
+  };
+
+  const note = filtrando
+    ? `Mostrando ${filtrados.length} de ${resumo.veiculos.length} veículos: ${[
+        tipo ? formatAlertDescription(tipo).toLocaleLowerCase('pt-BR') : null,
+        unidade !== TODAS_UNIDADES ? unidade : null,
+        termo ? `"${busca.trim()}"` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')}. A contagem à direita continua sendo o total do veículo.`
+    : `${inteiro.format(resumo.total)} ocorrências em ${resumo.veiculos.length} ${
+        resumo.veiculos.length === 1 ? 'veículo' : 'veículos'
+      }, ${PERIODO}. É o que o sensor disparou, e não um diagnóstico.`;
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Manutenção"
-        description="O que o rastreador acusa de mecânico, e o que ainda depende de cadastro."
-      />
+        description="O que o rastreador acusa de mecânico, e o que ainda depende de cadastro. A fila começa pelo caminhão que mais dispara, e os tipos recortam a lista sem mudar essa ordem."
+      >
+        <HeroPill icon={ClockIcon}>{PERIODO}</HeroPill>
+      </HeroBand>
 
-      <PageContent className="mt-0 sm:mt-0">
+      {/*
+       * ⚠️ O mesmo arranjo de `/gestao/impedimentos` (decisão do usuário em
+       * 08/09/2026): faixa, fileira de números FORA do painel mordendo a borda
+       * dela, e só então a placa branca com o conteúdo.
+       *
+       * Antes era um `GlassCard` solto sobre o papel seguido do aviso de origem,
+       * sem painel nenhum: o conteúdo flutuava enquanto as outras rotas do par
+       * tinham a placa. A subida fica nos cards, e não na seção, senão o
+       * carregando e o erro apareceriam por cima da faixa colorida.
+       */}
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+        <h2 className="sr-only">Resumo dos alertas mecânicos</h2>
+
         <QueryState
           isPending={alertas.isPending}
           isError={alertas.isError}
           label="os alertas mecânicos"
         >
-          <MechanicalAlertsCard alerts={alertas.data ?? []} periodLabel="últimos 30 dias" />
+          <HeroStats
+            className="-mt-16 sm:-mt-20"
+            items={[
+              {
+                key: 'alertas',
+                label: 'Alertas da rede CAN',
+                value: inteiro.format(resumo.total),
+                hint: 'ocorrências no período',
+                icon: WarningIcon,
+                tone: resumo.total > 0 ? 'warn' : 'neutral',
+              },
+              {
+                key: 'veiculos',
+                label: 'Veículos acusando',
+                value: resumo.veiculos.length,
+                hint: 'com ao menos um alerta',
+                icon: TruckIcon,
+              },
+              {
+                key: 'tipo',
+                label: 'Tipo mais frequente',
+                value: resumo.porTipo[0] ? inteiro.format(resumo.porTipo[0][1]) : '—',
+                hint: resumo.porTipo[0]?.[0] ?? 'nenhum alerta no período',
+                icon: MaintenanceIcon,
+              },
+              {
+                key: 'ultimo',
+                label: 'Último registro',
+                value: resumo.ultimo ? date.format(new Date(resumo.ultimo)) : '—',
+                hint: 'ocorrência mais recente',
+                icon: ClockIcon,
+              },
+            ]}
+          />
+        </QueryState>
+      </section>
+
+      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+        <QueryState
+          isPending={alertas.isPending}
+          isError={alertas.isError}
+          label="os alertas mecânicos"
+        >
+          {resumo.porTipo.length > 0 ? (
+            <>
+              {/* ⚠️ Sem cartão em volta: a barra já vive dentro do painel branco,
+                  e cartão dentro de cartão é moldura sobre moldura. É o mesmo
+                  desenho de `FleetFilters`, com `surface="light"` nos campos. */}
+              <div
+                role="group"
+                aria-label="Filtros dos alertas mecânicos"
+                className="grid items-end gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
+              >
+                <GlassInput
+                  id="alerta-busca"
+                  surface="light"
+                  label="Buscar"
+                  placeholder="Placa ou modelo"
+                  value={busca}
+                  onChange={(event) => escolherBusca(event.target.value)}
+                  leading={<SearchIcon size={16} aria-hidden="true" />}
+                />
+
+                {/* O seletor só existe quando o rastreador informa unidade em mais
+                    de uma: com uma só, ele seria um controle sem escolha. */}
+                {resumo.unidades.length > 1 ? (
+                  <GlassSelect
+                    id="alerta-unidade"
+                    surface="light"
+                    label="Unidade"
+                    value={unidade}
+                    onValueChange={escolherUnidade}
+                    options={[
+                      { value: TODAS_UNIDADES, label: 'Todas as unidades' },
+                      ...resumo.unidades.map((nome) => ({ value: nome, label: nome })),
+                    ]}
+                  />
+                ) : null}
+              </div>
+
+              <h3 className="text-on-light-variant text-label-md mt-6 normal-case">
+                Por tipo de alerta
+              </h3>
+              <div className="mt-3">
+                <MechanicalKindFilters
+                  porTipo={resumo.porTipo}
+                  selected={tipo}
+                  onSelect={escolherTipo}
+                />
+              </div>
+
+              <div className="mt-8">
+                <MechanicalAlertsQueue
+                  veiculos={filtrados}
+                  note={note}
+                  page={pagina}
+                  onPageChange={setPagina}
+                  action={
+                    filtrando ? (
+                      <SpectrumButton variant="ghost" size="sm" onClick={limpar}>
+                        Limpar filtro
+                      </SpectrumButton>
+                    ) : null
+                  }
+                />
+              </div>
+            </>
+          ) : (
+            <p className="text-on-light-variant text-body-md py-10 text-center">
+              Nenhum alerta mecânico nos {JANELA} dias.
+            </p>
+          )}
         </QueryState>
 
         {/*
           O aviso continua, e continua inteiro: alerta de sensor não é ordem de
-          serviço. A lista de requisitos perdeu só a menção ao alerta do
-          rastreador, que agora está logo acima.
+          serviço. Dentro do painel ele perde a moldura de cartão (cartão dentro
+          de cartão) e vira o poço claro que o resto do painel já usa.
         */}
-        <div className="mt-5">
+        <div className="mt-8">
           <PendingSource
             title="A oficina e o plano ainda não têm origem"
             description="Os alertas acima dizem o que o veículo está acusando. O que foi feito a respeito, quanto custou e quando vence o próximo serviço dependem de cadastro que ainda não existe."
@@ -444,6 +677,7 @@ function ManutencaoReal() {
               { label: 'Consumo por veículo', to: '/gestao/custos' },
               { label: 'Eventos de condução', to: '/gestao/seguranca' },
             ]}
+            className="bg-light-container p-5 shadow-none ring-0 sm:p-6"
           />
         </div>
       </PageContent>

@@ -21,11 +21,26 @@ export interface PendingSourceProps {
   requirements: string[];
   /** O que já dá para responder hoje, e onde. */
   meanwhile?: { label: string; to: string }[] | undefined;
+  /**
+   * Ajuste da superfície de quem embrulha.
+   *
+   * ⚠️ Existe para o aviso poder morar DENTRO do painel branco de uma página
+   * (Manutenção), onde a placa própria seria cartão dentro de cartão. Quem faz
+   * isso troca a placa pelo poço claro (`bg-light-container`, sem sombra nem
+   * anel). Fora de um painel, não passe nada: a placa é o padrão.
+   */
+  className?: string | undefined;
 }
 
-export function PendingSource({ title, description, requirements, meanwhile }: PendingSourceProps) {
+export function PendingSource({
+  title,
+  description,
+  requirements,
+  meanwhile,
+  className,
+}: PendingSourceProps) {
   return (
-    <LightCard title={title}>
+    <LightCard title={title} className={className}>
       <p className="text-on-light-variant text-body-md max-w-2xl">{description}</p>
 
       <h3 className="text-on-light text-body-md mt-5 mb-2 font-medium">O que falta ligar</h3>

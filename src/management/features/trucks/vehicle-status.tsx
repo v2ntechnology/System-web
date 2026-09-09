@@ -28,6 +28,27 @@ const STATUS: Record<
   SEM_SINAL: { label: 'Sem sinal', tone: 'attention', icon: WarningIcon },
 };
 
+/**
+ * Faixa vertical da linha na lista de frota, no desenho das outras filas.
+ *
+ * ⚠️ Existe para o estado SOBREVIVER à seleção. O `VehicleListItem` escondia o
+ * chip na linha escolhida (`selected ? null : <VehicleStatusChip/>`), porque o
+ * chip tonal não se lê sobre o laranja: abrir um caminhão BLOQUEADO apagava
+ * justamente a informação de que ele não pode sair. A faixa fica fora do
+ * preenchimento e vale nos dois estados.
+ *
+ * Família de PREENCHIMENTO, nunca `-on-light`: aquela é de texto e como tinta
+ * chapada vira vinho e marrom, que não se separam. A cor repete o chip e o
+ * rótulo, nunca os substitui.
+ */
+export const VEHICLE_STATUS_RAIL: Record<VehicleStatus, string> = {
+  EM_VIAGEM: 'bg-info',
+  DISPONIVEL: 'bg-success',
+  MANUTENCAO: 'bg-warning',
+  BLOQUEADO: 'bg-error',
+  SEM_SINAL: 'bg-warning',
+};
+
 export const VEHICLE_STATUS_LABELS = Object.fromEntries(
   Object.entries(STATUS).map(([key, value]) => [key, value.label]),
 ) as Record<VehicleStatus, string>;

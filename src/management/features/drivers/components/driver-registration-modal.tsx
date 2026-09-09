@@ -651,9 +651,9 @@ export function DriverRegistrationModal({
                 />
 
                 {/*
-                 * ⚠️ `ghost`, e não `secondary`. O `secondary` é cyan cheio e
+                 * ⚠️ `ghost`, e não `secondary`. O `secondary` é o marinho cheio e
                  * existe para telas com **duas escolhas equivalentes** (ver a nota
-                 * no `SpectrumButton`); a foto é opcional. Cheio de cyan, este
+                 * no `SpectrumButton`); a foto é opcional. Preenchido, este
                  * botão era o elemento mais forte do diálogo, mais forte que
                  * "Cadastrar motorista", que é o motivo do diálogo existir.
                  */}

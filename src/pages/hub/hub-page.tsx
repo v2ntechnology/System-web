@@ -1,372 +1,261 @@
-import {
-  ChartBarIcon,
-  ChartIcon,
-  ChecklistDoneIcon,
-  FuelIcon,
-  GridIcon,
-  MessageIcon,
-  RadarIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-  TargetIcon,
-} from '@/components/icons';
-import type { IconType } from '@/components/icons';
-import { useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { Link } from 'react-router';
 
-import { BrandLogo } from '@/components/shared/brand-logo';
+import {
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+  ChartBarIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+} from '@/components/icons';
+import { BRAND_ON_LIGHT } from '@/components/shared/brand-assets';
 import { Globe } from '@/components/shared/globe';
-import { cn } from '@/lib/utils';
+import { useSession } from '@/hooks/use-session';
+import { greetingForNow } from '@/lib/format';
 
-interface PanelHighlight {
-  Icon: IconType;
-  title: string;
-  description: string;
-}
+import './hub.css';
 
-/** Bloco editorial da direita — troca conforme o card sob o cursor. */
-interface HubPanel {
-  eyebrow: string;
-  titleTop: string;
-  titleStart: string;
-  titleHighlight: string;
-  titleEnd: string;
-  description: string;
-  highlights: readonly PanelHighlight[];
-  iconClass: string;
-}
-
-interface HubOption {
-  path: string;
-  badgeLabel: string;
-  BadgeIcon: IconType;
-  badgeClass: string;
-  titleStart: string;
-  titleHighlight: string;
-  titleEnd: string;
-  /** Segundo trecho destacado, depois de `titleEnd`. */
-  titleTail?: string | undefined;
-  highlightClass: string;
-  actionLabel: string;
-  ActionIcon: IconType;
-  actionClass: string;
-  borderClass: string;
-  /** Gradiente da barra do painel: ela acompanha o cartao ativo. */
-  barClass: string;
-  art: string;
-  /**
-   * Altura e ancoragem da arte no card. Cada PNG tem margem transparente
-   * própria, então o valor compensa para as duas peças ficarem do mesmo
-   * tamanho e encostadas na base.
-   */
-  artSizeClass: string;
-  /** Realce só do tema escuro; no claro a arte entra sem filtro nem blend. */
-  artDarkClass: string;
-  artDarkHoverClass: string;
-  panel: HubPanel;
-}
-
-const ASSISTANT_OPTION: HubOption = {
-  path: '/assistente',
-  badgeLabel: 'IA',
-  BadgeIcon: SparklesIcon,
-  badgeClass: 'bg-primary-strong text-on-primary',
-  titleStart: 'Conversar com a ',
-  titleHighlight: 'IA',
-  titleEnd: ' da ',
-  /* "RookHub" é a parte do título que passa por cima do robô: no roxo do "IA"
-     ela se separa da arte, em vez de se perder no preto do capacete. */
-  titleTail: 'RookHub',
-  /* No claro o indigo da marca cai para 4,5:1 sobre papel; o par escuro da
-     paleta devolve o mesmo destaque com folga de contraste. */
-  highlightClass: 'text-primary light:text-primary-on-light',
-  actionLabel: 'Iniciar conversa',
-  ActionIcon: SparklesIcon,
-  actionClass: 'bg-primary-strong text-on-primary',
-  borderClass: 'border-primary/40 hover:border-primary/70',
-  barClass: 'bg-brand-gradient',
-  art: '/images/hub-robot.png',
-  artSizeClass: 'bottom-0 h-[78%]',
-  artDarkClass: 'dark:[filter:grayscale(1)_brightness(0.62)_contrast(2.2)]',
-  artDarkHoverClass: 'dark:group-hover:[filter:grayscale(0)_brightness(0.62)_contrast(2.2)]',
-  panel: {
-    eyebrow: 'Inteligência que move',
-    titleTop: 'Converse com',
-    titleStart: 'a ',
-    titleHighlight: 'IA',
-    titleEnd: ' da RookHub',
+const ENVIRONMENTS = {
+  ai: {
+    label: 'Inteligência artificial',
+    title: 'Um universo de',
+    emphasis: 'possibilidades.',
+    introduction: 'As melhores decisões começam com as perguntas certas.',
+    cardTitle: 'Converse. Descubra. Decida.',
     description:
-      'A IA da RookHub está aqui para transformar dados em insights, otimizar operações e impulsionar resultados.',
-    iconClass: 'border-primary/25 bg-primary/10 text-primary',
-    highlights: [
-      {
-        Icon: MessageIcon,
-        title: 'Respostas instantâneas',
-        description: 'Tire dúvidas e receba orientações em tempo real.',
-      },
-      {
-        Icon: ChartIcon,
-        title: 'Insights inteligentes',
-        description: 'Análises e recomendações baseadas nos seus dados.',
-      },
-      {
-        Icon: TargetIcon,
-        title: 'Decisões melhores',
-        description: 'Apoio estratégico para decisões mais rápidas e assertivas.',
-      },
-    ],
+      'A inteligência da RookHub transforma os dados da sua operação em clareza para o próximo movimento.',
+    cta: 'Conversar com a IA',
+    path: '/assistente',
+    features: ['Assistente de voz', 'Insights', 'Estratégia'],
+    note: 'Inteligência que acompanha o seu ritmo.',
+    Icon: SparklesIcon,
   },
-};
-
-const PLATFORM_OPTION: HubOption = {
-  /* Quem passa pela hub (dono e gestor) tem o painel de gestão como sistema. */
-  path: '/gestao',
-  badgeLabel: 'Gestão',
-  BadgeIcon: ChartBarIcon,
-  badgeClass: 'bg-accent text-accent-foreground',
-  titleStart: 'Acessar o sistema de ',
-  titleHighlight: 'gestão',
-  titleEnd: '',
-  /* O ciano da marca dá 2,4:1 sobre papel: como texto no tema claro ele precisa
-     do tom fechado (`secondary-container`), que é o mesmo cyan escurecido. */
-  highlightClass: 'text-accent light:text-secondary-container',
-  actionLabel: 'Entrar no sistema',
-  ActionIcon: GridIcon,
-  actionClass: 'bg-accent text-accent-foreground',
-  borderClass: 'border-accent/40 hover:border-accent/70',
-  barClass: 'bg-accent-gradient',
-  art: '/images/hub-rook.png',
-  artSizeClass: '-bottom-[10%] h-[94%]',
-  artDarkClass: 'dark:[filter:grayscale(1)_contrast(1.15)]',
-  artDarkHoverClass: 'dark:group-hover:[filter:grayscale(0)_contrast(1.15)]',
-  panel: {
-    eyebrow: 'Gestão que entrega',
-    titleTop: 'Controle toda',
-    titleStart: 'a sua ',
-    titleHighlight: 'frota',
-    titleEnd: '',
+  management: {
+    label: 'Plataforma de gestão',
+    title: 'Uma nova dimensão',
+    emphasis: 'de controle.',
+    introduction: 'Uma visão completa. Cada movimento na direção certa.',
+    cardTitle: 'Conecte. Acompanhe. Avance.',
     description:
-      'O painel da RookHub reúne veículos, motoristas, viagens e custos em um só lugar, com indicadores atualizados a cada operação.',
-    iconClass: 'border-accent/25 bg-accent/10 text-accent',
-    highlights: [
-      {
-        Icon: RadarIcon,
-        title: 'Operação rastreada',
-        description: 'Veículos, viagens e rotas acompanhados no mapa em tempo real.',
-      },
-      {
-        Icon: FuelIcon,
-        title: 'Custos sob controle',
-        description: 'Abastecimentos, manutenções e multas reunidos por veículo.',
-      },
-      {
-        Icon: ChecklistDoneIcon,
-        title: 'Rotina organizada',
-        description: 'Checklists, alertas e relatórios para agir antes do problema.',
-      },
-    ],
+      'Sua frota, sua equipe e seus resultados. Toda a operação conectada, com o controle que você precisa.',
+    cta: 'Entrar na gestão',
+    path: '/gestao',
+    features: ['Frota', 'Equipe', 'Resultados'],
+    note: 'Visão do todo. Controle de cada detalhe.',
+    Icon: ChartBarIcon,
   },
-};
+} as const;
 
-const HUB_OPTIONS: readonly HubOption[] = [ASSISTANT_OPTION, PLATFORM_OPTION];
+type Environment = keyof typeof ENVIRONMENTS;
 
-/** Escolha de ambiente logo após o login: assistente de IA ou plataforma de gestão. */
+/** Escolha de ambiente logo após o login. A esfera seleciona; apenas o CTA navega. */
 export default function HubPage() {
-  // O painel da direita segue o card sob o cursor (ou o foco); sem nenhum, mostra a IA.
-  const [activePath, setActivePath] = useState<string | null>(null);
-  const activeOption = HUB_OPTIONS.find((option) => option.path === activePath) ?? ASSISTANT_OPTION;
-  const panel = activeOption.panel;
+  const [mode, setMode] = useState<Environment>('ai');
+  const [showGlobe, setShowGlobe] = useState(true);
+  const cardRef = useRef<HTMLElement>(null);
+  const pointerFrame = useRef(0);
+  const { user } = useSession();
+  const environment = ENVIRONMENTS[mode];
+  const isAI = mode === 'ai';
+  const firstName = user?.name.trim().split(/\s+/)[0];
+
+  // Deixa o globo terminar sua saída antes de liberar o contexto WebGL.
+  useEffect(() => {
+    if (isAI) return;
+    const timer = window.setTimeout(() => setShowGlobe(false), 1000);
+    return () => window.clearTimeout(timer);
+  }, [isAI]);
+  useEffect(() => () => cancelAnimationFrame(pointerFrame.current), []);
+
+  function selectEnvironment(next: Environment) {
+    if (next === 'ai') setShowGlobe(true);
+    setMode(next);
+  }
+
+  function moveLight(event: PointerEvent<HTMLElement>) {
+    if (
+      event.pointerType !== 'mouse' ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      document.documentElement.classList.contains('modo-leve')
+    )
+      return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - bounds.left) / bounds.width) * 100;
+    const y = ((event.clientY - bounds.top) / bounds.height) * 100;
+    cancelAnimationFrame(pointerFrame.current);
+    pointerFrame.current = requestAnimationFrame(() => {
+      cardRef.current?.style.setProperty('--light-x', `${x}%`);
+      cardRef.current?.style.setProperty('--light-y', `${y}%`);
+    });
+  }
+
+  function resetLight() {
+    cancelAnimationFrame(pointerFrame.current);
+    cardRef.current?.style.removeProperty('--light-x');
+    cardRef.current?.style.removeProperty('--light-y');
+  }
 
   return (
-    <main className="tela-proporcional relative isolate bg-background">
-      <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <Globe className="absolute -right-[26%] top-[62%] w-[min(100vw,900px)] -translate-y-1/2 opacity-30 lg:-right-[14%]" />
-        <svg
-          className="absolute inset-x-0 bottom-0 h-28 w-full sm:h-40"
-          viewBox="0 0 1440 160"
-          preserveAspectRatio="none"
-          fill="none"
-        >
-          <defs>
-            <linearGradient
-              id="hub-wave-line"
-              x1="0"
-              y1="0"
-              x2="1440"
-              y2="0"
-              gradientUnits="userSpaceOnUse"
+    <div className="hub" data-mode={mode}>
+      <div className="hub-scenery" aria-hidden="true">
+        <div className="hub-stars" />
+        <div className="hub-horizon" />
+        <div className="hub-planet-scene" data-active={isAI}>
+          <div className="hub-planet-halo" />
+          <div className="hub-planet-surface" />
+          {showGlobe && (
+            /* Azul da marca, em tom claro: os pontos ficam atrás do texto sem
+               disputar com ele, o que o terracota cheio não conseguia. */
+            <Globe
+              className="hub-globe"
+              dotColor="#8e95e0"
+              gridColor="#a9aeea"
+              rimColor="#4348d9"
+            />
+          )}
+          <div className="hub-planet-orbit" />
+        </div>
+        <div className="hub-columns" data-active={!isAI}>
+          {[26, 39, 55, 72, 93, 112].map((height, index) => (
+            <div
+              key={index}
+              className="hub-column"
+              style={{ '--height': `${height}%`, '--index': index } as CSSProperties}
             >
-              <stop stopColor="var(--color-accent)" stopOpacity="0.05" />
-              <stop offset="0.35" stopColor="var(--color-primary)" stopOpacity="0.55" />
-              <stop offset="0.82" stopColor="var(--color-primary)" stopOpacity="0.95" />
-              <stop offset="1" stopColor="var(--color-primary)" stopOpacity="0.25" />
-            </linearGradient>
-            <linearGradient
-              id="hub-wave-fill"
-              x1="0"
-              y1="60"
-              x2="0"
-              y2="160"
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop stopColor="var(--color-primary)" stopOpacity="0.12" />
-              <stop offset="1" stopColor="var(--color-primary)" stopOpacity="0" />
-            </linearGradient>
-            <radialGradient id="hub-wave-glow">
-              <stop stopColor="var(--color-primary)" stopOpacity="0.55" />
-              <stop offset="1" stopColor="var(--color-primary)" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          {/* Preenchimento opaco: a onda tapa o globo em vez de deixá-lo passar. */}
-          <path
-            d="M0 128C240 72 460 66 720 100S1040 144 1180 112c120-28 200-52 260-78v126H0v-32z"
-            fill="var(--color-background)"
-          />
-          <path
-            d="M0 128C240 72 460 66 720 100S1040 144 1180 112c120-28 200-52 260-78v126H0v-32z"
-            fill="url(#hub-wave-fill)"
-          />
-          <path
-            d="M0 128C240 72 460 66 720 100S1040 144 1180 112c120-28 200-52 260-78"
-            stroke="url(#hub-wave-line)"
-            strokeWidth="1.5"
-          />
-          <path
-            d="M0 148C260 96 470 92 730 124s450 28 710-52"
-            stroke="url(#hub-wave-line)"
-            strokeWidth="1"
-            opacity="0.35"
-          />
-          <ellipse cx="1180" cy="112" rx="34" ry="34" fill="url(#hub-wave-glow)" />
-          <circle cx="1180" cy="112" r="2.5" fill="var(--color-primary-foreground)" />
-        </svg>
+              <div className="hub-column-top" />
+              <div className="hub-column-side" />
+              <span />
+            </div>
+          ))}
+        </div>
+        <div className="hub-floor" />
+        <div className="hub-vignette" />
       </div>
 
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-[1400px] flex-col gap-8 px-5 py-8 sm:px-8 lg:gap-10 lg:px-12 lg:py-12">
-        <header className="flex flex-col items-center gap-4 text-center">
-          <BrandLogo className="h-12 sm:h-14" />
-          <p className="flex items-center gap-3 text-sm text-muted-foreground sm:text-base">
-            <span aria-hidden className="h-px w-6 bg-border" />
-            <span>
-              Bem-vindo ao <span className="text-primary">RookHub</span>
-            </span>
-            <span aria-hidden className="h-px w-6 bg-border" />
+      <header className="hub-header">
+        <img src={BRAND_ON_LIGHT.wordmark} alt="RookHub" width={556} height={120} />
+        <span className="hub-header-caption">
+          <span /> INTELIGÊNCIA EM MOVIMENTO
+        </span>
+      </header>
+
+      <main className="hub-main">
+        <section className="hub-editorial" aria-label="Seu espaço de trabalho">
+          <p className="hub-welcome">
+            {greetingForNow()}
+            {firstName ? `, ${firstName}` : ''}. <span>Este é o seu espaço.</span>
           </p>
-        </header>
+          <div className="hub-headline" aria-live="polite" aria-atomic="true">
+            <div key={mode} className="hub-story">
+              <p className="hub-kicker">
+                <span>{isAI ? '01' : '02'}</span> {environment.label}
+              </p>
+              <h1>
+                {environment.title} <br />
+                <span>{environment.emphasis}</span>
+              </h1>
+              <p className="hub-introduction">{environment.introduction}</p>
+            </div>
+          </div>
+          <div className="hub-editorial-footnote">
+            <span className="hub-rule" />
+            <span>
+              Menos distância entre
+              <br />
+              <strong>você e o próximo passo.</strong>
+            </span>
+          </div>
+        </section>
 
-        <div className="grid flex-1 items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
-          <div className="grid gap-5 sm:grid-cols-2">
-            {HUB_OPTIONS.map((option) => (
-              <Link
-                key={option.path}
-                to={option.path}
-                onMouseEnter={() => setActivePath(option.path)}
-                onMouseLeave={() => setActivePath(null)}
-                onFocus={() => setActivePath(option.path)}
-                onBlur={() => setActivePath(null)}
-                className={cn(
-                  'group relative isolate flex min-h-[430px] flex-col overflow-hidden rounded-3xl border bg-card p-6 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:min-h-[470px] sm:p-7 dark:bg-brand-night',
-                  option.borderClass,
-                )}
+        <div className="hub-portal-wrap">
+          <section
+            ref={cardRef}
+            className="hub-portal"
+            aria-label="Escolha de ambiente"
+            onPointerMove={moveLight}
+            onPointerLeave={resetLight}
+          >
+            <div className="hub-portal-shine" aria-hidden="true" />
+            <div className="hub-selector">
+              <button
+                type="button"
+                className="hub-sphere-button"
+                onClick={() => selectEnvironment(isAI ? 'management' : 'ai')}
+                aria-label={isAI ? 'Mudar para Gestão' : 'Mudar para IA'}
+                aria-describedby="hub-switch-hint"
               >
-                {/*
-                 * As artes já vêm com fundo transparente. O `mix-blend-screen` é
-                 * só realce do tema escuro — no claro ele apagaria a imagem.
-                 */}
-                <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-                  <img
-                    src={option.art}
-                    alt=""
-                    className={cn(
-                      'absolute right-0 w-auto max-w-none object-contain transition-[filter] duration-500 [filter:grayscale(1)] group-hover:[filter:grayscale(0)] dark:mix-blend-screen',
-                      option.artSizeClass,
-                      option.artDarkClass,
-                      option.artDarkHoverClass,
-                    )}
-                  />
-                </div>
-
-                <span
-                  className={cn(
-                    'relative z-10 inline-flex w-fit items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide',
-                    option.badgeClass,
-                  )}
-                >
-                  <option.BadgeIcon className="h-3.5 w-3.5" aria-hidden />
-                  {option.badgeLabel}
+                <span className="hub-sphere-orbit" aria-hidden="true" />
+                <span className="hub-sphere-ring" aria-hidden="true" />
+                <span className="hub-sphere" aria-hidden="true">
+                  <span className="hub-sphere-latitude" />
+                  <span className="hub-sphere-core">
+                    <environment.Icon key={mode} />
+                  </span>
                 </span>
+                <span className="hub-sphere-switch" aria-hidden="true">
+                  ⇄
+                </span>
+              </button>
+            </div>
+            <div className="hub-mode-switch" role="group" aria-label="Ambiente selecionado">
+              <span className="hub-mode-indicator" aria-hidden="true" />
+              <button type="button" aria-pressed={isAI} onClick={() => selectEnvironment('ai')}>
+                <SparklesIcon aria-hidden />
+                IA
+              </button>
+              <button
+                type="button"
+                aria-pressed={!isAI}
+                onClick={() => selectEnvironment('management')}
+              >
+                <ChartBarIcon aria-hidden />
+                Gestão
+              </button>
+            </div>
+            <p id="hub-switch-hint" className="hub-switch-hint">
+              Toque na esfera para mudar de ambiente
+            </p>
 
-                <h2 className="relative z-10 mt-5 font-display text-2xl font-bold leading-tight text-card-foreground sm:text-3xl dark:text-white">
-                  {option.titleStart}
-                  <span className={option.highlightClass}>{option.titleHighlight}</span>
-                  {option.titleEnd}
-                  {option.titleTail ? (
-                    <span className={option.highlightClass}>{option.titleTail}</span>
-                  ) : null}
-                </h2>
-
-                <span
-                  className={cn(
-                    'relative z-10 mt-auto flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-transform duration-300 group-hover:scale-[1.02] sm:text-base',
-                    option.actionClass,
-                  )}
-                >
-                  <option.ActionIcon className="h-4 w-4" aria-hidden />
-                  {option.actionLabel}
+            <div className="hub-content" key={mode}>
+              <h2>{environment.cardTitle}</h2>
+              <p className="hub-description">{environment.description}</p>
+              <Link className="hub-cta" to={environment.path}>
+                <span>{environment.cta}</span>
+                <span className="hub-cta-arrow">
+                  <ArrowUpRightIcon aria-hidden />
                 </span>
               </Link>
-            ))}
-          </div>
-
-          <section key={activeOption.path} className="flex animate-fade-in flex-col">
-            <p
-              className={cn(
-                'font-display text-xs font-semibold uppercase tracking-[0.28em] sm:text-sm',
-                activeOption.highlightClass,
-              )}
-            >
-              {panel.eyebrow}
-            </p>
-            <h1 className="mt-5 font-display text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl xl:text-6xl">
-              {panel.titleTop}
-              <br />
-              {panel.titleStart}
-              <span className={activeOption.highlightClass}>{panel.titleHighlight}</span>
-              {panel.titleEnd}
-            </h1>
-            <span aria-hidden className={cn('mt-6 h-1 w-28 rounded-full', activeOption.barClass)} />
-            <p className="mt-6 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
-              {panel.description}
-            </p>
-
-            <ul className="mt-8 flex flex-col gap-5">
-              {panel.highlights.map((item) => (
-                <li key={item.title} className="flex items-start gap-4">
-                  <span
-                    className={cn(
-                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border',
-                      panel.iconClass,
-                    )}
-                  >
-                    <item.Icon className="h-5 w-5" aria-hidden />
-                  </span>
-                  <div>
-                    <p className="font-display text-sm font-semibold sm:text-base">{item.title}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                      {item.description}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+              <div className="hub-features">
+                {environment.features.map((feature) => (
+                  <span key={feature}>{feature}</span>
+                ))}
+              </div>
+            </div>
+            <div className="hub-portal-bottom">
+              <span className="hub-pagination" aria-hidden="true">
+                <span className={isAI ? 'is-active' : ''} />
+                <span className={!isAI ? 'is-active' : ''} />
+              </span>
+              <span>{isAI ? '01' : '02'} / 02</span>
+            </div>
           </section>
+          <p className="hub-card-caption">
+            <span />
+            {environment.note}
+          </p>
         </div>
+      </main>
 
-        <footer className="mb-10 flex items-center justify-center gap-2 text-xs text-muted-foreground sm:mb-16 sm:text-sm">
-          <ShieldCheckIcon className="h-4 w-4" aria-hidden />
-          <span>Seguro • Confiável • Inteligente</span>
-        </footer>
-      </div>
-    </main>
+      <footer className="hub-footer">
+        <span>
+          <ShieldCheckIcon aria-hidden />
+          Dois ambientes. Uma operação conectada.
+        </span>
+        <span className="hub-footer-signature">
+          SEU PRÓXIMO MOVIMENTO <ArrowRightIcon aria-hidden />
+        </span>
+        <span>ROOKHUB © {new Date().getFullYear()}</span>
+      </footer>
+    </div>
   );
 }

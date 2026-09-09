@@ -3,7 +3,7 @@ import type { Vehicle } from '@/management/types';
 import truckSide from '@imgs/truckSide.png';
 import { cn } from '@/management/ui';
 
-import { VehicleStatusChip } from '../vehicle-status';
+import { VEHICLE_STATUS_RAIL, VehicleStatusChip } from '../vehicle-status';
 
 export interface VehicleListItemProps {
   vehicle: Vehicle;
@@ -39,10 +39,20 @@ export function VehicleListItem({ vehicle, selected, onSelect }: VehicleListItem
         selected ? 'bg-primary-strong' : 'hover:bg-light-container',
       )}
     >
+      {/* A cor repete o chip e o rótulo, nunca os substitui. Ver
+          `VEHICLE_STATUS_RAIL` para por que ela existe. */}
+      <span
+        className={cn(
+          'w-1 shrink-0 self-stretch rounded-full',
+          VEHICLE_STATUS_RAIL[vehicle.status],
+        )}
+        aria-hidden="true"
+      />
+
       <span
         className={cn(
           'flex h-11 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md',
-          selected ? 'bg-on-surface/15' : 'bg-light-container',
+          selected ? 'bg-on-primary/15' : 'bg-light-container',
         )}
       >
         {/*

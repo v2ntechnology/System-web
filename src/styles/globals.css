@@ -15,7 +15,7 @@
 @source not '../../public/models';
 @source not '../../public/original-models';
 
-/* Paleta única dos dois painéis: rampa neutra grafite + marca indigo/cyan. */
+/* Paleta única dos dois painéis: rampa neutra grafite + marca terracota e marinho. */
 @import './palette.css';
 
 /*
@@ -1472,5 +1472,48 @@
   .acao-sair-no-menu:focus,
   .acao-sair-no-menu:focus-visible {
     color: color-mix(in oklab, var(--color-error) 72%, black);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * IMPRESSÃO — isola no papel o bloco marcado com `data-print-root`.
+ *
+ * Existe para o "Baixar" do manual do veículo, que é a impressão do navegador:
+ * ele oferece "Salvar como PDF" e compõe o documento a partir do próprio HTML,
+ * sem custar uma biblioteca de PDF no bundle.
+ *
+ * ⚠️ A técnica é `visibility`, e não `display`. Escondendo por `display` o
+ * ancestral sumiria com o filho junto, e o diálogo do Radix vive num portal no
+ * fim do `body`: `visibility` apaga a árvore inteira e reacende só o ramo
+ * marcado, que continua no lugar dele.
+ * ----------------------------------------------------------------------- */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  [data-print-root],
+  [data-print-root] * {
+    visibility: visible;
+  }
+
+  [data-print-root] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+  }
+
+  /* Papel é branco: véu, sombra e vidro só gastam tinta. */
+  [data-print-root] * {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  @page {
+    margin: 16mm;
   }
 }

@@ -8,7 +8,6 @@ import {
   UsersIcon,
 } from '@/components/icons';
 import type { TeamPerson } from '@/management/types';
-import { LightCard } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
@@ -149,7 +148,7 @@ function EquipeReal() {
         </QueryState>
       </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
+      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
         <QueryState isPending={isPending} isError={isError} label="a equipe">
           <TeamRoster people={data?.people ?? []} />
 
@@ -307,46 +306,61 @@ function EquipeSimulada() {
           label="Recortes do quadro"
         >
           <QueryState isPending={isPending} isError={isError} label="a equipe">
-            <LightCard
-              title="Quadro"
-              action={
-                <div className="rounded-pill focus-within:border-primary-on-light bg-light-container border-light-outline flex min-w-0 items-center gap-2 border px-4 sm:w-64">
-                  <SearchIcon
-                    size={18}
-                    className="text-on-light-muted shrink-0"
-                    aria-hidden="true"
-                  />
-                  <label htmlFor="team-search" className="sr-only">
-                    Buscar por nome, função, placa ou e-mail
-                  </label>
-                  <input
-                    id="team-search"
-                    type="search"
-                    value={term}
-                    onChange={(event) => setTerm(event.target.value)}
-                    placeholder="Nome, função ou placa"
-                    className="text-body-md text-on-light placeholder:text-placeholder h-10 w-full bg-transparent focus:outline-none"
-                  />
-                </div>
-              }
-            >
-              {visible.length === 0 ? (
-                <p className="text-on-light-variant text-body-md py-10 text-center">
-                  Ninguém encontrado com esse termo.
-                </p>
-              ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {visible.map((person) => (
-                    <PersonCard key={personKey(person)} person={person} canAct={canAct} />
-                  ))}
-                </ul>
-              )}
+            {/*
+             * ⚠️ Sem `LightCard` em volta (08/09/2026): é CARTÃO DENTRO DE CARTÃO.
+             *
+             * Ele envolvia o conteúdo inteiro da aba, e esse conteúdo é uma grade
+             * de `PersonCard`, que já são cartões. Somando o painel branco da
+             * página, eram três molduras encaixadas para uma lista só, cada uma
+             * cobrando o próprio padding.
+             *
+             * ⚠️ Não é que ele sumisse: o `LightCard` tem sombra e se destaca. O
+             * problema é ele não separar nada, porque não divide a tela com
+             * ninguém. Onde o `LightCard` continua certo é como UMA das colunas
+             * de um master-detail (ver os painéis de detalhe), que é quando a
+             * moldura de fato distingue duas coisas.
+             *
+             * O título "Quadro" saiu junto: a faixa já diz "Equipe", as abas já
+             * dizem o recorte. Era o terceiro rótulo para a mesma lista.
+             */}
+            <div className="mb-5">
+              {/* ⚠️ `on-light-muted` no placeholder, e não `placeholder`: aquele é
+                  o token da família do papel, e aqui o campo vive no painel
+                  branco. Mesmo poço da busca da frota. */}
+              <div className="rounded-pill focus-within:border-primary bg-light-container border-light-outline flex min-w-0 items-center gap-2 border px-4 sm:max-w-80">
+                <SearchIcon size={18} className="text-on-light-muted shrink-0" aria-hidden="true" />
+                <label htmlFor="team-search" className="sr-only">
+                  Buscar por nome, função, placa ou e-mail
+                </label>
+                <input
+                  id="team-search"
+                  type="search"
+                  value={term}
+                  onChange={(event) => setTerm(event.target.value)}
+                  placeholder="Nome, função ou placa"
+                  className="text-body-md text-on-light placeholder:text-on-light-muted h-11 w-full bg-transparent focus:outline-none"
+                />
+              </div>
+            </div>
 
-              <p className="text-on-light-muted text-label-md mt-auto pt-5 normal-case">
-                Ficha, advertências e histórico ficam em Motoristas. Papéis e acesso, em
-                Configurações.
+            {visible.length === 0 ? (
+              <p className="text-on-light-variant text-body-md py-10 text-center">
+                Ninguém encontrado com esse termo.
               </p>
-            </LightCard>
+            ) : (
+              <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {visible.map((person) => (
+                  <PersonCard key={personKey(person)} person={person} canAct={canAct} />
+                ))}
+              </ul>
+            )}
+
+            {/* ⚠️ `mt-8`, e não `mt-auto`: o `mt-auto` empurrava para o rodapé da
+                coluna flex do `LightCard`, que não existe mais. */}
+            <p className="text-on-light-muted text-label-md mt-8 normal-case">
+              Ficha, advertências e histórico ficam em Motoristas. Papéis e acesso, em
+              Configurações.
+            </p>
           </QueryState>
         </PageTabs>
       </PageContent>

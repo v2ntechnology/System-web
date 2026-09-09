@@ -5,7 +5,17 @@
  *   #212121  Grafite    — fundo do tema escuro, nos dois painéis
  *   #D5623A  Terracota  — marca primária (decisão do usuário em 04/09/2026,
  *                         no lugar do indigo #6366F1)
- *   #06B6D4  Cyan       — marca secundária (foco, destaque, caminho da gestão)
+ *   #010066  Marinho    — marca secundária (decisão do usuário em 08/09/2026,
+ *                         no lugar do cyan #06B6D4)
+ *
+ * ⚠️ A SECUNDÁRIA TROCA DE VALOR ENTRE OS TEMAS, e a primária não.
+ *
+ * A terracota tem luminância média e sobrevive nos dois fundos, então é o mesmo
+ * hex no grafite e no papel. O marinho não: ele dá 15,6:1 sobre o papel e 1,07:1
+ * sobre o grafite, onde some por completo. Por isso o `@theme` abaixo declara a
+ * versão clara da mesma matiz (#A0A6FF, 7,2:1 sobre o grafite) e o `html.light`
+ * traz o #010066 escolhido. A referência é o Itaú: laranja é a cor da ação,
+ * azul escuro é a cor do link e do detalhe.
  *
  * COMO OS TEMAS SE ORGANIZAM
  *
@@ -65,19 +75,33 @@
   /* ------------------------------------------------------------------------
    * Marca — constante nos dois temas
    * ---------------------------------------------------------------------- */
-  --color-primary-strong: #b35231; /* 5,04:1 com branco, AA em botão e chip */
-  /* Ponta clara do gradiente de marca. Existe para o gradiente não precisar
-     terminar no cyan da secundária: decisão do usuário em 04/09/2026, os
-     gradientes decorativos ficam todos na família quente.
-     ⚠️ É decorativa. Não carrega texto: dá 1,9:1 com branco. */
-  --color-primary-bright: #e7ad61;
-  --color-primary-container: #6f301d;
+  /*
+   * ⚠️ UM ÚNICO LARANJA, por decisão do usuário em 08/09/2026: nenhuma variante
+   * de terracota no produto por enquanto. `strong`, `on-light`, `container` e
+   * `bright` deixaram de ter valor próprio e apontam todos para o âncora.
+   *
+   * Os nomes ficam porque são a API que a interface inteira consome: 42 botões,
+   * o visto do checkbox, a navegação e os chips escrevem `primary-strong`.
+   * Devolver a escala é reeditar só este arquivo.
+   *
+   * ⚠️ O custo é de contraste, e é real. O #D5623A dá 3,9:1 com branco e reprova
+   * o AA de 4,5:1 que texto de corpo pede. Os degraus existiam exatamente para
+   * isso: `strong` dava 5,04:1 no botão, `on-light` dava 5,9:1 sobre o papel.
+   */
+  --color-primary-strong: #d5623a;
+  /* Ponta clara do gradiente de marca. ⚠️ Era o âmbar #E7AD61: com o laranja
+     único os gradientes de marca ficam chapados, e isso é consequência aceita,
+     não esquecimento. */
+  --color-primary-bright: #d5623a;
+  --color-primary-container: #d5623a;
   --color-on-primary: #ffffff;
-  /* Ponta clara do gradiente da secundaria, espelho do --color-primary-bright.
-     Decorativa: nao carrega texto. */
-  --color-accent-bright: #67e8f9;
-  --color-secondary-container: #0e7490;
-  --color-on-secondary: #00212b;
+  /* Ponta clara do gradiente da secundária, espelho do --color-primary-bright.
+     Decorativa: não carrega texto. */
+  --color-accent-bright: #c7cbff;
+  --color-secondary-container: #2f35a8;
+  /* Texto sobre o marinho. No escuro a secundária é clara, então o texto escurece;
+     no claro ela é o #010066 e o texto vira branco. */
+  --color-on-secondary: #0a0a3d;
   --color-tertiary: #212121;
 
   /* Vermelho claro da faixa do painel: #DC2626 reprova AA sobre vidro escuro. */
@@ -121,7 +145,7 @@
   --color-on-light-muted: #9a9aa4;
   --color-light-outline: #3a3a3e;
   --color-light-edge: transparent; /* traço externo (só o tema claro precisa) */
-  --color-primary-on-light: #db7a58;
+  --color-primary-on-light: #d5623a;
   --color-error-on-light: #fb7185;
   --color-warning-on-light: #fbbf24;
   --color-success-on-light: #34d399;
@@ -133,8 +157,8 @@
    * A ordem é FIXA — série nunca troca de cor quando um filtro muda a contagem.
    * Aqui estão as versões claras das mesmas três matizes, para o fundo escuro.
    * ---------------------------------------------------------------------- */
-  --color-chart-1: #e08a63;
-  --color-chart-2: #22d3ee;
+  --color-chart-1: #d5623a;
+  --color-chart-2: #8b90ff;
   --color-chart-3: #fb7185;
 }
 
@@ -147,8 +171,9 @@
   --primary: #d5623a;
   --primary-foreground: #ffffff;
   --secondary-foreground: #f0f0f2;
-  --accent: #06b6d4;
-  --accent-foreground: #00212b;
+  /* Versão clara do marinho, para o grafite. Ver a nota do cabeçalho. */
+  --accent: #a0a6ff;
+  --accent-foreground: #0a0a3d;
 
   --success: #34d399;
   --success-foreground: #05271b;
@@ -226,7 +251,7 @@ html.light {
   --color-on-light-muted: #6b665e;
   --color-light-outline: #e5e1db;
   --color-light-edge: transparent;
-  --color-primary-on-light: #a24a2c;
+  --color-primary-on-light: #d5623a;
   --color-error-on-light: #9f1239;
   --color-warning-on-light: #6b3f0a;
   --color-success-on-light: #065f46;
@@ -238,9 +263,11 @@ html.light {
    */
   --color-info-on-light: #075985;
 
-  /* Versões escuras das três matizes, para os gráficos sobre o painel branco. */
-  --color-chart-1: #b04d2b;
-  --color-chart-2: #0e8fa8;
+  /* Versões escuras das três matizes, para os gráficos sobre o painel branco.
+     A série 2 não é o #010066 cheio: a 10,5:1 o #2A2F9E ainda separa da série 1
+     em deutan e em tritan, e uma linha de 2px no marinho fechado lê como preta. */
+  --color-chart-1: #d5623a;
+  --color-chart-2: #2a2f9e;
   --color-chart-3: #e11d48;
 
   /* Semânticas escurecidas para manter AA sobre superfície clara. */
@@ -256,13 +283,30 @@ html.light {
   --destructive-foreground: #ffffff;
 
   --secondary-foreground: #191817;
+
+  /*
+   * O MARINHO, que é a secundária como o usuário a escolheu em 08/09/2026.
+   *
+   * 15,6:1 sobre o papel e 17,5:1 como fundo cheio com texto branco: ele aguenta
+   * ser link, texto e botão preenchido sem nenhum tom de apoio, que era o que o
+   * cyan não conseguia (2,4:1 sobre papel, e por isso a hub precisava trocar
+   * para o `secondary-container` no claro).
+   */
+  --accent: #010066;
   --accent-foreground: #ffffff;
+  --color-on-secondary: #ffffff;
+  /* Bloco tonal e ponta clara do gradiente: o marinho cheio é escuro demais para
+     os dois papéis, que precisam de superfície e de movimento. */
+  --color-secondary-container: #2a2f9e;
+  --color-accent-bright: #4348d9;
 
   /*
    * A TINTA. É com ela que se escreve o estado ativo.
    *
-   * ⚠️ Este par é o que carrega o desenho novo: item de menu ativo, aba ativa e
-   * ação de maior peso são uma pastilha **preta**, e não indigo. Vem das três
+   * ⚠️ Este par é o que carrega o desenho novo: aba ativa, paginação, passo do
+   * assistente e ação de maior peso são uma pastilha **preta**, e não a marca.
+   * (⚠️ A navegação do painel de gestão saiu desta lista em 08/09/2026 e voltou
+   * à terracota, a pedido do usuário. Ver `app-nav.tsx`.) Vem das três
    * referências que o usuário fixou em 30/08/2026, e as três fazem a mesma
    * coisa pelo mesmo motivo: num painel onde a marca já está no logo e o indigo
    * já marca dado e gráfico, usar indigo TAMBÉM no estado ativo gasta a cor até

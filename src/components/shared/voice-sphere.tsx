@@ -28,11 +28,18 @@ const FIELD_OF_VIEW = 50;
 const MAX_RADIUS = 1 + MAX_SPREAD;
 const CAMERA_DISTANCE = (MAX_RADIUS * 1.12) / Math.tan((FIELD_OF_VIEW / 2) * (Math.PI / 180));
 
-/** Azul-noite ao fundo e ciano da marca na frente: é o gradiente que dá volume. */
+/** Azul-noite ao fundo e a terracota da marca na frente: é o que dá volume. */
 const COLOR_BACK = new THREE.Color('#0B1220');
-const COLOR_FRONT = new THREE.Color('#E7AD61');
-/** Falando: laranja, para separar bem a voz da IA da escuta do usuário. */
-const COLOR_FRONT_SPEAKING = new THREE.Color('#06B6D4');
+/* ⚠️ Era o âmbar #E7AD61. Laranja único desde 08/09/2026: o gradiente de
+   volume da esfera perde a segunda parada quente. */
+const COLOR_FRONT = new THREE.Color('#d5623a');
+/**
+ * Falando: azul, para separar bem a voz da IA da escuta do usuário.
+ *
+ * ⚠️ Literal, e a versão CLARA do marinho. É material 3D iluminado sobre fundo
+ * escuro: o #010066 da secundária no tema claro renderiza preto aqui.
+ */
+const COLOR_FRONT_SPEAKING = new THREE.Color('#8B90FF');
 /*
  * Indigo do produto para o modo de consulta (decisão do usuário em 30/08/2026).
  *

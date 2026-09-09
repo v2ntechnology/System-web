@@ -16,11 +16,19 @@ const buttonVariants = cva(
         default:
           'bg-primary-strong text-on-primary hover:bg-[color-mix(in_oklab,var(--color-primary-strong)_86%,black)]',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        /* Ação secundária: traço e escrita na secundária, sem preenchimento.
+           Espelha o `ghost` do `SpectrumButton` (08/09/2026), para o botão de
+           apoio ser o mesmo objeto nos dois painéis. O `/60` no traço não é
+           estética: a 40% a linha dá 2,7:1 sobre o papel e fica abaixo do
+           mínimo de 3:1 de contorno; a 60% dá 5,2:1. */
         outline:
-          'border border-input bg-transparent hover:bg-secondary hover:text-secondary-foreground',
+          'border border-accent/60 bg-transparent text-accent hover:border-accent hover:bg-accent/[0.06]',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-secondary hover:text-secondary-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
+        /* Link é a secundária, e não a primária (decisão do usuário em
+           08/09/2026, com o Itaú como referência): laranja fica sendo a ação
+           preenchida, o marinho é o texto clicável. */
+        link: 'text-accent underline-offset-4 hover:underline',
         /* O gradiente saiu daqui em 20/08/2026, a pedido do usuário: ação
            principal é o mesmo roxo em todo o sistema, e o degradê indigo/cyan
            fazia o botão do operador parecer de outra família ao lado do botão

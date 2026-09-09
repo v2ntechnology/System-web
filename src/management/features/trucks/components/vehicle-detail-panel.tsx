@@ -1,17 +1,16 @@
 import {
-  AlertCircleIcon,
+  ArrowRightIcon,
   CalendarCheckIcon,
   DropletIcon,
-  EditIcon,
+  FileIcon,
   GaugeIcon,
-  InfoIcon,
   MaintenanceIcon,
-  WarningIcon,
 } from '@/components/icons';
-import type { Vehicle, VehicleDetail } from '@/management/types';
-import { SpectrumButton, Spinner, StatusChip, cn } from '@/management/ui';
+import type { Vehicle } from '@/management/types';
+import { SpectrumButton, Spinner, StatusChip } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type ComponentType } from 'react';
+import { Link } from 'react-router';
 import {
   Area,
   AreaChart,
@@ -22,12 +21,10 @@ import {
   YAxis,
 } from 'recharts';
 
-import { useIncrementalList } from '@/management/hooks/use-incremental-list';
-
 import { fetchMechanicalAlerts } from '@/management/lib/fleet-api';
 
 import { getVehicleDetail } from '../api';
-import { VehicleRegistryModal } from './vehicle-registry-modal';
+import { VehicleManualDialog } from './vehicle-manual-dialog';
 import { VehicleStatusChip } from '../vehicle-status';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -37,19 +34,6 @@ const dayMonth = new Intl.DateTimeFormat('pt-BR', {
   month: 'short',
   timeZone: 'America/Sao_Paulo',
 });
-
-const SEVERITY: Record<
-  VehicleDetail['recentEvents'][number]['severity'],
-  {
-    tone: 'critical' | 'attention' | 'info';
-    label: string;
-    icon: ComponentType<{ size?: number; weight?: 'fill'; className?: string }>;
-  }
-> = {
-  CRITICO: { tone: 'critical', label: 'Crítico', icon: AlertCircleIcon },
-  ATENCAO: { tone: 'attention', label: 'Atenção', icon: WarningIcon },
-  INFO: { tone: 'info', label: 'Informativo', icon: InfoIcon },
-};
 
 function Metric({
   icon: Icon,
@@ -102,7 +86,7 @@ function costAxis(values: number[]) {
  * Bloco escuro dentro do painel claro — mesma inversão dos tiles do dashboard.
  */
 export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
-  const [cadastroAberto, setCadastroAberto] = useState(false);
+  const [manualAberto, setManualAberto] = useState(false);
 
   const { data, isPending, isError } = useQuery({
     queryKey: ['vehicle-detail', vehicle.id],
@@ -160,29 +144,29 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
           </span>
 
           {/*
-           * A ficha abre em diálogo, e não mais em formulário no pé do painel.
+           * ⚠️ MANUAL, e não "Cadastro da operação" (decisão do usuário em
+           * 08/09/2026).
            *
-           * Ela tem cinco seções e mais de vinte campos: no fim da página,
-           * empurrava para fora da tela o que a pessoa veio ver, e repetia na
-           * cara placa, marca e modelo, que já estão no cabeçalho aqui do lado.
-           * É o mesmo diálogo do cadastro de frota, então os campos moram num
-           * lugar só.
+           * O botão antigo abria o formulário editável, que é exatamente o mesmo
+           * de `/gestao/caminhoes/cadastro`: o produto tinha duas portas para a
+           * mesma edição e nenhuma para simplesmente LER a ficha ou levá-la para
+           * fora da tela. Quem chega aqui veio ver o veículo, não editá-lo.
            */}
           <SpectrumButton
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setCadastroAberto(true)}
+            onClick={() => setManualAberto(true)}
           >
-            <EditIcon size={16} aria-hidden="true" />
-            Cadastro da operação
+            <FileIcon size={16} aria-hidden="true" />
+            Manual
           </SpectrumButton>
         </div>
       </header>
 
-      <VehicleRegistryModal
-        open={cadastroAberto}
-        onOpenChange={setCadastroAberto}
+      <VehicleManualDialog
+        open={manualAberto}
+        onOpenChange={setManualAberto}
         vehicleId={vehicle.id}
         plate={vehicle.plate}
       />
@@ -328,17 +312,50 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
             </div>
           </figure>
 
-          <div className="mt-6">
-            <h4 className="text-on-surface-variant text-body-md mb-3 flex items-center gap-2">
-              Eventos recentes
-              {data.openOrders > 0 ? (
-                <StatusChip tone="attention">
-                  {data.openOrders} OS aberta{data.openOrders > 1 ? 's' : ''}
-                </StatusChip>
-              ) : null}
-            </h4>
+          {/*
+           * ⚠️ TOTAL e um caminho, e não a lista (decisão do usuário em
+           * 08/09/2026).
+           *
+           * A telemetria repete o mesmo evento muitas vezes no mesmo dia: a
+           * lista saía com "USO DOS FREIOS" sete vezes seguidas, com a mesma
+           * data, ocupando meia tela para dizer uma coisa só. Rolagem e carga
+           * incremental estavam tratando o sintoma.
+           *
+           * Quem abre a ficha quer saber SE há evento e quanto. Quem quer ver
+           * quais clica e vai para a tela de segurança, que é onde existem
+           * filtro por tipo, por severidade, vídeo e contestação. Aqui era uma
+           * segunda lista de eventos, pior que a primeira.
+           */}
+          <div className="border-outline-variant mt-6 rounded-xl border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h4 className="text-on-surface-variant text-body-md flex items-center gap-2">
+                  Eventos de segurança
+                  {data.openOrders > 0 ? (
+                    <StatusChip tone="attention">
+                      {data.openOrders} OS aberta{data.openOrders > 1 ? 's' : ''}
+                    </StatusChip>
+                  ) : null}
+                </h4>
+                <p className="tabular font-sora text-on-surface mt-1 text-[28px] font-bold leading-none">
+                  {data.recentEvents.length}
+                  <span className="text-on-surface-muted text-body-md ml-2 font-normal">
+                    {data.recentEvents.length === 1 ? 'evento recente' : 'eventos recentes'}
+                  </span>
+                </p>
+              </div>
 
-            <RecentEvents events={data.recentEvents} />
+              {data.recentEvents.length > 0 ? (
+                <SpectrumButton asChild variant="ghost" size="sm">
+                  {/* `?placa=` cai na busca da tela de segurança, que já filtra
+                      por placa. Ver a semente do estado lá. */}
+                  <Link to={`/gestao/seguranca?placa=${encodeURIComponent(vehicle.plate)}`}>
+                    Ver eventos
+                    <ArrowRightIcon size={16} aria-hidden="true" />
+                  </Link>
+                </SpectrumButton>
+              ) : null}
+            </div>
           </div>
 
           <AlertasMecanicos vehicleId={vehicle.id} />
@@ -362,7 +379,7 @@ export function VehicleDetailPanel({ vehicle }: { vehicle: Vehicle }) {
  * <h2>⚠️ Contagem, e não diagnóstico</h2>
  *
  * O evento diz que o sensor disparou, não que a peça está ruim. A ressalva
- * completa está em `mechanical-alerts-card`, e o mesmo cuidado vale aqui: esta
+ * completa está em `mechanical-alerts-queue`, e o mesmo cuidado vale aqui: esta
  * ficha é lida por quem decide mandar o caminhão para a oficina.
  */
 function AlertasMecanicos({ vehicleId }: { vehicleId: string }) {
@@ -400,60 +417,5 @@ function AlertasMecanicos({ vehicleId }: { vehicleId: string }) {
         ))}
       </ul>
     </div>
-  );
-}
-
-/**
- * Eventos recentes do veículo, oito por vez.
- *
- * A telemetria repete o mesmo evento muitas vezes no mesmo dia ("USO DOS
- * FREIOS" nove vezes seguidas), e a lista inteira empurrava o cadastro da
- * operação para fora da tela. Cresce ao rolar, sem botão e sem paginação.
- */
-function RecentEvents({ events }: { events: VehicleDetail['recentEvents'] }) {
-  const { visible, hasMore, sentinelRef } = useIncrementalList(events);
-
-  return (
-    /* Mesma caixa da lista de frota: oito eventos visíveis e rolagem própria. A
-       telemetria repete "USO DOS FREIOS" nove vezes no mesmo dia, e a lista
-       inteira empurrava o cadastro da operação para fora da tela. */
-    <ul className="flex max-h-[34rem] flex-col gap-2 overflow-y-auto">
-      {visible.map((event) => {
-        const severity = SEVERITY[event.severity];
-        const Icon = severity.icon;
-
-        return (
-          <li
-            key={event.id}
-            className="bg-on-surface/4 flex items-start gap-2.5 rounded-md px-3 py-2.5"
-          >
-            <Icon
-              size={16}
-              aria-hidden="true"
-              className={cn(
-                'mt-0.5 shrink-0',
-                severity.tone === 'critical'
-                  ? 'text-error'
-                  : severity.tone === 'attention'
-                    ? 'text-warning'
-                    : 'text-info',
-              )}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="text-on-surface text-body-md block">{event.label}</span>
-              <span className="text-on-surface-muted text-label-md block normal-case">
-                {severity.label} · {dayMonth.format(new Date(event.at))}
-              </span>
-            </span>
-          </li>
-        );
-      })}
-
-      {hasMore ? (
-        <li ref={sentinelRef} className="py-2 text-center" aria-hidden="true">
-          <span className="text-on-surface-muted text-label-md normal-case">Carregando mais…</span>
-        </li>
-      ) : null}
-    </ul>
   );
 }

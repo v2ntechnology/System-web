@@ -10,7 +10,7 @@ import {
   WarningIcon,
 } from '@/components/icons';
 import type { Driver, DriverWarning, WarningSeverity } from '@/management/types';
-import { Avatar, Spinner, StatusChip, cn, type StatusTone } from '@/management/ui';
+import { Avatar, SpectrumButton, Spinner, StatusChip, cn, type StatusTone } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import {
@@ -25,6 +25,7 @@ import {
 
 import { getDriverProfile } from '../api';
 import { useFinancialVisibility } from '../use-financial-visibility';
+import { DriverLicenseDialog } from './driver-license-dialog';
 import { WarningVideoDialog } from './warning-video-dialog';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -93,6 +94,7 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
 
   const canSeeFinancials = useFinancialVisibility();
   const [openWarning, setOpenWarning] = useState<DriverWarning | null>(null);
+  const [fichaAberta, setFichaAberta] = useState(false);
 
   const axisTick = { fill: 'var(--color-on-surface-muted)', fontSize: 12 };
   const maxRoadEvents = Math.max(...(data?.roadEvents.map((event) => event.count) ?? [1]), 1);
@@ -114,13 +116,39 @@ export function DriverDetailPanel({ driver }: { driver: Driver }) {
           </p>
         </div>
 
-        <div className="text-right">
-          <p className="tabular font-sora text-on-surface text-headline-md font-bold">
-            {driver.score}
-          </p>
-          <p className="text-on-surface-muted text-label-md normal-case">score de segurança</p>
+        <div className="flex flex-col items-end gap-2">
+          <div className="text-right">
+            <p className="tabular font-sora text-on-surface text-headline-md font-bold">
+              {driver.score}
+            </p>
+            <p className="text-on-surface-muted text-label-md normal-case">score de segurança</p>
+          </div>
+
+          {/*
+           * ⚠️ CNH, e não "editar cadastro": é a irmã do botão "Manual" da tela
+           * de caminhões, e existe pelo mesmo motivo. O produto tinha porta para
+           * EDITAR a ficha (a rota de cadastro) e nenhuma para simplesmente ler
+           * ou levar para fora da tela o que já está gravado. Quem abre um
+           * motorista quer conferir validade de CNH, toxicológico e ASO.
+           */}
+          <SpectrumButton
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setFichaAberta(true)}
+          >
+            <IdCardIcon size={16} aria-hidden="true" />
+            CNH
+          </SpectrumButton>
         </div>
       </header>
+
+      <DriverLicenseDialog
+        open={fichaAberta}
+        onOpenChange={setFichaAberta}
+        driverId={driver.id}
+        name={driver.name}
+      />
 
       {isPending ? (
         <div className="flex flex-1 items-center justify-center py-16">

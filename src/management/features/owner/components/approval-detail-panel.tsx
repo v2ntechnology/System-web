@@ -231,9 +231,6 @@ export function ApprovalDetailPanel({ approval }: ApprovalDetailPanelProps) {
               variant="ghost"
               disabled={busy || !pending}
               onClick={decide(false)}
-              /* Ghost é desenhado para o grafite: sobre o painel claro precisa
-                 da borda e do texto escuros para não sumir. */
-              className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
             >
               <BlockedIcon size={18} aria-hidden="true" />
               Recusar

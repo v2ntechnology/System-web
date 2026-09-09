@@ -1,10 +1,31 @@
-import { InfoIcon, LockIcon, WarningIcon } from '@/components/icons';
+import {
+  ClockIcon,
+  FuelIcon,
+  GaugeIcon,
+  InfoIcon,
+  LockIcon,
+  RouteIcon,
+  SearchIcon,
+  TruckIcon,
+  WarningIcon,
+} from '@/components/icons';
 import type { AnalyticsPeriod, FuelingRecord, VehicleCostRow } from '@/management/types';
-import { DataTable, GlassCard, LightCard, StatusChip, cn, type Column } from '@/management/ui';
+import {
+  DataTable,
+  GlassCard,
+  GlassInput,
+  LightCard,
+  SpectrumButton,
+  StatusChip,
+  cn,
+  type Column,
+} from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { CostLayersCard } from '@/management/components/charts/cost-layers-card';
+import { HeroBand, HeroPill } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageBanner } from '@/management/components/layout/page-banner';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
@@ -18,7 +39,8 @@ import { useFinancialVisibility } from '@/management/features/drivers/use-financ
 import { fetchOperations, fetchVehiclePerformance } from '@/management/lib/fleet-api';
 
 import { getCostsSummary } from '../api';
-import { FuelEfficiencyCard } from '../components/fuel-efficiency-card';
+import { FuelEfficiencyList } from '../components/fuel-efficiency-list';
+import { aggregateFuel, rotuloDoTipo } from '../fuel';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const brlCompact = new Intl.NumberFormat('pt-BR', {
@@ -27,6 +49,11 @@ const brlCompact = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 0,
 });
 const km = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const inteiro = km;
+const litro = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 const date = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: 'short',
@@ -400,37 +427,215 @@ function CustosReais() {
     queryFn: () => fetchOperations(JANELA),
   });
 
+  const [categoria, setCategoria] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
+
   const consumoDaFrota = operacao.data?.metrics.find((m) => m.id === 'consumo')?.value;
   const motorOcioso = operacao.data?.metrics.find((m) => m.id === 'ocioso')?.value;
+  const periodo = operacao.data?.periodLabel ?? 'últimos 30 dias';
+
+  const resumo = useMemo(() => aggregateFuel(desempenho.data ?? []), [desempenho.data]);
+
+  /* O recorte não muda a régua: a média de cada categoria continua sendo a do
+     grupo INTEIRO, senão buscar uma placa faria a média virar o próprio
+     veículo, e ele apareceria sempre exatamente na média. */
+  const termo = busca.trim().toLocaleLowerCase('pt-BR');
+
+  const grupos = useMemo(
+    () =>
+      resumo.grupos
+        .filter((grupo) => categoria === null || grupo.categoria === categoria)
+        .map((grupo) => ({
+          ...grupo,
+          itens:
+            termo === ''
+              ? grupo.itens
+              : grupo.itens.filter(
+                  (veiculo) =>
+                    veiculo.plate.toLocaleLowerCase('pt-BR').includes(termo) ||
+                    veiculo.model.toLocaleLowerCase('pt-BR').includes(termo),
+                ),
+        }))
+        .filter((grupo) => grupo.itens.length > 0),
+    [resumo.grupos, categoria, termo],
+  );
+
+  const filtrando = categoria !== null || termo !== '';
+
+  const limpar = () => {
+    setCategoria(null);
+    setBusca('');
+  };
+
+  const stats: HeroStat[] = [
+    {
+      key: 'consumo',
+      label: 'Consumo da frota',
+      value: consumoDaFrota != null ? `${litro.format(consumoDaFrota)} km/l` : '–',
+      hint: `${resumo.medidos.length} de ${resumo.medidos.length + resumo.semMedicao.length} veículos medem`,
+      icon: FuelIcon,
+    },
+    {
+      key: 'km',
+      label: 'Quilômetros rodados',
+      value: resumo.kmTotal > 0 ? inteiro.format(resumo.kmTotal) : '–',
+      hint: 'soma dos trechos do período',
+      icon: RouteIcon,
+    },
+    {
+      /* ⚠️ Motor ligado parado é o único custo desta tela que já está medido em
+         algo que vira dinheiro direto: é diesel queimado sem sair do lugar. */
+      key: 'ocioso',
+      label: 'Motor ligado parado',
+      value: motorOcioso != null ? `${inteiro.format(motorOcioso)} h` : '–',
+      hint: 'diesel queimado sem sair do lugar',
+      icon: GaugeIcon,
+      tone: motorOcioso != null && motorOcioso > 0 ? 'warn' : 'neutral',
+    },
+    {
+      key: 'sem-medicao',
+      label: 'Sem medir consumo',
+      value: resumo.semMedicao.length,
+      hint: 'rodaram sem informar litro',
+      icon: WarningIcon,
+      tone: resumo.semMedicao.length > 0 ? 'alert' : 'neutral',
+    },
+  ];
 
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Custos"
-        description="O que a telemetria mede sobre consumo, e o que ainda depende de lançamento."
-      />
+        description="O que a telemetria mede sobre consumo, e o que ainda depende de lançamento. A comparação acontece dentro de cada categoria, porque van e caminhão não se comparam entre si."
+      >
+        <HeroPill icon={ClockIcon}>{periodo}</HeroPill>
+      </HeroBand>
 
-      <PageContent className="mt-0 sm:mt-0">
+      {/*
+       * ⚠️ O mesmo arranjo das outras rotas do painel (08/09/2026): faixa,
+       * fileira de números FORA do painel mordendo a borda dela, e só então a
+       * placa branca com o conteúdo. Antes eram um `GlassCard` solto no papel e
+       * o aviso de origem embaixo, sem painel nenhum.
+       */}
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+        <h2 className="sr-only">O que a telemetria já mede</h2>
+
         <QueryState
           isPending={desempenho.isPending || operacao.isPending}
           isError={desempenho.isError || operacao.isError}
           label="o consumo da frota"
         >
-          <FuelEfficiencyCard
-            vehicles={desempenho.data ?? []}
-            fleetAverage={consumoDaFrota}
-            idleHours={motorOcioso}
-            periodLabel={operacao.data?.periodLabel ?? 'últimos 30 dias'}
-          />
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
+              ela jogaria o carregando e o erro por cima da faixa colorida. */}
+          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+        </QueryState>
+      </section>
+
+      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+        <QueryState
+          isPending={desempenho.isPending || operacao.isPending}
+          isError={desempenho.isError || operacao.isError}
+          label="o consumo da frota"
+        >
+          {resumo.medidos.length > 0 || resumo.semMedicao.length > 0 ? (
+            <>
+              <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
+                <h2 className="font-sora text-on-light text-headline-md tracking-[-0.02em]">
+                  Consumo por veículo
+                </h2>
+                {filtrando ? (
+                  <SpectrumButton variant="ghost" size="sm" onClick={limpar}>
+                    Limpar filtro
+                  </SpectrumButton>
+                ) : null}
+              </div>
+
+              {/*
+                ⚠️ A ressalva vem ANTES da lista, e não depois: quem lê um ranking
+                já formou opinião na primeira linha.
+              */}
+              <p className="text-on-light-variant text-body-md mb-4 flex items-start gap-2">
+                <InfoIcon size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                Consumo medido pela rede CAN, {periodo}, e agrupado por categoria: as vans desta
+                frota fazem de 8 a 15 km/l e os compactadores de 2 a 3, então um ranking único
+                premiaria as vans todo mês.
+              </p>
+
+              {/* ⚠️ `surface="light"`: o campo mora dentro do painel branco, e a
+                  versão escura dele inverte a hierarquia da tela. */}
+              <div className="mb-5 max-w-md">
+                <GlassInput
+                  id="consumo-busca"
+                  surface="light"
+                  label="Buscar"
+                  placeholder="Placa ou modelo"
+                  value={busca}
+                  onChange={(event) => setBusca(event.target.value)}
+                  leading={<SearchIcon size={16} aria-hidden="true" />}
+                />
+              </div>
+
+              {resumo.grupos.length > 1 ? (
+                <>
+                  <h3 className="text-on-light-variant text-label-md normal-case">Por categoria</h3>
+                  <div className="mt-3 mb-8 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+                    {resumo.grupos.map((grupo) => {
+                      const ativo = categoria === grupo.categoria;
+
+                      return (
+                        <button
+                          key={grupo.categoria}
+                          type="button"
+                          aria-pressed={ativo}
+                          onClick={() => setCategoria(ativo ? null : grupo.categoria)}
+                          className={cn(
+                            'group flex min-w-0 items-center gap-2 rounded-md px-3.5 py-2.5 text-left transition-colors',
+                            'focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2',
+                            ativo
+                              ? 'bg-primary-strong text-on-primary'
+                              : 'bg-light-container text-on-light-variant hover:bg-primary/10 hover:text-primary',
+                          )}
+                        >
+                          <TruckIcon size={15} className="shrink-0" aria-hidden="true" />
+                          <span className="text-label-md min-w-0 flex-1 truncate normal-case">
+                            {rotuloDoTipo(grupo.categoria)}
+                          </span>
+                          <span
+                            className={cn(
+                              'tabular shrink-0 font-semibold transition-colors',
+                              ativo ? 'text-on-primary' : 'text-accent group-hover:text-primary',
+                            )}
+                          >
+                            {grupo.itens.length}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
+
+              <FuelEfficiencyList
+                grupos={grupos}
+                /* O aviso de quem não mede é da FROTA, e não do recorte: ele
+                   explica por que a média não conta com aquelas placas. */
+                semMedicao={resumo.semMedicao}
+                emptyMessage="Nenhum veículo com esse recorte."
+              />
+            </>
+          ) : (
+            <p className="text-on-light-variant text-body-md py-10 text-center">
+              Nenhum veículo rodou no período.
+            </p>
+          )}
         </QueryState>
 
         {/*
           O aviso continua, e continua inteiro: consumo medido não vira custo.
-          A lista de requisitos perdeu só a linha de combustível em litros, que
-          agora está logo acima, medida.
+          Dentro do painel ele perde a moldura de cartão (cartão dentro de
+          cartão) e vira o poço claro que o resto do painel já usa.
         */}
-        <div className="mt-5">
+        <div className="mt-8">
           <PendingSource
             title="O custo em reais ainda não tem origem"
             description="O custo por quilômetro é o número que o dono olha, e ele depende de lançamentos que o rastreador não conhece. O consumo acima é medido; o preço do diesel, a nota da oficina e o valor da multa vêm de fora."
@@ -445,6 +650,7 @@ function CustosReais() {
               { label: 'Ficha e histórico de cada caminhão', to: '/gestao/caminhoes' },
               { label: 'Percursos e paradas reais', to: '/gestao/viagens' },
             ]}
+            className="bg-light-container p-5 shadow-none ring-0 sm:p-6"
           />
         </div>
       </PageContent>

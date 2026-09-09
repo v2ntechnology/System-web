@@ -1,13 +1,13 @@
 import {
   AlertCircleIcon,
+  ClockIcon,
   MedalIcon,
-  SearchIcon,
   ShieldAlertIcon,
   SteeringWheelIcon,
   WarningIcon,
 } from '@/components/icons';
 import type { Driver, DriverStatus } from '@/management/types';
-import { GlassCard, GlassSelect } from '@/management/ui';
+import { SpectrumButton } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -19,19 +19,34 @@ import { QueryState } from '@/management/components/layout/query-state';
 import { useIncrementalList } from '@/management/hooks/use-incremental-list';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
-import { getDrivers } from '../api';
+import { getDriverHours, getDrivers } from '../api';
 import { DriverDetailPanel } from '../components/driver-detail-panel';
-import { DriverHoursCard } from '../components/driver-hours-card';
+import { DriverFilters, type DriverSort } from '../components/driver-filters';
+import { DriverHoursList } from '../components/driver-hours-list';
 import { DriverListItem } from '../components/driver-list-item';
+import { countViolations } from '../hours';
 
+/*
+ * ⚠️ `JORNADA` é a única aba que não recorta a lista de motoristas: ela troca o
+ * conteúdo do painel pela apuração de horas (decisão do usuário em 08/09/2026).
+ *
+ * A jornada era um cartão empilhado entre os números e a lista, e o custo era
+ * a lista de verdade começar fora da primeira tela. Como aba, ela usa o objeto
+ * que a página já tinha para "que fatia da equipe eu olho agora", e a contagem
+ * no rótulo mantém a urgência visível de qualquer aba.
+ */
 const TABS = [
   { id: 'TODOS', label: 'Todos' },
   { id: 'EM_VIAGEM', label: 'Em viagem' },
   { id: 'DISPONIVEL', label: 'Disponíveis' },
   { id: 'ATENCAO', label: 'Requerem atenção' },
+  { id: 'JORNADA', label: 'Jornada' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
+
+/** A aba que não é um recorte da equipe, e por isso fica fora da contagem. */
+const JORNADA: TabId = 'JORNADA';
 
 /**
  * Quem precisa de olho: nota baixa, muitos eventos ou CNH perto de vencer.
@@ -51,25 +66,29 @@ function needsAttention(driver: Driver) {
 }
 
 function matchesTab(driver: Driver, tab: TabId) {
-  if (tab === 'TODOS') return true;
+  if (tab === 'TODOS' || tab === JORNADA) return true;
   if (tab === 'ATENCAO') return needsAttention(driver);
   return driver.status === (tab as DriverStatus);
 }
 
-type Sort = 'score' | 'events' | 'km' | 'name';
-
-const SORTS: { id: Sort; label: string }[] = [
-  { id: 'score', label: 'Melhor score' },
-  { id: 'events', label: 'Mais eventos' },
-  { id: 'km', label: 'Mais km' },
-  { id: 'name', label: 'Nome' },
-];
-
 export function DriversPage() {
   const { data, isPending, isError } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers });
 
+  /* A jornada anda enquanto o caminhão anda. Um minuto de defasagem é o
+     bastante para a lista continuar acionável sem martelar o backend. A consulta
+     mora aqui, e não na lista, porque a contagem da aba tem de existir mesmo
+     quando a aba não está aberta. */
+  const jornada = useQuery({
+    queryKey: ['driver-hours'],
+    queryFn: () => getDriverHours(24),
+    refetchInterval: 60_000,
+  });
+
+  const horas = useMemo(() => jornada.data ?? [], [jornada.data]);
+  const acimaDoLimite = countViolations(horas);
+
   const [tab, setTab] = useState<TabId>('TODOS');
-  const [sort, setSort] = useState<Sort>('score');
+  const [sort, setSort] = useState<DriverSort>('score');
   const [search, setSearch] = useState('');
 
   const drivers = useMemo(() => data ?? [], [data]);
@@ -112,12 +131,20 @@ export function DriversPage() {
       : 0;
   const totalWarnings = drivers.reduce((sum, driver) => sum + driver.criticalEvents, 0);
 
+  /* A contagem da jornada é de quem estourou o limite, e não de quem aparece na
+     apuração: uma aba marcando 40 quando 12 precisam de telefonema esconderia
+     justamente o que ela existe para mostrar. */
   const counts = useMemo(
     () =>
       Object.fromEntries(
-        TABS.map((option) => [option.id, drivers.filter((d) => matchesTab(d, option.id)).length]),
+        TABS.map((option) => [
+          option.id,
+          option.id === JORNADA
+            ? acimaDoLimite
+            : drivers.filter((d) => matchesTab(d, option.id)).length,
+        ]),
       ) as Record<TabId, number>,
-    [drivers],
+    [drivers, acimaDoLimite],
   );
 
   /* A coluna abre com oito motoristas e cresce ao rolar dentro da própria
@@ -186,8 +213,31 @@ export function DriversPage() {
             jogaria carregamento e erro por cima da faixa colorida. */}
         <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
 
+        {/*
+         * A jornada é a informação com PRAZO desta tela: score e ranking podem
+         * esperar a tarde, um motorista em 5h30 precisa parar agora. Por isso
+         * ela continua anunciada aqui em cima, mesmo tendo virado aba.
+         *
+         * ⚠️ Uma linha, e não a lista inteira: a lista de oito nomes que morava
+         * aqui empurrava a equipe (o assunto da rota) para fora da tela. Aqui
+         * fica o alarme; quem trata abre a aba.
+         */}
+        {acimaDoLimite > 0 ? (
+          <div className="bg-error/10 ring-error/30 mt-5 flex flex-wrap items-center gap-3 rounded-lg px-4 py-3 ring-1">
+            <ClockIcon size={18} className="text-error shrink-0" aria-hidden="true" />
+            <p className="text-on-surface text-body-md min-w-0 flex-1">
+              {acimaDoLimite === 1
+                ? '1 motorista passou do limite de jornada nas últimas 24 horas.'
+                : `${acimaDoLimite} motoristas passaram do limite de jornada nas últimas 24 horas.`}
+            </p>
+            <SpectrumButton variant="ghost" size="sm" onClick={() => setTab(JORNADA)}>
+              Ver a jornada
+            </SpectrumButton>
+          </div>
+        ) : null}
+
         {attentionCount > 0 ? (
-          <div className="bg-warning/10 ring-warning/30 mt-5 flex flex-wrap items-center gap-3 rounded-lg px-4 py-3 ring-1">
+          <div className="bg-warning/10 ring-warning/30 mt-3 flex flex-wrap items-center gap-3 rounded-lg px-4 py-3 ring-1">
             <WarningIcon size={18} className="text-warning shrink-0" aria-hidden="true" />
             <p className="text-on-surface text-body-md min-w-0 flex-1">
               {attentionCount === 1
@@ -196,47 +246,6 @@ export function DriversPage() {
             </p>
           </div>
         ) : null}
-
-        {/* Jornada logo abaixo do resumo: é a informação com prazo. Score e
-            ranking podem esperar a tarde; um motorista em 5h30 precisa parar
-            agora, e quem abre esta tela é quem faz essa ligação. */}
-        <GlassCard className="mt-5 p-5 sm:p-6">
-          <DriverHoursCard />
-        </GlassCard>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          {/* Texto solto, e não `<label>`: o rótulo acessível já vem do próprio
-              campo, e dois rótulos para o mesmo controle são lidos em dobro. */}
-          <span aria-hidden="true" className="text-on-surface-variant text-body-md">
-            Ordenar por
-          </span>
-          <GlassSelect
-            id="driver-sort"
-            label="Ordenar por"
-            hideLabel
-            variant="outline"
-            pill
-            className="w-auto min-w-44"
-            value={sort}
-            onValueChange={(next) => setSort(next as Sort)}
-            options={SORTS.map((option) => ({ value: option.id, label: option.label }))}
-          />
-
-          <div className="border-outline-variant bg-surface-lowest rounded-pill focus-within:border-primary flex min-w-0 basis-full items-center gap-2 border px-4 sm:max-w-72 sm:flex-1 sm:basis-auto">
-            <SearchIcon size={18} className="text-on-surface-muted shrink-0" aria-hidden="true" />
-            <label htmlFor="driver-search" className="sr-only">
-              Buscar motorista pelo nome
-            </label>
-            <input
-              id="driver-search"
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nome do motorista"
-              className="text-body-md text-on-surface placeholder:text-placeholder h-11 w-full bg-transparent focus:outline-none"
-            />
-          </div>
-        </div>
       </section>
 
       {/* -------------------------------------------------------------------
@@ -249,68 +258,97 @@ export function DriversPage() {
           onValueChange={setTab}
           label="Situação dos motoristas"
         >
-          <QueryState isPending={isPending} isError={isError} label="os motoristas">
-            <div className="grid gap-6 pb-4 xl:grid-cols-[minmax(0,340px)_1fr]">
-              <div className="min-w-0">
-                <div className="mb-3 flex items-baseline justify-between gap-3">
-                  <h2 className="font-sora text-primary text-headline-md">Equipe</h2>
-                  {/* Enquanto a janela não corta nada, o contador é o de sempre
+          {/* ⚠️ A barra não aparece na aba de jornada: lá ela não teria o que
+              recortar, e um controle que não responde é pior que a ausência
+              dele. */}
+          {tab === JORNADA ? null : (
+            <div className="mb-5">
+              <DriverFilters
+                search={search}
+                onSearchChange={setSearch}
+                sort={sort}
+                onSortChange={setSort}
+              />
+            </div>
+          )}
+
+          {tab === JORNADA ? (
+            <QueryState
+              isPending={jornada.isPending}
+              isError={jornada.isError}
+              label="a jornada dos motoristas"
+            >
+              <div className="pb-4">
+                <DriverHoursList rows={horas} />
+              </div>
+            </QueryState>
+          ) : (
+            <QueryState isPending={isPending} isError={isError} label="os motoristas">
+              <div className="grid gap-6 pb-4 xl:grid-cols-[minmax(0,380px)_1fr]">
+                <div className="min-w-0">
+                  <div className="mb-3 flex items-baseline justify-between gap-3">
+                    {/* ⚠️ `on-light`, e não a marca. Título de painel deixou de ser
+                      colorido em 30/08/2026: a cor de marca é de ação, link e
+                      série de gráfico. */}
+                    <h2 className="font-sora text-on-light text-headline-md">Equipe</h2>
+                    {/* Enquanto a janela não corta nada, o contador é o de sempre
                       (quantos o filtro deixou passar, de quantos existem).
                       Quando corta, ele passa a contar o que está na caixa. */}
-                  <span className="text-on-light-muted text-label-md tabular normal-case">
-                    {naTela.length === visible.length
-                      ? `${visible.length} de ${drivers.length}`
-                      : `${naTela.length} de ${visible.length}`}
-                  </span>
-                </div>
+                    <span className="text-on-light-muted text-label-md tabular normal-case">
+                      {naTela.length === visible.length
+                        ? `${visible.length} de ${drivers.length}`
+                        : `${naTela.length} de ${visible.length}`}
+                    </span>
+                  </div>
 
-                {visible.length === 0 ? (
-                  <p className="text-on-light-variant text-body-md py-10 text-center">
-                    Nenhum motorista encontrado com esses filtros.
-                  </p>
-                ) : (
-                  /* Caixa da altura de oito motoristas, com rolagem própria: a
+                  {visible.length === 0 ? (
+                    <p className="text-on-light-variant text-body-md py-10 text-center">
+                      Nenhum motorista encontrado com esses filtros.
+                    </p>
+                  ) : (
+                    /* Caixa da altura de oito motoristas, com rolagem própria: a
                      lista inteira empurrava a ficha para fora da primeira tela,
                      e rolar a página para ver o nono tirava a ficha do campo de
                      visão. A barra de rolagem não aparece, por decisão de
                      19/08/2026. */
-                  <ul className="flex max-h-[34rem] flex-col gap-2 overflow-y-auto">
-                    {naTela.map((driver) => (
-                      <li key={driver.id} className="min-w-0">
-                        <DriverListItem
-                          driver={driver}
-                          selected={driver.id === selectedId}
-                          onSelect={(next) => setSelectedId(next.id)}
-                        />
-                      </li>
-                    ))}
+                    <ul className="flex max-h-[42rem] flex-col gap-2 overflow-y-auto">
+                      {naTela.map((driver) => (
+                        <li key={driver.id} className="min-w-0">
+                          <DriverListItem
+                            driver={driver}
+                            selected={driver.id === selectedId}
+                            onSelect={(next) => setSelectedId(next.id)}
+                          />
+                        </li>
+                      ))}
 
-                    {/* Sentinela: entrar na tela é o que carrega o próximo
+                      {/* Sentinela: entrar na tela é o que carrega o próximo
                         punhado, sem botão e sem paginação. */}
-                    {temMais ? (
-                      <li ref={sentinelRef} className="py-3 text-center" aria-hidden="true">
-                        <span className="text-on-light-muted text-label-md normal-case">
-                          Carregando mais…
-                        </span>
-                      </li>
-                    ) : null}
-                  </ul>
-                )}
-              </div>
+                      {temMais ? (
+                        <li ref={sentinelRef} className="py-3 text-center" aria-hidden="true">
+                          <span className="text-on-light-muted text-label-md normal-case">
+                            Carregando mais…
+                          </span>
+                        </li>
+                      ) : null}
+                    </ul>
+                  )}
+                </div>
 
-              <div className="min-w-0">
-                {selected ? (
-                  <DriverDetailPanel driver={selected} />
-                ) : (
-                  <div className="bg-surface-lowest flex min-h-80 items-center justify-center rounded-xl p-6">
-                    <p className="text-on-surface-muted text-body-md text-center">
-                      Selecione um motorista para ver a ficha completa.
-                    </p>
-                  </div>
-                )}
+                <div className="min-w-0">
+                  {selected ? (
+                    <DriverDetailPanel driver={selected} />
+                  ) : (
+                    <div className="bg-surface-lowest flex min-h-80 items-center justify-center rounded-xl p-6">
+                      <p className="text-on-surface-muted text-body-md text-center">
+                        Selecione um motorista para ver a ficha completa.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </QueryState>
+            </QueryState>
+          )}
         </PageTabs>
       </PageContent>
     </>

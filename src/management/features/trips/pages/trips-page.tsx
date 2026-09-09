@@ -50,6 +50,24 @@ const km = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 
 const isOpen = (trip: Trip) => trip.status !== 'CONCLUIDA' && trip.status !== 'CANCELADA';
 
+/**
+ * Faixa vertical da linha, no mesmo desenho das outras filas do painel.
+ *
+ * ⚠️ Resolve um defeito, e não só estética: o atraso era um ícone que a própria
+ * seleção ESCONDIA (`active ? null : late ? ...`), porque o chip tonal não se lê
+ * sobre a linha laranja. Ou seja, abrir a viagem apagava a informação mais
+ * importante dela. A faixa fica fora do preenchimento e sobrevive aos dois
+ * estados.
+ *
+ * Família de PREENCHIMENTO (`error`, `warning`), nunca `-on-light`: aquela é de
+ * texto e como tinta chapada vira vinho e marrom, que não se separam.
+ */
+function tripRail(trip: Trip) {
+  if (isLate(trip)) return 'bg-error';
+  if (finishedLate(trip)) return 'bg-warning';
+  return 'bg-on-light-muted';
+}
+
 function matchesTab(trip: Trip, tab: TabId) {
   if (tab === 'EM_CURSO') return isOpen(trip);
   if (tab === 'ATRASADAS') return isLate(trip);
@@ -211,6 +229,10 @@ function ViagensReais() {
     return { distancia, aoVolante, parado, semMotorista };
   }, [lista]);
 
+  /* Escala da barra de magnitude da lista. A maior parada é 100%: o que
+     interessa é a proporção ENTRE os endereços, não o valor absoluto. */
+  const maiorParada = Math.max(1, ...(paradas.data ?? []).map((parada) => parada.totalHours));
+
   const totalHorasParadas = (paradas.data ?? []).reduce(
     (soma, parada) => soma + parada.totalHours,
     0,
@@ -257,29 +279,7 @@ function ViagensReais() {
       <HeroBand
         title="Viagens"
         description="Cada percurso que a frota fez, e os lugares onde ela mais fica parada."
-      >
-        <div role="group" aria-label="Período" className="flex flex-wrap gap-1.5">
-          {JANELAS.map((janela) => (
-            <button
-              key={janela.dias}
-              type="button"
-              onClick={() => setDias(janela.dias)}
-              aria-pressed={dias === janela.dias}
-              className={cn(
-                /* Sobre o indigo, a pastilha escolhida é a cor um degrau mais
-                   escura, e não o preto do resto do painel: preto sobre indigo
-                   lê como buraco na faixa. Ativo e hover são exclusivos. */
-                'text-label-md focus-visible:ring-on-primary rounded-full px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
-                dias === janela.dias
-                  ? 'bg-primary-strong text-on-primary'
-                  : 'text-on-primary/80 hover:bg-primary-strong/60 hover:text-on-primary',
-              )}
-            >
-              {janela.label}
-            </button>
-          ))}
-        </div>
-      </HeroBand>
+      />
 
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo do período</h2>
@@ -320,6 +320,44 @@ function ViagensReais() {
         >
           {aba === 'PERCURSOS' ? (
             <div className="pb-4">
+              {/*
+               * ⚠️ O período mora AQUI, e não na faixa (decisão do usuário em
+               * 08/09/2026).
+               *
+               * Duas razões. Ele não governa a tela: a aba "Onde a frota para" é
+               * fixa em trinta dias, então na faixa ele prometia um controle que
+               * não exercia. E ele é o recorte **server-side**, o que define o que
+               * é buscado, enquanto placa, motorista e dia refinam no cliente já
+               * carregado: ficando acima dos campos, a ordem na tela é a ordem
+               * real do funil.
+               *
+               * Desenho do `PageTabs`, na família `light` porque aqui é dentro do
+               * painel branco: os dois são o mesmo objeto, um segmentado que
+               * recorta uma lista.
+               */}
+              <div
+                role="group"
+                aria-label="Período"
+                className="bg-light-container rounded-pill mb-4 flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
+              >
+                {JANELAS.map((janela) => (
+                  <button
+                    key={janela.dias}
+                    type="button"
+                    onClick={() => setDias(janela.dias)}
+                    aria-pressed={dias === janela.dias}
+                    className={cn(
+                      'text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
+                      dias === janela.dias
+                        ? 'bg-light text-accent font-medium shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]'
+                        : 'text-on-light-variant hover:text-on-light hover:bg-on-light/[0.06]',
+                    )}
+                  >
+                    {janela.label}
+                  </button>
+                ))}
+              </div>
+
               {/* ⚠️ `surface="light"`: os campos moram dentro do painel branco,
                   e a versão escura deles inverte a hierarquia da tela. */}
               <div className="mb-4 grid items-end gap-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
@@ -417,14 +455,32 @@ function ViagensReais() {
                 isError={paradas.isError}
                 label="as paradas"
               >
-                <p className="text-on-light-variant text-body-md mb-4 max-w-3xl">
-                  Onde a frota ficou parada por mais de vinte minutos nos últimos trinta dias,
-                  somando {km.format(totalHorasParadas)} horas. O sistema não sabe se o lugar é a
-                  base, um cliente ou um posto: mostra o endereço e quem reconhece é você.
-                </p>
+                {/* ⚠️ Duas frases, dois pesos. A primeira diz o que a aba mostra e
+                    carrega o número que resume tudo; a segunda é a ressalva sobre o
+                    que o sistema NÃO sabe, que é apoio e não manchete. Juntas num
+                    parágrafo só, as duas saíam no mesmo cinza e o total se perdia
+                    no meio da frase. Medida em ~75ch, que é o que o corpo pede. */}
+                <div className="mb-5 max-w-2xl">
+                  <p className="text-on-light text-body-md">
+                    Onde a frota ficou parada por mais de vinte minutos nos últimos trinta dias,
+                    somando{' '}
+                    <span className="tabular font-semibold">
+                      {km.format(totalHorasParadas)} horas
+                    </span>
+                    .
+                  </p>
+                  <p className="text-on-light-muted text-label-md mt-1.5 normal-case">
+                    O sistema não sabe se o lugar é a base, um cliente ou um posto: mostra o
+                    endereço e quem reconhece é você.
+                  </p>
+                </div>
 
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,380px)_1fr]">
-                  <ul className="flex max-h-[560px] flex-col gap-2 overflow-y-auto">
+                {/* ⚠️ A altura é da LINHA do grid, e não de cada peça. Antes o
+                    mapa tinha `min-h` própria e a lista um `max-h` diferente,
+                    então uma sobrava enquanto a outra faltava. Mesma armadilha já
+                    corrigida no mapa ao vivo. */}
+                <div className="grid gap-5 xl:h-[560px] xl:grid-cols-[minmax(0,380px)_1fr]">
+                  <ul className="flex flex-col gap-2 overflow-y-auto xl:h-full">
                     {(paradas.data ?? []).map((parada, indice) => {
                       const ativa = indice === paradaAtiva;
 
@@ -439,10 +495,14 @@ function ViagensReais() {
                               ativa ? 'bg-primary-strong' : 'hover:bg-light-container',
                             )}
                           >
-                            <span className="flex items-baseline justify-between gap-2">
+                            <span className="flex items-baseline justify-between gap-3">
+                              {/* ⚠️ Duas linhas, e não `truncate`. O endereço é a
+                                  identidade da parada e vinha cortado no meio da
+                                  palavra ("Rua Poacu, 31, Marajoara, Queimad..."),
+                                  o que obriga a abrir cada uma para saber qual é. */}
                               <span
                                 className={cn(
-                                  'text-body-md truncate font-medium',
+                                  'text-body-md min-w-0 font-medium',
                                   ativa ? 'text-on-primary' : 'text-on-light',
                                 )}
                               >
@@ -458,9 +518,37 @@ function ViagensReais() {
                               </span>
                             </span>
 
+                            {/*
+                             * ⚠️ Barra de magnitude: é ela que traz para a lista a
+                             * informação que só o mapa tinha.
+                             *
+                             * A bolha do mapa cresce com as horas, mas na lista
+                             * 875 h e 121 h eram dois blocos de texto idênticos, e
+                             * a ordenação era a única pista da diferença. Com a
+                             * barra, a proporção entre os endereços se lê de
+                             * relance, sem precisar comparar número por número.
+                             */}
                             <span
                               className={cn(
-                                'text-label-md mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 normal-case',
+                                'mt-2 block h-1 overflow-hidden rounded-full',
+                                ativa ? 'bg-on-primary/25' : 'bg-light-container',
+                              )}
+                              aria-hidden="true"
+                            >
+                              <span
+                                className={cn(
+                                  'block h-full rounded-full',
+                                  ativa ? 'bg-on-primary' : 'bg-chart-1',
+                                )}
+                                style={{
+                                  width: `${Math.max((parada.totalHours / maiorParada) * 100, 2)}%`,
+                                }}
+                              />
+                            </span>
+
+                            <span
+                              className={cn(
+                                'text-label-md mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 normal-case',
                                 ativa ? 'text-on-primary' : 'text-on-light-muted',
                               )}
                             >
@@ -487,7 +575,7 @@ function ViagensReais() {
                     stops={paradas.data ?? []}
                     selectedIndex={paradaAtiva}
                     onSelect={setParadaAtiva}
-                    className="min-h-[420px] xl:min-h-[560px]"
+                    className="min-h-[420px] xl:h-full xl:min-h-0"
                   />
                 </div>
               </QueryState>
@@ -620,7 +708,9 @@ function ViagensSimuladas() {
             <div className="grid gap-6 pb-4 xl:grid-cols-[minmax(0,340px)_1fr]">
               <div className="min-w-0">
                 <div className="mb-3 flex items-baseline justify-between gap-3">
-                  <h2 className="font-sora text-primary text-headline-md">Viagens</h2>
+                  {/* ⚠️ `on-light`, e não a marca. O título de painel deixou de ser colorido
+                      em 30/08/2026: a cor de marca é de ação, link e série de gráfico. */}
+                  <h2 className="font-sora text-on-light text-headline-md">Viagens</h2>
                   <span className="text-on-light-muted text-label-md tabular normal-case">
                     {visible.length} de {trips.length}
                   </span>
@@ -643,48 +733,60 @@ function ViagensSimuladas() {
                             onClick={() => setSelectedId(trip.id)}
                             aria-current={active ? 'true' : undefined}
                             className={cn(
-                              'focus-visible:ring-primary-on-light w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
+                              'focus-visible:ring-primary-on-light flex w-full gap-3 rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
                               active ? 'bg-primary-strong' : 'hover:bg-light-container',
                             )}
                           >
-                            <span className="flex items-center justify-between gap-2">
+                            {/* A cor repete o rótulo, nunca o substitui: o chip
+                                e o `aria-label` do ícone seguem dizendo o estado. */}
+                            <span
+                              className={cn(
+                                'w-1 shrink-0 self-stretch rounded-full',
+                                tripRail(trip),
+                              )}
+                              aria-hidden="true"
+                            />
+
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center justify-between gap-2">
+                                <span
+                                  className={cn(
+                                    'tabular font-semibold',
+                                    active ? 'text-on-primary' : 'text-on-light',
+                                  )}
+                                >
+                                  {trip.code}
+                                </span>
+                                {active ? null : late ? (
+                                  <WarningIcon
+                                    size={15}
+                                    aria-label="Atrasada"
+                                    className="text-error-on-light"
+                                  />
+                                ) : (
+                                  <TripStatusChip status={trip.status} surface="light" />
+                                )}
+                              </span>
+
                               <span
                                 className={cn(
-                                  'tabular font-semibold',
-                                  active ? 'text-on-primary' : 'text-on-light',
+                                  'text-label-md mt-1 flex flex-wrap items-center gap-1.5 normal-case',
+                                  active ? 'text-on-primary' : 'text-on-light-muted',
                                 )}
                               >
-                                {trip.code}
+                                <span className="truncate">{trip.origin}</span>
+                                <ArrowRightIcon size={11} aria-hidden="true" />
+                                <span className="truncate">{trip.destination}</span>
                               </span>
-                              {active ? null : late ? (
-                                <WarningIcon
-                                  size={15}
-                                  aria-label="Atrasada"
-                                  className="text-error-on-light"
-                                />
-                              ) : (
-                                <TripStatusChip status={trip.status} surface="light" />
-                              )}
-                            </span>
 
-                            <span
-                              className={cn(
-                                'text-label-md mt-1 flex flex-wrap items-center gap-1.5 normal-case',
-                                active ? 'text-on-primary' : 'text-on-light-muted',
-                              )}
-                            >
-                              <span className="truncate">{trip.origin}</span>
-                              <ArrowRightIcon size={11} aria-hidden="true" />
-                              <span className="truncate">{trip.destination}</span>
-                            </span>
-
-                            <span
-                              className={cn(
-                                'tabular text-label-md mt-0.5 block normal-case',
-                                active ? 'text-on-primary' : 'text-on-light-muted',
-                              )}
-                            >
-                              {trip.driverName} · {km.format(trip.distanceKm)} km
+                              <span
+                                className={cn(
+                                  'tabular text-label-md mt-0.5 block normal-case',
+                                  active ? 'text-on-primary' : 'text-on-light-muted',
+                                )}
+                              >
+                                {trip.driverName} · {km.format(trip.distanceKm)} km
+                              </span>
                             </span>
                           </button>
                         </li>
@@ -694,12 +796,16 @@ function ViagensSimuladas() {
                 )}
               </div>
 
-              <div className="min-w-0">
+              {/* `xl:sticky`: no monitor a lista rola e a viagem aberta fica.
+                  `self-start` é o que dá altura ao grudado dentro do grid. */}
+              <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
                 {selected ? (
                   <TripDetailPanel trip={selected} />
                 ) : (
-                  <div className="bg-surface-lowest flex min-h-80 items-center justify-center rounded-xl p-6">
-                    <p className="text-on-surface-muted text-body-md text-center">
+                  /* Tokens `light`: este bloco mora dentro do painel claro.
+                     Com `surface-lowest` ele era o poço do tema, outra família. */
+                  <div className="bg-light-container flex min-h-72 items-center justify-center rounded-xl p-6">
+                    <p className="text-on-light-muted text-body-md max-w-xs text-center text-balance">
                       Selecione uma viagem para ver a rota e a linha do tempo.
                     </p>
                   </div>

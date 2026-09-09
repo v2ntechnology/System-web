@@ -52,8 +52,8 @@ export function GlassModal({
              * O portal do Radix monta no `body`, FORA do escopo que a
              * `ManagementLayout` abre. Sem esta classe, todo token redefinido
              * pelo painel volta ao valor do painel operacional lá dentro: o
-             * `SpectrumButton` na variante `secondary` perdia o cyan e ficava
-             * com texto `#00212b` sobre cinza escuro, 1,43:1 (medido em
+             * `SpectrumButton` na variante `secondary` perdia a cor de marca e
+             * ficava com o texto escuro sobre cinza escuro, 1,43:1 (medido em
              * 27/08/2026, relatado pelo usuário como "o texto some").
              *
              * Vale para tudo que o diálogo contém, e não para uma classe de

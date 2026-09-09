@@ -6,6 +6,7 @@ import { useAssistantShortcut } from '@/management/features/assistant/use-assist
 import { Spinner } from '@/management/ui';
 
 import { AssistantFab } from './assistant-fab';
+import { FavoritesDock } from './favorites-dock';
 
 /**
  * Casca de todas as telas autenticadas do painel de gestão.
@@ -33,6 +34,9 @@ export function ManagementLayout() {
       <Suspense fallback={<RouteFallback />}>
         <Outlet />
       </Suspense>
+      {/* Atalhos favoritos: flutuam sobre todas as telas do painel, como o
+          assistente. Centralizados na base, porque o canto direito é dele. */}
+      <FavoritesDock />
       <AssistantFab />
       <AssistantDrawer />
     </div>

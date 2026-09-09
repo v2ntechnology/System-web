@@ -47,11 +47,11 @@ interface LandCollection {
 
 interface GlobeProps {
   className?: string;
-  /** Cor dos pontos de terra. Padrão: índigo da marca. */
+  /** Cor dos pontos de terra. Padrão: terracota da marca. */
   dotColor?: string;
   /** Cor da grade de paralelos/meridianos. */
   gridColor?: string;
-  /** Cor do anel de limbo (contorno do globo). Padrão: ciano da marca. */
+  /** Cor do anel de limbo (contorno do globo). Padrão: âmbar da marca. */
   rimColor?: string;
 }
 
@@ -69,7 +69,8 @@ export function Globe({
   className,
   dotColor = '#d5623a',
   gridColor = '#d5623a',
-  rimColor = '#E7AD61',
+  /* ⚠️ Era o âmbar #E7AD61. Laranja único desde 08/09/2026. */
+  rimColor = '#d5623a',
 }: GlobeProps) {
   const mountRef = useRef<HTMLDivElement>(null);
 

@@ -3,7 +3,6 @@ import type { TeamMember } from '@/management/lib/fleet-api';
 import {
   GlassInput,
   GlassSelect,
-  LightCard,
   Pagination,
   SpectrumButton,
   StatusChip,
@@ -126,7 +125,19 @@ export function TeamRoster({ people, className }: TeamRosterProps) {
   };
 
   return (
-    <LightCard title="Quadro" className={className}>
+    /*
+     * ⚠️ Sem `LightCard` em volta (08/09/2026): é CARTÃO DENTRO DE CARTÃO. O
+     * quadro já mora no painel branco da página, e esta moldura não separava
+     * nada, porque não dividia a tela com ninguém.
+     *
+     * ⚠️ Não é que ele sumisse: o `LightCard` tem sombra. Onde ele continua
+     * certo é como UMA das colunas de um master-detail (ver os painéis de
+     * detalhe), que é quando a moldura de fato distingue duas coisas.
+     *
+     * O título "Quadro" saiu junto: a faixa já diz "Equipe" e os filtros vêm
+     * logo abaixo. Era o segundo rótulo para a mesma lista.
+     */
+    <div className={className}>
       {/* ⚠️ `surface="light"`: os campos moram dentro do painel branco, e a
           versão escura deles inverte a hierarquia da tela. */}
       <div className="mb-4 grid items-end gap-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(2,minmax(0,1fr))]">
@@ -287,6 +298,6 @@ export function TeamRoster({ people, className }: TeamRosterProps) {
         Motorista vem do cadastro da telemetria; acesso ao painel vem do cadastro do sistema. São
         listas diferentes e quase não se cruzam.
       </p>
-    </LightCard>
+    </div>
   );
 }

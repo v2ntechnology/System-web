@@ -57,11 +57,28 @@ export function HeroBand({
   );
 }
 
-const PILL = 'rounded-pill text-label-md inline-flex items-center gap-2 px-3.5 py-2 normal-case';
+/*
+ * ⚠️ Traço branco, e não um segundo laranja (referência trazida pelo usuário em
+ * 08/09/2026, no desenho do Itaú).
+ *
+ * A pastilha era `primary-strong`, um laranja um degrau mais escuro que a faixa.
+ * Com a marca reduzida a um único #D5623A, esse degrau deixou de existir: fundo
+ * e pastilha ficariam do mesmo tom e a pastilha sumiria. Quem passa a separar os
+ * dois é a linha branca, que é como a referência resolve o mesmo problema.
+ */
+/**
+ * Exportado para quem precisa da mesma pastilha com conteúdo próprio, e não com
+ * o par ícone mais texto do `HeroPill`. O chip de frescor do mapa ao vivo é o
+ * caso: ele carrega um estado que o `HeroPill` não sabe representar.
+ */
+export const HERO_PILL =
+  'rounded-md text-label-md inline-flex items-center gap-2 border border-on-primary px-3.5 py-2 normal-case';
+
+const PILL = HERO_PILL;
 
 export function HeroPill({ icon: Icon, children }: { icon: IconType; children: ReactNode }) {
   return (
-    <span className={cn(PILL, 'bg-primary-strong')}>
+    <span className={cn(PILL, 'text-on-primary')}>
       <Icon size={15} aria-hidden="true" />
       {children}
     </span>
@@ -83,7 +100,9 @@ export function HeroLink({
       to={to}
       className={cn(
         PILL,
-        'bg-primary-strong hover:bg-[color-mix(in_oklab,var(--color-primary-strong)_86%,black)]',
+        /* O hover preenche com o branco do traço e inverte o texto: é a resposta
+           que sobra quando a pastilha não tem cor própria para escurecer. */
+        'text-on-primary hover:bg-on-primary hover:text-primary',
         'focus-visible:ring-on-primary transition-colors focus-visible:outline-none focus-visible:ring-2',
       )}
     >

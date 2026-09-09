@@ -23,7 +23,7 @@ export function GlowBackdrop({ className }: GlowBackdropProps) {
       />
       <div
         className="absolute -bottom-[25%] -right-[15%] h-[55vmax] w-[55vmax] rounded-full"
-        style={{ backgroundImage: 'var(--glow-cyan)', filter: 'blur(100px)' }}
+        style={{ backgroundImage: 'var(--glow-accent)', filter: 'blur(100px)' }}
       />
     </div>
   );

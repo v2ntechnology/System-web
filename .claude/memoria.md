@@ -198,10 +198,10 @@ painéis**.
 - ⚠️ **O `eyebrow` do `PageBanner` não renderiza mais nada.** A prop continua
   aceita para não quebrar 25 telas de uma vez. Rótulo acima de título é proibido
   no piso de qualidade do projeto: o título carrega o próprio peso.
-- **A pastilha do item ativo é preta** (`bg-bright text-on-bright`), no menu
-  superior da gestão E na lateral do operacional. É o que faz as duas cascas
-  lerem como um sistema só. Indigo ficou para ação, link e primeira série de
-  gráfico: usá-lo também no estado ativo gastava a cor até parar de significar.
+- **A pastilha do item ativo é TERRACOTA** (`bg-primary-strong text-on-primary`) desde
+  08/09/2026, no menu superior da gestão E na lateral do operacional. É o que faz as
+  duas cascas lerem como um sistema só. Era preta (`bg-bright`) desde 30/08/2026; ver
+  a entrada de 08/09 mais abaixo para o que mudou e o que continua preto.
 - **A hierarquia é de superfície, não de linha.** Papel morno `#F4F2EF` no
   fundo, branco no card, papel mais fechado no poço. Card não tem borda: tem
   raio grande e sombra com deslocamento e desfoque. `--color-light-edge` virou
@@ -247,7 +247,80 @@ painéis**.
   dos arquivos.
 - Âncoras: grafite `#212121` no escuro (o azul-noite `#0B1220` do painel operacional foi aposentado
   porque puxava a tela para o roxo), papel `#F2F2F3` no claro, **terracota `#D5623A` como primária**
-  e cyan `#06B6D4` como secundária.
+  e **marinho `#010066` como secundária**.
+- ⚠️ **A secundária virou marinho em 08/09/2026**, decisão do usuário, no lugar do cyan `#06B6D4`.
+  A referência dada foi o site do Itaú, que também é laranja: o azul escuro serve link, detalhe e
+  parte dos botões, enquanto o laranja fica sendo a ação preenchida.
+- ⚠️ **Trocar o token da secundária quase não muda a tela, e a primeira tentativa não mudou nada.**
+  O usuário reiniciou o front e não viu diferença, com razão. O `--accent` só é consumido em sete
+  lugares do `/hub` (o cartão da Gestão), num ícone da ficha do veículo, na série 2 dos gráficos e
+  na voz. E as duas variantes `link` (`Button` e `SpectrumButton`) e a `secondary` do
+  `SpectrumButton` **não têm nenhum uso no código**: mexer nelas é mexer em código morto.
+- ⚠️ **Link no RookHub não é `variant="link"`: é `<Link>` ou `<a>` com a classe escrita à mão.**
+  São dez, e usavam a cor da primária: `text-primary` no painel operacional (`activity-feed`,
+  `recent-alerts`, `administration/settings-page`, `saas-dashboard-page`) e `text-primary-on-light`
+  no painel de gestão (`insights-card`, `extension-detail-panel`, `person-card` em dois pontos,
+  `blocker-row`, `billing-page`). Todos passaram a `text-accent` em 08/09/2026. Quem trocar cor de
+  link de novo tem de varrer por `hover:underline`, e não pelas variantes.
+- ⚠️ E ao varrer por `hover:underline`, **não** trocar `text-primary-on-light` em bloco no arquivo:
+  a mesma classe veste ícone que não é link (o `BillingIcon` da forma de pagamento) e o
+  `focus-visible:ring-primary-on-light`, que continua terracota porque foco segue a primária.
+- ⚠️ **A secundária TROCA de valor entre os temas, e a primária não.** É a diferença que mais
+  confunde na paleta hoje. O `#010066` dá 15,6:1 sobre o papel e **1,07:1 sobre o grafite**, onde
+  desaparece: a rampa escura carrega a versão clara da mesma matiz, `#A0A6FF` (7,2:1). A terracota
+  tem luminância média e por isso é o mesmo hex nos dois. Quem depender da secundária num contexto
+  que não acompanha o tema (3D, MapLibre, halo decorativo) precisa do azul médio, nunca do `#010066`.
+- ⚠️ **O botão sem preenchimento do painel de gestão virou contorno marinho** em 08/09/2026, a
+  pedido do usuário: o `ghost` do `SpectrumButton` (26 usos) deixou de ser traço cinza com véu e
+  passou a `border-accent/60 bg-transparent text-accent`. O `/60` não é estética: a 40% a linha dá
+  2,7:1 sobre o papel e fica abaixo do mínimo de 3:1 de contorno de componente; a 60% dá 5,2:1.
+- ⚠️ **A hierarquia de botão do painel ficou em três degraus**, e é o desenho pedido: preenchido
+  terracota (`primary`) para a ação principal, contorno marinho (`ghost`) para a secundária, e
+  `bright` para a ação das telas de acesso. A variante `secondary` (marinho preenchido) existe e
+  resolve para a cor certa, mas segue sem nenhum uso.
+- ⚠️ **UM ÚNICO LARANJA desde 08/09/2026, a pedido do usuário: só o #D5623A.** A escala de
+  terracota foi **colapsada na paleta**, e não nos componentes: `--color-primary-strong`,
+  `--color-primary-on-light` (nos dois temas), `--color-primary-container`, `--color-primary-bright`
+  e `--color-chart-1` (nos dois temas) apontam todos para `#d5623a`. Os nomes de token continuam
+  existindo porque são a API que a interface inteira consome. **Devolver a escala é reeditar só
+  `palette.css`**: não saia trocando classe em componente.
+- ⚠️ **O laranja único custa AA, e o usuário foi avisado.** O #D5623A dá 3,9:1 com branco. Reprovam
+  hoje: os 42 botões preenchidos, a pastilha da navegação da gestão, o visto do checkbox (4,32:1
+  contra o branco do visto) e todo texto de marca sobre o papel, que antes era `on-light` a 5,9:1.
+  Os degraus `strong` (5,04:1) e `on-light` (5,9:1) existiam exatamente para isso.
+- ⚠️ **Junto foram os laranjas decorativos que não eram token**, e é o de sempre: grep de hex não
+  acha. `--glow-indigo` (`rgba(190,90,53)`), a deriva do `aurora-backdrop` (`rgba(219,82,61)`), o
+  `rimColor` do `globe`, o `COLOR_FRONT` da `voice-sphere`, o `color3` do `login-page`, o
+  `gradientColors` do `blinds-backdrop` e a cor da parada do `stops-map` (`#e08a63`).
+- ⚠️ **Dois efeitos ficaram CHAPADOS de propósito, e isso não é bug.** O `bg-brand-gradient` vai de
+  `primary` a `primary-bright`, que agora são a mesma cor. E o `time-vortex` da sessão expirada teve
+  a faixa de matiz colapsada: `HUE_AMBAR` recebeu o valor de `HUE_TERRACOTA`. Os dois nomes ficam,
+  e devolver o âmbar num deles devolve o degradê.
+- ⚠️ **Com um laranja só, TODA pastilha sobre a faixa some.** Foi o caso do `HeroPill` e, na época,
+  do seletor de período de `/gestao/viagens`, que marcava o escolhido com `primary-strong` sobre a
+  faixa `primary`: os dois viraram a mesma cor. A regra geral do painel: **sobre a faixa, o destaque
+  é branco** (traço ou preenchimento), nunca um segundo laranja. Vale hoje para o `HeroPill`, o
+  `HeroLink` e o chip de frescor do mapa ao vivo. (O seletor de viagens saiu da faixa depois; ver a
+  entrada abaixo.)
+- ⚠️ **A pastilha do `HeroBand` virou traço branco** (referência do Itaú trazida pelo usuário em
+  08/09/2026): `HeroPill` e `HeroLink` eram `primary-strong` sobre a faixa `primary`, dois laranjas
+  diferentes. Com um laranja só a pastilha sumiria dentro da faixa, então quem separa passou a ser
+  a linha branca (`border-on-primary`), com o hover invertendo para fundo branco e texto laranja.
+- ⚠️ **`--spectrum-gradient` continua com sete paradas quentes e NÃO foi colapsado**: `.spectrum-text`
+  e `.spectrum-bg` não têm nenhum uso em componente, então ele não pinta nada na tela hoje.
+- ⚠️ **O foco continuou terracota na troca de 08/09/2026, de propósito.** Chegou a ser cogitado
+  passá-lo ao marinho, e foi descartado com o usuário: são 135 `ring-primary` em cerca de 60
+  arquivos, e mudar o token sem mudar os utilitários recriaria exatamente o bug relatado em
+  05/09/2026 (campos numa cor, botões noutra). Foco é estado, e estado segue a marca primária.
+- ⚠️ **A troca do cyan também não foi pega por grep de hex.** Além dos `#06B6D4`, sobraram o
+  `#22d3ee` da linha de rota do `operation-map` (a camada de halo e a de cima são cores
+  diferentes: mexeu numa, confira a outra), o `rgba(6,182,212,0.24)` do `aurora-backdrop` e o
+  `--glow-cyan` do `theme.css`, que virou `--glow-accent`. Vale a mesma receita da troca da
+  primária: varrer por matiz, e não por literal.
+- ⚠️ **`--glow-indigo` no `theme.css` já é terracota**, e `StatTile` / `fleet-state-cards` /
+  `management/types.ts` ainda expõem `accent: 'indigo' | 'cyan'`. Os nomes mentem desde 04/09/2026
+  e continuam mentindo: a cor renderizada está certa porque `cyan` resolve para `--secondary`.
+  Renomear a API é dívida conhecida, deixada de fora por não ter sido pedida.
 - ⚠️ **A primária virou terracota em 04/09/2026**, decisão do usuário, no lugar do indigo `#6366F1`.
   Os derivados acompanharam, preservando a propriedade de contraste que cada um documentava:
   `--color-primary-strong` `#5457EE` → **`#B35231`** (5,04:1 com branco, era 5,28:1),
@@ -275,14 +348,15 @@ painéis**.
   deixava a rampa magenta → roxo → **laranja** → azul → cyan, que não lê como gradiente. Os sete
   stops foram remapeados para família quente, preservando a luminância de cada parada e, com ela, o
   vale de contraste no meio da rampa.
-- O cyan `#06B6D4` continua sendo a secundária, mas saiu dos usos **decorativos** em 04/09/2026:
-  gradiente de marca, dígitos do 404, halos, órbita e onda da voz. Ele segue no que é semântico,
-  como `info`, cor de gráfico, status `EM_VIAGEM` e rota no mapa.
+- A secundária saiu dos usos **decorativos** em 04/09/2026: gradiente de marca, dígitos do 404,
+  halos, órbita e onda da voz. Ela segue no que é semântico, como cor de gráfico, status
+  `EM_VIAGEM` e rota no mapa. ⚠️ `info` é outro token e continua azul-céu: não é a secundária, e
+  `fleet-state-cards` usa `info-on-light` no accent que ele chama de `cyan`.
 - ⚠️ **Os estados da voz inverteram, e o significado é esse:** a IA **falando** é a única coisa em
   azul (`--color-accent`), justamente para se distinguir; escutando e em repouso são laranja.
   Vale nos três lugares que desenham voz: `.voice-orbit--*` e `.voice-waveform--*` no `globals.css`
   e as constantes `COLOR_FRONT_*` do `voice-sphere.tsx`. Mexeu em um, confira os outros.
-- ⚠️ **`--color-primary-bright` (`#E7AD61`) existe para o gradiente não terminar no cyan.** Todo
+- ⚠️ **`--color-primary-bright` (`#E7AD61`) existe para o gradiente não terminar na secundária.** Todo
   gradiente de marca ia de `--color-primary` a `--color-accent`, e com a primária quente isso
   virava laranja para azul. É decorativo: **não carrega texto** (1,9:1 com branco).
 - A marca em `public/logo/` seguiu a nomenclatura do `Website-rookhub` em 04/09/2026: três peças
@@ -1148,6 +1222,7 @@ Pedido do usuário, e as três armadilhas abaixo custaram uma captura de tela ca
   `#DDE3EA` no escuro. ⚠️ Catorze pontos de luminosidade não se enxergam numa pastilha pequena;
   com trinta a resposta ao cursor aparece. Contraste contra o texto segue em 10,8:1 e 14,4:1,
   muito acima do mínimo AA de 4,5:1.
+
 ### O painel `/app` começou a falar com a API real (06/09/2026)
 
 - Até aqui o `/app` inteiro era servido por `services/api.ts`, que importa os mocks diretamente.
@@ -1173,6 +1248,7 @@ Pedido do usuário, e as três armadilhas abaixo custaram uma captura de tela ca
   formulário em silêncio.
 - A lista é paginada no CLIENTE: `/v1/vehicles` devolve a frota toda, 40 linhas. O sinal para
   mudar isso é a resposta passar de alguns milhares.
+
 ### O consumo passou a ser agrupado por categoria (06/09/2026)
 
 - A lista de consumo deixou de ser uma ordenação única e virou GRUPOS, cada um com a própria
@@ -1187,6 +1263,7 @@ Pedido do usuário, e as três armadilhas abaixo custaram uma captura de tela ca
   dados de hoje, o TPS6B93 aparece em "Caminhão" fazendo 13,28 km/l, e a SET2H49 (uma Renault
   MASTER) também. Os dois são erro de classificação, e agora estão visíveis para quem confere a
   ficha corrigir.
+
 ### Manutenção e ficha do veículo ganharam alerta mecânico (06/09/2026)
 
 - A tela de Manutenção era só o aviso de origem ausente, e isso estava certo pela metade: ordem de
@@ -1208,6 +1285,7 @@ Pedido do usuário, e as três armadilhas abaixo custaram uma captura de tela ca
   do `/gestao` já era real e só precisou do bloco novo. Mas o painel `/app` é servido por
   `services/api.ts`, que importa mocks direto: não existe ponte para a API real ali. Fazer a
   entrega lá significa construir essa ponte, começando por veículos, e é decisão de escopo.
+
 ### O mapa da visão geral passou a ser real (06/09/2026)
 
 - O cartão `Mapa da operação` de `/gestao` recebia `ActiveTrip`, um tipo de FRETE com destino,
@@ -1509,7 +1587,32 @@ a rota virou a própria `/gestao`. A antiga (`manager-home-page`) foi apagada.
   número, com ícone, e não um card com caixas dentro. Quem usa aplica `-mt-16 sm:-mt-20` para os
   cards subirem por cima da borda da faixa; o `pb` grande do `HeroBand` existe para isso.
 - Adotaram o par em 01/09/2026: visão geral, impedimentos, viagens, equipe, segurança e
-  liberações. As demais telas seguem no `PageBanner`. O painel branco de conteúdo
+  liberações. **Pareceres e mapa ao vivo entraram em 08/09/2026**, a pedido do usuário. As demais
+  telas seguem no `PageBanner`.
+- ⚠️ **O mapa ao vivo segue o MESMO molde das outras telas do par**, por decisão do usuário em
+  08/09/2026 ("tente replicar exatamente"): `HeroBand` + `HeroStats` com `-mt-16 sm:-mt-20` +
+  `PageContent rounded-t-4xl bg-light`. Duas coisas foram testadas antes e recusadas por ele: pôr
+  os filtros de situação dentro da faixa ("isso aqui não faz parte do banner") e encolher o respiro
+  da faixa com um `bleed={false}` (a prop chegou a existir no `HeroBand` e foi removida junto, para
+  não deixar abstração sem uso).
+- ⚠️ **A altura do mapa sai de `2xl:h-[clamp(32rem,calc(100dvh-30rem),52rem)]`, e o `30rem` é
+  função do cabeçalho.** Era `22rem` quando a tela abria com `PageBanner`; subiu ao adotar a faixa
+  mais os cards. Quem mexer no cabeçalho dessa página tem de reacertar esse número, senão o mapa
+  passa da dobra. ⚠️ Foi calculado pelos paddings, não medido no navegador: confira ao mexer.
+- ⚠️ **O chip de frescor da leitura mora NA FAIXA do mapa** desde 08/09/2026: é status da página, e
+  não controle da lista. ⚠️ Sobre a faixa laranja o estado **não** pode ser um ponto colorido: o
+  verde escurecido some e o âmbar vira laranja sobre laranja. Quem diz o estado é a pastilha:
+  contorno branco quando em dia, branco CHEIO com texto laranja quando atrasada. O `HERO_PILL` é
+  exportado do `hero-band.tsx` justamente para este caso, em que o par ícone mais texto do
+  `HeroPill` não dá conta.
+- ⚠️ **Os filtros de situação do mapa usam o desenho do `PageTabs`** (trilho de poço, escolhido é a
+  pastilha clara que sobe dele com escrita marinha). Os dois são a mesma coisa, um segmentado que
+  filtra uma lista, e tinham desenhos diferentes na mesma tela. ⚠️ Lá os tokens são `light` e não
+  `surface`, porque a barra vive dentro do painel branco e o trilho do `PageTabs` mora sobre o papel.
+- ⚠️ Os números do `HeroStats` do mapa **repetem as contagens dos filtros** de situação logo abaixo.
+  É aceito: os cards são o resumo de abertura e os filtros são o controle, e é o mesmo arranjo da
+  fila de aprovações do dono (cards + alerta com o mesmo número). ⚠️ Trocar `PageBanner` por `HeroBand` sem pôr o `HeroStats` com `-mt-16 sm:-mt-20`
+  deixa um vazio laranja de ~100px: o `pb-24 sm:pb-28` da faixa existe para os cards a morderem. O painel branco de conteúdo
   (`rounded-t-4xl bg-light` no `PageContent`) foi mantido nessas telas: os blocos de dentro usam
   `light-container` como poço, e sobre o papel eles sumiriam.
 - O `Tile` local da tela de Equipe e os `metric-tile` de resumo de Viagens e Segurança saíram,
@@ -1522,13 +1625,17 @@ a rota virou a própria `/gestao`. A antiga (`manager-home-page`) foi apagada.
 - A fila de aprovações do dono virou `HeroLink` dentro da faixa. Continua no cabeçalho pelo motivo
   de sempre: ocorrência grave mantém caminhão parado até ele decidir, e isso não é caixa de entrada.
 - No modo com dado real a fileira do dono é montada a partir de `metrics` do `GET
-  /v1/fleet/operations`, e o ícone sai de um mapa por `id` (`km`, `criticos`, `velocidade`,
+/v1/fleet/operations`, e o ícone sai de um mapa por `id` (`km`, `criticos`, `velocidade`,
   `ocioso`, `consumo`) com `ChartIcon` de reserva. A lista é montada no backend: métrica nova chega
   à tela antes de alguém desenhar um ícone para ela.
 - A saudação ("Boa noite, Fulano") está escrita duas vezes, em `overview-hero` e em `owner-hero`.
   São quatro linhas, e centralizá-las obrigaria um dos dois slices a importar do outro só por isso.
-- No seletor de período de Viagens, que agora fica sobre a faixa, a pastilha ativa é
-  `primary-strong`, e não o preto do resto do painel: preto sobre indigo lê como buraco na faixa.
+- ⚠️ **O seletor de período de Viagens SAIU da faixa em 08/09/2026** e foi para dentro da aba
+  "Percursos", acima dos campos de filtro. Duas razões, e as duas valem para qualquer controle que
+  alguém queira pôr no cabeçalho: ele **não governa a tela** (a aba "Onde a frota para" é fixa em
+  trinta dias, então na faixa ele prometia um controle que não exercia), e ele é o recorte
+  **server-side**, enquanto placa, motorista e dia refinam no cliente já carregado. Acima dos
+  campos, a ordem na tela é a ordem real do funil. Usa o desenho do `PageTabs` na família `light`.
 
 ### A tela de aprovações do dono abre alertando (05/09/2026)
 
@@ -1715,6 +1822,7 @@ O fornecedor, os limites dele e as armadilhas da ingestão estão em
   `System-mobile`; migrar para TS 7 quando o ecossistema de lint suportar.
 
 ## Gotchas
+
 - ⚠️ **Apagar peça no Blender teleporta as filhas dela, e o estrago aparece longe do lugar.** Ao
   tirar o segundo eixo direcional do `cavalo-8x4` para gerar o `cavalo-6x4` (06/09/2026), 30 peças
   que deviam ficar eram filhas de peças removidas: perderam a transformação do pai e pularam até
@@ -1787,8 +1895,176 @@ O fornecedor, os limites dele e as armadilhas da ingestão estão em
 - ⚠️ **Não** usar `bg-surface-lowest` para bloco de indicador: é o token do **poço**, mais escuro
   que o papel, e o indicador afunda no fundo. Usar `.metric-tile`. Campo de entrada continua no
   poço, que é o `.glass-well`.
-- ⚠️ **Não** pintar estado ativo de indigo. A pastilha ativa é preta nos dois painéis; o indigo é de
-  ação, link e série de gráfico.
+- ⚠️ **Estado ativo de NAVEGAÇÃO é terracota; o resto continua preto.** Em 08/09/2026, a pedido do
+  usuário, tanto o menu superior da gestão (`management/components/layout/app-nav.tsx`, nos três
+  pontos: item, subitem e menu do mobile) quanto a lateral do operacional
+  (`components/layout/sidebar-nav.tsx`) passaram a `primary-strong`. **Os dois andam juntos: mexeu
+  num, mexa no outro.** Segue na pastilha preta `bg-bright`: paginação, `period-picker` e a
+  variante `bright` do `SpectrumButton`. Antes de "consertar" a divergência, confira aqui: ela é
+  decisão.
+- ⚠️ **A etapa atual do `WizardSteps` é MARINHO CHEIO** (08/09/2026), e não a tinta preta. ⚠️ Cheio,
+  e não a pastilha clara que sobe do poço como nas abas: a barra mora dentro do `GlassModal`, cuja
+  superfície já é a mais alta da tela, então uma pastilha clara ali seria branco sobre branco com só
+  a sombra sustentando o estado. Mesmo raciocínio das abas, resposta oposta porque a superfície é
+  outra.
+- ⚠️ **No `WizardSteps`, etapa RESOLVIDA tem texto cheio e a não visitada fica apagada.** Antes as
+  duas eram o mesmo cinza e só o tamanho do visto as separava, que é justamente a pergunta que uma
+  barra de etapas existe para responder. ⚠️ Dentro da pastilha atual o sinal herda o contraste dela:
+  verde e vermelho sobre o marinho reprovam.
+- ⚠️ **Faixa de severidade usa a família de PREENCHIMENTO (`bg-error`, `bg-warning`), nunca a
+  `-on-light`.** Relatado pelo usuário em 08/09/2026: as faixas estavam em `#9F1239` (vinho) e
+  `#6B3F0A` (marrom oliva) e não dava para dizer o que era grave. A causa é conceitual e vale para
+  qualquer swatch novo: **`-on-light` é família de TEXTO**, escurecida de propósito para passar
+  4,5:1 sobre a matiz diluída (a própria `palette.css` avisa isso). Como tinta chapada ela fica
+  escura e dessaturada, e duas cores escuras não se separam. Elemento gráfico pede 3:1 e
+  reconhecimento por MATIZ, não contraste de texto. Corrigido nos três lugares que definem faixa:
+  `overview/blockers.ts`, `manager/severity.ts` e `owner/components/approval-meta.tsx`
+  (`safety-page.tsx` já estava certo e serviu de referência). ⚠️ No tema escuro as duas famílias
+  têm o mesmo valor, então o sintoma só aparece no claro.
+- ⚠️ **Controle que recorta a lista mora DENTRO do painel branco, junto do que ele controla.**
+  Decisão do usuário em 08/09/2026, aplicada ao `FleetFilters` de `/gestao/caminhoes`, que morava na
+  seção de papel acima do painel. Duas consequências de estar do lado de fora: separava o controle
+  do que ele recorta, e o obrigava à família de token do papel, que ao lado do branco lê como cinza
+  FRIO. Dentro do painel a ordem vira a do funil (aba primeiro, refino depois). Mesmo motivo pelo
+  qual o seletor de período de `/gestao/viagens` desceu para dentro da aba.
+- ⚠️ **Filtro do painel é campo com RÓTULO VISÍVEL em cima, num grid**, e não pastilha achatada
+  (decisão do usuário em 08/09/2026). Vale para o `FleetFilters` de `/gestao/caminhoes` e para o
+  cadastro de frota, que é o desenho de referência. Chegou a ser tentado o contrário (rótulos
+  escondidos, seletores em pílula) e foi recusado: "Todas as marcas" e "Qualquer manutenção" são
+  VALORES, não perguntas, então sem o rótulo é preciso abrir cada seletor para saber o que ele
+  recorta. ⚠️ Onde a barra já vive dentro do painel branco **não** entra `GlassCard` em volta: no
+  cadastro os campos moram num cartão sobre o papel, e aqui seria moldura sobre moldura.
+- ⚠️ **`/gestao/manutencao` entrou no molde em 08/09/2026**: `PageBanner` virou `HeroBand`, o
+  `GlassCard` de quatro métricas virou `HeroStats` mordendo a borda, os dois `LightCard` que
+  embrulhavam as abas Planos e Oficinas viraram seções com título, e 29 linhas do painel trocaram da
+  família `surface` para a `light`.
+- ⚠️ **A aba Ordens virou FILA ÚNICA, no desenho de `/gestao/impedimentos`** (o usuário pediu
+  "algo parecido" com aquela tela). Era master-detail com coluna de 340px. Uma ordem de serviço não
+  pede master-detail: tem meia dúzia de fatos e todos cabem na linha. O único que não cabia, a
+  quebra de itens, virou um `<details>` nativo dentro da linha, sem estado em React. `useMasterDetail`
+  saiu do arquivo. ⚠️ **Nem toda lista quer master-detail**: use-o quando o detalhe tem seções e
+  formulário (liberações, pareceres), e a fila corrida quando o item cabe numa linha rica. ⚠️ Na versão com dado real quem morde a faixa é o próprio
+  `MechanicalAlertsCard`: ele já é um `GlassCard`, que no claro é a mesma placa branca do
+  `HeroStats`, então não foi preciso inventar números para preencher o respiro.
+- ⚠️ **`LightCard` envolvendo o CONTEÚDO INTEIRO de uma aba é cartão dentro de cartão.** Corrigido
+  em `/gestao/equipe` (08/09/2026), nas duas versões da tela (`team-page` e `team-roster`): a
+  moldura embrulhava uma grade de `PersonCard`, que já são cartões, dentro do painel branco da
+  página. Três molduras encaixadas para uma lista só. ⚠️ O problema **não** é ele sumir (o
+  `LightCard` tem sombra e se destaca): é ele não separar nada, porque não divide a tela com
+  ninguém. Onde o `LightCard` continua certo é como UMA das colunas de um master-detail, que é
+  quando a moldura de fato distingue duas coisas: `release-detail-panel`, `diagnosis-detail-panel` e
+  `approval-detail-panel` seguem assim de propósito.
+- ⚠️ **Título de cartão que repete a faixa é o terceiro rótulo da mesma lista.** O "Quadro" de
+  `/gestao/equipe` saiu junto com a moldura: a faixa já diz "Equipe" e as abas já dizem o recorte.
+- ⚠️ **Ao mover algo para dentro do painel branco, TROQUE A FAMÍLIA DE TOKEN junto.** `surface` é a
+  do papel e `light` a do painel; no tema claro muitas se equivalem, então o erro não aparece até o
+  tema escuro voltar. O poço dentro do painel é `bg-light-container` (**#F4F2EF**, o próprio papel),
+  o traço é `border-light-outline`, e os campos do `management/ui` aceitam `surface="light"`.
+- ⚠️ **A ficha do veículo mostra o TOTAL de eventos, e não a lista** (decisão do usuário em
+  08/09/2026). A telemetria repete o mesmo evento muitas vezes no mesmo dia, e a lista saía com
+  "USO DOS FREIOS" sete vezes seguidas, mesma data, meia tela para dizer uma coisa só. Rolagem e
+  `useIncrementalList` tratavam o sintoma. Quem abre a ficha quer saber SE há evento e quanto; quem
+  quer ver quais vai para `/gestao/seguranca`, que tem filtro por tipo e severidade, vídeo e
+  contestação. O `RecentEvents` local foi removido (o hook `useIncrementalList` segue em uso em
+  `drivers-page` e `trucks-page`).
+- ⚠️ **`/gestao/seguranca` aceita `?placa=` na URL** e semeia a busca com ela. É **semente, não
+  sincronia**: depois de montada, quem manda no campo é quem digita. Espelhar a URL a cada tecla
+  brigaria com o input e encheria o histórico do navegador de uma entrada por letra. É o que faz o
+  botão "Ver eventos" da ficha do veículo cair já filtrado.
+- ⚠️ **O painel do veículo abre o MANUAL, não o cadastro** (decisão do usuário em 08/09/2026). O
+  botão "Cadastro da operação" abria o `VehicleRegistryModal`, que é o mesmo formulário editável de
+  `/gestao/caminhoes/cadastro`: o produto tinha duas portas para a mesma edição e nenhuma para
+  simplesmente LER a ficha. Agora é `VehicleManualDialog`, leitura pura das cinco seções do
+  cadastro. ⚠️ O `VehicleRegistryModal` **continua vivo** e é usado pela rota de cadastro: não é
+  código morto.
+- ⚠️ **As seções do manual saem de `secoesDo()`, uma lista de dados, e não de JSX escrito à mão.**
+  É o que faz a tela e o papel nunca divergirem. Campo novo no cadastro entra ali uma vez.
+- ⚠️ **"Baixar" é `window.print()`, e não uma biblioteca de PDF.** O navegador oferece "Salvar como
+  PDF" e compõe o documento do próprio HTML; uma lib custaria centenas de KB no bundle por um
+  resultado pior. O `@media print` fica no fim do `globals.css` e isola quem tem `data-print-root`.
+  ⚠️ A técnica é `visibility`, e não `display`: o diálogo do Radix vive num portal no fim do `body`,
+  e esconder por `display` levaria o ramo inteiro junto. Para tornar outra coisa imprimível, basta
+  pôr `data-print-root` nela.
+- ⚠️ **O molde de tela do painel tem TRÊS camadas, nesta ordem**, e quem sair dele destoa:
+  `HeroBand` → `<section>` com a fileira que morde a borda (`-mt-16 sm:-mt-20`) → `PageContent` com
+  `rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]`. ⚠️ São **dois `QueryState`**, um por
+  camada: a subida fica dentro da seção e não em volta dela, senão o estado de carregando e o de
+  erro aparecem por cima da faixa colorida.
+- ⚠️ **`/gestao/impedimentos` estava sem o painel branco** (corrigido em 08/09/2026, relatado pelo
+  usuário como "não tá igual às outras rotas"): usava `<PageContent>` cru, então o conteúdo
+  flutuava no papel, e os cards de severidade ficavam dentro dele em vez de entre a faixa e o
+  painel. ⚠️ O sinal de que era bug e não decisão: `BlockerQueue`, `BlockerRow` e `SeverityCards` já
+  escreviam nos tokens `on-light`, ou seja, foram feitos para um painel branco que a página não
+  fornecia. No tema claro `on-light` e `on-surface` têm o mesmo valor, e é por isso que ninguém viu
+  antes: só o painel faltando aparecia.
+- ⚠️ **A faixa de estado existe para SOBREVIVER à seleção, e o padrão já mordeu DUAS telas.** Em
+  `/gestao/viagens` o atraso e em `/gestao/caminhoes` o status eram escondidos na linha escolhida
+  (`selected ? null : <Chip/>`), porque o chip tonal não se lê sobre o laranja. Em caminhões isso
+  significava que abrir um veículo BLOQUEADO apagava justamente a informação de que ele não pode
+  sair. ⚠️ Sempre que uma lista esconder algo com `active ? null :`, o problema é a falta da faixa,
+  e não o chip. Mapas prontos: `tripRail()` em `trips-page.tsx` e `VEHICLE_STATUS_RAIL` em
+  `trucks/vehicle-status.tsx`. ⚠️ Este último soma um aviso `react-refresh/only-export-components`
+  no arquivo, que já tinha o mesmo por exportar `VEHICLE_STATUS_LABELS`: é aceito, como em
+  `approval-meta.tsx`, para não fragmentar os metadados de status.
+- ⚠️ **A faixa de estado existe para SOBREVIVER à seleção.** Em `/gestao/viagens` o atraso era um
+  ícone que a própria seleção escondia (`active ? null : late ? ...`), porque o chip tonal não se lê
+  sobre a linha laranja: abrir a viagem apagava a informação mais importante dela. A faixa fica fora
+  do preenchimento e vale nos dois estados. `tripRail()` mapeia `isLate` para `bg-error` e
+  `finishedLate` para `bg-warning`.
+- ⚠️ **DÍVIDA ABERTA em 08/09/2026, levantada mas NÃO corrigida** (fora do escopo do que foi pedido;
+  perguntar antes de mexer). Os dois defeitos que já foram corrigidos em liberações, pareceres,
+  impedimentos e viagens continuam em outras telas:
+  1. `text-primary text-headline-md` em título de painel, que contraria a decisão de 30/08/2026 (a
+     cor de marca é de ação, link e série de gráfico, não de título): `drivers-page`,
+     `checklists-page`, `report-schedules` e `report-history`. (Já corrigidos: `trucks-page`,
+     `trips-page`, `maintenance-page`.)
+  2. Estado vazio de master-detail com `bg-surface-lowest` + `text-on-surface-muted` + `min-h-80`
+     dentro de um `PageContent bg-light`, que é a família de token errada:
+     `owner-approvals-page`, `drivers-page` e `reports-page`. (Já corrigidos: `trucks-page`,
+     `trips-page`, `releases-page`, `diagnoses-page`.)
+- ⚠️ **As filas master-detail do painel seguem UMA gramática, fechada em 08/09/2026.** Vale para
+  `/gestao/liberacoes`, `/gestao/pareceres`, `/gestao/aprovacoes` e `/gestao/impedimentos`. Ao criar
+  ou mexer numa fila, copie daqui e não invente:
+  1. **Faixa de severidade** de 4px (`SEVERITY_RAIL`) à esquerda da linha, e a cor SEMPRE repete um
+     rótulo escrito. Nunca é o único portador.
+  2. **Linha de identidade** com o título à esquerda e o número que ordena a fila à direita
+     (horas paradas, data de detecção), `tabular` e com peso de dado.
+  3. **Linha de apoio** com severidade em `SEVERITY_TEXT` + o tamanho do problema. Corrente de
+     pontos com mais de dois itens quebra em três linhas na coluna de 360px: não empilhe.
+  4. **Painel de detalhe em zonas nomeadas**: veredito (a regra que muda o que a pessoa pode fazer,
+     no topo), contexto (uma linha, um peso), evidência, ação.
+  5. **`xl:sticky xl:top-6 xl:self-start`** no detalhe: sem `self-start` o grudado não tem altura
+     dentro do grid.
+  6. **Estado vazio com tokens `light`** (`bg-light-container`, `text-on-light-muted`). ⚠️ Os quatro
+     nasceram com `bg-surface-lowest` + `text-on-surface-muted`, que é a família do tema e não a do
+     painel claro. Se achar esse par dentro de um `PageContent bg-light`, é bug.
+- ⚠️ **Resumo de fila muda de cor com a situação.** O `Alert` sobre o painel troca error/warning/
+  success conforme o que está em jogo. `/gestao/pareceres` tinha um `GlassCard` neutro em que a
+  frase mudava e a tela não: "tudo explicado" e "1 grave precisa subir" saíam no mesmo cinza.
+- ⚠️ **A ordenação das filas NÃO é uniforme, e isso é sabido.** `liberacoes` ordena por horas
+  paradas (decisão registrada no topo do arquivo: "o que dói é o ativo parado"), `aprovacoes` por
+  severidade e depois idade, e `pareceres` **não ordena**: sai na ordem da API. Numa fila em que a
+  severidade decide quem resolve, isso é dívida aberta, deixada de fora por ser comportamento e não
+  layout. Perguntar antes de mexer.
+- ⚠️ **O `ghost` do `SpectrumButton` tinha CINCO remendos locais que o anulavam**, removidos em
+  08/09/2026. Era sempre a mesma string (`border-light-outline text-on-light bg-light-container
+hover:bg-light hover:border-on-light-muted`) com o mesmo comentário: "ghost é desenhado para o
+  grafite, sobre o painel claro precisa da borda e do texto escuros para não sumir". Verdade
+  enquanto o ghost era véu claro; mentira desde que ele virou contorno marinho, que dá 17,5:1 sobre
+  o painel branco. Ficavam em `release-detail-panel`, `approval-detail-panel`,
+  `diagnosis-detail-panel`, `extension-detail-panel` (dois) e `billing-page`. ⚠️ Ao mudar uma
+  variante do `SpectrumButton`, **procure os `className` locais que a sobrescrevem**: a variante
+  troca e a tela não muda, e o motivo escrito no comentário costuma já ter caducado.
+- ⚠️ **A ABA escolhida não é nem preta nem terracota: é pastilha clara com escrita marinha**
+  (`page-tabs.tsx`, 08/09/2026). O preto era o maior contraste da tela gasto no filtro mais
+  barato da página, e terracota faria a mesma cor responder a duas perguntas diferentes ("onde
+  estou no sistema" e "que fatia desta tela vejo"). O desenho é o de controle segmentado: o
+  escolhido é o que sobe do poço, hierarquia por superfície e não por preenchimento. Vale em 14
+  features de `/gestao`, então é a mudança de maior alcance desta leva.
+- ⚠️ **O botão de apoio é o mesmo objeto nos dois painéis**: `ghost` do `SpectrumButton` (26 usos em
+  `/gestao`) e `outline` do `Button` (12 usos em `/app`) são traço marinho `/60` com escrita
+  marinha, sem preenchimento. O `ghost` do `Button` do operacional **não** entrou: lá ele é o botão
+  discreto e o só-ícone, que tem regra própria (`acao-*`).
 - ⚠️ **Não** ligar `DARK_MODE_ENABLED` de volta sem refazer as telas no escuro: a rampa escura
   continua inteira, mas nunca foi revisada contra o desenho novo.
 - ⚠️ **Não** pintar a marca com filtro (`brightness-0`, `invert`) para adaptá-la ao fundo: o "Rook" é

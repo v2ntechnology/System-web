@@ -5,12 +5,12 @@ export interface AuroraBackdropProps {
 }
 
 /**
- * Fundo das telas de autenticação: grafite #212121 com aurora indigo subindo do rodapé.
+ * Fundo das telas de autenticação: grafite #212121 com aurora quente subindo do rodapé.
  *
  * Composição em cinco camadas, de trás para frente:
  *   1. base grafite
- *   2. núcleo indigo no rodapé — a fonte de luz
- *   3. derivas púrpura e cyan — dão volume à aurora
+ *   2. núcleo terracota no rodapé, que é a fonte de luz
+ *   3. derivas terracota e marinho, que dão volume à aurora
  *   4. profundidade: escurecimento do topo + vinheta lateral
  *   5. grão — mata o banding dos radiais grandes
  *
@@ -39,16 +39,17 @@ export function AuroraBackdrop({ className }: AuroraBackdropProps) {
       <div
         className="absolute bottom-[-20vh] left-[4%] h-[60vh] w-[62vw] rounded-[50%]"
         style={{
-          backgroundImage: 'radial-gradient(closest-side, rgba(219,82,61,0.34), transparent 72%)',
+          backgroundImage: 'radial-gradient(closest-side, rgba(213,98,58,0.34), transparent 72%)',
           filter: 'blur(100px)',
         }}
       />
 
-      {/* Respiro cyan à direita — âncora secundária da marca. */}
+      {/* Respiro marinho à direita, na âncora secundária da marca. Versão clara
+          da matiz: a aurora só existe sobre o grafite. */}
       <div
         className="absolute bottom-[-16vh] right-[2%] h-[50vh] w-[50vw] rounded-[50%]"
         style={{
-          backgroundImage: 'radial-gradient(closest-side, rgba(6,182,212,0.24), transparent 72%)',
+          backgroundImage: 'radial-gradient(closest-side, rgba(160,166,255,0.24), transparent 72%)',
           filter: 'blur(110px)',
         }}
       />

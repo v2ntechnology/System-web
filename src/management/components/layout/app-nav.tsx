@@ -11,26 +11,31 @@ const triggerClass =
   'rounded-pill text-body-md focus-visible:ring-primary focus-visible:ring-offset-surface flex items-center gap-1.5 px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
 
 /*
- * ⚠️ A pastilha do item ativo é PRETA, e não indigo (redesign de 30/08/2026).
+ * ⚠️ A pastilha do item ativo é TERRACOTA desde 08/09/2026, a pedido do usuário.
  *
- * O indigo já trabalha em três lugares nesta tela: é a marca no logo, é a cor
- * de ação nos botões e é a primeira série de todo gráfico. Somar o estado ativo
- * do menu a essa lista gasta a cor até ela parar de significar coisa alguma, e
- * o item ativo passa a competir com o botão de ação em vez de se distinguir
- * dele. Preto não disputa com nada e é o contraste mais alto disponível sobre
- * papel.
+ * Ela era PRETA desde o redesign de 30/08/2026, pelo raciocínio de que a cor de
+ * marca já trabalhava no logo, no botão de ação e na primeira série do gráfico,
+ * e que somar o estado ativo a essa lista gastaria a cor. O usuário decidiu o
+ * contrário para a navegação: com a secundária marinho entrando em link e botão
+ * de contorno, a navegação selecionada é onde ele quer ver a marca quente.
  *
- * `--color-bright` / `--color-on-bright` é o par que já existia para "contraste
- * máximo", e no claro ele é justamente tinta sobre papel.
+ * ⚠️ A classe escreve `primary-strong`, mas desde 08/09/2026 esse token É o
+ * #D5623A: o usuário pediu um laranja único e a escala de terracota foi
+ * colapsada na paleta. A escolha do nome ficou de quando `strong` era #B35231 e
+ * devolvia 5,04:1 com branco. Hoje a pastilha dá 3,9:1 e reprova o AA de texto
+ * de menu. Devolver a escala em `palette.css` conserta isto sem tocar aqui.
+ *
+ * ⚠️ Vale só para a navegação do painel de gestão. Aba, paginação, seletor de
+ * período e passo do assistente seguem na pastilha preta (`bg-bright`), e a
+ * lateral do painel operacional também.
+ *
+ * ⚠️ O hover do ativo ESCURECE a própria cor, e não remove a pastilha. Este par
+ * é exclusivo do `idleClass` de baixo: os dois nunca entram juntos. Somar os
+ * dois foi o que quebrou a lateral do painel operacional, onde o hover claro
+ * vencia a pastilha por especificidade e apagava o ícone.
  */
-/*
- * ⚠️ O hover do ativo CLAREIA a pastilha, e não a remove.
- *
- * Este par é exclusivo do `idleClass` de baixo: os dois nunca entram juntos.
- * Somar os dois foi o que quebrou a lateral do painel operacional, onde o
- * hover claro vencia a pastilha por especificidade e apagava o ícone.
- */
-const activeClass = 'bg-bright text-on-bright hover:bg-bright-hover font-medium';
+const activeClass =
+  'bg-primary-strong text-on-primary hover:bg-[color-mix(in_oklab,var(--color-primary-strong)_86%,black)] font-medium';
 
 /*
  * ⚠️ Saiu o `on-media`. A barra deixou de flutuar sobre a foto do banner e
@@ -136,7 +141,7 @@ export function AppNav() {
                             className={cn(
                               'focus-visible:ring-primary block rounded-md px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2',
                               active
-                                ? 'bg-bright hover:bg-bright-hover'
+                                ? 'bg-primary-strong hover:bg-[color-mix(in_oklab,var(--color-primary-strong)_86%,black)]'
                                 : /* Mesmo véu do menu de cima. Ver `idleClass`. */
                                   'hover:bg-on-surface/[0.12]',
                             )}
@@ -144,7 +149,7 @@ export function AppNav() {
                             <span
                               className={cn(
                                 'text-body-md flex items-center gap-2',
-                                active ? 'text-on-bright font-medium' : 'text-on-surface',
+                                active ? 'text-on-primary font-medium' : 'text-on-surface',
                               )}
                             >
                               {item.label}
@@ -194,7 +199,7 @@ export function AppNavMobile({ onNavigate }: { onNavigate: () => void }) {
       'block rounded-md px-3 py-2.5 text-body-md transition-colors',
       'focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2',
       isActive
-        ? 'bg-bright text-on-bright font-medium'
+        ? 'bg-primary-strong text-on-primary font-medium'
         : 'text-on-surface-variant hover:bg-on-surface/12',
     );
 

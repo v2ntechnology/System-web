@@ -32,22 +32,37 @@ interface SeverityMeta {
   /** O que a linha significa para quem despacha. */
   hint: string;
   tone: StatusTone;
-  /** Faixa vertical da linha. Tokens `on-light`: a fila mora num painel claro. */
+  /** Faixa vertical da linha. Ver a nota sobre a família de cor abaixo. */
   rail: string;
 }
 
+/*
+ * ⚠️ Faixa usa a família de PREENCHIMENTO (`error`, `warning`), e não a `-on-light`.
+ *
+ * Relatado pelo usuário em 08/09/2026: não dava para distinguir os degraus. A
+ * `-on-light` existe para TEXTO sobre a matiz diluída, e por isso é escurecida
+ * até passar 4,5:1. Como tinta chapada ela vira #9F1239 (vinho) e #6B3F0A
+ * (marrom oliva): duas cores escuras e dessaturadas que não leem como perigo
+ * nem como atenção, e que não se separam uma da outra.
+ *
+ * Faixa é elemento gráfico: pede 3:1, não 4,5:1, e precisa ser reconhecida pela
+ * MATIZ. `#E11D48` e `#B45309` resolvem as duas coisas. No tema escuro as duas
+ * famílias têm o mesmo valor, então lá nada muda.
+ *
+ * A cor continua repetindo um rótulo escrito, e nunca é o único portador.
+ */
 export const SEVERITY_META: Record<BlockerSeverity, SeverityMeta> = {
   BLOQUEIA_AGORA: {
     label: 'Bloqueia agora',
     hint: 'o caminhão não pode sair',
     tone: 'critical',
-    rail: 'bg-error-on-light',
+    rail: 'bg-error',
   },
   BLOQUEIA_EM_BREVE: {
     label: 'Bloqueia em breve',
     hint: 'ainda dá tempo de resolver',
     tone: 'attention',
-    rail: 'bg-warning-on-light',
+    rail: 'bg-warning',
   },
   /*
    * Não é "o degrau leve": é o que não dá para afirmar. Fica em cinza porque

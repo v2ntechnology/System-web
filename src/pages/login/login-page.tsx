@@ -96,7 +96,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
               className="absolute inset-0"
               color1="#DE733E"
               color2="#d5623a"
-              color3="#E7AD61"
+              color3="#d5623a"
               timeSpeed={0.25}
               /*
                * Estes dois fazem o gradiente chegar na borda. O shader mistura as

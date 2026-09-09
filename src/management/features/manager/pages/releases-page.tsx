@@ -10,11 +10,10 @@ import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
-import { dateTime } from '@/management/lib/format';
 
 import { getReleases } from '../api';
 import { ReleaseDetailPanel } from '../components/release-detail-panel';
-import { SEVERITY_LABEL } from '../severity';
+import { LONG_WAIT_HOURS, SEVERITY_LABEL, SEVERITY_RAIL } from '../severity';
 
 const TABS = [
   { id: 'PENDENTES', label: 'Na fila' },
@@ -143,61 +142,102 @@ export function ReleasesPage() {
                             onClick={() => setSelectedId(item.id)}
                             aria-current={active ? 'true' : undefined}
                             className={cn(
-                              'focus-visible:ring-primary-on-light w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
+                              'focus-visible:ring-primary-on-light flex w-full gap-3 rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
                               active ? 'bg-primary-strong' : 'hover:bg-light-container',
                             )}
                           >
-                            <span className="flex items-start gap-2">
-                              <Icon
-                                size={18}
-                                aria-hidden="true"
-                                className={cn(
-                                  'mt-0.5 shrink-0',
-                                  active ? 'text-on-primary' : 'text-primary-on-light',
-                                )}
-                              />
-                              <span
-                                className={cn(
-                                  'tabular min-w-0 flex-1 font-semibold',
-                                  active ? 'text-on-primary' : 'text-on-light',
-                                )}
-                              >
-                                {item.subject}
-                              </span>
-                              <span
-                                className={cn(
-                                  'tabular text-label-md shrink-0 normal-case',
-                                  active ? 'text-on-primary' : 'text-on-light-variant',
-                                )}
-                              >
-                                {item.waitingHours}h
-                              </span>
-                            </span>
-
+                            {/* A cor repete o rótulo de severidade, nunca o substitui. */}
                             <span
                               className={cn(
-                                'text-label-md mt-1 block normal-case',
-                                active ? 'text-on-primary' : 'text-on-light-muted',
+                                'w-1 shrink-0 self-stretch rounded-full',
+                                SEVERITY_RAIL[item.severity],
                               )}
-                            >
-                              {SEVERITY_LABEL[item.severity]} ·{' '}
-                              {item.blockers.length === 1
-                                ? '1 pendência'
-                                : `${item.blockers.length} pendências`}{' '}
-                              · {dateTime.format(new Date(item.requestedAt))}
-                            </span>
+                              aria-hidden="true"
+                            />
 
-                            {item.tripCode ? (
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline gap-2">
+                                <Icon
+                                  size={18}
+                                  aria-hidden="true"
+                                  className={cn(
+                                    /* `mt-0.5` é o ajuste óptico que já estava
+                                       calibrado para este ícone de 18px. */
+                                    'mt-0.5 shrink-0 self-start',
+                                    active ? 'text-on-primary' : 'text-primary-on-light',
+                                  )}
+                                />
+                                <span
+                                  className={cn(
+                                    'min-w-0 flex-1 font-semibold',
+                                    active ? 'text-on-primary' : 'text-on-light',
+                                  )}
+                                >
+                                  {item.subject}
+                                </span>
+
+                                {/*
+                                 * A espera é o que ordena a fila, então ela tem
+                                 * peso de dado e não de rodapé. Passando do
+                                 * limite ela vira vermelha, o mesmo corte que o
+                                 * painel aberto usa no chip "N h parado".
+                                 */}
+                                <span
+                                  className={cn(
+                                    'tabular shrink-0 font-semibold',
+                                    active
+                                      ? 'text-on-primary'
+                                      : item.waitingHours >= LONG_WAIT_HOURS
+                                        ? 'text-error-on-light'
+                                        : 'text-on-light-variant',
+                                  )}
+                                >
+                                  {item.waitingHours}h
+                                </span>
+                              </span>
+
+                              {/*
+                                 A linha de baixo diz duas coisas de naturezas
+                                 diferentes: a severidade, que decide QUEM libera,
+                                 e o tamanho do problema. A data do pedido saiu
+                                 daqui: as horas de espera já dizem a idade, e a
+                                 data exata está no painel, que é onde se decide.
+                              */}
                               <span
                                 className={cn(
                                   'text-label-md mt-1 block normal-case',
-                                  active ? 'text-on-primary' : 'text-on-light-variant',
+                                  active ? 'text-on-primary' : 'text-on-light-muted',
                                 )}
                               >
-                                {item.tripCode}
-                                {item.destination ? ` · ${item.destination}` : ''}
+                                <span
+                                  className={cn(
+                                    'font-medium',
+                                    active ? 'text-on-primary' : 'text-on-light-variant',
+                                  )}
+                                >
+                                  {SEVERITY_LABEL[item.severity]}
+                                </span>{' '}
+                                ·{' '}
+                                {item.blockers.length === 1
+                                  ? '1 pendência'
+                                  : `${item.blockers.length} pendências`}
                               </span>
-                            ) : null}
+
+                              {/* A viagem é contexto, não risco: linha própria,
+                                  senão a corrente de pontos quebra em três na
+                                  coluna de 360px. */}
+                              {item.tripCode ? (
+                                <span
+                                  className={cn(
+                                    'text-label-md mt-0.5 block truncate normal-case',
+                                    active ? 'text-on-primary' : 'text-on-light-muted',
+                                  )}
+                                >
+                                  <span className="tabular">{item.tripCode}</span>
+                                  {item.destination ? ` · ${item.destination}` : ''}
+                                </span>
+                              ) : null}
+                            </span>
                           </button>
                         </li>
                       );
@@ -206,12 +246,21 @@ export function ReleasesPage() {
                 )}
               </div>
 
-              <div className="min-w-0">
+              {/*
+               * ⚠️ `xl:sticky`: no monitor a fila rola e o painel de decisão fica.
+               * Numa fila longa o gestor perdia o pedido aberto de vista ao
+               * procurar o próximo, e `self-start` é o que dá altura ao grudado
+               * dentro do grid.
+               */}
+              <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
                 {selected ? (
                   <ReleaseDetailPanel release={selected} />
                 ) : (
-                  <div className="bg-surface-lowest flex min-h-80 items-center justify-center rounded-xl p-6">
-                    <p className="text-on-surface-muted text-body-md text-center">
+                  /* Tokens `light`, e não `surface`: este bloco mora dentro do
+                     painel claro. Com `surface-lowest` ele era o poço do tema,
+                     que é outra família e destoa do card ao lado. */
+                  <div className="bg-light-container flex min-h-72 items-center justify-center rounded-xl p-6">
+                    <p className="text-on-light-muted text-body-md max-w-xs text-center text-balance">
                       Selecione um pedido para ver as pendências e decidir.
                     </p>
                   </div>

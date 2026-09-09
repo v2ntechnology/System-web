@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
  * O que mudou nesta passagem, e por quê:
  *
  * - **`primary-strong` no lugar de `primary`.** Medido: o âncora `#d5623a` dá
- *   4,32:1 contra o branco do visto e reprova AA, que pede 4,5:1. `#b35231` dá
+ *   4,32:1 contra o branco do visto e reprova AA, que pede 4,5:1. `#b35231` dava
  *   5,12:1. O visto é um traço fino, e é justamente o desenho que sofre quando
  *   o contraste fica no limite. Mesmo par do `SpectrumButton`.
  * - **20px no lugar de 16px**, e raio de 6px. Uma caixa de 16px é um alvo

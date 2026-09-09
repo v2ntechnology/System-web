@@ -14,7 +14,7 @@ export function RecentAlerts({ alerts }: { alerts: OperationAlert[] }) {
         <CardTitle className="text-base">Alertas recentes</CardTitle>
         <Link
           to="/app/alertas"
-          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
         >
           Ver todos
           <ArrowRightIcon className="h-3.5 w-3.5" />

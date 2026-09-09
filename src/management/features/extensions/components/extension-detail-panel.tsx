@@ -217,7 +217,7 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
           </p>
           <Link
             to="/gestao/cobranca"
-            className="text-primary-on-light text-label-md mt-3 inline-flex items-center gap-1.5 normal-case underline-offset-4 hover:underline"
+            className="text-accent text-label-md mt-3 inline-flex items-center gap-1.5 normal-case underline-offset-4 hover:underline"
           >
             Ver plano e cobrança
             <ArrowRightIcon size={14} aria-hidden="true" />
@@ -342,7 +342,6 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
                     variant="ghost"
                     disabled={busy}
                     onClick={() => setConfirmingOff(false)}
-                    className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
                   >
                     Manter ativa
                   </SpectrumButton>
@@ -353,9 +352,6 @@ export function ExtensionDetailPanel({ extension, billableVehicles }: ExtensionD
                 variant="ghost"
                 disabled={busy}
                 onClick={() => setConfirmingOff(true)}
-                /* Ghost é desenhado para o grafite: sobre o painel claro precisa
-                   da borda e do texto escuros para não sumir. */
-                className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
               >
                 <PowerIcon size={18} aria-hidden="true" />
                 Desativar extensão

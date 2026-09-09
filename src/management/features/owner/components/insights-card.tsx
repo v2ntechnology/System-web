@@ -106,7 +106,7 @@ export function InsightsCard({ insights, className }: InsightsCardProps) {
                   {insight.action ? (
                     <Link
                       to={insight.action.to}
-                      className="text-primary-on-light text-label-md focus-visible:ring-primary-on-light inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
+                      className="text-accent text-label-md focus-visible:ring-primary-on-light inline-flex items-center gap-1.5 rounded-md normal-case underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2"
                     >
                       {insight.action.label}
                       <ArrowRightIcon size={14} aria-hidden="true" />

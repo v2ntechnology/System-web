@@ -143,9 +143,16 @@ Regra: **arrays grandes nunca ficam dentro de componentes**: todo dado vem de `m
   (`@import`, `@theme inline`, `@custom-variant`, `@utility`) e apenas aponta os tokens da família
   shadcn para os `--color-*` da rampa. Redeclarar cor por tema ali é o que fazia os painéis
   divergirem.
-- Tokens em **CSS variables OKLCH**, equivalentes visuais exatos da paleta HSL original da marca
-  (conversão HSL → sRGB → OKLab → OKLCH). OKLCH dá interpolação perceptualmente uniforme e
-  permite `color-mix()` previsível para estados translúcidos.
+- Tokens em **CSS variables hex**. O espaço perceptual entra no consumo, e não na declaração:
+  hover e véu usam `color-mix(in oklab, ...)`, que interpola de forma uniforme.
+- **Marca**: terracota `#D5623A` como primária (04/09/2026, no lugar do indigo `#6366F1`) e
+  marinho `#010066` como secundária (08/09/2026, no lugar do cyan `#06B6D4`, com o Itaú como
+  referência: laranja é a ação, azul escuro é o link e o detalhe).
+- ⚠️ **A secundária troca de valor entre os temas e a primária não.** O marinho dá 15,6:1 sobre o
+  papel e 1,07:1 sobre o grafite, onde some. A rampa escura usa a versão clara da mesma matiz
+  (`#A0A6FF`). A terracota tem luminância média e sobrevive nos dois fundos.
+- ⚠️ **Foco continua sendo a primária**, e não a secundária. É estado, não semântica, e foi
+  unificado em 05/09/2026 justamente porque metade da tela acendia numa cor e metade na outra.
 - **Tema escuro** é o padrão (o `<html>` já nasce com `.dark` no `index.html`); o tema claro é
   completo e alternável. O `stores/theme-store.ts` é o **único dono do tema**: ele alterna as duas
   classes, `.dark` e `.light`, e persiste a escolha em `localStorage`.
@@ -163,7 +170,8 @@ opacidade. O padrão antigo `hsl(var(--primary))` não existe mais.
 SVG e estilo inline, `var(--color-primary)` e `var(--color-secondary)` **não existem**: os dois
 vêm do `@theme inline`, que grava o valor dentro do utilitário e não emite a custom property. O
 sintoma é gráfico da Recharts com linha e tooltip em cinza-chumbo no tema escuro. Ali, usar
-`var(--primary)` e `var(--secondary)`, que existem de verdade e são indigo e cyan dentro do escopo.
+`var(--primary)` e `var(--secondary)`, que existem de verdade e são a terracota e o marinho
+dentro do escopo.
 
 ⚠️ **Conteúdo em portal do Radix monta no `body` e sai de `.management-theme`.** Lá fora,
 `secondary` volta a ser o cinza de controle do painel operacional, e um item de lista com

@@ -1,16 +1,23 @@
 import {
+  BadgeCheckIcon,
+  BlockedIcon,
+  CheckCircleIcon,
   CheckIcon,
   DeleteIcon,
   EditIcon,
+  IdCardIcon,
   PlusIcon,
   PowerIcon,
   SearchIcon,
+  SteeringWheelIcon,
 } from '@/components/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { PageBanner } from '@/management/components/layout/page-banner';
+import { HeroBand } from '@/management/components/layout/hero-band';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
+import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
 import {
   deleteDriver,
@@ -20,7 +27,6 @@ import {
 } from '@/management/lib/fleet-api';
 import {
   Alert,
-  GlassCard,
   GlassInput,
   GlassModal,
   GlassSelect,
@@ -115,39 +121,6 @@ const normalize = (text: string): string =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-
-function Tile({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: number;
-  hint: string;
-  tone?: 'critical' | 'attention' | 'positive' | undefined;
-}) {
-  return (
-    <div className="metric-tile">
-      <p className="text-on-surface-variant text-label-md normal-case">{label}</p>
-      <p
-        className={cn(
-          'tabular font-sora mt-2 text-[28px] font-bold leading-none',
-          tone === 'critical'
-            ? 'text-error'
-            : tone === 'attention'
-              ? 'text-warning'
-              : tone === 'positive'
-                ? 'text-success'
-                : 'text-on-surface',
-        )}
-      >
-        {value}
-      </p>
-      <p className="text-on-surface-muted text-label-sm mt-1.5 normal-case">{hint}</p>
-    </div>
-  );
-}
 
 export function DriverRegistryPage() {
   const queryClient = useQueryClient();
@@ -305,63 +278,94 @@ export function DriverRegistryPage() {
     setPage(1);
   };
 
+  const stats: HeroStat[] = [
+    {
+      key: 'cadastro',
+      label: 'No cadastro',
+      value: counts.total,
+      hint: 'motoristas que a plataforma tem',
+      icon: SteeringWheelIcon,
+    },
+    {
+      key: 'ativos',
+      label: 'Ativos',
+      value: counts.ativos,
+      outOf: counts.total,
+      hint: 'disponíveis para escala',
+      icon: CheckCircleIcon,
+    },
+    {
+      /* O conflito é o número que manda alguém agir: inativo que rodou é ou
+         gente fora da escala dirigindo, ou cadastro que ninguém atualizou. */
+      key: 'inativos',
+      label: 'Inativos',
+      value: counts.inativos,
+      hint:
+        counts.conflito === 0
+          ? 'nenhum deles rodou'
+          : counts.conflito === 1
+            ? '1 deles rodou mesmo assim'
+            : `${counts.conflito} deles rodaram mesmo assim`,
+      icon: BlockedIcon,
+      tone: counts.conflito > 0 ? 'alert' : 'neutral',
+    },
+    {
+      key: 'conferidos',
+      label: 'Conferidos',
+      value: counts.conferidos,
+      outOf: counts.total,
+      hint: 'ficha salva por uma pessoa',
+      icon: BadgeCheckIcon,
+    },
+    {
+      key: 'sem-cpf',
+      label: 'Sem CPF',
+      value: counts.semCpf,
+      hint: 'não dá para cruzar com outro sistema',
+      icon: IdCardIcon,
+      tone: counts.semCpf > 0 ? 'warn' : 'neutral',
+    },
+  ];
+
   return (
     <>
-      <PageBanner
-        size="inline"
+      <HeroBand
         title="Cadastro de motoristas"
         description="Quem a plataforma conhece como motorista, em que empresa está e quem já foi conferido por uma pessoa."
       />
 
-      <section className="w-full px-4 pb-24 sm:px-6 xl:px-10">
-        <QueryState isPending={isPending} isError={isError} label="os motoristas">
-          <div className="flex flex-col gap-5">
-            {/* ---------------------------------------------------------- */}
-            {/* O tamanho do trabalho                                       */}
-            {/* ---------------------------------------------------------- */}
-            <GlassCard className="grid gap-4 p-5 sm:grid-cols-3 sm:p-6 xl:grid-cols-5">
-              <Tile
-                label="No cadastro"
-                value={counts.total}
-                hint="motoristas que a plataforma tem"
-              />
-              <Tile
-                label="Ativos"
-                value={counts.ativos}
-                hint="disponíveis para escala"
-                tone="positive"
-              />
-              <Tile
-                label="Inativos"
-                value={counts.inativos}
-                hint={
-                  counts.conflito === 0
-                    ? 'nenhum deles rodou'
-                    : counts.conflito === 1
-                      ? '1 deles rodou mesmo assim'
-                      : `${counts.conflito} deles rodaram mesmo assim`
-                }
-                tone={counts.conflito > 0 ? 'critical' : undefined}
-              />
-              <Tile
-                label="Conferidos"
-                value={counts.conferidos}
-                hint="ficha salva por uma pessoa"
-              />
-              <Tile
-                label="Sem CPF"
-                value={counts.semCpf}
-                hint="não dá para cruzar com outro sistema"
-                tone={counts.semCpf > 0 ? 'attention' : undefined}
-              />
-            </GlassCard>
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+        <h2 className="sr-only">O tamanho do cadastro</h2>
 
+        <QueryState isPending={isPending} isError={isError} label="os motoristas">
+          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
+              ela jogaria o carregamento e o erro por cima da faixa colorida. */}
+          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+        </QueryState>
+      </section>
+
+      {/*
+       * ⚠️ Painel branco, como na irmã `/gestao/caminhoes/cadastro` e nas demais
+       * rotas do painel (08/09/2026). A tela abria três `GlassCard` empilhados
+       * sobre o papel (números, filtros e lista): três molduras para um assunto
+       * só, e nenhuma das outras telas se parecia com isso.
+       *
+       * Os números subiram para a faixa, e filtros e lista viraram um bloco só
+       * aqui dentro, separados por espaço e por uma divisória, que é como o
+       * painel separa sem empilhar caixa.
+       */}
+      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+        <QueryState isPending={isPending} isError={isError} label="os motoristas">
+          <>
             {/* ---------------------------------------------------------- */}
             {/* Filtros e ação                                              */}
             {/* ---------------------------------------------------------- */}
-            <GlassCard className="flex flex-col gap-4 p-5">
+            {/* ⚠️ `surface="light"` em todos: os campos moram dentro do painel
+                branco, e a versão escura deles inverte a hierarquia da tela. */}
+            <div className="flex flex-col gap-4">
               <div className="grid items-end gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_auto]">
                 <GlassInput
+                  surface="light"
                   label="Buscar"
                   placeholder="Nome, CPF ou matrícula"
                   value={search}
@@ -370,6 +374,7 @@ export function DriverRegistryPage() {
                 />
 
                 <GlassSelect
+                  surface="light"
                   label="Empresa"
                   options={companyOptions}
                   value={company}
@@ -377,6 +382,7 @@ export function DriverRegistryPage() {
                 />
 
                 <GlassSelect
+                  surface="light"
                   label="Status"
                   options={STATUS_OPTIONS}
                   value={status}
@@ -384,6 +390,7 @@ export function DriverRegistryPage() {
                 />
 
                 <GlassSelect
+                  surface="light"
                   label="Conferência"
                   options={REVIEW_OPTIONS}
                   value={review}
@@ -400,7 +407,7 @@ export function DriverRegistryPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-on-surface-muted text-label-md normal-case">
+                <p className="text-on-light-muted text-label-md normal-case">
                   {filtered.length === drivers.length
                     ? `${drivers.length} motoristas`
                     : `${filtered.length} de ${drivers.length} motoristas`}
@@ -412,20 +419,20 @@ export function DriverRegistryPage() {
                   </SpectrumButton>
                 ) : null}
               </div>
-            </GlassCard>
+            </div>
 
             {/* ---------------------------------------------------------- */}
             {/* A lista                                                     */}
             {/* ---------------------------------------------------------- */}
-            <GlassCard className="p-5">
+            <div className="border-light-outline mt-6 border-t pt-6">
               {filtered.length === 0 ? (
                 <div className="py-14 text-center">
-                  <p className="text-on-surface text-body-md font-medium">
+                  <p className="text-on-light text-body-md font-medium">
                     {drivers.length === 0
                       ? 'Nenhum motorista cadastrado.'
                       : 'Nenhum motorista com esses filtros.'}
                   </p>
-                  <p className="text-on-surface-muted text-label-md mt-1 normal-case">
+                  <p className="text-on-light-muted text-label-md mt-1 normal-case">
                     {drivers.length === 0
                       ? 'Use "Cadastrar motorista" para começar, ou sincronize a telemetria para trazer quem já existe no fornecedor.'
                       : 'Limpe os filtros para ver a lista inteira.'}
@@ -440,7 +447,7 @@ export function DriverRegistryPage() {
                   <table className="min-w-180 w-full border-collapse text-left">
                     <caption className="sr-only">Motoristas cadastrados</caption>
                     <thead>
-                      <tr className="border-outline-variant border-b">
+                      <tr className="border-light-outline border-b">
                         {/*
                          * ⚠️ Largura em porcentagem, e não conteúdo mandando.
                          *
@@ -499,13 +506,13 @@ export function DriverRegistryPage() {
                   total={filtered.length}
                   onPageChange={setPage}
                   label="motoristas"
-                  className="border-outline-variant mt-5 border-t pt-5"
+                  className="border-light-outline mt-5 border-t pt-5"
                 />
               ) : null}
-            </GlassCard>
-          </div>
+            </div>
+          </>
         </QueryState>
-      </section>
+      </PageContent>
 
       <DriverRegistrationModal
         open={dialog.open}
@@ -554,7 +561,7 @@ function Th({
     <th
       scope="col"
       className={cn(
-        'text-on-surface-variant text-label-md py-2.5 pr-4 font-medium normal-case',
+        'text-on-light-variant text-label-md py-2.5 pr-4 font-medium normal-case',
         align === 'right' && 'text-right',
         hideOnMobile && 'hidden lg:table-cell',
         nowrap && 'whitespace-nowrap',
@@ -594,7 +601,7 @@ function DriverRow({
       onClick={(event) => {
         if (!(event.target as HTMLElement).closest('button')) onEdit();
       }}
-      className="border-outline-variant/60 hover:bg-on-surface/[0.04] cursor-pointer border-b transition-colors last:border-0"
+      className="border-light-outline/60 hover:bg-on-light/[0.04] cursor-pointer border-b transition-colors last:border-0"
     >
       {/* `max-w-0` zera a largura mínima que item de tabela herda do conteúdo:
           sem ele a coluna não respeita os 30% e volta a inchar com o nome mais
@@ -629,13 +636,13 @@ function DriverRow({
              * `overscroll-x-contain` impede que a rolagem que chega ao fim do
              * nome continue e leve a página junto.
              */}
-            <p className="text-on-surface text-body-md overflow-x-auto overscroll-x-contain whitespace-nowrap font-medium">
+            <p className="text-on-light text-body-md overflow-x-auto overscroll-x-contain whitespace-nowrap font-medium">
               {driver.name}
             </p>
             {/* A segunda linha só existe quando tem o que dizer: uma linha em
                 branco por baixo de 150 nomes desalinha a lista inteira. */}
             {driver.employeeNumber ? (
-              <p className="text-on-surface-muted text-label-sm truncate normal-case">
+              <p className="text-on-light-muted text-label-sm truncate normal-case">
                 matrícula {driver.employeeNumber}
               </p>
             ) : null}
@@ -643,11 +650,11 @@ function DriverRow({
         </div>
       </td>
 
-      <td className="text-on-surface text-body-sm py-3 pr-4">
+      <td className="text-on-light text-body-sm py-3 pr-4">
         {driver.document ? (
           <span className="tabular">{formatCpf(driver.document)}</span>
         ) : (
-          <span className="text-on-surface-muted">–</span>
+          <span className="text-on-light-muted">–</span>
         )}
       </td>
 
@@ -663,26 +670,26 @@ function DriverRow({
        */}
       <td className="max-w-0 py-3 pr-4">
         {driver.companyName ? (
-          <p className="text-on-surface text-body-sm overflow-x-auto overscroll-x-contain whitespace-nowrap">
+          <p className="text-on-light text-body-sm overflow-x-auto overscroll-x-contain whitespace-nowrap">
             {driver.companyName}
           </p>
         ) : (
-          <span className="text-on-surface-muted text-body-sm">–</span>
+          <span className="text-on-light-muted text-body-sm">–</span>
         )}
       </td>
 
-      <td className="text-on-surface text-body-sm hidden py-3 pr-4 lg:table-cell">
-        {driver.cnhCategory ?? <span className="text-on-surface-muted">–</span>}
+      <td className="text-on-light text-body-sm hidden py-3 pr-4 lg:table-cell">
+        {driver.cnhCategory ?? <span className="text-on-light-muted">–</span>}
       </td>
 
       {/* `whitespace-nowrap`: "sem viagem" quebrava em duas linhas e sozinho
           esticava a linha da tabela em 16px. Com 150 pessoas, são duas telas e
           meia de rolagem a mais para ver a mesma coisa. */}
       <td className="hidden py-3 pr-4 text-right whitespace-nowrap lg:table-cell">
-        <p className="text-on-surface text-body-sm tabular">
+        <p className="text-on-light text-body-sm tabular">
           {driver.distance30d ? `${Math.round(driver.distance30d)} km` : '–'}
         </p>
-        <p className="text-on-surface-muted text-label-sm normal-case">
+        <p className="text-on-light-muted text-label-sm normal-case">
           {driver.lastJourneyAt ? dataCurta.format(new Date(driver.lastJourneyAt)) : 'sem viagem'}
         </p>
       </td>

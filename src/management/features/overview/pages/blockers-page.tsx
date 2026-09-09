@@ -78,17 +78,36 @@ export function BlockersPage() {
         </HeroLink>
       </HeroBand>
 
-      <PageContent>
+      {/*
+       * ⚠️ Os cards de severidade ficam FORA do painel branco, entre a faixa e
+       * ele, que é o mesmo arranjo das outras rotas do par (`HeroBand` mais a
+       * fileira que morde a borda, e só então o painel).
+       *
+       * A tela inteira morava dentro de um `PageContent` sem o painel, então o
+       * conteúdo flutuava no papel enquanto liberações, pareceres, viagens e
+       * mapa tinham a placa branca. ⚠️ E não era só aparência: `BlockerQueue`,
+       * `BlockerRow` e `SeverityCards` já escreviam nos tokens `on-light`, ou
+       * seja, foram feitos PARA um painel branco que a página não fornecia.
+       */}
+      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+        <h2 className="sr-only">Impedimentos por severidade</h2>
+
+        <QueryState isPending={isPending} isError={isError} label="a fila de impedimentos">
+          {data ? (
+            /* A subida fica aqui, e não em volta do `QueryState`, senão o
+               carregamento e o erro apareceriam por cima da faixa colorida. */
+            <div className="-mt-16 sm:-mt-20">
+              <SeverityCards counts={bySeverity} selected={severity} onSelect={setSeverity} />
+            </div>
+          ) : null}
+        </QueryState>
+      </section>
+
+      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
         <QueryState isPending={isPending} isError={isError} label="a fila de impedimentos">
           {data ? (
             <>
-              {/* A subida fica aqui, e não em volta do `QueryState`, senão o
-                  carregamento e o erro apareceriam por cima da faixa colorida. */}
-              <div className="-mt-16 sm:-mt-20">
-                <SeverityCards counts={bySeverity} selected={severity} onSelect={setSeverity} />
-              </div>
-
-              <h3 className="text-on-surface-variant text-label-md mt-8 normal-case">
+              <h3 className="text-on-light-variant text-label-md normal-case">
                 Por tipo de impedimento
               </h3>
               <div className="mt-3">

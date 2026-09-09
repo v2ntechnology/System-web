@@ -105,7 +105,7 @@ export default function SaasDashboardPage() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Empresas recentes</CardTitle>
-          <Link to="/admin-saas/empresas" className="text-xs text-primary hover:underline">
+          <Link to="/admin-saas/empresas" className="text-xs text-accent hover:underline">
             Ver todas
           </Link>
         </CardHeader>

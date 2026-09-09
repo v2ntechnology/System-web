@@ -23,6 +23,7 @@ import {
 } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 
 import { HeroBand } from '@/management/components/layout/hero-band';
@@ -143,7 +144,16 @@ export function SafetyPage() {
 
   /* Recortes da fila de eventos, feitos no cliente: o período já veio inteiro na
      resposta, e trocar de severidade não pode custar uma ida ao servidor. */
-  const [busca, setBusca] = useState('');
+  /*
+   * ⚠️ A busca nasce da URL (`?placa=`), para a ficha do veículo poder mandar o
+   * gestor direto para os eventos daquela placa (08/09/2026).
+   *
+   * Semente, e não sincronia: depois de montada, quem manda no campo é quem
+   * digita. Espelhar a URL a cada tecla brigaria com o próprio input e encheria
+   * o histórico do navegador de entradas por letra.
+   */
+  const [parametros] = useSearchParams();
+  const [busca, setBusca] = useState(() => parametros.get('placa') ?? '');
   const [tipo, setTipo] = useState(TODOS);
   const [severidade, setSeveridade] = useState(TODOS);
   const [pagina, setPagina] = useState(1);

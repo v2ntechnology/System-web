@@ -21,7 +21,7 @@ export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
         <CardTitle className="text-base">Atividade em tempo real</CardTitle>
         <Link
           to="/app/rastreamento"
-          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
         >
           Ver todos
           <ArrowRightIcon className="h-3.5 w-3.5" />

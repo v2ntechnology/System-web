@@ -22,10 +22,12 @@ import { ApiError } from '@/management/mocks/latency';
 import { decideRelease } from '../api';
 import { releaseDecisionSchema, stepsFromText, type ReleaseDecisionValues } from '../schema';
 import {
+  LONG_WAIT_HOURS,
   RELEASE_STATUS_META,
   SEVERITY_LABEL,
+  SEVERITY_RAIL,
   SEVERITY_RULE,
-  SEVERITY_TONE,
+  SEVERITY_TEXT,
   managerCanRelease,
   requiresActionPlan,
 } from '../severity';
@@ -135,93 +137,136 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
         </StatusChip>
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusChip
-          tone="info"
-          surface="light"
-          icon={
-            release.kind === 'VEICULO' ? (
-              <TruckIcon size={14} aria-hidden="true" />
-            ) : (
-              <UserIcon size={14} aria-hidden="true" />
-            )
-          }
+      {/*
+       * ⚠️ ZONA 1: o VEREDITO. É a única coisa que o gestor precisa ler antes de
+       * decidir, então é o elemento mais forte depois do nome.
+       *
+       * Ele substitui a fileira de pastilhas que estava aqui (tipo, severidade,
+       * placa, espera), que dava quatro tons diferentes a quatro naturezas de
+       * fato com o mesmo peso. A pastilha "Ocorrência grave" saiu inteira: a
+       * regra abaixo já diz o degrau, e cada pendência repete o rótulo. A
+       * palavra "grave" aparecia cinco vezes na mesma tela.
+       *
+       * A espera entrou aqui porque é pressão, e pressão é assunto do veredito.
+       */}
+      <div
+        className={cn(
+          'mt-4 flex flex-wrap items-start gap-x-4 gap-y-2 rounded-lg p-3.5',
+          canRelease ? 'bg-light-container' : 'bg-error-on-light/10',
+        )}
+      >
+        <p
+          className={cn(
+            'text-body-md min-w-0 flex-1 font-medium',
+            canRelease ? 'text-on-light-variant' : 'text-error-on-light',
+          )}
         >
-          {release.kind === 'VEICULO' ? 'Liberação de veículo' : 'Liberação de motorista'}
-        </StatusChip>
+          {!canRelease ? (
+            <LockIcon size={16} className="mr-1.5 inline shrink-0" aria-hidden="true" />
+          ) : null}
+          {SEVERITY_RULE[release.severity]}
+        </p>
 
-        <StatusChip tone={SEVERITY_TONE[release.severity]} surface="light">
-          Ocorrência {SEVERITY_LABEL[release.severity].toLowerCase()}
-        </StatusChip>
+        <p
+          className={cn(
+            'tabular text-body-md flex shrink-0 items-center gap-1.5 font-semibold',
+            release.waitingHours >= LONG_WAIT_HOURS
+              ? 'text-error-on-light'
+              : 'text-on-light-variant',
+          )}
+        >
+          <ClockIcon size={15} aria-hidden="true" />
+          {release.waitingHours}h parado
+        </p>
+      </div>
+
+      {/*
+       * ⚠️ ZONA 2: o CONTEXTO, numa linha só e num peso só.
+       *
+       * Tipo, identificador, viagem, destino e data do pedido são todos o mesmo
+       * tipo de fato: dizem QUAL pedido é este. Antes estavam partidos entre
+       * três pastilhas e um parágrafo solto embaixo do alerta, que era o que
+       * fazia a região do cabeçalho parecer uma gaveta.
+       */}
+      <p className="text-on-light-muted text-label-md mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 normal-case">
+        {release.kind === 'VEICULO' ? (
+          <TruckIcon size={14} aria-hidden="true" className="shrink-0" />
+        ) : (
+          <UserIcon size={14} aria-hidden="true" className="shrink-0" />
+        )}
+        <span className="text-on-light-variant font-medium">
+          {release.kind === 'VEICULO' ? 'Liberação de veículo' : 'Liberação de motorista'}
+        </span>
 
         {release.plate && release.kind !== 'VEICULO' ? (
-          <StatusChip tone="neutral" surface="light">
+          <>
+            <span aria-hidden="true">·</span>
             <span className="tabular">{release.plate}</span>
-          </StatusChip>
+          </>
         ) : null}
 
         {release.driverName && release.kind === 'VEICULO' ? (
-          <StatusChip tone="neutral" surface="light">
-            {release.driverName}
-          </StatusChip>
+          <>
+            <span aria-hidden="true">·</span>
+            <span>{release.driverName}</span>
+          </>
         ) : null}
 
-        <StatusChip
-          tone={release.waitingHours >= 6 ? 'critical' : 'neutral'}
-          surface="light"
-          icon={<ClockIcon size={14} aria-hidden="true" />}
-        >
-          {release.waitingHours}h parado
-        </StatusChip>
-      </div>
+        {release.tripCode ? (
+          <>
+            <span aria-hidden="true">·</span>
+            <span>
+              viagem <span className="tabular">{release.tripCode}</span>
+              {release.destination ? ` para ${release.destination}` : ''}
+            </span>
+          </>
+        ) : null}
 
-      {/* A regra do degrau, escrita. O gestor não deveria precisar decorá-la. */}
-      <p
-        className={cn(
-          'text-body-md mt-4 rounded-lg p-3',
-          canRelease
-            ? 'bg-light-container text-on-light-variant'
-            : 'bg-error-on-light/10 text-error-on-light',
-        )}
-      >
-        {!canRelease ? <LockIcon size={16} className="mr-1.5 inline" aria-hidden="true" /> : null}
-        {SEVERITY_RULE[release.severity]}
+        <span aria-hidden="true">·</span>
+        <span>pedido em {dateTime.format(new Date(release.requestedAt))}</span>
       </p>
 
-      {release.tripCode ? (
-        <p className="text-on-light-muted text-label-md mt-3 normal-case">
-          Viagem {release.tripCode}
-          {release.destination ? ` · ${release.destination}` : ''} · pedido em{' '}
-          {dateTime.format(new Date(release.requestedAt))}
-        </p>
-      ) : (
-        <p className="text-on-light-muted text-label-md mt-3 normal-case">
-          Pedido em {dateTime.format(new Date(release.requestedAt))}
-        </p>
-      )}
-
-      <h3 className="text-on-light-variant text-body-md mt-5 font-semibold">
+      {/* ⚠️ ZONA 3: a EVIDÊNCIA. Mais respiro acima do título do que abaixo:
+          é o que separa esta zona da anterior sem precisar de traço. */}
+      <h3 className="text-on-light-variant text-body-md mt-7 font-semibold">
         Pendências apontadas
       </h3>
-      <ul className="mt-2 flex flex-col gap-2">
+      <ul className="mt-2.5 flex flex-col gap-2">
         {release.blockers.map((blocker) => (
-          <li key={blocker.id} className="bg-light-container rounded-md p-3">
-            <p className="flex flex-wrap items-center gap-2">
-              <span className="text-on-light min-w-0 flex-1 font-medium">{blocker.label}</span>
-              <StatusChip tone={SEVERITY_TONE[blocker.severity]} surface="light">
-                {SEVERITY_LABEL[blocker.severity]}
-              </StatusChip>
-              {blocker.hasPhoto ? (
-                <CameraIcon
-                  size={16}
-                  className="text-on-light-muted shrink-0"
-                  aria-label="Com foto"
-                />
-              ) : null}
-            </p>
-            <p className="text-on-light-muted text-label-md mt-1 normal-case">
-              {blocker.source} · {dateTime.format(new Date(blocker.at))}
-            </p>
+          <li key={blocker.id} className="bg-light-container flex gap-3 rounded-md p-3">
+            {/* Mesma faixa da fila ao lado: as duas superfícies passam a falar a
+                mesma língua, e a cor repete o rótulo sem substituí-lo. */}
+            <span
+              className={cn(
+                'w-1 shrink-0 self-stretch rounded-full',
+                SEVERITY_RAIL[blocker.severity],
+              )}
+              aria-hidden="true"
+            />
+
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-on-light min-w-0 flex-1 font-medium">{blocker.label}</span>
+                <span
+                  className={cn(
+                    'text-label-md shrink-0 font-medium normal-case',
+                    SEVERITY_TEXT[blocker.severity],
+                  )}
+                >
+                  {SEVERITY_LABEL[blocker.severity]}
+                </span>
+                {blocker.hasPhoto ? (
+                  <CameraIcon
+                    size={16}
+                    className="text-on-light-muted shrink-0"
+                    aria-label="Com foto"
+                  />
+                ) : null}
+              </span>
+              <span className="text-on-light-muted text-label-md mt-1 block normal-case">
+                {blocker.source} · {dateTime.format(new Date(blocker.at))}
+              </span>
+            </span>
           </li>
         ))}
       </ul>
@@ -372,9 +417,6 @@ export function ReleaseDetailPanel({ release }: ReleaseDetailPanelProps) {
               variant="ghost"
               disabled={busy || !pending}
               onClick={decide('RECUSAR')}
-              /* Ghost é desenhado para o grafite: sobre o painel claro precisa
-                 da borda e do texto escuros para não sumir. */
-              className="border-light-outline text-on-light bg-light-container hover:bg-light hover:border-on-light-muted"
             >
               <BlockedIcon size={18} aria-hidden="true" />
               Manter retido

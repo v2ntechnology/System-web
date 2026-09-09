@@ -34,7 +34,8 @@ export function BlindsBackdrop({ className }: BlindsBackdropProps) {
            * e devolve o AA (regra 7).
            */
           className="absolute inset-0 opacity-40"
-          gradientColors={['#E7AD61', '#D5623A']}
+          /* ⚠️ Duas paradas iguais: laranja único desde 08/09/2026. */
+          gradientColors={['#D5623A', '#D5623A']}
           angle={20}
           noise={0.5}
           blindCount={16}

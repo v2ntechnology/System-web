@@ -30,7 +30,7 @@
   desenho, em `/app` e em `/gestao`. Conceito novo entra lá com nome semântico (`ApprovalIcon`, e
   não `LuGavel`). A família é a Lucide, via `react-icons/lu`.
 - Cor literal nunca no componente: usar os tokens de `src/styles/palette.css`, que é a paleta única
-  dos dois painéis (grafite no escuro, papel no claro, marca indigo/cyan). Véu translúcido usa
+  dos dois painéis (grafite no escuro, papel no claro, marca terracota e marinho). Véu translúcido usa
   `bg-on-surface/N`, nunca `bg-white/N`: branco fixo some no tema claro. A exceção é o que fica
   **sobre fotografia** (topbar e navegação do painel de gestão), que usa `on-media` e branco nos
   dois temas.

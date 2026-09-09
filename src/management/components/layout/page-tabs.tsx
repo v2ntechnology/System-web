@@ -51,15 +51,43 @@ export function PageTabs<T extends string>({
           <TabsPrimitive.Trigger
             key={tab.id}
             value={tab.id}
+            /*
+             * ⚠️ A aba escolhida é uma pastilha CLARA que sobe do poço, com a
+             * escrita na secundária. Ela era a pastilha preta (08/09/2026).
+             *
+             * Duas razões. A primeira é de peso: o preto é o maior contraste da
+             * tela, e estava sendo gasto num filtro, que é a decisão mais barata
+             * da página. A segunda é de significado: com a navegação em
+             * terracota, uma aba terracota diria com a mesma cor "onde você
+             * está no sistema" e "que fatia desta tela você olha". São perguntas
+             * diferentes e agora têm respostas diferentes.
+             *
+             * O desenho é o do controle segmentado: quem está escolhido é o que
+             * está ACIMA da superfície, que é a mesma hierarquia por superfície
+             * (e não por traço) que o tema claro usa no resto do painel.
+             */
             className={cn(
-              'text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
+              /* `group` para a contagem lá dentro enxergar o `data-state`. */
+              'group text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
               'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]',
-              'data-[state=active]:bg-bright data-[state=active]:text-on-bright data-[state=active]:font-medium',
+              'data-[state=active]:bg-surface-low data-[state=active]:text-accent data-[state=active]:font-medium',
+              'data-[state=active]:shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]',
+              /* O hover não pinta a aba já escolhida: ela não tem para onde ir. */
+              'data-[state=active]:hover:bg-surface-low data-[state=active]:hover:text-accent',
             )}
           >
             {tab.label}
             {tab.count !== undefined ? (
-              <span className="tabular ml-2 opacity-70">{tab.count}</span>
+              <span
+                className={cn(
+                  'tabular ml-2 opacity-70',
+                  /* Na aba escolhida a contagem vira dado, e não sombra do
+                     rótulo: fundo tonal em vez de opacidade. */
+                  'group-data-[state=active]:opacity-100',
+                )}
+              >
+                {tab.count}
+              </span>
             ) : null}
           </TabsPrimitive.Trigger>
         ))}

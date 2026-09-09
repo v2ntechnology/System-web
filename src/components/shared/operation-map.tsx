@@ -194,7 +194,10 @@ export function OperationMap({
         source: ROUTES_SOURCE,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': ['case', ['get', 'alert'], '#ef4444', '#06b6d4'],
+          /* ⚠️ Literais: o MapLibre não lê `var()`. Azuis médios da matiz da
+             secundária, e não o #010066 do tema claro, que somiria sobre a base
+             cartográfica escura. O halo é o tom fechado, a linha acima é o claro. */
+          'line-color': ['case', ['get', 'alert'], '#ef4444', '#4348d9'],
           'line-width': 7,
           'line-blur': 6,
           'line-opacity': 0.35,
@@ -207,7 +210,7 @@ export function OperationMap({
         source: ROUTES_SOURCE,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': ['case', ['get', 'alert'], '#ef4444', '#22d3ee'],
+          'line-color': ['case', ['get', 'alert'], '#ef4444', '#6b70f0'],
           'line-width': 2.5,
         },
       });

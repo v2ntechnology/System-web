@@ -1,5 +1,5 @@
 import { ArrowRightIcon } from '@/components/icons';
-import { SpectrumButton, StatusChip, cn } from '@/management/ui';
+import { StatusChip, cn } from '@/management/ui';
 import { Link } from 'react-router';
 
 import { KIND_META, SEVERITY_META } from '../blockers';
@@ -12,15 +12,20 @@ import type { Blocker } from '../types';
  * única é o ponto da faixa, e separar por categoria devolveria ao gestor o
  * trabalho de comparar quatro listas para achar o que trava primeiro.
  *
- * A ação primária muda de forma com a severidade, de propósito. O que bloqueia
- * agora vem como botão cheio, porque é decisão de hoje; os outros vêm como link,
- * que pesa menos sem deixar de ser clicável.
+ * ⚠️ A ação tem UMA forma só, para todas as linhas (08/09/2026, a pedido do
+ * usuário). Ela mudava com a severidade: o que bloqueia agora vinha como botão
+ * cheio e o resto como link.
+ *
+ * Duas razões para uniformizar. A severidade já está dita duas vezes na linha,
+ * pela faixa colorida e pela etiqueta, e as duas se leem de relance melhor do
+ * que a forma do controle. E, principalmente, nenhuma dessas ações decide coisa
+ * alguma: "Ver checklist" e "Abrir ordem" levam para outra tela. Navegação é
+ * link, e o botão cheio prometia um peso de decisão que a ação não tem.
  */
 export function BlockerRow({ blocker }: { blocker: Blocker }) {
   const severity = SEVERITY_META[blocker.severity];
   const kind = KIND_META[blocker.kind];
   const KindIcon = kind.icon;
-  const blocksNow = blocker.severity === 'BLOQUEIA_AGORA';
 
   return (
     <li className="border-light-outline flex items-stretch gap-4 border-b py-4 last:border-b-0">
@@ -54,22 +59,13 @@ export function BlockerRow({ blocker }: { blocker: Blocker }) {
       </div>
 
       <div className="flex shrink-0 items-center">
-        {blocksNow ? (
-          <SpectrumButton asChild size="sm">
-            <Link to={blocker.action.to}>
-              {blocker.action.label}
-              <ArrowRightIcon size={16} aria-hidden="true" />
-            </Link>
-          </SpectrumButton>
-        ) : (
-          <Link
-            to={blocker.action.to}
-            className="text-primary-on-light text-label-md focus-visible:ring-primary inline-flex items-center gap-1.5 rounded-md px-1 py-1 normal-case hover:underline focus-visible:outline-none focus-visible:ring-2"
-          >
-            {blocker.action.label}
-            <ArrowRightIcon size={15} aria-hidden="true" />
-          </Link>
-        )}
+        <Link
+          to={blocker.action.to}
+          className="text-accent text-label-md focus-visible:ring-primary inline-flex items-center gap-1.5 rounded-md px-1 py-1 normal-case hover:underline focus-visible:outline-none focus-visible:ring-2"
+        >
+          {blocker.action.label}
+          <ArrowRightIcon size={15} aria-hidden="true" />
+        </Link>
       </div>
     </li>
   );
