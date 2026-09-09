@@ -113,11 +113,35 @@
   --color-brand-night: #141414;
 
   --font-sans: Inter, system-ui, sans-serif;
-  --font-display: 'Space Grotesk', Inter, system-ui, sans-serif;
+  /*
+   * ⚠️ SORA, e não mais Space Grotesk (decisão do usuário em 09/09/2026).
+   *
+   * O painel de gestão escreve o display em Sora desde a origem, e o
+   * operacional em Space Grotesk: dois números grandes lado a lado, um em cada
+   * painel, e o produto parecia de duas empresas. A Sora é a que já vale em
+   * `/gestao`, então quem se move é este lado. O `--font-sora` do
+   * `management/styles/theme.css` continua existindo e aponta para a mesma
+   * família: as duas classes passam a desenhar igual.
+   */
+  --font-display: 'Sora', Inter, system-ui, sans-serif;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  /*
+   * ⚠️ Escala de raio IGUAL à do painel de gestão (09/09/2026, mesma decisão).
+   *
+   * Os valores eram `calc(var(--radius) - 4px)` e `- 2px`, o que dava 16px e
+   * 18px onde a gestão usa 10px e 14px; e `rounded-xl`, que é o canto do card,
+   * ficava nos 12px do tema padrão do Tailwind contra os 28px de lá. O card do
+   * operador tinha metade do arredondamento do card do gestor, na mesma tela do
+   * mesmo produto.
+   *
+   * O canto grande não é enfeite: com o card branco sobre papel morno e sem
+   * traço, é o raio que diz onde o bloco começa e termina. A escala acompanha o
+   * tamanho da superfície, e é a mesma escrita em `.management-theme`.
+   */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
 
   --animate-fade-in: fade-in 0.3s ease-out;
   --animate-fade-in-up: fade-in-up 0.35s ease-out;

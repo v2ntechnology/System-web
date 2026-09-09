@@ -27,8 +27,10 @@
   /* ----------------------------------------------------------------------
    * Tipografia do painel — Sora no display.
    *
-   * ⚠️ O token se chama `--font-sora`, não `--font-display`: o `font-display`
-   * do System-web é Space Grotesk e foi declarado em `@theme inline`, que grava
+   * ⚠️ O token se chama `--font-sora`, e o `--font-display` do System-web
+   * aponta para a MESMA família desde 09/09/2026: o painel operacional deixou o
+   * Space Grotesk para trás e as duas classes desenham igual. O par continua
+   * existindo porque `--font-display` é declarado em `@theme inline`, que grava
    * o valor literal no utilitário e não pode ser trocado por escopo.
    * -------------------------------------------------------------------- */
   --font-sora: 'Sora', ui-sans-serif, system-ui, sans-serif;
