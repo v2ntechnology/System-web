@@ -3,17 +3,26 @@ import {
   BoxesIcon,
   CameraIcon,
   ChatIcon,
+  CheckCircleIcon,
   FuelIcon,
+  IntegrationIcon,
   RadarIcon,
   SatelliteIcon,
+  WarningIcon,
 } from '@/components/icons';
 import type { IconType } from '@/components/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/layout/page-header';
+import {
+  HeroStats,
+  LightCard,
+  PageHero,
+  PagePanel,
+  type HeroStat,
+} from '@/components/layout/page-hero';
 import { PermissionGuard, PlanGuard } from '@/components/shared/guards';
+import { usePermissions } from '@/hooks/use-session';
 
 type IntegrationStatus = 'connected' | 'disconnected' | 'error';
 
@@ -92,49 +101,97 @@ const INTEGRATIONS: Integration[] = [
 ];
 
 export default function IntegrationsPage() {
+  /* Mesma permissão do conteúdo: o cabeçalho não conta o que a tela nega. */
+  const { hasPermission } = usePermissions();
+  const canSee = hasPermission('integrations.manage');
+
+  const connected = INTEGRATIONS.filter((i) => i.status === 'connected').length;
+  const failing = INTEGRATIONS.filter((i) => i.status === 'error').length;
+
+  const stats: HeroStat[] = [
+    {
+      key: 'disponiveis',
+      label: 'Disponíveis',
+      value: INTEGRATIONS.length,
+      hint: 'fontes que a plataforma fala',
+      icon: IntegrationIcon,
+    },
+    {
+      key: 'conectadas',
+      label: 'Conectadas',
+      value: connected,
+      hint: 'trazendo dados agora',
+      icon: CheckCircleIcon,
+    },
+    {
+      key: 'erro',
+      label: 'Com erro',
+      value: failing,
+      hint: failing > 0 ? 'sincronização falhando' : 'nenhuma falhando',
+      icon: WarningIcon,
+      tone: failing > 0 ? 'alert' : 'neutral',
+    },
+    {
+      key: 'desconectadas',
+      label: 'Desconectadas',
+      value: INTEGRATIONS.length - connected - failing,
+      hint: 'nunca configuradas',
+      icon: SatelliteIcon,
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <PageHeader
+    /* Sem `space-y` no container: a fileira de números sobe com margem NEGATIVA,
+       e a margem do utilitário vence a dela por especificidade. */
+    <div>
+      <PageHero
         title="Integrações"
         description="Conecte fontes de dados externas para enriquecer a inteligência da plataforma."
+        bleed={canSee}
       />
 
-      <PermissionGuard permission="integrations.manage">
-        <PlanGuard module="integrations">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {INTEGRATIONS.map((integration) => {
-              const Icon = integration.icon;
-              const badge = STATUS_BADGE[integration.status];
-              return (
-                <Card key={integration.id}>
-                  <CardHeader className="flex-row items-center justify-between space-y-0">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted/60 text-primary">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <CardTitle className="text-base">{integration.name}</CardTitle>
-                    </div>
-                    <Badge variant={badge.variant}>{badge.label}</Badge>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">{integration.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">
-                        {integration.lastSync
-                          ? `Última sincronização ${integration.lastSync}`
-                          : 'Nunca sincronizado'}
+      {canSee && <HeroStats items={stats} />}
+
+      <PagePanel className={canSee ? undefined : 'mt-6'}>
+        <PermissionGuard permission="integrations.manage">
+          <PlanGuard module="integrations">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {INTEGRATIONS.map((integration) => {
+                const Icon = integration.icon;
+                const badge = STATUS_BADGE[integration.status];
+                return (
+                  <LightCard
+                    key={integration.id}
+                    title={
+                      <span className="flex items-center gap-3">
+                        <span className="bg-light-container text-primary-on-light flex h-10 w-10 items-center justify-center rounded-lg">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        {integration.name}
                       </span>
-                      <Button variant="outline" size="sm">
-                        {integration.status === 'connected' ? 'Configurar' : 'Conectar'}
-                      </Button>
+                    }
+                    action={<Badge variant={badge.variant}>{badge.label}</Badge>}
+                  >
+                    <div className="space-y-4">
+                      <p className="text-on-light-muted text-sm">{integration.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-on-light-muted text-xs">
+                          {integration.lastSync
+                            ? `Última sincronização ${integration.lastSync}`
+                            : 'Nunca sincronizado'}
+                        </span>
+                        <Button variant="outline" size="sm">
+                          {integration.status === 'connected' ? 'Configurar' : 'Conectar'}
+                        </Button>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </PlanGuard>
-      </PermissionGuard>
+                  </LightCard>
+                );
+              })}
+            </div>
+          </PlanGuard>
+        </PermissionGuard>
+      </PagePanel>
     </div>
   );
 }

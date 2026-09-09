@@ -1,11 +1,10 @@
 import { CheckIcon, SparklesIcon } from '@/components/icons';
 
 import { PLAN_DEFINITIONS } from '@/app/plans';
-import { PageHeader } from '@/components/layout/page-header';
+import { LightCard, PageHero, PagePanel } from '@/components/layout/page-hero';
 import { PermissionGuard } from '@/components/shared/guards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePlan } from '@/hooks/use-session';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -56,83 +55,84 @@ export default function PlansPage() {
   const setPlan = useSessionStore((s) => s.setPlan);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
+    <div>
+      {/* `bleed={false}`: os números desta tela são o preço e o uso, e os dois
+          moram nos cartões. Fileira de indicadores aqui repetiria o cartão. */}
+      <PageHero
         title="Planos"
         description="Acompanhe seu plano atual, uso e opções de upgrade."
+        bleed={false}
       />
 
-      <PermissionGuard permission="billing.manage">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Plano atual</CardTitle>
-                <Badge variant="default">{definition.name}</Badge>
+      <PagePanel className="mt-6">
+        <PermissionGuard permission="billing.manage">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <LightCard
+              className="lg:col-span-1"
+              title="Plano atual"
+              description={definition.description}
+              action={<Badge variant="default">{definition.name}</Badge>}
+            >
+              <div className="space-y-4">
+                <p className="font-display text-on-light text-3xl font-bold">
+                  {formatCurrency(definition.monthlyPrice)}
+                  <span className="text-on-light-muted text-sm font-normal">/mês</span>
+                </p>
+                <UsageBar label="Veículos" used={VEHICLES.length} total={definition.vehicleLimit} />
+                <UsageBar label="Usuários" used={24} total={definition.userLimit} />
+                <UsageBar label="Consultas de IA" used={320} total={1000} />
+                <p className="text-on-light-muted text-xs">
+                  Próxima cobrança simulada em 01/06/2024.
+                </p>
               </div>
-              <CardDescription>{definition.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="font-display text-3xl font-bold">
-                {formatCurrency(definition.monthlyPrice)}
-                <span className="text-sm font-normal text-muted-foreground">/mês</span>
-              </p>
-              <UsageBar label="Veículos" used={VEHICLES.length} total={definition.vehicleLimit} />
-              <UsageBar label="Usuários" used={24} total={definition.userLimit} />
-              <UsageBar label="Consultas de IA" used={320} total={1000} />
-              <p className="text-xs text-muted-foreground">
-                Próxima cobrança simulada em 01/06/2024.
-              </p>
-            </CardContent>
-          </Card>
+            </LightCard>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2 xl:grid-cols-3">
-            {PLAN_ORDER.map((planType) => {
-              const def = PLAN_DEFINITIONS[planType];
-              const isCurrent = plan === planType;
-              return (
-                <Card
-                  key={planType}
-                  className={cn('flex flex-col', def.highlighted && 'border-primary/50')}
-                >
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{def.name}</CardTitle>
-                      {def.highlighted && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2 xl:grid-cols-3">
+              {PLAN_ORDER.map((planType) => {
+                const def = PLAN_DEFINITIONS[planType];
+                const isCurrent = plan === planType;
+                return (
+                  <LightCard
+                    key={planType}
+                    className={cn('flex flex-col', def.highlighted && 'ring-primary/50')}
+                    title={def.name}
+                    action={
+                      def.highlighted ? (
                         <Badge variant="info">
                           <SparklesIcon className="h-3 w-3" />
                           Popular
                         </Badge>
-                      )}
-                    </div>
-                    <p className="font-display text-2xl font-bold">
+                      ) : undefined
+                    }
+                  >
+                    <p className="font-display text-on-light -mt-3 mb-4 text-2xl font-bold">
                       {formatCurrency(def.monthlyPrice)}
-                      <span className="text-xs font-normal text-muted-foreground">/mês</span>
+                      <span className="text-on-light-muted text-xs font-normal">/mês</span>
                     </p>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-4">
-                    <ul className="flex-1 space-y-2 text-sm">
-                      {MODULE_HIGHLIGHTS[planType].map((feature) => (
-                        <li key={feature} className="flex items-start gap-2">
-                          <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button
-                      variant={isCurrent ? 'outline' : def.highlighted ? 'brand' : 'default'}
-                      disabled={isCurrent}
-                      onClick={() => setPlan(planType)}
-                    >
-                      {isCurrent ? 'Plano atual' : 'Selecionar plano'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    <div className="flex flex-1 flex-col gap-4">
+                      <ul className="text-on-light flex-1 space-y-2 text-sm">
+                        {MODULE_HIGHLIGHTS[planType].map((feature) => (
+                          <li key={feature} className="flex items-start gap-2">
+                            <CheckIcon className="text-success-on-light mt-0.5 h-4 w-4 shrink-0" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                      <Button
+                        variant={isCurrent ? 'outline' : def.highlighted ? 'brand' : 'default'}
+                        disabled={isCurrent}
+                        onClick={() => setPlan(planType)}
+                      >
+                        {isCurrent ? 'Plano atual' : 'Selecionar plano'}
+                      </Button>
+                    </div>
+                  </LightCard>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </PermissionGuard>
+        </PermissionGuard>
+      </PagePanel>
     </div>
   );
 }

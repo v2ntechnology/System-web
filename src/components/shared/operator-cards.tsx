@@ -1,8 +1,18 @@
-import { LockIcon, SearchIcon, WarningIcon } from '@/components/icons';
+import {
+  FuelIcon,
+  LockIcon,
+  MaintenanceIcon,
+  MoneyIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  WarningIcon,
+} from '@/components/icons';
+import type { IconType } from '@/components/icons';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LightCard } from '@/components/layout/page-hero';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/shared/states';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -24,6 +34,16 @@ const ENTRY_KIND_LABEL: Record<LaunchEntry['kind'], string> = {
   DESPESA: 'Despesa',
 };
 
+/* O tipo passou a ser ÍCONE, e não pastilha de contorno: são só quatro, sempre
+   os mesmos, e o desenho se reconhece mais rápido que a leitura. O rótulo
+   continua escrito na linha, então o ícone nunca é o único portador. */
+const ENTRY_KIND_ICON: Record<LaunchEntry['kind'], IconType> = {
+  ABASTECIMENTO: FuelIcon,
+  MULTA: ShieldAlertIcon,
+  ORDEM_MANUTENCAO: MaintenanceIcon,
+  DESPESA: MoneyIcon,
+};
+
 /**
  * O pátio veio do painel de gestão, que nomeia os estados em português; o
  * System-web usa os seus. Traduzir aqui evita um segundo mapa de rótulos e
@@ -43,46 +63,89 @@ const YARD_STATUS: Record<YardVehicle['status'], VehicleStatus> = {
 /* Indicador com valor restrito                                                */
 /* -------------------------------------------------------------------------- */
 
+type MetricAccent = 'brand' | 'success' | 'info' | 'warning';
+
 interface YardMetricProps {
   label: string;
-  value: string;
-  hint: string;
-  tone?: 'default' | 'warning';
+  value: string | number;
+  /** Denominador. Fora do card do total, é sempre a frota inteira. */
+  outOf?: number;
+  icon?: IconType;
+  accent?: MetricAccent;
   /**
-   * RF-007 — quem não pode ver o valor enxerga o campo bloqueado, não a ausência
-   * dele: sumir com o indicador vira chamado de suporte.
+   * `warn` pinta o número; `alert` pinta e contorna o card. O contorno é só da
+   * perda de visibilidade, que é o único estado que não é estado da operação: é
+   * a parte da frota sobre a qual não se sabe nada.
+   */
+  tone?: 'neutral' | 'warn' | 'alert';
+  /**
+   * RF-007: quem não pode ver o valor enxerga o campo bloqueado, não a ausência
+   * dele. Sumir com o indicador vira chamado de suporte.
    */
   locked?: boolean;
 }
 
+/*
+ * O bloco de cor do ícone é o mesmo do `StateCard` da visão geral do gestor:
+ * quadrado de 36px, matiz a 10% com o traço cheio por cima. É o que faz o
+ * indicador do operador e o do gestor lerem como a mesma peça.
+ */
+const METRIC_ACCENT: Record<MetricAccent, string> = {
+  brand: 'bg-primary-on-light/10 text-primary-on-light',
+  success: 'bg-success-on-light/10 text-success-on-light',
+  info: 'bg-info-on-light/10 text-info-on-light',
+  warning: 'bg-warning-on-light/12 text-warning-on-light',
+};
+
+/**
+ * Card de estado da frota: ícone, rótulo e o número, com o denominador ao lado.
+ *
+ * Contexto, e não ação: por isso não há botão nenhum aqui. Quem quiser a lista
+ * clica no botão do painel do assunto, logo abaixo na tela.
+ */
 export function YardMetric({
   label,
   value,
-  hint,
-  tone = 'default',
+  outOf,
+  icon: Icon,
+  accent = 'brand',
+  tone = 'neutral',
   locked = false,
 }: YardMetricProps) {
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
-          {locked && <LockIcon className="h-3 w-3" aria-label="Restrito ao seu perfil" />}
-        </p>
-        <p
+    <Card className={cn('flex min-w-0 flex-col p-5', tone === 'alert' && 'ring-1 ring-warning/35')}>
+      {Icon && (
+        <span
           className={cn(
-            'font-display mt-2 text-2xl font-bold tabular-nums',
-            locked
-              ? 'text-muted-foreground'
-              : tone === 'warning'
-                ? 'text-warning'
-                : 'text-foreground',
+            'flex size-9 shrink-0 items-center justify-center rounded-md',
+            locked ? 'bg-muted text-muted-foreground' : METRIC_ACCENT[accent],
           )}
+          aria-hidden
         >
-          {value}
-        </p>
-        <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
-      </CardContent>
+          <Icon className="h-[17px] w-[17px]" />
+        </span>
+      )}
+
+      <p className="text-label-sm mt-4 flex items-center gap-1.5 text-on-light-variant normal-case">
+        {label}
+        {locked && <LockIcon className="h-3 w-3" aria-label="Restrito ao seu perfil" />}
+      </p>
+
+      <p
+        className={cn(
+          'font-display mt-1 text-[30px] font-bold leading-none tabular-nums',
+          locked
+            ? 'text-on-light-muted'
+            : tone === 'neutral'
+              ? 'text-on-light'
+              : 'text-warning-on-light',
+        )}
+      >
+        {value}
+        {outOf !== undefined && (
+          <span className="text-body-md font-normal text-on-light-muted"> / {outOf}</span>
+        )}
+      </p>
     </Card>
   );
 }
@@ -106,52 +169,81 @@ export function RecentEntries({
   className,
 }: RecentEntriesProps) {
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {entries.length === 0 ? (
-          <EmptyState
-            title="Nenhum lançamento ainda"
-            description="Os documentos registrados no pátio aparecem aqui."
-          />
-        ) : (
-          <ul className="divide-y divide-border">
-            {entries.map((entry) => (
-              <li key={entry.id} className="flex flex-wrap items-start gap-3 py-3 first:pt-0">
+    <LightCard title={title} className={className}>
+      {entries.length === 0 ? (
+        <EmptyState
+          title="Nenhum lançamento ainda"
+          description="Os documentos registrados no pátio aparecem aqui."
+        />
+      ) : (
+        /*
+         * Cada lançamento é um BLOCO, e não uma linha separada por fio.
+         *
+         * ⚠️ O que a linha separada quebrava era a leitura do valor: sem caixa,
+         * ele encostava na borda do painel e ficava a mais de mil pixels do
+         * documento a que pertence, no monitor grande. O bloco fecha a linha, e
+         * o valor volta a ficar ao lado do que ele mede.
+         *
+         * ⚠️ E no monitor a lista GANHA COLUNA em vez de esticar, que é a regra
+         * deste painel: com uma coluna só, cada bloco passava de 1300px e a
+         * distância entre o documento e o valor voltava, agora dentro da caixa.
+         */
+        <ul className="grid gap-2 xl:grid-cols-2">
+          {entries.map((entry) => {
+            const Icon = ENTRY_KIND_ICON[entry.kind];
+
+            return (
+              <li
+                key={entry.id}
+                className="bg-light-container flex items-start gap-3 rounded-md p-3"
+              >
+                <span
+                  className="bg-primary-on-light/10 text-primary-on-light flex size-9 shrink-0 items-center justify-center rounded-md"
+                  aria-hidden="true"
+                >
+                  <Icon size={17} />
+                </span>
+
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium tabular-nums">{entry.plate}</span>
-                    <Badge variant="outline">{ENTRY_KIND_LABEL[entry.kind]}</Badge>
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-on-light font-semibold tabular-nums">{entry.plate}</span>
+                    <span className="text-on-light-variant text-label-md font-medium normal-case">
+                      {ENTRY_KIND_LABEL[entry.kind]}
+                    </span>
                     {entry.documentNumber && (
-                      <span className="text-xs tabular-nums text-muted-foreground">
+                      <span className="text-on-light-muted text-label-md tabular-nums normal-case">
                         {entry.documentNumber}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 truncate text-sm text-muted-foreground">{entry.description}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="text-on-light-variant mt-0.5 truncate text-sm">
+                    {entry.description}
+                  </p>
+                  <p className="text-on-light-muted text-label-md mt-0.5 normal-case">
                     {formatDateTime(entry.createdAt)} · {entry.createdBy}
                   </p>
                 </div>
 
-                <p className="text-sm font-semibold tabular-nums">
+                {/* Coluna de largura própria: o valor alinha entre as linhas em
+                    vez de flutuar até a borda do painel. */}
+                <div className="w-28 shrink-0 text-right">
                   {canSeeAmounts ? (
-                    formatCurrency(entry.amount)
+                    <span className="text-on-light font-semibold tabular-nums">
+                      {formatCurrency(entry.amount)}
+                    </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                    <span className="text-on-light-muted text-label-md inline-flex items-center gap-1 normal-case">
                       <LockIcon className="h-3 w-3" aria-hidden />
                       Restrito
                     </span>
                   )}
-                </p>
+                </div>
               </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+            );
+          })}
+        </ul>
+      )}
+    </LightCard>
   );
 }
 
@@ -191,7 +283,7 @@ export function YardBoard({
   return (
     <Card className={className}>
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base">Pátio</CardTitle>
+        <CardTitle className="text-xl tracking-tight">Pátio</CardTitle>
         <Badge variant={blocked > 0 ? 'destructive' : 'success'}>
           {blocked === 0
             ? 'Nenhum impedimento'
@@ -223,7 +315,7 @@ export function YardBoard({
             description="Revise o termo da busca — ela cobre placa, vaga e motorista."
           />
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <ul className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
             {visible.map((vehicle) => {
               const overdue = vehicle.kmToMaintenance < 0;
 

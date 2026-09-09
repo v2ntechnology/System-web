@@ -1,4 +1,10 @@
-import { ChevronRightIcon } from '@/components/icons';
+import {
+  CalendarIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  RouteIcon,
+  WarningIcon,
+} from '@/components/icons';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -6,7 +12,13 @@ import { DataTable, type DataTableColumn } from '@/components/shared/data-table'
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/states';
 import { FilterBar, SearchInput } from '@/components/shared/filters';
-import { PageHeader } from '@/components/layout/page-header';
+import {
+  HeroPill,
+  HeroStats,
+  PageHero,
+  PagePanel,
+  type HeroStat,
+} from '@/components/layout/page-hero';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -36,8 +48,54 @@ export default function TripsPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<TripStatus | 'all'>('all');
 
+  const all = useMemo(() => data ?? [], [data]);
+
+  const stats: HeroStat[] = useMemo(() => {
+    const running = all.filter((t) => t.status === 'in_progress').length;
+    const delayed = all.filter((t) => t.status === 'delayed').length;
+    const scheduled = all.filter((t) => t.status === 'scheduled').length;
+    /* Risco alto conta só o que ainda dá para agir: viagem concluída ou
+       cancelada carrega o risco que teve, e não um risco a tratar. */
+    const atRisk = all.filter(
+      (t) => t.delayRisk === 'high' && (t.status === 'in_progress' || t.status === 'scheduled'),
+    ).length;
+
+    return [
+      {
+        key: 'andamento',
+        label: 'Em andamento',
+        value: running,
+        hint: 'na estrada agora',
+        icon: RouteIcon,
+      },
+      {
+        key: 'agendadas',
+        label: 'Agendadas',
+        value: scheduled,
+        hint: 'ainda não saíram',
+        icon: CalendarIcon,
+      },
+      {
+        key: 'atrasadas',
+        label: 'Atrasadas',
+        value: delayed,
+        hint: delayed > 0 ? 'passaram da previsão' : 'nenhuma atrasada',
+        icon: ClockIcon,
+        tone: delayed > 0 ? 'alert' : 'neutral',
+      },
+      {
+        key: 'risco',
+        label: 'Risco alto',
+        value: atRisk,
+        hint: 'em andamento ou agendadas',
+        icon: WarningIcon,
+        tone: atRisk > 0 ? 'warn' : 'neutral',
+      },
+    ];
+  }, [all]);
+
   const filtered = useMemo(() => {
-    let result = data ?? [];
+    let result = all;
     const term = search.trim().toLowerCase();
     if (term) {
       result = result.filter(
@@ -50,7 +108,7 @@ export default function TripsPage() {
     }
     if (status !== 'all') result = result.filter((t) => t.status === status);
     return result;
-  }, [data, search, status]);
+  }, [all, search, status]);
 
   const columns: DataTableColumn<Trip>[] = [
     {
@@ -117,50 +175,62 @@ export default function TripsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
+    /* Sem `space-y` no container: a fileira de números sobe com margem NEGATIVA,
+       e a margem do utilitário vence a dela por especificidade. */
+    <div>
+      <PageHero
         title="Viagens"
         description="Acompanhe as viagens em andamento, agendadas e concluídas."
-      />
+      >
+        <HeroPill icon={RouteIcon}>
+          {filtered.length === all.length
+            ? `${all.length} no total`
+            : `${filtered.length} de ${all.length}`}
+        </HeroPill>
+      </PageHero>
 
-      <FilterBar>
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar por rota, veículo ou motorista"
-          className="w-full md:max-w-xs"
-          aria-label="Buscar viagens"
-        />
-        <Select value={status} onValueChange={(v) => setStatus(v as TripStatus | 'all')}>
-          <SelectTrigger className="w-full md:w-[180px]" aria-label="Filtrar por status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            {(Object.keys(TRIP_STATUS_LABEL) as TripStatus[]).map((s) => (
-              <SelectItem key={s} value={s}>
-                {TRIP_STATUS_LABEL[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FilterBar>
+      <HeroStats items={stats} />
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        getRowId={(t) => t.id}
-        isLoading={isLoading}
-        isError={isError}
-        onRetry={() => refetch()}
-        onRowClick={(t) => navigate(`/app/viagens/${t.id}`)}
-        emptyState={
-          <EmptyState
-            title="Nenhuma viagem encontrada"
-            description="Ajuste os filtros e tente novamente."
+      <PagePanel className="space-y-6">
+        <FilterBar>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por rota, veículo ou motorista"
+            className="w-full md:max-w-xs"
+            aria-label="Buscar viagens"
           />
-        }
-      />
+          <Select value={status} onValueChange={(v) => setStatus(v as TripStatus | 'all')}>
+            <SelectTrigger className="w-full md:w-[180px]" aria-label="Filtrar por status">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              {(Object.keys(TRIP_STATUS_LABEL) as TripStatus[]).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {TRIP_STATUS_LABEL[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterBar>
+
+        <DataTable
+          columns={columns}
+          data={filtered}
+          getRowId={(t) => t.id}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => refetch()}
+          onRowClick={(t) => navigate(`/app/viagens/${t.id}`)}
+          emptyState={
+            <EmptyState
+              title="Nenhuma viagem encontrada"
+              description="Ajuste os filtros e tente novamente."
+            />
+          }
+        />
+      </PagePanel>
     </div>
   );
 }

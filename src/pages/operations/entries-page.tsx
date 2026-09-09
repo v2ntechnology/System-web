@@ -1,13 +1,25 @@
-import { EntryIcon, SpinnerIcon } from '@/components/icons';
+import {
+  EntryIcon,
+  FuelIcon,
+  MaintenanceIcon,
+  ShieldAlertIcon,
+  SpinnerIcon,
+} from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 
-import { PageHeader } from '@/components/layout/page-header';
+import {
+  HeroPill,
+  HeroStats,
+  LightCard,
+  PageHero,
+  PagePanel,
+  type HeroStat,
+} from '@/components/layout/page-hero';
 import { RecentEntries } from '@/components/shared/operator-cards';
 import { ErrorState } from '@/components/shared/states';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -94,7 +106,9 @@ function EntryForm({ kind }: { kind: EntryKind }) {
 
     return (
       <div key={field.name} className={cn('space-y-2', field.wide && 'sm:col-span-2')}>
-        <Label htmlFor={id}>{field.label}</Label>
+        <Label htmlFor={id} className="text-on-light">
+          {field.label}
+        </Label>
 
         {field.type === 'date' ? (
           <DatePicker
@@ -134,39 +148,36 @@ function EntryForm({ kind }: { kind: EntryKind }) {
           />
         )}
 
-        {field.hint && !error && <p className="text-xs text-muted-foreground">{field.hint}</p>}
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        {field.hint && !error && <p className="text-on-light-muted text-xs">{field.hint}</p>}
+        {error && <p className="text-error-on-light text-xs">{error}</p>}
       </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{meta.title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{meta.hint}</p>
-      </CardHeader>
-
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
-          {/* Mais colunas conforme a janela cresce: em monitor grande, duas
+    <LightCard title={meta.title} description={meta.hint}>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
+        {/* Mais colunas conforme a janela cresce: em monitor grande, duas
               colunas deixavam campos de 700px para digitar "480,5". */}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {fields.map(renderField)}
-          </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {fields.map(renderField)}
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" variant="brand" disabled={createEntry.isPending}>
-              {createEntry.isPending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
-              Lançar {meta.label.toLowerCase()}
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => reset(EMPTY_FORM)}>
-              Limpar
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="brand" disabled={createEntry.isPending}>
+            {createEntry.isPending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
+            Lançar {meta.label.toLowerCase()}
+          </Button>
+          {/* `outline`, e não `ghost`: ação de apoio ao lado da principal é
+              contorno marinho, o mesmo objeto do `ghost` do `SpectrumButton` no
+              painel de gestão. O `ghost` do `/app` não tem traço e, ao lado de um
+              botão preenchido, some. */}
+          <Button type="button" variant="outline" onClick={() => reset(EMPTY_FORM)}>
+            Limpar
+          </Button>
+        </div>
+      </form>
+    </LightCard>
   );
 }
 
@@ -185,59 +196,89 @@ export default function EntriesPage() {
   const todayCount =
     data?.filter((entry) => new Date(entry.createdAt).toDateString() === today).length ?? 0;
 
+  const entries = data ?? [];
+  const countOf = (kind: EntryKind) => entries.filter((entry) => entry.kind === kind).length;
+
+  const stats: HeroStat[] = [
+    {
+      key: 'hoje',
+      label: 'Lançados hoje',
+      value: todayCount,
+      hint: 'documentos registrados',
+      icon: EntryIcon,
+    },
+    {
+      key: 'abastecimentos',
+      label: 'Abastecimentos',
+      value: countOf('ABASTECIMENTO'),
+      hint: 'no período carregado',
+      icon: FuelIcon,
+    },
+    {
+      key: 'manutencoes',
+      label: 'Ordens de manutenção',
+      value: countOf('ORDEM_MANUTENCAO'),
+      hint: 'abertas por lançamento',
+      icon: MaintenanceIcon,
+    },
+    {
+      key: 'multas',
+      label: 'Multas',
+      value: countOf('MULTA'),
+      hint: 'lançadas no período',
+      icon: ShieldAlertIcon,
+      tone: countOf('MULTA') > 0 ? 'warn' : 'neutral',
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <PageHeader
+    /* Sem `space-y` no container: a fileira de números sobe com margem NEGATIVA,
+       e a margem do utilitário vence a dela por especificidade. */
+    <div>
+      <PageHero
         title="Lançamentos"
-        description="Abastecimentos, multas, ordens de manutenção e despesas extraordinárias."
-      />
+        description="O número do documento é o que torna o lançamento auditável: é ele que impede a mesma nota de entrar duas vezes."
+      >
+        <HeroPill icon={EntryIcon}>
+          {todayCount === 0 ? 'Nada lançado hoje' : `${todayCount} hoje`}
+        </HeroPill>
+      </PageHero>
 
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-4 pt-6">
-          <EntryIcon className="h-7 w-7 shrink-0 text-primary" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p className="font-medium">
-              {todayCount === 0
-                ? 'Nenhum lançamento hoje.'
-                : todayCount === 1
-                  ? '1 lançamento hoje.'
-                  : `${todayCount} lançamentos hoje.`}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              O número do documento é o que torna o lançamento auditável — e o que impede a mesma
-              nota de entrar duas vezes.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <HeroStats items={stats} />
 
-      <Tabs defaultValue="ABASTECIMENTO">
-        <TabsList>
+      <PagePanel className="space-y-6">
+        <Tabs defaultValue="ABASTECIMENTO">
+          <TabsList className="bg-surface-lowest rounded-pill mb-7 flex h-auto w-fit max-w-full justify-start gap-1 overflow-x-auto p-1.5">
+            {KINDS.map((kind) => (
+              <TabsTrigger
+                key={kind}
+                value={kind}
+                className="group text-body-md rounded-pill focus-visible:ring-primary text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06] data-[state=active]:bg-surface-low data-[state=active]:text-accent shrink-0 px-5 py-2 font-normal transition-colors focus-visible:outline-none focus-visible:ring-2 data-[state=active]:font-medium data-[state=active]:shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)] data-[state=active]:hover:bg-surface-low data-[state=active]:hover:text-accent"
+              >
+                {ENTRY_META[kind].label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
           {KINDS.map((kind) => (
-            <TabsTrigger key={kind} value={kind}>
-              {ENTRY_META[kind].label}
-            </TabsTrigger>
+            <TabsContent key={kind} value={kind} className="mt-0">
+              <EntryForm kind={kind} />
+            </TabsContent>
           ))}
-        </TabsList>
+        </Tabs>
 
-        {KINDS.map((kind) => (
-          <TabsContent key={kind} value={kind} className="mt-6">
-            <EntryForm kind={kind} />
-          </TabsContent>
-        ))}
-      </Tabs>
-
-      {isError ? (
-        <ErrorState onRetry={() => refetch()} />
-      ) : isLoading || !data ? (
-        <Skeleton className="h-64 w-full" />
-      ) : (
-        <RecentEntries
-          entries={data}
-          canSeeAmounts={canSeeFinancials}
-          title="Últimos lançamentos"
-        />
-      )}
+        {isError ? (
+          <ErrorState onRetry={() => refetch()} />
+        ) : isLoading || !data ? (
+          <Skeleton className="h-64 w-full" />
+        ) : (
+          <RecentEntries
+            entries={data}
+            canSeeAmounts={canSeeFinancials}
+            title="Últimos lançamentos"
+          />
+        )}
+      </PagePanel>
     </div>
   );
 }

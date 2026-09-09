@@ -1,10 +1,17 @@
+import { ClockIcon, MoneyIcon, ShieldAlertIcon, WarningIcon } from '@/components/icons';
 import { useMemo, useState } from 'react';
 
 import { DataTable, type DataTableColumn } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/states';
 import { FilterBar, SearchInput } from '@/components/shared/filters';
-import { PageHeader } from '@/components/layout/page-header';
+import {
+  HeroPill,
+  HeroStats,
+  PageHero,
+  PagePanel,
+  type HeroStat,
+} from '@/components/layout/page-hero';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -24,8 +31,51 @@ export default function FinesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<FineStatus | 'all'>('all');
 
+  const all = useMemo(() => data ?? [], [data]);
+
+  const stats: HeroStat[] = useMemo(() => {
+    const overdue = all.filter((f) => f.status === 'overdue').length;
+    const pending = all.filter((f) => f.status === 'pending').length;
+    const open = all.filter((f) => f.status !== 'paid');
+    const owed = open.reduce((total, f) => total + f.value, 0);
+    const points = all.reduce((total, f) => total + f.points, 0);
+
+    return [
+      {
+        key: 'multas',
+        label: 'Multas',
+        value: all.length,
+        hint: `${points} pontos somados`,
+        icon: ShieldAlertIcon,
+      },
+      {
+        key: 'vencidas',
+        label: 'Vencidas',
+        value: overdue,
+        hint: overdue > 0 ? 'passaram do prazo' : 'nenhuma vencida',
+        icon: WarningIcon,
+        tone: overdue > 0 ? 'alert' : 'neutral',
+      },
+      {
+        key: 'pendentes',
+        label: 'Sem tratativa',
+        value: pending,
+        hint: 'aguardando decisão',
+        icon: ClockIcon,
+        tone: pending > 0 ? 'warn' : 'neutral',
+      },
+      {
+        key: 'valor',
+        label: 'Em aberto',
+        value: formatCurrency(owed),
+        hint: 'fora as já pagas',
+        icon: MoneyIcon,
+      },
+    ];
+  }, [all]);
+
   const filtered = useMemo(() => {
-    let result = data ?? [];
+    let result = all;
     const term = search.trim().toLowerCase();
     if (term) {
       result = result.filter(
@@ -37,7 +87,7 @@ export default function FinesPage() {
     }
     if (status !== 'all') result = result.filter((f) => f.status === status);
     return result;
-  }, [data, search, status]);
+  }, [all, search, status]);
 
   const columns: DataTableColumn<Fine>[] = [
     {
@@ -73,49 +123,58 @@ export default function FinesPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Multas"
-        description="Controle das infrações, prazos e tratativas da frota."
-      />
+    /* Sem `space-y` no container: a fileira de números sobe com margem NEGATIVA,
+       e a margem do utilitário vence a dela por especificidade. */
+    <div>
+      <PageHero title="Multas" description="Controle das infrações, prazos e tratativas da frota.">
+        <HeroPill icon={ShieldAlertIcon}>
+          {filtered.length === all.length
+            ? `${all.length} no total`
+            : `${filtered.length} de ${all.length}`}
+        </HeroPill>
+      </PageHero>
 
-      <FilterBar>
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar por veículo, motorista ou infração"
-          className="w-full md:max-w-xs"
-          aria-label="Buscar multas"
-        />
-        <Select value={status} onValueChange={(v) => setStatus(v as FineStatus | 'all')}>
-          <SelectTrigger className="w-full md:w-[200px]" aria-label="Filtrar por status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as tratativas</SelectItem>
-            {(Object.keys(FINE_STATUS_LABEL) as FineStatus[]).map((s) => (
-              <SelectItem key={s} value={s}>
-                {FINE_STATUS_LABEL[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FilterBar>
+      <HeroStats items={stats} />
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        getRowId={(f) => f.id}
-        isLoading={isLoading}
-        isError={isError}
-        onRetry={() => refetch()}
-        emptyState={
-          <EmptyState
-            title="Nenhuma multa encontrada"
-            description="Ajuste os filtros e tente novamente."
+      <PagePanel className="space-y-6">
+        <FilterBar>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por veículo, motorista ou infração"
+            className="w-full md:max-w-xs"
+            aria-label="Buscar multas"
           />
-        }
-      />
+          <Select value={status} onValueChange={(v) => setStatus(v as FineStatus | 'all')}>
+            <SelectTrigger className="w-full md:w-[200px]" aria-label="Filtrar por status">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as tratativas</SelectItem>
+              {(Object.keys(FINE_STATUS_LABEL) as FineStatus[]).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {FINE_STATUS_LABEL[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterBar>
+
+        <DataTable
+          columns={columns}
+          data={filtered}
+          getRowId={(f) => f.id}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => refetch()}
+          emptyState={
+            <EmptyState
+              title="Nenhuma multa encontrada"
+              description="Ajuste os filtros e tente novamente."
+            />
+          }
+        />
+      </PagePanel>
     </div>
   );
 }

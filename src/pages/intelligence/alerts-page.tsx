@@ -1,10 +1,17 @@
+import { BellIcon, CheckCircleIcon, ClockIcon, WarningIcon } from '@/components/icons';
 import { useMemo, useState } from 'react';
 
 import { DataTable, type DataTableColumn } from '@/components/shared/data-table';
 import { SeverityBadge, StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/states';
 import { FilterBar, SearchInput } from '@/components/shared/filters';
-import { PageHeader } from '@/components/layout/page-header';
+import {
+  HeroPill,
+  HeroStats,
+  PageHero,
+  PagePanel,
+  type HeroStat,
+} from '@/components/layout/page-hero';
 import {
   Select,
   SelectContent,
@@ -75,62 +82,107 @@ export default function AlertsPage() {
     },
   ];
 
+  const all = data ?? [];
+  const critical = all.filter((a) => a.severity === 'critical').length;
+  const high = all.filter((a) => a.severity === 'high').length;
+  const open = all.filter((a) => a.status === 'open').length;
+  const resolved = all.filter((a) => a.status === 'resolved').length;
+
+  const stats: HeroStat[] = [
+    { key: 'total', label: 'Alertas', value: all.length, hint: 'no período', icon: BellIcon },
+    {
+      key: 'criticos',
+      label: 'Críticos',
+      value: critical,
+      hint: critical > 0 ? 'exigem ação agora' : 'nenhum crítico',
+      icon: WarningIcon,
+      tone: critical > 0 ? 'alert' : 'neutral',
+    },
+    {
+      key: 'abertos',
+      label: 'Em aberto',
+      value: open,
+      hint: `${high} de severidade alta`,
+      icon: ClockIcon,
+      tone: high > 0 ? 'warn' : 'neutral',
+    },
+    {
+      key: 'resolvidos',
+      label: 'Resolvidos',
+      value: resolved,
+      hint: 'já tratados',
+      icon: CheckCircleIcon,
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <PageHeader
+    /* Sem `space-y` no container: a fileira de números sobe com margem NEGATIVA,
+       e a margem do utilitário vence a dela por especificidade. */
+    <div>
+      <PageHero
         title="Alertas"
         description="Central de alertas operacionais, de segurança e conformidade."
-      />
+      >
+        <HeroPill icon={BellIcon}>
+          {filtered.length === all.length
+            ? `${all.length} no total`
+            : `${filtered.length} de ${all.length}`}
+        </HeroPill>
+      </PageHero>
 
-      <FilterBar>
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar alerta ou veículo"
-          className="w-full md:max-w-xs"
-          aria-label="Buscar alertas"
-        />
-        <Select value={severity} onValueChange={(v) => setSeverity(v as Severity | 'all')}>
-          <SelectTrigger className="w-full md:w-[170px]" aria-label="Filtrar por severidade">
-            <SelectValue placeholder="Severidade" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toda severidade</SelectItem>
-            <SelectItem value="critical">Crítico</SelectItem>
-            <SelectItem value="high">Alto</SelectItem>
-            <SelectItem value="medium">Médio</SelectItem>
-            <SelectItem value="low">Baixo</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={category} onValueChange={(v) => setCategory(v as AlertCategory | 'all')}>
-          <SelectTrigger className="w-full md:w-[170px]" aria-label="Filtrar por categoria">
-            <SelectValue placeholder="Categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as categorias</SelectItem>
-            {(Object.keys(ALERT_CATEGORY_LABEL) as AlertCategory[]).map((c) => (
-              <SelectItem key={c} value={c}>
-                {ALERT_CATEGORY_LABEL[c]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FilterBar>
+      <HeroStats items={stats} />
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        getRowId={(a) => a.id}
-        isLoading={isLoading}
-        isError={isError}
-        onRetry={() => refetch()}
-        emptyState={
-          <EmptyState
-            title="Nenhum alerta encontrado"
-            description="Ajuste os filtros e tente novamente."
+      <PagePanel className="space-y-6">
+        <FilterBar>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar alerta ou veículo"
+            className="w-full md:max-w-xs"
+            aria-label="Buscar alertas"
           />
-        }
-      />
+          <Select value={severity} onValueChange={(v) => setSeverity(v as Severity | 'all')}>
+            <SelectTrigger className="w-full md:w-[170px]" aria-label="Filtrar por severidade">
+              <SelectValue placeholder="Severidade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toda severidade</SelectItem>
+              <SelectItem value="critical">Crítico</SelectItem>
+              <SelectItem value="high">Alto</SelectItem>
+              <SelectItem value="medium">Médio</SelectItem>
+              <SelectItem value="low">Baixo</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={category} onValueChange={(v) => setCategory(v as AlertCategory | 'all')}>
+            <SelectTrigger className="w-full md:w-[170px]" aria-label="Filtrar por categoria">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              {(Object.keys(ALERT_CATEGORY_LABEL) as AlertCategory[]).map((c) => (
+                <SelectItem key={c} value={c}>
+                  {ALERT_CATEGORY_LABEL[c]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterBar>
+
+        <DataTable
+          columns={columns}
+          data={filtered}
+          getRowId={(a) => a.id}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => refetch()}
+          emptyState={
+            <EmptyState
+              title="Nenhum alerta encontrado"
+              description="Ajuste os filtros e tente novamente."
+            />
+          }
+        />
+      </PagePanel>
     </div>
   );
 }

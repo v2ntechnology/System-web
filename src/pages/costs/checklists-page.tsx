@@ -1,4 +1,10 @@
-import { CameraIcon, ChevronRightIcon } from '@/components/icons';
+import {
+  CameraIcon,
+  ChecklistIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  WarningIcon,
+} from '@/components/icons';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -6,7 +12,13 @@ import { DataTable, type DataTableColumn } from '@/components/shared/data-table'
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/states';
 import { FilterBar, SearchInput } from '@/components/shared/filters';
-import { PageHeader } from '@/components/layout/page-header';
+import {
+  HeroPill,
+  HeroStats,
+  PageHero,
+  PagePanel,
+  type HeroStat,
+} from '@/components/layout/page-hero';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -27,8 +39,10 @@ export default function ChecklistsPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ChecklistStatus | 'all'>('all');
 
+  const all = useMemo(() => data ?? [], [data]);
+
   const filtered = useMemo(() => {
-    let result = data ?? [];
+    let result = all;
     const term = search.trim().toLowerCase();
     if (term) {
       result = result.filter(
@@ -38,7 +52,49 @@ export default function ChecklistsPage() {
     }
     if (status !== 'all') result = result.filter((c) => c.status === status);
     return result;
-  }, [data, search, status]);
+  }, [all, search, status]);
+
+  /* Os números abrem a tela e não dependem do filtro: eles descrevem a operação
+     inteira, e o filtro é recorte de quem está procurando alguma coisa. */
+  const stats: HeroStat[] = useMemo(() => {
+    const critical = all.filter((c) => c.status === 'critical').length;
+    const withIssue = all.filter((c) => c.status === 'with_issue').length;
+    const pending = all.filter((c) => c.status === 'pending').length;
+    const irregular = all.reduce((total, c) => total + c.irregularItems, 0);
+
+    return [
+      {
+        key: 'total',
+        label: 'Checklists',
+        value: all.length,
+        hint: 'recebidos no período',
+        icon: ChecklistIcon,
+      },
+      {
+        key: 'criticos',
+        label: 'Críticos',
+        value: critical,
+        hint: critical > 0 ? 'exigem tratativa agora' : 'nenhum crítico aberto',
+        icon: WarningIcon,
+        tone: critical > 0 ? 'alert' : 'neutral',
+      },
+      {
+        key: 'ocorrencias',
+        label: 'Com ocorrência',
+        value: withIssue,
+        hint: `${irregular} ${irregular === 1 ? 'item irregular' : 'itens irregulares'} no total`,
+        icon: CameraIcon,
+        tone: withIssue > 0 ? 'warn' : 'neutral',
+      },
+      {
+        key: 'pendentes',
+        label: 'Pendentes',
+        value: pending,
+        hint: 'aguardando preenchimento',
+        icon: ClockIcon,
+      },
+    ];
+  }, [all]);
 
   const columns: DataTableColumn<Checklist>[] = [
     {
@@ -88,50 +144,62 @@ export default function ChecklistsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
+    /* Sem `space-y` no container: a fileira de números sobe com margem NEGATIVA,
+       e a margem do utilitário vence a dela por especificidade. */
+    <div>
+      <PageHero
         title="Checklists"
         description="Inspeções digitais de devolução dos veículos, com evidências e ocorrências."
-      />
+      >
+        <HeroPill icon={ChecklistIcon}>
+          {filtered.length === all.length
+            ? `${all.length} no total`
+            : `${filtered.length} de ${all.length}`}
+        </HeroPill>
+      </PageHero>
 
-      <FilterBar>
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar por veículo ou motorista"
-          className="w-full md:max-w-xs"
-          aria-label="Buscar checklists"
-        />
-        <Select value={status} onValueChange={(v) => setStatus(v as ChecklistStatus | 'all')}>
-          <SelectTrigger className="w-full md:w-[190px]" aria-label="Filtrar por status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            {(Object.keys(CHECKLIST_STATUS_LABEL) as ChecklistStatus[]).map((s) => (
-              <SelectItem key={s} value={s}>
-                {CHECKLIST_STATUS_LABEL[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FilterBar>
+      <HeroStats items={stats} />
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        getRowId={(c) => c.id}
-        isLoading={isLoading}
-        isError={isError}
-        onRetry={() => refetch()}
-        onRowClick={(c) => navigate(`/app/checklists/${c.id}`)}
-        emptyState={
-          <EmptyState
-            title="Nenhum checklist encontrado"
-            description="Ajuste os filtros e tente novamente."
+      <PagePanel className="space-y-6">
+        <FilterBar>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por veículo ou motorista"
+            className="w-full md:max-w-xs"
+            aria-label="Buscar checklists"
           />
-        }
-      />
+          <Select value={status} onValueChange={(v) => setStatus(v as ChecklistStatus | 'all')}>
+            <SelectTrigger className="w-full md:w-[190px]" aria-label="Filtrar por status">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              {(Object.keys(CHECKLIST_STATUS_LABEL) as ChecklistStatus[]).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {CHECKLIST_STATUS_LABEL[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterBar>
+
+        <DataTable
+          columns={columns}
+          data={filtered}
+          getRowId={(c) => c.id}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => refetch()}
+          onRowClick={(c) => navigate(`/app/checklists/${c.id}`)}
+          emptyState={
+            <EmptyState
+              title="Nenhum checklist encontrado"
+              description="Ajuste os filtros e tente novamente."
+            />
+          }
+        />
+      </PagePanel>
     </div>
   );
 }

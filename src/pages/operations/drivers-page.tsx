@@ -1,11 +1,23 @@
-import { ChevronRightIcon } from '@/components/icons';
-import { useState } from 'react';
+import {
+  CheckCircleIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  UsersIcon,
+  WarningIcon,
+} from '@/components/icons';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { DataTable, type DataTableColumn } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/states';
-import { PageHeader } from '@/components/layout/page-header';
+import {
+  HeroPill,
+  HeroStats,
+  PageHero,
+  PagePanel,
+  type HeroStat,
+} from '@/components/layout/page-hero';
 import { SearchInput } from '@/components/shared/filters';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -14,10 +26,62 @@ import { formatDate, getInitials, formatPercent } from '@/lib/format';
 import { driverStatusDescriptor } from '@/lib/status-maps';
 import { type Driver } from '@/types';
 
+/*
+ * CNH vencendo em 30 dias: é o prazo em que ainda dá para renovar sem tirar o
+ * motorista da escala. Vencida também cai aqui, e é o caso urgente.
+ *
+ * ⚠️ Fora do componente de propósito: `Date.now()` no corpo do render é chamada
+ * impura, e o React Compiler recusa (o mesmo motivo vale na triagem).
+ */
+function cnhExpiringSoon(expiration: string): boolean {
+  return new Date(expiration).getTime() <= Date.now() + 30 * 24 * 3_600_000;
+}
+
 export default function DriversPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const { data, isLoading, isError, refetch } = useDrivers(search);
+
+  const all = useMemo(() => data?.data ?? [], [data]);
+
+  const stats: HeroStat[] = useMemo(() => {
+    const driving = all.filter((d) => d.status === 'driving').length;
+    const lowScore = all.filter((d) => d.drivingScore < 75).length;
+    const expiring = all.filter((d) => cnhExpiringSoon(d.cnhExpiration)).length;
+
+    return [
+      {
+        key: 'total',
+        label: 'Motoristas',
+        value: all.length,
+        hint: 'no cadastro',
+        icon: UsersIcon,
+      },
+      {
+        key: 'dirigindo',
+        label: 'Em viagem',
+        value: driving,
+        hint: 'na estrada agora',
+        icon: CheckCircleIcon,
+      },
+      {
+        key: 'cnh',
+        label: 'CNH a vencer',
+        value: expiring,
+        hint: expiring > 0 ? 'nos próximos 30 dias' : 'nenhuma vencendo',
+        icon: ClockIcon,
+        tone: expiring > 0 ? 'warn' : 'neutral',
+      },
+      {
+        key: 'pontuacao',
+        label: 'Pontuação baixa',
+        value: lowScore,
+        hint: lowScore > 0 ? 'abaixo de 75 pontos' : 'todos acima de 75',
+        icon: WarningIcon,
+        tone: lowScore > 0 ? 'alert' : 'neutral',
+      },
+    ];
+  }, [all]);
 
   const columns: DataTableColumn<Driver>[] = [
     {
@@ -82,33 +146,44 @@ export default function DriversPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
+    /* Sem `space-y` no container: a fileira de números sobe com margem NEGATIVA,
+       e a margem do utilitário vence a dela por especificidade. */
+    <div>
+      <PageHero
         title="Motoristas"
         description="Desempenho, segurança e conformidade dos condutores da frota."
-      />
-      <SearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder="Buscar por nome ou matrícula"
-        className="w-full md:max-w-xs"
-        aria-label="Buscar motoristas"
-      />
-      <DataTable
-        columns={columns}
-        data={data?.data ?? []}
-        getRowId={(d) => d.id}
-        isLoading={isLoading}
-        isError={isError}
-        onRetry={() => refetch()}
-        onRowClick={(d) => navigate(`/app/motoristas/${d.id}`)}
-        emptyState={
-          <EmptyState
-            title="Nenhum motorista encontrado"
-            description="Ajuste a busca e tente novamente."
-          />
-        }
-      />
+      >
+        <HeroPill icon={UsersIcon}>
+          {all.length} {all.length === 1 ? 'motorista' : 'motoristas'}
+        </HeroPill>
+      </PageHero>
+
+      <HeroStats items={stats} />
+
+      <PagePanel className="space-y-6">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar por nome ou matrícula"
+          className="w-full md:max-w-xs"
+          aria-label="Buscar motoristas"
+        />
+        <DataTable
+          columns={columns}
+          data={all}
+          getRowId={(d) => d.id}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => refetch()}
+          onRowClick={(d) => navigate(`/app/motoristas/${d.id}`)}
+          emptyState={
+            <EmptyState
+              title="Nenhum motorista encontrado"
+              description="Ajuste a busca e tente novamente."
+            />
+          }
+        />
+      </PagePanel>
     </div>
   );
 }

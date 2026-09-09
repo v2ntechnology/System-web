@@ -1,14 +1,15 @@
+import { GaugeIcon, MoneyIcon, RouteIcon, ShieldAlertIcon } from '@/components/icons';
 import { useState } from 'react';
 
-import {
-  ChartCard,
-  SimpleBarChart,
-  TrendAreaChart,
-  TrendLineChart,
-} from '@/components/shared/charts';
-import { InfoCard } from '@/components/shared/cards';
+import { SimpleBarChart, TrendAreaChart, TrendLineChart } from '@/components/shared/charts';
 import { DateRangeSelector, type DateRangePreset } from '@/components/shared/filters';
-import { PageHeader } from '@/components/layout/page-header';
+import {
+  HeroStats,
+  LightCard,
+  PageHero,
+  PagePanel,
+  type HeroStat,
+} from '@/components/layout/page-hero';
 import { PlanGuard } from '@/components/shared/guards';
 import { DASHBOARD_DATA } from '@/mocks/dashboard';
 import { type ChartPoint } from '@/types';
@@ -39,61 +40,99 @@ const PRODUCTIVITY: ChartPoint[] = [
 export default function AnalyticsPage() {
   const [range, setRange] = useState<DateRangePreset>('30d');
 
+  /* ⚠️ Números fixos, como já eram nos `InfoCard`: esta tela ainda desenha em
+     cima do mock, e trocar isso é assunto de dados, não de layout. */
+  const stats: HeroStat[] = [
+    {
+      key: 'custo-km',
+      label: 'Custo por km',
+      value: 'R$ 3,42',
+      hint: 'no período escolhido',
+      icon: MoneyIcon,
+    },
+    {
+      key: 'viagens',
+      label: 'Viagens no período',
+      value: '198',
+      hint: 'concluídas',
+      icon: RouteIcon,
+    },
+    {
+      key: 'incidentes',
+      label: 'Incidentes de segurança',
+      value: '6',
+      hint: 'registrados no período',
+      icon: ShieldAlertIcon,
+      tone: 'warn',
+    },
+    {
+      key: 'consumo',
+      label: 'Consumo médio',
+      value: '2,9 km/L',
+      hint: 'média da frota',
+      icon: GaugeIcon,
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <PageHeader
+    /* Sem `space-y` no container: a fileira de números sobe com margem NEGATIVA,
+       e a margem do utilitário vence a dela por especificidade. */
+    <div>
+      <PageHero
         title="Analytics"
         description="Painéis analíticos de custos, produtividade, segurança e consumo."
-        actions={<DateRangeSelector value={range} onChange={setRange} />}
       />
 
-      <PlanGuard module="analytics">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <InfoCard label="Custo por km" value="R$ 3,42" accent="info" />
-          <InfoCard label="Viagens no período" value="198" accent="success" />
-          <InfoCard label="Incidentes de segurança" value="6" accent="warning" />
-          <InfoCard label="Consumo médio" value="2,9 km/L" />
+      <HeroStats items={stats} />
+
+      <PagePanel className="space-y-6">
+        {/* O seletor de período desceu da faixa: ele recorta o conteúdo, e a
+            faixa é o cabeçalho da tela, não a barra de controles. */}
+        <div className="flex justify-end">
+          <DateRangeSelector value={range} onChange={setRange} />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <ChartCard
-            title="Evolução dos custos"
-            description="Custo operacional total (R$ mil) por mês"
-          >
-            <TrendAreaChart
-              data={DASHBOARD_DATA.charts.costEvolution}
-              series={[{ key: 'custo', label: 'Custo (R$ mil)', color: 'var(--color-primary)' }]}
-            />
-          </ChartCard>
+        <PlanGuard module="analytics">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <LightCard
+              title="Evolução dos custos"
+              description="Custo operacional total (R$ mil) por mês"
+            >
+              <TrendAreaChart
+                data={DASHBOARD_DATA.charts.costEvolution}
+                series={[{ key: 'custo', label: 'Custo (R$ mil)', color: 'var(--color-primary)' }]}
+              />
+            </LightCard>
 
-          <ChartCard title="Custos por categoria" description="Distribuição de custos no período">
-            <SimpleBarChart
-              data={COST_BY_CATEGORY}
-              dataKey="valor"
-              label="Valor (R$)"
-              color="var(--color-accent)"
-            />
-          </ChartCard>
+            <LightCard title="Custos por categoria" description="Distribuição de custos no período">
+              <SimpleBarChart
+                data={COST_BY_CATEGORY}
+                dataKey="valor"
+                label="Valor (R$)"
+                color="var(--color-accent)"
+              />
+            </LightCard>
 
-          <ChartCard title="Segurança" description="Incidentes registrados por mês">
-            <TrendLineChart
-              data={SAFETY_TREND}
-              series={[
-                { key: 'incidentes', label: 'Incidentes', color: 'var(--color-destructive)' },
-              ]}
-            />
-          </ChartCard>
+            <LightCard title="Segurança" description="Incidentes registrados por mês">
+              <TrendLineChart
+                data={SAFETY_TREND}
+                series={[
+                  { key: 'incidentes', label: 'Incidentes', color: 'var(--color-destructive)' },
+                ]}
+              />
+            </LightCard>
 
-          <ChartCard title="Produtividade" description="Viagens concluídas por semana">
-            <SimpleBarChart
-              data={PRODUCTIVITY}
-              dataKey="viagens"
-              label="Viagens"
-              color="var(--color-info)"
-            />
-          </ChartCard>
-        </div>
-      </PlanGuard>
+            <LightCard title="Produtividade" description="Viagens concluídas por semana">
+              <SimpleBarChart
+                data={PRODUCTIVITY}
+                dataKey="viagens"
+                label="Viagens"
+                color="var(--color-info)"
+              />
+            </LightCard>
+          </div>
+        </PlanGuard>
+      </PagePanel>
     </div>
   );
 }
