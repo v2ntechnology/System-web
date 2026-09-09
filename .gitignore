@@ -5,7 +5,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Previews descartaveis: HTML solto na raiz que monta um componente isolado no
+# navegador (o Vite serve qualquer .html da raiz), sem passar pelo roteador.
+# Sao rascunho de sessao e apontam para arquivos que podem nem existir mais.
 .session-preview.*
+.*-preview.html
 
 # Dependencies
 node_modules
