@@ -12,13 +12,18 @@ export function AppShell({ navigation }: { navigation: NavGroup[] }) {
     <div className="flex h-svh w-full overflow-hidden bg-background">
       <AppSidebar navigation={navigation} />
       <MobileSidebar navigation={navigation} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* `relative`: é aqui que a barra de vidro se ancora. Ela saiu do fluxo
+          para o conteúdo poder correr por baixo dela (ver `topbar.tsx`). */}
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <Topbar />
         <main className="flex-1 overflow-y-auto">
           {/* Sem largura máxima (decisão do usuário em 20/08/2026): o conteúdo
               acompanha a janela, e quem trabalha em monitor grande não fica com
-              duas faixas vazias nas laterais. */}
-          <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8">
+              duas faixas vazias nas laterais.
+
+              O recuo de cima é a altura da barra flutuante (56px) mais as duas
+              folgas: sem ele a primeira linha da tela nasceria embaixo do vidro. */}
+          <div className="w-full space-y-6 px-4 pb-8 pt-[5.25rem] sm:px-6 lg:px-8">
             <Outlet />
           </div>
         </main>

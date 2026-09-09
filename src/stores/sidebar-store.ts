@@ -14,7 +14,10 @@ interface SidebarState {
 export const useSidebarStore = create<SidebarState>()(
   persist(
     (set, get) => ({
-      collapsed: false,
+      /* ⚠️ Recolhida por padrão desde 09/09/2026, a pedido do usuário: o
+         desenho da barra é o TRILHO de pastilhas, e é assim que ele abre.
+         Quem prefere os rótulos expande uma vez, e a escolha fica gravada. */
+      collapsed: true,
       mobileOpen: false,
       toggleCollapsed: () => set({ collapsed: !get().collapsed }),
       setCollapsed: (value) => set({ collapsed: value }),
