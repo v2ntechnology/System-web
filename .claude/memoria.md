@@ -1255,6 +1255,58 @@ Pedido do usuário, e as três armadilhas abaixo custaram uma captura de tela ca
 - O aviso de play sai de um EFEITO, e não do clique: o replay também termina sozinho ao chegar ao
   fim, e ali não há clique nenhum. Sem isso a câmera ficaria presa na perseguição.
 
+### A roda do mouse e o ritmo do replay (09/09/2026)
+
+Dois pedidos do usuário sobre o mapa ao vivo, no mesmo dia, os dois com causa fora do lugar óbvio.
+
+- ⚠️ **A página dava um solavanco vertical no meio do zoom, e a culpa é da ÁRVORE, não do
+  MapLibre.** Ele escuta `wheel` no `.maplibregl-canvas-container`, e a legenda, a barra do topo e o
+  painel do trajeto são **irmãos** do container do mapa, desenhados por cima com `absolute`. Girar a
+  roda sobre qualquer um deles nunca chegava ao mapa, e quem rolava era a página. Para quem usa não
+  existem duas camadas: o cursor está "no mapa" e o que se espera é zoom. A correção é um ouvinte na
+  **captura** da moldura (`live-map-page.tsx`), que barra a rolagem em todo o retângulo e reenvia o
+  giro ao canvas pelo `zoomComRoda` do `FleetMapHandle`.
+- ⚠️ **O reenvio é o MESMO evento, clonado, e não uma conta de zoom escrita à mão.** O passo, a
+  suavização e a âncora sob o cursor continuam sendo os do MapLibre. O clone nasce com `isTrusted`
+  falso, e é isso que corta o laço: ele volta a passar pela captura da moldura, que só trata giro de
+  verdade. Sem esse guarda, recursão infinita.
+- ⚠️ **Cuidado ao pôr qualquer coisa ROLÁVEL dentro da moldura do mapa.** O ouvinte barra a rolagem
+  do retângulo inteiro. Hoje não há nada com `overflow` lá dentro (o menu de base usa Portal e a
+  gaveta da ficha é irmã da moldura), e quem acrescentar uma lista rolável ali precisa abrir exceção
+  no ouvinte, senão ela não rola.
+- **O replay estava quatro vezes rápido demais, e o usuário chamou o número certo**: "o 1x de hoje é
+  na verdade o 4x". O `DURACAO_ALVO_S` do `track-timeline.ts` era 40 segundos para o trajeto inteiro,
+  então um dia de rodagem passava em 40 segundos. Passou para **160**, e a escala inteira desceu
+  junto: 2min40 a 1x, 1min20 a 2x e 40s a 4x, que é exatamente o 1x de antes. Medido no navegador com
+  o replay correndo: ritmo 1,00 a 1x e 3,97 a 4x.
+- A constante vale para QUALQUER janela (6h, 24h ou 72h), porque tudo é reescalado para ela. Mexer
+  nesse número muda as três velocidades de uma vez, que é o ponto dela existir.
+- Efeito colateral esperado e desejável na camada 3D: a velocidade do marcador caiu junto, então as
+  rodas giram mais devagar e o balanço do corpo ficou mais discreto. Os dois são proporcionais à
+  velocidade medida entre quadros, e antes ela era artificialmente alta.
+- ⚠️ **A lista lateral acompanha quem foi escolhido NO MAPA**, rolando até a linha dele. Antes a
+  linha ficava marcada, mas podia estar a trinta placas de distância, fora da área visível: a tela
+  apontava para um lugar que ninguém estava vendo.
+- ⚠️ **Quem rola é a LISTA, no `scrollTop` dela, e NÃO `scrollIntoView`.** Aquele método sobe
+  rolando todos os ancestrais roláveis até achar espaço, e o de cima é a página: usá-lo aqui traria
+  de volta o solavanco vertical que o ouvinte da roda tinha acabado de resolver, no mesmo dia.
+- **Item já visível fica onde está.** Centralizar sempre faria a lista pular a cada clique nela
+  mesma, inclusive na linha que estava debaixo do cursor. Perto das pontas o item também não chega
+  ao centro, porque o scroll acaba antes, e isso é correto: medido, o 36º de 37 para em 59px do
+  centro.
+- ⚠️ **Se o filtro ou a busca escondem o veículo escolhido, não há linha para centralizar** e o
+  efeito não faz nada. É o caso de escolher no mapa um "em viagem" com o filtro em "sem sinal".
+- **A pastilha do frescor ficou LARANJA e desceu 8px**, os dois a pedido do usuário. O deslocamento
+  é `translate-y-2`, e não margem: `translate` não ocupa espaço no layout, então o segmentado de
+  filtros ao lado não sai do lugar, que era a condição do pedido.
+- ⚠️ **A pastilha do frescor da leitura voltou da faixa laranja para a linha dos filtros**, no mesmo
+  dia e a pedido do usuário. ISSO REVERTE a mudança registrada em `Mapa ao vivo como central de
+comando`, e o comentário que justificava a ida para a faixa foi reescrito no lugar. O desenho
+  mudou junto, e tinha de mudar: sobre a faixa o estado era dito invertendo a pastilha para branco
+  cheio, e no painel claro isso desapareceria. Agora em dia ela é o mesmo poço (`bg-light-container`)
+  do trilho de filtros ao lado, e atrasada vira `bg-warning-on-light/12` com texto âmbar, que é a
+  pastilha de alerta que o resto do painel já usa.
+
 ### Hover do sair e contraste do menu superior (06/09/2026)
 
 - ⚠️ **O botão de sair do `/app` tinha DOIS defeitos, não um.** Medido: no hover a cor ia de
@@ -1301,6 +1353,219 @@ Pedido do usuário, e as três armadilhas abaixo custaram uma captura de tela ca
   formulário em silêncio.
 - A lista é paginada no CLIENTE: `/v1/vehicles` devolve a frota toda, 40 linhas. O sinal para
   mudar isso é a resposta passar de alguns milhares.
+
+### Busca e categorias na mesma linha em Custos (09/09/2026)
+
+Pedido do usuário: as pastilhas de categoria (Caminhão, Van) foram para a direita do campo de busca,
+em vez de empilhadas embaixo dele. São os dois controles do mesmo recorte, e empilhados empurravam o
+ranking para baixo da dobra num notebook.
+
+- ⚠️ **O `gap-1.5` da coluna das categorias repete o do `GlassInput`**, que é quem separa o rótulo do
+  campo lá dentro. Sem copiar esse número, o "Por categoria" e o "BUSCAR" saem em alturas diferentes
+  e as duas metades da linha parecem desencontradas. Conferido no navegador: os dois rótulos no
+  mesmo `top`.
+- **O grid das pastilhas caiu de `xl:grid-cols-5` para `xl:grid-cols-4`**, porque agora divide a
+  linha com a busca. Sem isso as pastilhas ficariam estreitas demais no espaço que sobrou.
+- Empilha abaixo de `lg`. Medido em 1920, 1440, 1100, 900 e 500px: lado a lado nos três primeiros,
+  empilhado nos dois últimos, e nenhuma largura transborda na horizontal.
+- **As próprias CATEGORIAS também ficaram lado a lado**, no mesmo dia e a pedido do usuário: sem
+  filtro escolhido a tela mostra a frota inteira, e Caminhão em cima de Van empurrava a segunda para
+  fora da dobra, de modo que comparar as duas exigia rolar até perder a primeira de vista.
+- ⚠️ **Duas colunas só com MAIS DE UM grupo** (`grupos.length > 1 && 'xl:grid-cols-2'`). Com um só, o
+  grid deixaria a lista em meia largura e a outra metade vazia, que é exatamente o estado logo depois
+  de clicar numa pastilha de categoria. Conferido: com "Caminhão" escolhido a lista volta a ocupar
+  os 1840px inteiros; sem filtro, cada categoria fica com 904px.
+- ⚠️ **As colunas têm alturas diferentes de propósito**, e igualá-las seria erro: são 20 caminhões
+  contra 6 vans, e esticar a menor só inventaria espaço vazio dentro dela. Daí o `items-start`.
+- O corte é `xl` (1280px). Medido em 1920, 1600, 1440, 1280, 1100, 900 e 500: lado a lado até 1280,
+  empilhado de 1100 para baixo, sem transbordo horizontal em nenhuma.
+
+### O "Sair" do rodapé estava cinza, e eram dois empates (09/09/2026)
+
+O usuário pediu o hover de botão só-ícone nos dois ícones do rodapé do menu do `/app`. Medido, o
+hover **já estava certo**: o `compoundVariants` de `ghost + icon` no `ui/button.tsx` injeta
+`acao-neutra hover:bg-transparent hover:text-on-surface` desde que a regra foi estendida ao painel
+operacional. A cor andava e nenhum fundo aparecia.
+
+⚠️ **Mas o botão "Sair" saía CINZA, igual ao de configurações ao lado**, quando o próprio arquivo diz
+que ele é a cor de remover. Duas causas somadas, e cada uma pede um lugar diferente:
+
+- **Cor de repouso**: o `cn` não sabia que `.acao-neutra` e `.acao-sair` disputam a mesma coisa, e as
+  duas ficavam na string; vencia a que o `globals.css` declara por último, que é a `.acao-neutra`.
+  Resolvido em `lib/utils.ts`, ensinando o grupo ao `tailwind-merge` com
+  `extendTailwindMerge<'acao'>`. ⚠️ O `'acao'` no parâmetro de TIPO é obrigatório: sem ele o
+  TypeScript só aceita os ids de fábrica e acusa `TS2353`.
+- ⚠️ **`.acao-sair-no-menu` NÃO entra nesse grupo.** Ela não é uma sexta cor, é um reforço que anda
+  junto com `.acao-sair` na mesma string (ver `user-menu.tsx`). No grupo, o merge descartaria uma
+  delas e o botão perderia repouso ou hover.
+- **Hover**: o `hover:text-on-surface` do mesmo `compoundVariants` é utilitário, e utilitário vence
+  `@layer components` por CAMADA. Resolvido pondo `.acao-sair:hover` em `@layer utilities` no
+  `globals.css`, ao lado da `.acao-sair-no-menu`, que existia pelo mesmo motivo.
+- Medido depois, no operador: repouso `rgb(225,29,72)` e hover num vermelho mais fechado, sem fundo
+  em nenhum dos dois estados; a engrenagem segue cinza andando para o texto cheio. Na manutenção a
+  cor de repouso confere e a regra de hover está no CSSOM: o rodapé é o MESMO componente para os dois
+  perfis, sem ramificação.
+
+⚠️ **A regra do projeto continua valendo e foi reconfirmada pelo usuário**: hover de botão só-ícone
+move a COR DO TRAÇO, nunca desenha anel nem fundo. Quando ele falou em "hover no contorno", era o
+traço do ícone, e não uma borda nova.
+
+⚠️ **Armadilha de teste que repetiu:** `locator.click()` e `locator.hover()` do Playwright não
+acionam elemento que seja `TooltipTrigger asChild` do Radix, e no menu recolhido o botão de expandir
+é um. O que funciona é `element.click()` por `page.evaluate`. Quando nem o `:hover` registra, a prova
+que resta é ler a regra no CSSOM (`document.styleSheets`), que é determinística.
+
+### A espera e o trilho do /app copiaram o painel de gestão (09/09/2026)
+
+Dois pedidos do usuário no mesmo dia, os dois de consistência entre os quatro perfis.
+
+- **A espera das telas do `/app` virou a do `QueryState` do gestão.** O `LoadingState` mostrava um
+  giro de 16px com o rótulo escrito ao lado (`py-12`); agora é o giro de 24px sozinho, centrado num
+  bloco `min-h-60`, exatamente como no painel de gestão. Vale para as seis telas do `/app` que o
+  usam e para o `PageFallback` do carregamento de módulo, que dizia "Carregando módulo…".
+- ⚠️ **O rótulo NÃO sumiu, mudou de lugar**: foi para o `aria-label` do próprio SVG, que é como o
+  giro do gestão anuncia a espera. Ler "Carregando ordens…" a cada navegação é ruído para quem
+  enxerga, e apagar de vez seria silêncio para quem não enxerga. Medido na tela: giro 24x24, bloco
+  de 240px, `aria-label="Carregando ordens…"` e texto visível vazio.
+- **O trilho lateral do `/app` ganhou a curva e os tempos do drawer do assistente**: `ease-out` no
+  lugar de `ease-in-out`, com 300ms para abrir e 200ms para fechar. Conferido no navegador:
+  `cubic-bezier(0, 0, 0.2, 1)` nos dois sentidos, `0.3s` ao expandir e `0.2s` ao recolher.
+- ⚠️ **O tempo mora na classe do ESTADO ALVO**, e é isso que faz a assimetria funcionar: quando
+  `collapsed` vira verdadeiro, a transição para 84px já lê `duration-200`; a volta para 256px lê
+  `duration-300`. Pôr os dois na classe fixa daria um tempo só.
+- ⚠️ **Igualar mais que a curva não dá, e o motivo é estrutural.** O drawer desliza uma peça pronta
+  por `transform`; o trilho anima LARGURA, que custa refluxo a cada quadro, e ainda TROCA o conteúdo
+  no caminho (a marca vira o símbolo, o botão muda de lugar, os rótulos somem). Deixar o trilho
+  flutuar sobre o conteúdo, como o drawer faz, mudaria o layout do painel inteiro, porque hoje ele
+  empurra a coluna em vez de cobrir.
+
+⚠️ **Armadilha de teste, não de código:** emular rede lenta pelo CDP (`Network.emulateNetworkConditions`)
+para observar o estado de carregamento **travou a página duas vezes**, e o `page.goto` seguinte
+estourou o tempo mesmo depois de restaurar as condições. Foi preciso derrubar o navegador. Para ver
+um estado que passa rápido, o caminho que funcionou foi um `MutationObserver` na página guardando a
+primeira ocorrência, sem mexer na rede.
+
+### O assistente virou um só nos quatro perfis (09/09/2026)
+
+Relatado pelo usuário: no painel operacional a IA abria numa tela própria, e não no drawer. A
+verificação achou coisa pior que um destino errado.
+
+- ⚠️ **Eram DOIS assistentes, e o do `/app` não era assistente nenhum.** O `AiLauncher` fazia
+  `navigate('/app/ia')`, e aquela tela **fabricava a resposta em código**: a função `buildAnswer`
+  devolvia sempre o mesmo texto ("3 veículos da linha pesada com aumento de consumo acima de 9%"),
+  com fontes e histórico fixos. Do outro lado, dono e gestor conversavam com `/v1/assistant/ask` de
+  verdade pelo drawer. Operador e manutenção recebiam resposta inventada sem nada avisando.
+- **Agora o `AppShell` monta o mesmo `AssistantDrawer` do painel de gestão** e liga o
+  `useAssistantShortcut`, então Ctrl+K passou a valer nos quatro. O `title` do atalho flutuante já
+  prometia o atalho antes de ele existir deste lado.
+- ⚠️ **Importar do `management` no `/app` é de propósito.** Drawer, store e atalho são os MESMOS
+  objetos, e uma cópia local divergiria na primeira correção. A sessão atravessa porque
+  `management/features/auth/store` é uma ponte sobre o `session-store` único, e não um segundo store:
+  isso é o que torna o drawer portável entre os dois painéis.
+- **Saíram os TRÊS caminhos que levavam à tela**: a rota `/app/ia`, o item de menu "IA RookHub" e o
+  botão do `ai-insight-card`, que agora abre o drawer e diz "Perguntar à assistente". O arquivo
+  `pages/intelligence/ai-page.tsx` foi apagado.
+- Conferido nos quatro perfis com as contas da seed: `manutencao@`, `operador@`, `gestor@` e `dono@`
+  abrem o drawer com campo de pergunta, e o Ctrl+K também abre. O menu não tem mais o item e
+  `/app/ia` cai na tela 404 do projeto, sem quebrar.
+- ⚠️ **`botao.click()` do Playwright NÃO abre este atalho**, e isso é armadilha de teste, não defeito:
+  o botão do `/app` é `TooltipTrigger asChild` do Radix. O clique programático (`el.click()`) e o
+  mouse de verdade (`mouse.down`/`up` nas coordenadas) funcionam; o `.click()` do locator ficava sem
+  efeito e me fez procurar defeito onde não havia.
+
+⚠️ **Contexto que apareceu na varredura e vale para o painel inteiro:** o `/app` roda sobre MOCK.
+`operatorService`, `maintenanceService`, `checklistService`, `alertService` e `dashboardService` todos
+devolvem `mockResponse`, e a fronteira para o backend é `management/features/operator/api.ts`. O
+dashboard do operador que o Vinícius refez em 09/09 é bonito e é maquete. Isso qualifica o aviso de
+demonstração que foi posto na tela de Análise no mesmo dia: ele está certo, mas as telas vizinhas
+estão no mesmo estado sem dizer.
+
+### As animações do atalho da IA saíram (09/09/2026)
+
+Pedido do usuário, sem meio-termo: "remova todas, não vai ter mais animações ali". Eram **20**
+animações sorteadas, uma a cada **8 segundos** com o atalho parado, mais uma a cada `hover` ou
+`focus`.
+
+- Saíram os três lugares de uma vez: o hook `hooks/use-bot-animation.ts` (apagado), o uso nos dois
+  atalhos (`management/components/layout/assistant-fab.tsx`, da gestão, e
+  `components/layout/ai-launcher.tsx`, do operacional) e **69 regras** do `styles/globals.css`, entre
+  classes `.bot-anim-*`, `.bot-eye`, `.bot-mouth` e os `@keyframes bot-*`. O CSS encolheu de 1.562
+  para 891 linhas.
+- ⚠️ **O bloco do CSS NÃO podia ser cortado de uma vez.** Entre a primeira e a última regra do bot
+  moravam `.brand-gradient-text`, `.map-surface` e o ajuste da atribuição do MapLibre, que é o
+  crédito obrigatório do OpenStreetMap. Recortar o intervalo inteiro levaria os três junto, e o do
+  mapa é problema de licença, não de estilo. A remoção foi regra a regra, por seletor.
+- `.bot-eye` e `.bot-mouth` já eram código morto antes disso: os dois atalhos mostram o logo num
+  `<img>`, e o robô com rosto que aquelas regras animavam não existe mais em TSX nenhum.
+- **O `hover:scale-105` FICOU**, nos dois, mas MUDOU DE ELEMENTO no mesmo dia. É transição de estado
+  ao ponteiro, e não animação espontânea: tirá-lo deixaria o botão sem resposta ao mouse.
+- ⚠️ **Escalar um elemento que contém `<img>` BORRA a imagem no hover**, e foi o que o usuário
+  relatou logo depois: o logo ficava nítido parado e embaçado ao passar o mouse. O navegador
+  rasteriza o conteúdo da camada uma vez e amplia o bitmap, em vez de redesenhar no tamanho final.
+  Vale para SVG em `<img>` também, porque ali ele já virou bitmap no tamanho de layout.
+- **A correção foi tirar o `img` de dentro da camada que escala**: quem cresce agora é um `span` de
+  fundo (`absolute inset-0`, com a cor e o raio) e o logo fica por cima, sem transform. O quadrado
+  continua expandindo igual, e o logo é desenhado uma vez, no tamanho final.
+- ⚠️ **O `img` precisa de `relative`**: o fundo é `absolute` e, sem posicionamento, o logo seria
+  pintado ATRÁS dele. Elemento posicionado pinta acima de não posicionado no mesmo contexto.
+- ⚠️ SVG inline resolveria também, e melhor, mas **não é o padrão daqui**: o projeto não tem `svgr`, e
+  até o `RookMark` usa `<img>`. Trocar isso seria mudança de arquitetura para um botão.
+- Conferido no navegador, nos dois painéis, com a conta certa em cada um: `animationstart` observado
+  por **20 segundos** (caberiam duas animações no ciclo de 8s) não disparou nenhuma vez, o `<span>`
+  que recebia a classe sumiu do DOM e o CSS carregado tem **zero** regras `bot-anim`.
+
+### A régua do consumo passou a ser a mesma em toda tela (09/09/2026)
+
+Pedido do usuário: as médias de consumo não podiam divergir entre telas no mesmo período. Varri
+`/gestao` (gestor e dono) e `/app` procurando toda média de veículo, e a divergência era uma só, mas
+grande.
+
+- ⚠️ **O card do dono tinha cálculo próprio, por MÉDIA DAS MÉDIAS.** Medido contra os dados de
+  produção do dia: dava **4,55 km/l** para "truck" onde a régua ponderada dá **3,56**, uma
+  superestimação de **27,7%**. Na van a diferença era de só 0,5%, porque as vans são homogêneas: é
+  na categoria heterogênea que a média das médias erra feio. Agora ele chama o mesmo
+  `aggregateFuel` da tela de Custos.
+- Eram **três** divergências no mesmo lugar, e não uma: média das médias, contar veículo PARADO no
+  período (Custos exclui) e mandar veículo sem categoria para `truck` em vez de `sem-categoria`.
+- ⚠️ **A média do card do dono não aparece na tela**: ela decide quais consumos saem em VERMELHO
+  (`text-error-on-light`; o âmbar da coluna ao lado é do motor parado, outra regra). Régua
+  inflada gera ALERTA FALSO, que é pior que não alertar, porque quem confere perde a confiança na
+  cor. O corte também foi alinhado, de 15% para os **10%** de Custos, senão o mesmo veículo ficava
+  âmbar numa tela e normal na outra.
+- **O impacto visível hoje é de UMA linha**: o QJC8352, a 3,46 km/l, deixa de ser destacado. O valor
+  da correção está na consistência e no dia em que a frota mudar, não no efeito imediato.
+- ✅ **A régua do front bate exatamente com a do backend.** Conferido em 09/09/2026 chamando as duas
+  rotas: `aggregateFuel` sobre os 40 veículos dá **4,13 km/l**, o mesmo valor da métrica `consumo` de
+  `/v1/fleet/operations`. O backend usa `km_medido / litros` em todas as consultas (ver a nota
+  **QUILOMETRAGEM RODADA NÃO É QUILOMETRAGEM QUE ENTRA NO CONSUMO** no `FleetQueries` do
+  `Backend-web`, de 06/09/2026). A média das médias sobre a mesma frota daria 5,90, ou 43% a mais.
+- `fuel.test.ts` trava a régua: ponderação por km, quem não mede fica de fora sem virar zero, parado
+  não entra, separação por categoria e o destino de quem não tem categoria.
+
+**Auditado e correto, sem mexer:** `unit-performance-card` e os painéis de motorista usam
+`avgFuelEfficiency` vindo do backend, já calibrado; `journey-list` e `vehicle-detail-panel` mostram o
+valor de UM percurso ou de UM veículo, que não é média agregada; `/app` `fuel-page` pondera pelos
+litros dos abastecimentos lançados à mão, que é outra fonte e outra pergunta.
+
+**As duas pendências da varredura foram resolvidas no mesmo dia**, a pedido do usuário:
+
+- ⚠️ **A referência das FILIAIS era média das taxas, e o erro era maior que o do consumo.** Medido nos
+  dados de produção: 177,4 eventos por mil km contra **206,7** da conta ponderada, porque a filial
+  GIG rodou só 2.222 km com 40 eventos por mil e puxava a régua de toda a frota para baixo. O efeito
+  na tela era o oposto da intenção escrita no próprio bloco ("comparar com a melhor faria todas
+  parecerem ruins"): **quatro das cinco filiais em vermelho, agora uma**. A conta certa é a mesma
+  pergunta que a taxa faz: eventos da frota inteira sobre quilômetros da frota inteira.
+- **A tela `/app` `analytics-page.tsx` passou a DIZER que é demonstração.** Ela mostrava "2,9 km/L"
+  como "média da frota" enquanto `/gestao/custos` mostrava 4,13 para a mesma frota no mesmo período,
+  sem nada avisando qual era o real.
+- ⚠️ **Ligar aquela tela de a pouco foi descartado, e o motivo importa**: dos quatro números, só o
+  consumo tem fonte direta hoje (a métrica `consumo` de `/v1/fleet/operations`); "Custo por km"
+  depende do lançamento de despesa, que ainda não existe. Um número real ao lado de três inventados
+  é PIOR, porque empresta credibilidade ao conjunto. Quando o custo tiver origem, a tela liga
+  inteira e o aviso sai junto.
+- ⚠️ **Nenhuma das duas telas pôde ser conferida no navegador**: a de filiais exige perfil DONO e a
+  de Análise é do painel `/app`, e a sessão de teste é de gestor do painel de gestão. A validação
+  foi por cálculo sobre os dados reais das rotas, mais typecheck, testes e lint.
 
 ### O consumo passou a ser agrupado por categoria (06/09/2026)
 
@@ -1922,10 +2187,13 @@ O fornecedor, os limites dele e as armadilhas da ingestão estão em
   arquivo, e mover a pasta para fora de `public/` **não** resolve, porque a varredura é do projeto
   inteiro. A correção são os dois `@source not` no topo do `globals.css`. Modelo novo entra numa
   pasta já excluída ou ganha o próprio `@source not`.
-- ⚠️ **Os GLB originais moram em `public/original-models/` e o Git ignora a pasta** (decisão do
-  usuário em 05/09/2026). São 90 MB convertidos do 3D Warehouse, e este repositório é público:
-  quem clonar não recebe nenhum deles, e o `npm run build` copia a pasta inteira para o `dist`,
-  que passou de 7,8 MB para 92 MB. Os sete modelos são `cavalo-8x4`, `cavalo-6x4` (derivado do 8x4 em 06/09/2026: saiu o
+- ⚠️ **Os GLB originais moram em `original-models/`, na raiz do projeto, e o Git ignora a
+  pasta** (decisão do usuário em 05/09/2026; a pasta saiu de `public/` para a raiz em
+  09/09/2026). São 123 MB convertidos do 3D Warehouse, e este repositório é público: quem clonar
+  não recebe nenhum deles. Enquanto viveram em `public/`, o `npm run build` copiava a pasta
+  inteira para o `dist`, que ia de 7,8 MB para 92 MB; fora de `public/` o Vite não os copia mais,
+  mas o `@source not` do `globals.css` continua obrigatório, agora apontando para
+  `../../original-models`. Os sete modelos são `cavalo-8x4`, `cavalo-6x4` (derivado do 8x4 em 06/09/2026: saiu o
   segundo eixo direcional e o chassi encurtou 60 cm),
   `conjunto-6x4-basculante-fixo`, `conjunto-8x4-basculante-fixo`,
   `conjunto-quaditrem-basculante`, `conjunto-rodotrem-basculante` e
