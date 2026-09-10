@@ -2,7 +2,6 @@ import {
   ApprovalIcon,
   BellIcon,
   BillingIcon,
-  BotIcon,
   BoxesIcon,
   ChartBarIcon,
   ChecklistDoneIcon,
@@ -169,15 +168,18 @@ export const APP_NAVIGATION: NavGroup[] = [
     ],
   },
   {
-    label: 'Inteligência',
+    /*
+     * ⚠️ Chamava-se "Inteligência" e o nome perdeu o sentido em 09/09/2026,
+     * quando a IA saiu daqui: ela deixou de ser uma tela e virou o drawer que
+     * flutua sobre todas. Sobraram Analytics e Alertas, e o grupo passou a usar
+     * o mesmo rótulo que o painel de gestão dá ao conjunto equivalente.
+     *
+     * ⚠️ Para o perfil de manutenção este grupo mostra SÓ "Alertas", porque ele
+     * não tem `analytics.view`. Um grupo de um item só é normal aqui: quem
+     * decide o que aparece é a permissão, não o desenho do menu.
+     */
+    label: 'Análise',
     items: [
-      {
-        label: 'IA RookHub',
-        path: '/app/ia',
-        icon: BotIcon,
-        moduleKey: 'ai',
-        permission: 'ai.use',
-      },
       {
         label: 'Analytics',
         path: '/app/analytics',

@@ -1,14 +1,16 @@
 import { ArrowRightIcon, SparklesIcon } from '@/components/icons';
-import { useNavigate } from 'react-router';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatPercent } from '@/lib/format';
+import { useAssistantStore } from '@/management/features/assistant/store';
 import type { AiInsight } from '@/types';
 
 export function AIInsightCard({ insight }: { insight: AiInsight }) {
-  const navigate = useNavigate();
+  /* O mesmo drawer dos quatro perfis: o card levava para a tela que fabricava
+     resposta, e ela saiu em 09/09/2026. */
+  const openAssistant = useAssistantStore((state) => state.openAssistant);
 
   return (
     <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-card to-primary/5">
@@ -34,8 +36,8 @@ export function AIInsightCard({ insight }: { insight: AiInsight }) {
           </div>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button size="sm" variant="brand" onClick={() => navigate('/app/ia')}>
-            Abrir central de IA
+          <Button size="sm" variant="brand" onClick={openAssistant}>
+            Perguntar à assistente
             <ArrowRightIcon className="h-4 w-4" />
           </Button>
         </div>

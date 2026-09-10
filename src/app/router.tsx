@@ -26,7 +26,7 @@ import type { UserRole } from '@/types';
 function PageFallback() {
   return (
     <div className="pointer-events-none fixed inset-0 grid place-items-center">
-      <LoadingState label="Carregando módulo…" />
+      <LoadingState label="Carregando a tela" className="min-h-0" />
     </div>
   );
 }
@@ -256,7 +256,6 @@ const protectedRoutes: RouteObject = {
       path: 'analytics',
       element: lazyElement(() => import('@/pages/intelligence/analytics-page')),
     },
-    { path: 'ia', element: lazyElement(() => import('@/pages/intelligence/ai-page')) },
     {
       path: 'integracoes',
       element: lazyElement(() => import('@/pages/administration/integrations-page')),
