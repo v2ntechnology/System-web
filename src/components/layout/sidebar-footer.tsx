@@ -21,9 +21,18 @@ export function SidebarFooter({ collapsed = false }: { collapsed?: boolean }) {
     navigate('/');
   };
 
-  /* Mesmo desenho e mesma mecânica do "sair" do menu da conta: a cor é a de
-     remover (`.acao-sair`) e o hover fecha um degrau dessa cor, sem desenhar
-     forma nova. Mexeu num, espelhe no outro. */
+  /*
+   * Mesmo desenho e mesma mecânica do "sair" do menu da conta: a cor é a de
+   * remover (`.acao-sair`) e o hover fecha um degrau dessa cor, sem desenhar
+   * forma nova. Mexeu num, espelhe no outro.
+   *
+   * ⚠️ Até 09/09/2026 isto NÃO acontecia, e o botão saía cinza como o de
+   * configurações ao lado. Eram dois empates de cascata: o `Button` injeta
+   * `acao-neutra` em todo `ghost + icon` e o `cn` não sabia que as duas
+   * classes disputam a mesma coisa (resolvido em `lib/utils.ts`), e o
+   * `hover:text-on-surface` do mesmo `compoundVariants` vencia por camada
+   * (resolvido em `globals.css`). Mexeu numa das três pontas, meça a cor.
+   */
   const logoutButton = (
     <Button
       variant="ghost"
@@ -81,7 +90,10 @@ export function SidebarFooter({ collapsed = false }: { collapsed?: boolean }) {
           <p className="truncate text-sm font-medium">{user.name}</p>
           <p className="truncate text-xs text-muted-foreground">{tenant?.name}</p>
         </div>
-        <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+        {/* Sem papel próprio: a engrenagem é `.acao-neutra`, que o `Button`
+            já injeta em `ghost + icon`. Fica explícita aqui para a linha dizer
+            que a escolha é essa, e não ausência de escolha. */}
+        <Button asChild variant="ghost" size="icon" className="acao-neutra h-8 w-8 shrink-0">
           <Link to="/app/configuracoes" aria-label="Configurações">
             <SettingsIcon className="h-4 w-4" />
           </Link>

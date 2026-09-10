@@ -19,6 +19,19 @@ import { cn } from '@/lib/utils';
 /* Carregando                                                                  */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A espera de uma tela do painel operacional.
+ *
+ * ⚠️ O desenho é o do `QueryState` do painel de gestão (pedido do usuário em
+ * 09/09/2026, para os quatro perfis esperarem igual): o giro sozinho, maior e
+ * centrado num bloco de altura própria. Antes eram 16px com o rótulo escrito ao
+ * lado, e a diferença aparecia na troca de painel.
+ *
+ * ⚠️ O rótulo continua existindo, mas só para quem ouve. Ele some da tela e vive
+ * no `aria-label`, que é como o giro do gestão anuncia a espera: ler
+ * "Carregando ordens…" três vezes por navegação é ruído para quem enxerga, e
+ * ausência total é silêncio para quem não enxerga.
+ */
 export function LoadingState({
   label = 'Carregando…',
   className,
@@ -28,15 +41,10 @@ export function LoadingState({
 }) {
   return (
     <div
-      className={cn(
-        'flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground',
-        className,
-      )}
-      role="status"
+      className={cn('flex min-h-60 items-center justify-center text-muted-foreground', className)}
       aria-live="polite"
     >
-      <SpinnerIcon className="h-4 w-4 animate-spin" />
-      {label}
+      <SpinnerIcon className="h-6 w-6 animate-spin" role="status" aria-label={label} />
     </div>
   );
 }

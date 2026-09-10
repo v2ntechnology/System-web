@@ -56,8 +56,28 @@ export function AppSidebar({ navigation }: { navigation: NavGroup[] }) {
   return (
     <aside
       className={cn(
-        'relative hidden h-svh shrink-0 flex-col transition-[width] duration-300 ease-in-out will-change-[width] lg:flex',
-        collapsed ? 'w-[84px] bg-background' : 'w-64 border-r border-border/60 bg-sidebar',
+        /*
+         * ⚠️ A curva e as durações são as MESMAS do drawer do assistente (pedido
+         * do usuário em 09/09/2026, que queria o trilho abrindo com a mesma
+         * fluidez): `ease-out` no lugar de `ease-in-out`, e o tempo assimétrico
+         * de lá, 300ms para abrir e 200ms para fechar. Abrir merece o gesto
+         * inteiro; fechar quer sair da frente.
+         *
+         * ⚠️ O tempo vai na classe do ESTADO ALVO, e é isso que faz a assimetria
+         * funcionar: quando `collapsed` vira verdadeiro a transição para 84px já
+         * lê `duration-200`, e a volta para 256px lê `duration-300`.
+         *
+         * ⚠️ Igualar mais que isso não dá, e o motivo é estrutural: o drawer
+         * desliza uma peça pronta, enquanto aqui o CONTEÚDO troca no caminho (a
+         * marca vira o símbolo, o botão muda de lugar, os rótulos somem). Animar
+         * largura também custa refluxo a cada quadro, coisa que `transform` não
+         * paga. Trocar isso mudaria o layout inteiro, porque o trilho empurra o
+         * conteúdo em vez de flutuar sobre ele.
+         */
+        'relative hidden h-svh shrink-0 flex-col transition-[width] ease-out will-change-[width] lg:flex',
+        collapsed
+          ? 'w-[84px] bg-background duration-200'
+          : 'w-64 border-r border-border/60 bg-sidebar duration-300',
       )}
     >
       {/* Véu de marca no pé da coluna, como na referência: dá profundidade ao
