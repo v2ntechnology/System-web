@@ -561,59 +561,74 @@ function CustosReais() {
                 premiaria as vans todo mês.
               </p>
 
-              {/* ⚠️ `surface="light"`: o campo mora dentro do painel branco, e a
-                  versão escura dele inverte a hierarquia da tela. */}
-              <div className="mb-5 max-w-md">
-                <GlassInput
-                  id="consumo-busca"
-                  surface="light"
-                  label="Buscar"
-                  placeholder="Placa ou modelo"
-                  value={busca}
-                  onChange={(event) => setBusca(event.target.value)}
-                  leading={<SearchIcon size={16} aria-hidden="true" />}
-                />
-              </div>
+              {/*
+                A busca e as categorias dividem a MESMA linha, com as categorias à
+                direita (pedido do usuário em 09/09/2026). São os dois controles
+                do mesmo recorte, e empilhados eles empurravam a lista para baixo
+                da dobra numa tela de notebook.
 
-              {resumo.grupos.length > 1 ? (
-                <>
-                  <h3 className="text-on-light-variant text-label-md normal-case">Por categoria</h3>
-                  <div className="mt-3 mb-8 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-                    {resumo.grupos.map((grupo) => {
-                      const ativo = categoria === grupo.categoria;
+                ⚠️ O `gap-1.5` da coluna da direita repete o do `GlassInput`, que
+                é quem separa o rótulo do campo dentro dele. Sem copiar esse
+                número, o "Por categoria" e o "BUSCAR" ficariam em alturas
+                diferentes, e as duas metades da linha pareceriam desencontradas.
+              */}
+              <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+                {/* ⚠️ `surface="light"`: o campo mora dentro do painel branco, e a
+                    versão escura dele inverte a hierarquia da tela. */}
+                <div className="w-full lg:max-w-md lg:shrink-0">
+                  <GlassInput
+                    id="consumo-busca"
+                    surface="light"
+                    label="Buscar"
+                    placeholder="Placa ou modelo"
+                    value={busca}
+                    onChange={(event) => setBusca(event.target.value)}
+                    leading={<SearchIcon size={16} aria-hidden="true" />}
+                  />
+                </div>
 
-                      return (
-                        <button
-                          key={grupo.categoria}
-                          type="button"
-                          aria-pressed={ativo}
-                          onClick={() => setCategoria(ativo ? null : grupo.categoria)}
-                          className={cn(
-                            'group flex min-w-0 items-center gap-2 rounded-md px-3.5 py-2.5 text-left transition-colors',
-                            'focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2',
-                            ativo
-                              ? 'bg-primary-strong text-on-primary'
-                              : 'bg-light-container text-on-light-variant hover:bg-primary/10 hover:text-primary',
-                          )}
-                        >
-                          <TruckIcon size={15} className="shrink-0" aria-hidden="true" />
-                          <span className="text-label-md min-w-0 flex-1 truncate normal-case">
-                            {rotuloDoTipo(grupo.categoria)}
-                          </span>
-                          <span
+                {resumo.grupos.length > 1 ? (
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <h3 className="text-on-light-variant text-label-md normal-case">
+                      Por categoria
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+                      {resumo.grupos.map((grupo) => {
+                        const ativo = categoria === grupo.categoria;
+
+                        return (
+                          <button
+                            key={grupo.categoria}
+                            type="button"
+                            aria-pressed={ativo}
+                            onClick={() => setCategoria(ativo ? null : grupo.categoria)}
                             className={cn(
-                              'tabular shrink-0 font-semibold transition-colors',
-                              ativo ? 'text-on-primary' : 'text-accent group-hover:text-primary',
+                              'group flex min-w-0 items-center gap-2 rounded-md px-3.5 py-2.5 text-left transition-colors',
+                              'focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2',
+                              ativo
+                                ? 'bg-primary-strong text-on-primary'
+                                : 'bg-light-container text-on-light-variant hover:bg-primary/10 hover:text-primary',
                             )}
                           >
-                            {grupo.itens.length}
-                          </span>
-                        </button>
-                      );
-                    })}
+                            <TruckIcon size={15} className="shrink-0" aria-hidden="true" />
+                            <span className="text-label-md min-w-0 flex-1 truncate normal-case">
+                              {rotuloDoTipo(grupo.categoria)}
+                            </span>
+                            <span
+                              className={cn(
+                                'tabular shrink-0 font-semibold transition-colors',
+                                ativo ? 'text-on-primary' : 'text-accent group-hover:text-primary',
+                              )}
+                            >
+                              {grupo.itens.length}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </>
-              ) : null}
+                ) : null}
+              </div>
 
               <FuelEfficiencyList
                 grupos={grupos}

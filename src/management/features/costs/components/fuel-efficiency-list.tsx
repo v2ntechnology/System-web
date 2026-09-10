@@ -40,35 +40,55 @@ export function FuelEfficiencyList({
       {grupos.length === 0 ? (
         <p className="text-on-light-variant text-body-md py-10 text-center">{emptyMessage}</p>
       ) : (
-        grupos.map((grupo, indice) => (
-          <section key={grupo.categoria} className={cn(indice > 0 && 'mt-6')}>
-            <div className="border-light-outline flex flex-wrap items-baseline justify-between gap-3 border-b pb-2">
-              <h3 className="text-on-light font-semibold">
-                {rotuloDoTipo(grupo.categoria)}
-                <span className="text-on-light-muted font-normal">
-                  {' · '}
-                  {grupo.itens.length}
-                  {grupo.itens.length === 1 ? ' veículo' : ' veículos'}
-                </span>
-              </h3>
-              {/* A média do grupo é a régua: é contra ela que se compara. */}
-              {grupo.media != null ? (
-                <span className="tabular text-on-light-muted text-label-md shrink-0 normal-case">
-                  média {litro.format(grupo.media)} km/l
-                </span>
-              ) : null}
-            </div>
+        /*
+         * As categorias ficam LADO A LADO quando há largura, e empilham quando
+         * não há (pedido do usuário em 09/09/2026). Sem nenhum filtro escolhido a
+         * tela mostra a frota inteira, e uma categoria embaixo da outra empurrava
+         * a segunda para fora da dobra: quem quer comparar van com caminhão
+         * precisava rolar até perder a primeira de vista.
+         *
+         * ⚠️ Duas colunas só com MAIS DE UM grupo. Com um só, o grid deixaria a
+         * lista ocupando metade da largura e a outra metade vazia, que é
+         * exatamente o que acontece assim que alguém clica numa das pastilhas de
+         * categoria.
+         *
+         * ⚠️ As colunas têm alturas diferentes de propósito, e não devem ser
+         * igualadas: são 20 caminhões contra 6 vans, e esticar a menor até a
+         * altura da maior só inventaria espaço vazio dentro dela.
+         */
+        <div
+          className={cn('grid items-start gap-x-8 gap-y-6', grupos.length > 1 && 'xl:grid-cols-2')}
+        >
+          {grupos.map((grupo) => (
+            <section key={grupo.categoria}>
+              <div className="border-light-outline flex flex-wrap items-baseline justify-between gap-3 border-b pb-2">
+                <h3 className="text-on-light font-semibold">
+                  {rotuloDoTipo(grupo.categoria)}
+                  <span className="text-on-light-muted font-normal">
+                    {' · '}
+                    {grupo.itens.length}
+                    {grupo.itens.length === 1 ? ' veículo' : ' veículos'}
+                  </span>
+                </h3>
+                {/* A média do grupo é a régua: é contra ela que se compara. */}
+                {grupo.media != null ? (
+                  <span className="tabular text-on-light-muted text-label-md shrink-0 normal-case">
+                    média {litro.format(grupo.media)} km/l
+                  </span>
+                ) : null}
+              </div>
 
-            <ul
-              className="flex flex-col"
-              aria-label={`Consumo de ${rotuloDoTipo(grupo.categoria)}`}
-            >
-              {grupo.itens.map((veiculo) => (
-                <Linha key={veiculo.vehicleId} veiculo={veiculo} media={grupo.media} />
-              ))}
-            </ul>
-          </section>
-        ))
+              <ul
+                className="flex flex-col"
+                aria-label={`Consumo de ${rotuloDoTipo(grupo.categoria)}`}
+              >
+                {grupo.itens.map((veiculo) => (
+                  <Linha key={veiculo.vehicleId} veiculo={veiculo} media={grupo.media} />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
 
       {semMedicao.length > 0 ? (
