@@ -1,6 +1,8 @@
 import { InfoIcon } from '@/components/icons';
+import { SEM_CATEGORIA, aggregateFuel } from '@/management/features/costs/fuel';
 import type { VehiclePerformance } from '@/management/lib/fleet-api';
 import { LightCard, cn } from '@/management/ui';
+import { useMemo } from 'react';
 
 /**
  * Desempenho por caminhão, no lugar da rentabilidade que não tem fonte.
@@ -38,18 +40,34 @@ export function VehiclePerformanceCard({
   periodLabel,
   className,
 }: VehiclePerformanceCardProps) {
-  /* Média de consumo por TIPO. Ver a nota do componente. */
-  const mediaPorTipo = new Map<string, number>();
-  const soma = new Map<string, { total: number; quantos: number }>();
-  for (const veiculo of vehicles) {
-    if (veiculo.fuelEfficiency == null) continue;
-    const tipo = veiculo.type ?? 'truck';
-    const atual = soma.get(tipo) ?? { total: 0, quantos: 0 };
-    soma.set(tipo, { total: atual.total + veiculo.fuelEfficiency, quantos: atual.quantos + 1 });
-  }
-  for (const [tipo, { total, quantos }] of soma) {
-    if (quantos >= 2) mediaPorTipo.set(tipo, total / quantos);
-  }
+  /*
+   * A régua é a MESMA da tela de Custos, pelo `aggregateFuel`.
+   *
+   * ⚠️ Este cálculo era próprio daqui e divergia em três pontos, corrigidos em
+   * 09/09/2026 a pedido do usuário, que pediu médias consistentes entre telas:
+   *
+   *   1. Era MÉDIA DAS MÉDIAS. Medido nos dados de produção do dia: dava 4,55
+   *      km/l para "truck" onde a régua ponderada dá 3,56, uma superestimação de
+   *      27,7%. Um veículo que rodou 200 km pesava igual a um que rodou 3.000.
+   *   2. Contava veículo PARADO no período, que a tela de Custos exclui: sem
+   *      quilômetro rodado não há consumo para comparar.
+   *   3. Veículo sem categoria caía em `truck`, e em Custos cai em
+   *      `sem-categoria`. O mesmo veículo entrava em grupos diferentes.
+   *
+   * ⚠️ A média daqui não aparece na tela: ela decide quais consumos saem em
+   * VERMELHO (`text-error-on-light`; o âmbar da linha ao lado é do motor
+   * parado, outra regra). Uma régua inflada gera ALERTA FALSO, que é pior que
+   * não alertar, porque quem confere perde a confiança na cor.
+   */
+  const mediaPorTipo = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const grupo of aggregateFuel(vehicles).grupos) {
+      /* Menos de dois no grupo, ninguém para comparar: o único veículo seria a
+         própria média e nunca destacaria. */
+      if (grupo.media != null && grupo.itens.length >= 2) mapa.set(grupo.categoria, grupo.media);
+    }
+    return mapa;
+  }, [vehicles]);
 
   /* Só quem rodou entra na tabela: 41 linhas, 30 delas zeradas, escondem as 11
      que têm o que dizer. Quantos ficaram de fora vai no rodapé. */
@@ -94,11 +112,16 @@ export function VehiclePerformanceCard({
 
             <tbody>
               {rodaram.map((veiculo) => {
-                const media = mediaPorTipo.get(veiculo.type ?? 'truck');
+                /* A chave é a mesma de `aggregateFuel`: sem categoria é
+                   `SEM_CATEGORIA`, e não `truck`. */
+                const media = mediaPorTipo.get(veiculo.type ?? SEM_CATEGORIA);
+                /* ⚠️ 10% abaixo, o mesmo corte da tela de Custos. Eram 15% aqui,
+                   e com dois cortes diferentes o mesmo veículo aparecia em âmbar
+                   numa tela e normal na outra, no mesmo período. */
                 const consumoRuim =
                   media != null &&
                   veiculo.fuelEfficiency != null &&
-                  veiculo.fuelEfficiency < media * 0.85;
+                  veiculo.fuelEfficiency < media * 0.9;
 
                 /* Motor ligado parado só vira alerta em proporção: duas horas
                    num caminhão que rodou o mês é normal, num que rodou um dia

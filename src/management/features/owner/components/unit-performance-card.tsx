@@ -27,13 +27,25 @@ export interface UnitPerformanceCardProps {
 }
 
 export function UnitPerformanceCard({ units, periodLabel, className }: UnitPerformanceCardProps) {
-  /* A referência é a frota inteira, e não a melhor empresa: comparar com a melhor
-     faria todas as outras parecerem ruins, inclusive as que vão bem. */
+  /*
+   * A referência é a frota inteira, e não a melhor empresa: comparar com a
+   * melhor faria todas as outras parecerem ruins, inclusive as que vão bem.
+   *
+   * ⚠️ E, pela mesma razão, ela é PONDERADA pela quilometragem, e não a média
+   * das taxas. Corrigido em 09/09/2026, junto com a régua do consumo, e o
+   * defeito era grande: medido nos dados de produção do dia, a média das taxas
+   * dava 177,4 eventos por mil km contra 206,7 da conta ponderada, porque a
+   * filial GIG rodou 2.222 km com 40 eventos por mil e puxava a régua de toda a
+   * frota para baixo. O resultado era o oposto da intenção deste bloco: QUATRO
+   * das cinco filiais apareciam em vermelho. Com a ponderação, uma.
+   *
+   * A conta certa é a mesma pergunta que a taxa faz: quantos eventos a frota
+   * inteira gerou a cada mil quilômetros que ela inteira rodou.
+   */
   const comRodagem = units.filter((u) => u.eventsPer1000Km != null);
-  const referencia =
-    comRodagem.length > 0
-      ? comRodagem.reduce((soma, u) => soma + (u.eventsPer1000Km ?? 0), 0) / comRodagem.length
-      : null;
+  const kmDaFrota = comRodagem.reduce((soma, u) => soma + (u.distanceKm ?? 0), 0);
+  const eventosDaFrota = comRodagem.reduce((soma, u) => soma + u.events, 0);
+  const referencia = kmDaFrota > 0 ? (eventosDaFrota / kmDaFrota) * 1000 : null;
 
   return (
     <LightCard
@@ -123,7 +135,8 @@ export function UnitPerformanceCard({ units, periodLabel, className }: UnitPerfo
       <p className="text-on-light-muted text-label-md mt-4 flex items-start gap-1.5 normal-case">
         <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
         Comparado por taxa, não por total: a filial maior gera mais eventos e mais quilômetros por
-        definição. Vermelho marca quem está acima da média da frota.
+        definição. Vermelho marca quem está acima da taxa da frota inteira, que é o total de eventos
+        dividido pelo total de quilômetros.
       </p>
     </LightCard>
   );

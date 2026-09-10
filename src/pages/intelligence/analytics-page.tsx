@@ -1,4 +1,4 @@
-import { GaugeIcon, MoneyIcon, RouteIcon, ShieldAlertIcon } from '@/components/icons';
+import { GaugeIcon, InfoIcon, MoneyIcon, RouteIcon, ShieldAlertIcon } from '@/components/icons';
 import { useState } from 'react';
 
 import { SimpleBarChart, TrendAreaChart, TrendLineChart } from '@/components/shared/charts';
@@ -40,8 +40,22 @@ const PRODUCTIVITY: ChartPoint[] = [
 export default function AnalyticsPage() {
   const [range, setRange] = useState<DateRangePreset>('30d');
 
-  /* ⚠️ Números fixos, como já eram nos `InfoCard`: esta tela ainda desenha em
-     cima do mock, e trocar isso é assunto de dados, não de layout. */
+  /*
+   * ⚠️ Números fixos, como já eram nos `InfoCard`: esta tela ainda desenha em
+   * cima do mock, e trocar isso é assunto de dados, não de layout.
+   *
+   * ⚠️ E, desde 09/09/2026, ela DIZ isso na tela. O motivo é concreto: o
+   * "Consumo médio" daqui marcava 2,9 km/l enquanto `/gestao/custos` mostrava
+   * 4,13 para a mesma frota no mesmo período, e nada avisava qual dos dois era
+   * o real. Quatro números com cara de medidos, sem fonte nenhuma, valem menos
+   * que quatro números declarados como exemplo.
+   *
+   * Ligar de a pouco NÃO resolve: dos quatro, só o consumo tem fonte direta
+   * hoje (a métrica `consumo` de `/v1/fleet/operations`); "Custo por km" depende
+   * do lançamento de despesa, que ainda não existe. Um número real ao lado de
+   * três inventados é pior, porque empresta credibilidade ao conjunto. Quando o
+   * custo tiver origem, a tela liga inteira e esta nota sai junto.
+   */
   const stats: HeroStat[] = [
     {
       key: 'custo-km',
@@ -84,6 +98,19 @@ export default function AnalyticsPage() {
       />
 
       <HeroStats items={stats} />
+
+      {/* ⚠️ O aviso vem ANTES dos gráficos e depois dos números, que é onde o
+          olho passa: quem leu "2,9 km/L" precisa saber o que aquilo é antes de
+          tirar conclusão. Ver a nota do `stats`. */}
+      <div className="w-full px-4 pt-6 sm:px-6 xl:px-10">
+        <p className="text-on-surface-variant text-body-md flex items-start gap-2">
+          <InfoIcon size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>
+            Os números e gráficos desta tela são de <strong>demonstração</strong> e não vêm da
+            telemetria. O consumo real da frota está em Custos, na área de gestão.
+          </span>
+        </p>
+      </div>
 
       <PagePanel className="space-y-6">
         {/* O seletor de período desceu da faixa: ele recorta o conteúdo, e a
