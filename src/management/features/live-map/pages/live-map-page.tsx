@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { MAP_BASES, type MapBaseId } from '@/components/shared/map-style';
-import { HERO_PILL, HeroBand } from '@/management/components/layout/hero-band';
+import { HeroBand } from '@/management/components/layout/hero-band';
 import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
@@ -206,6 +206,87 @@ export function LiveMapPage() {
      página inteira sessenta vezes por segundo. */
   const mapa = useRef<FleetMapHandle>(null);
 
+  /* A moldura é o retângulo inteiro do mapa, painéis flutuantes incluídos. */
+  const molduraDoMapa = useRef<HTMLDivElement>(null);
+
+  const listaDeVeiculos = useRef<HTMLUListElement>(null);
+
+  /**
+   * A lista acompanha quem foi escolhido NO MAPA.
+   *
+   * Pedido do usuário em 09/09/2026. Escolher um caminhão no mapa já marcava a
+   * linha dele na lista, mas a marca podia estar a trinta placas de distância,
+   * fora da área visível: a tela dizia "este aqui" apontando para um lugar que
+   * ninguém estava vendo.
+   *
+   * ⚠️ Quem rola é a LISTA, na mão, e não `scrollIntoView`. Aquele método sobe
+   * rolando todos os ancestrais roláveis até achar espaço, e o de cima é a
+   * PÁGINA: usá-lo aqui traria de volta o solavanco vertical que o ouvinte da
+   * roda acabou de resolver. Mexer no `scrollTop` da própria lista não sai dela.
+   *
+   * ⚠️ Item já visível fica onde está. Centralizar sempre faria a lista pular a
+   * cada clique nela mesma, inclusive quando a linha escolhida já estava debaixo
+   * do cursor, que é movimento sem motivo.
+   */
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const lista = listaDeVeiculos.current;
+    const item = lista?.querySelector<HTMLElement>(`[data-vehicle-id="${selectedId}"]`);
+    if (!lista || !item) return;
+
+    const caixaDaLista = lista.getBoundingClientRect();
+    const caixaDoItem = item.getBoundingClientRect();
+
+    const acimaDaVista = caixaDoItem.top < caixaDaLista.top;
+    const abaixoDaVista = caixaDoItem.bottom > caixaDaLista.bottom;
+    if (!acimaDaVista && !abaixoDaVista) return;
+
+    const paraCentralizar =
+      caixaDoItem.top - caixaDaLista.top - (caixaDaLista.height - caixaDoItem.height) / 2;
+
+    lista.scrollBy({
+      top: paraCentralizar,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
+  }, [selectedId]);
+
+  /**
+   * Roda do mouse dentro da moldura é ZOOM, nunca rolagem da página.
+   *
+   * ⚠️ Relatado pelo usuário em 09/09/2026: no meio de um zoom a página dava um
+   * solavanco vertical, mesmo com o cursor sobre o mapa. A causa é de estrutura,
+   * e não do MapLibre: ele só escuta `wheel` no container dele, e a legenda, a
+   * barra do topo e o painel do trajeto são IRMÃOS desse container, desenhados
+   * por cima. Girar a roda sobre qualquer um deles nunca chegava ao mapa, e o
+   * navegador rolava a página. Quem usa não distingue as duas camadas: para essa
+   * pessoa o cursor está no mapa, e o que ela pede é zoom.
+   *
+   * O ouvinte fica na CAPTURA da moldura, que é o único ponto por onde todo giro
+   * passa, seja qual for o painel embaixo do cursor.
+   */
+  useEffect(() => {
+    const moldura = molduraDoMapa.current;
+    if (!moldura) return;
+
+    const aoGirarARoda = (evento: WheelEvent) => {
+      /* O reenvio feito por `zoomComRoda` volta a passar por aqui na descida da
+         captura. Só o giro de verdade é tratado, senão vira laço. */
+      if (!evento.isTrusted) return;
+
+      const alvo = evento.target;
+      const noProprioMapa = alvo instanceof Element && alvo.closest('.maplibregl-map') !== null;
+
+      /* A página não rola em ponto nenhum da moldura. Sobre o próprio mapa o
+         MapLibre já faria isso; sobre um painel, não havia ninguém para fazer. */
+      evento.preventDefault();
+      if (!noProprioMapa) mapa.current?.zoomComRoda(evento);
+    };
+
+    moldura.addEventListener('wheel', aoGirarARoda, { passive: false, capture: true });
+    return () => moldura.removeEventListener('wheel', aoGirarARoda, { capture: true });
+  }, []);
+
   const heatQuery = useQuery({
     queryKey: ['event-heatmap'],
     queryFn: () => getEventHeatmap(7),
@@ -376,30 +457,7 @@ export function LiveMapPage() {
       <HeroBand
         title="Mapa ao vivo"
         description="Uma central de comando para acompanhar a frota e agir antes que a operação pare."
-      >
-        {/*
-         * ⚠️ O frescor da leitura é status DA PÁGINA, e por isso mora na faixa,
-         * como as pastilhas das outras telas do par. Ele estava numa linha solta
-         * acima do mapa, disputando espaço com os filtros, que são outra coisa:
-         * controle da lista.
-         *
-         * ⚠️ O estado NÃO é um ponto colorido aqui. Sobre a faixa laranja o
-         * verde escurecido some e o âmbar é laranja sobre laranja. Quem diz o
-         * estado é a própria pastilha: em dia ela é o contorno branco de sempre,
-         * atrasada ela INVERTE para branco cheio com texto laranja, que é a
-         * única ênfase que a faixa comporta.
-         */}
-        <span
-          className={cn(
-            HERO_PILL,
-            leituraEmDia ? 'text-on-primary' : 'bg-on-primary text-primary font-medium',
-          )}
-          title={`A tela confere o banco a cada ${REFETCH_MS / 1000} segundos. A posição em si só muda quando a coleta da MiX traz leitura nova, num ciclo bem mais longo.`}
-        >
-          <ClockIcon size={15} aria-hidden="true" />
-          {idade == null ? 'Sem leitura recebida' : `Leitura mais recente ${haQuantoTempo(idade)}`}
-        </span>
-      </HeroBand>
+      />
 
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Situação da frota</h2>
@@ -470,6 +528,45 @@ export function LiveMapPage() {
                 );
               })}
             </div>
+
+            {/*
+             * ⚠️ O frescor da leitura VOLTOU para esta linha em 09/09/2026, a
+             * pedido do usuário, depois de ter morado na faixa laranja. São as
+             * duas coisas que respondem "o que estou vendo agora": o filtro diz
+             * qual recorte da frota, e a pastilha diz de quando é o dado. Lidas
+             * juntas, uma qualifica a outra.
+             *
+             * ⚠️ Aqui o desenho é o do PAINEL CLARO, e não o da faixa: em dia
+             * ela é LARANJA (pedido do usuário em 09/09/2026), no tom que o
+             * painel usa para a marca; atrasada, vira âmbar sobre âmbar
+             * transparente, que é a pastilha de alerta que o resto do painel já
+             * usa. Sobre a faixa laranja nenhum dos dois se lia, que foi o
+             * motivo de ela ter ido embora dali com outro desenho.
+             *
+             * ⚠️ O estado atrasado NÃO virou laranja junto, e a diferença é o
+             * que sustenta o aviso: laranja é a cor de sempre desta tela, então
+             * uma pastilha laranja não avisa nada. O âmbar é o que separa "o
+             * dado é de agora" de "o dado envelheceu".
+             *
+             * ⚠️ O deslocamento é TRANSFORM, e não margem (pedido do usuário no
+             * mesmo dia: descer só ela). Margem empurraria a linha inteira e
+             * moveria o segmentado de filtros junto; `translate` não ocupa
+             * espaço no layout, então nada mais sai do lugar.
+             */}
+            <span
+              className={cn(
+                'text-label-md rounded-pill ml-auto inline-flex shrink-0 translate-y-2 items-center gap-2 px-4 py-2 normal-case',
+                leituraEmDia
+                  ? 'bg-primary-on-light/10 text-primary-on-light'
+                  : 'bg-warning-on-light/12 text-warning-on-light font-medium',
+              )}
+              title={`A tela confere o banco a cada ${REFETCH_MS / 1000} segundos. A posição em si só muda quando a coleta da MiX traz leitura nova, num ciclo bem mais longo.`}
+            >
+              <ClockIcon size={15} aria-hidden="true" />
+              {idade == null
+                ? 'Sem leitura recebida'
+                : `Leitura mais recente ${haQuantoTempo(idade)}`}
+            </span>
           </div>
 
           {/*
@@ -540,6 +637,7 @@ export function LiveMapPage() {
               </label>
 
               <ul
+                ref={listaDeVeiculos}
                 className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
                 aria-label="Veículos encontrados"
               >
@@ -548,7 +646,7 @@ export function LiveMapPage() {
                   const stale = isStale(vehicle);
 
                   return (
-                    <li key={vehicle.vehicleId}>
+                    <li key={vehicle.vehicleId} data-vehicle-id={vehicle.vehicleId}>
                       <button
                         type="button"
                         onClick={() => select(vehicle.vehicleId)}
@@ -653,6 +751,7 @@ export function LiveMapPage() {
                 da cor do papel.
               */}
                 <div
+                  ref={molduraDoMapa}
                   className={cn(
                     'border-outline-variant bg-surface-lowest relative min-h-0 flex-1 overflow-hidden rounded-2xl border',
                     /* Canto reto do lado da gaveta: com o arredondado, sobrava uma

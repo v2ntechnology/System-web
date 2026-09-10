@@ -681,9 +681,10 @@ export function criarFleet3dLayer(
      * que é o tipo de erro que só aparece na tela.
      */
     /* ⚠️ Módulo de uma volta. O acumulador cresce enquanto o replay corre, e a
-       velocidade do marcador é alta (o trajeto de um dia cabe em 40 segundos):
-       sem isto ele chega à casa dos milhões, onde o `float32` da GPU já não
-       distingue um quadro do seguinte e o giro passa a andar aos trancos. */
+       velocidade do marcador é alta (o trajeto de um dia cabe em 160 segundos a
+       1x, e em 40 a 4x): sem isto ele chega à casa dos milhões, onde o `float32`
+       da GPU já não distingue um quadro do seguinte e o giro passa a andar aos
+       trancos. */
     giroDasRodas = (giroDasRodas + (velocidadeDoReplay * delta) / RAIO_DA_RODA) % (Math.PI * 2);
     for (const roda of marcador.rodas) roda.rotation.x = giroDasRodas;
 

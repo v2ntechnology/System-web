@@ -244,8 +244,11 @@ export function TrackReplay({ points, onPose, onPlayingChange, className }: Trac
         type="range"
         min={0}
         max={linha.duracao}
-        /* Passo fino: a barra percorre o trajeto inteiro em 40 segundos, e um
-           passo de 1 daria saltos de 2,5% a cada tecla. */
+        /* Passo fino: a barra percorre o trajeto inteiro em 160 segundos a 1x,
+           e um passo de 1 daria saltos de 0,6% a cada tecla. Quinhentas divisões
+           mantêm o arrasto e a seta do teclado com a mesma resolução, que é o
+           que importa aqui: o valor é tempo de linha do tempo, e não segundos de
+           relógio. */
         step={linha.duracao / 500}
         value={Math.min(tempo, linha.duracao)}
         onChange={(evento) => {

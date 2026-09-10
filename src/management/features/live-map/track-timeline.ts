@@ -50,8 +50,22 @@ import { prepararTrajeto } from './track-segments';
  * longa.
  */
 
-/** Quanto dura o replay inteiro na velocidade normal, em segundos. */
-const DURACAO_ALVO_S = 40;
+/**
+ * Quanto dura o replay inteiro na velocidade normal, em segundos.
+ *
+ * ⚠️ Eram 40 até 09/09/2026, e o usuário relatou o que isso significava na tela:
+ * "na velocidade 1x está absurdamente rápido, o 1x de hoje é na verdade o 4x".
+ * Ele tinha razão, e a conta explica: o trajeto inteiro cabia em 40 segundos, de
+ * modo que um dia de rodagem passava em menos tempo do que se leva para ler a
+ * placa. O número quadruplicou para que o 1x seja de fato uma velocidade de
+ * leitura, e a escala inteira desceu junto: o 4x de agora é exatamente o 1x de
+ * antes, que continua alcançável para quem só quer ver o trajeto correr.
+ *
+ * O efeito é o mesmo em qualquer janela, porque tudo é reescalado para este
+ * número: 2min40 a 1x, 1min20 a 2x e 40s a 4x, seja o trajeto de 6 ou de 72
+ * horas.
+ */
+const DURACAO_ALVO_S = 160;
 
 /**
  * Teto de tempo real que um único passo pode consumir.

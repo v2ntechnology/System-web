@@ -209,6 +209,18 @@ export interface FleetMapHandle {
    * aplicativo de navegação. Desligado, a câmera fica onde a pessoa deixou.
    */
   seguirReplay: (ligado: boolean) => void;
+
+  /**
+   * Aplica no mapa um giro de roda que caiu num painel flutuante.
+   *
+   * ⚠️ Os painéis que flutuam sobre o mapa (a legenda, a barra do topo, o
+   * trajeto) são IRMÃOS do container do MapLibre, e não filhos dele. O `wheel`
+   * sobre eles nunca chega ao mapa, e quem rola é a PÁGINA: o defeito que o
+   * usuário relatou em 09/09/2026, de a tela dar um solavanco vertical no meio
+   * de um zoom. Para quem usa, aqueles painéis são parte do mapa, então o giro
+   * precisa virar zoom em qualquer ponto da moldura.
+   */
+  zoomComRoda: (evento: WheelEvent) => void;
 }
 
 export interface FleetMapProps {
@@ -1476,6 +1488,40 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
         if (anterior) {
           instancia.easeTo({ ...anterior, duration: reduzido ? 0 : 900 });
         }
+      },
+
+      zoomComRoda: (evento) => {
+        const instancia = map.current;
+        if (!instancia) return;
+
+        /*
+         * O MESMO giro é reenviado ao canvas, em vez de virar uma conta de zoom
+         * aqui. O MapLibre escuta `wheel` no `.maplibregl-canvas-container`, que
+         * é pai do canvas, então o evento chega lá por borbulhamento e o zoom
+         * sai idêntico ao de sempre: o mesmo passo, a mesma suavização e a mesma
+         * âncora sob o cursor. Uma imitação escrita à mão divergiria do resto do
+         * mapa no primeiro ajuste que o MapLibre fizesse.
+         *
+         * ⚠️ O clone nasce com `isTrusted` falso, e é isso que impede o laço:
+         * ele volta a passar pelo ouvinte da moldura, que só trata giro de
+         * verdade. Ver `live-map-page.tsx`.
+         */
+        instancia.getCanvas().dispatchEvent(
+          new WheelEvent('wheel', {
+            deltaX: evento.deltaX,
+            deltaY: evento.deltaY,
+            deltaZ: evento.deltaZ,
+            deltaMode: evento.deltaMode,
+            clientX: evento.clientX,
+            clientY: evento.clientY,
+            ctrlKey: evento.ctrlKey,
+            shiftKey: evento.shiftKey,
+            altKey: evento.altKey,
+            metaKey: evento.metaKey,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
       },
     }),
     [],
