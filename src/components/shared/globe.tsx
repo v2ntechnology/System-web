@@ -21,12 +21,44 @@ import { cn } from '@/lib/utils';
 import { prefersLightAnimation } from '@/management/lib/performance';
 
 /**
- * Globo de pontos girando: os continentes são desenhados como uma malha de
- * pontinhos sobre a terra, com grade de paralelos/meridianos e um anel de limbo.
- * Serve de pano de fundo tecnológico na tela de painel. Adaptado de um globo
- * Three.js — sem drag, hover ou marcadores, porque aqui é só decorativo.
- * Os dados de terra vêm do mesmo padrão do mapa da operação: GeoJSON público.
+ * Globo de pontos: os continentes são uma malha de pontinhos sobre a terra, com
+ * grade de paralelos/meridianos e um anel de limbo. Serve de pano de fundo
+ * tecnológico na tela de painel. Adaptado de um globo Three.js, sem drag, hover
+ * ou marcadores, porque aqui é só decorativo. Os dados de terra vêm do mesmo
+ * padrão do mapa da operação: GeoJSON público.
+ *
+ * ⚠️ Ele gira SÓ NA ENTRADA e depois para (decisão do usuário em 09/09/2026, por
+ * desempenho). Quem quiser devolver o giro infinito precisa saber o que está
+ * reintroduzindo: um `render` do three por quadro, para sempre, enquanto a
+ * página estiver aberta. Foi o que derrubava o FPS em máquina modesta.
  */
+
+/**
+ * Onde o globo PARA, e por quê.
+ *
+ * Parado, ele mostra sempre a mesma face, então a face precisa ser escolhida:
+ * 50° traz a longitude -50 para a frente da câmera, que é a América do Sul. Sem
+ * isso ele descansaria no meridiano zero e a pessoa veria oceano vazio no lugar
+ * do continente da operação.
+ */
+const ROTACAO_FINAL = (50 * Math.PI) / 180;
+
+/**
+ * Quanto ele gira na entrada, antes de assentar na face final.
+ *
+ * Pouco mais de meia volta: o bastante para o movimento ser lido como um globo
+ * girando, e não como um enquadramento se ajustando.
+ */
+const GIRO_DE_ENTRADA = (200 * Math.PI) / 180;
+
+/**
+ * Duração da entrada.
+ *
+ * Casa com a transição de `hub-planet-scene` no `hub.css`: a cena sobe e aparece
+ * enquanto o globo freia, e as duas coisas terminam juntas. Mexeu numa, mexa na
+ * outra, senão o globo para antes de a cena ter acabado de entrar.
+ */
+const ENTRADA_MS = 2600;
 
 // Fonte pública de terra (Natural Earth, 50m). Mesmo espírito do OpenFreeMap:
 // sem chave, uso livre. Se cair, o globo simplesmente não aparece.
@@ -53,6 +85,16 @@ interface GlobeProps {
   gridColor?: string;
   /** Cor do anel de limbo (contorno do globo). Padrão: âmbar da marca. */
   rimColor?: string;
+  /**
+   * Reprisa o giro de entrada sempre que o número muda.
+   *
+   * ⚠️ Existe porque remontar o componente NÃO é opção aceitável aqui: criar
+   * outro contexto WebGL, refazer a esfera e reprocessar os pontos de terra a
+   * cada troca de ambiente custa caro, e era justamente o peso que o usuário
+   * pediu para tirar desta tela. Com isto a cena é reaproveitada e só a rotação
+   * volta ao início.
+   */
+  entryKey?: number;
 }
 
 function latLngToPosition(lat: number, lng: number): Vector3 {
@@ -71,8 +113,14 @@ export function Globe({
   gridColor = '#d5623a',
   /* ⚠️ Era o âmbar #E7AD61. Laranja único desde 08/09/2026. */
   rimColor = '#d5623a',
+  entryKey = 0,
 }: GlobeProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  /* A cena montada, guardada para o giro de entrada poder ser reprisado sem
+     recriar nada. */
+  const groupRef = useRef<Group | null>(null);
+  const renderRef = useRef<(() => void) | null>(null);
+  const frameRef = useRef(0);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -102,6 +150,7 @@ export function Globe({
     const globeGroup = new Group();
     // Leve inclinação, como um eixo de rotação da Terra.
     globeGroup.rotation.z = (-23 * Math.PI) / 180;
+    globeGroup.rotation.y = ROTACAO_FINAL;
     scene.add(globeGroup);
 
     // ── Grade de paralelos e meridianos ──────────────────────────────────
@@ -221,36 +270,41 @@ export function Globe({
     };
     void loadLand();
 
+    /*
+     * O globo gira SÓ NA ENTRADA e depois fica parado (decisão do usuário em
+     * 09/09/2026). Antes ele girava a cada quadro, o que custa um `render` do
+     * three por quadro para sempre: num notebook com GPU integrada é o que
+     * derruba o FPS da tela inteira, e a página fica pesada enquanto estiver
+     * aberta. Agora o custo é limitado aos segundos da entrada, e no fim dela
+     * nenhum quadro novo é agendado.
+     *
+     * ⚠️ Sem laço contínuo, TODO estado novo precisa pedir o seu quadro. Hoje são
+     * três: o fim do carregamento dos pontos de terra, no `loadLand`, o `resize`
+     * abaixo e a própria entrada. Esquecer o `resize` deixa o canvas esticado até
+     * alguém redimensionar de novo.
+     */
+    const render = () => {
+      renderer.render(scene, camera);
+    };
+
     const resize = () => {
       const size = Math.min(mount.clientWidth, mount.clientHeight) || 1;
       renderer.setSize(size, size, false);
+      render();
     };
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
 
-    /*
-     * Em hardware modesto o globo para de girar: fica um quadro só, desenhado
-     * uma vez. Girar custa um `render` do three a cada quadro, e num notebook
-     * com GPU integrada é o que derruba o FPS da tela inteira. A mesma decisão
-     * vale para quem pediu `prefers-reduced-motion`.
-     */
-    const semGiro = prefersLightAnimation();
-    let frame = 0;
-    const render = () => {
-      renderer.render(scene, camera);
-    };
-    const animate = () => {
-      frame = requestAnimationFrame(animate);
-      globeGroup.rotation.y += 0.0016;
-      render();
-    };
-    if (semGiro) render();
-    else animate();
+    /* Quem toca a rotação é o efeito da entrada, logo abaixo. */
+    groupRef.current = globeGroup;
+    renderRef.current = render;
 
     return () => {
       disposed = true;
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(frameRef.current);
+      groupRef.current = null;
+      renderRef.current = null;
       observer.disconnect();
       gridMaterial.dispose();
       rimMaterial.dispose();
@@ -264,6 +318,52 @@ export function Globe({
       renderer.domElement.remove();
     };
   }, [dotColor, gridColor, rimColor]);
+
+  /*
+   * O giro de entrada: o globo chega rodando e vai freando até parar na face
+   * escolhida, no mesmo tempo em que a cena sobe e aparece pelo CSS.
+   *
+   * A desaceleração é cúbica, não linear: linear o globo pararia de repente,
+   * como quem esbarra numa parede. Com `1 - (1-t)³` a maior parte do giro
+   * acontece no começo e o último terço é quase só o repouso chegando.
+   *
+   * Roda na montagem e a cada `entryKey` novo, que é como a tela do painel pede
+   * a reprise ao voltar para a IA (decisão do usuário em 09/09/2026).
+   *
+   * ⚠️ Quem pede movimento reduzido, ou está no modo leve, pula a entrada e
+   * recebe o quadro final direto. É a mesma regra que o giro infinito seguia
+   * antes de sair.
+   */
+  useEffect(() => {
+    const grupo = groupRef.current;
+    const desenhar = renderRef.current;
+    /* Sem WebGL não há cena: não é erro, é a tela seguindo sem o globo. */
+    if (!grupo || !desenhar) return;
+
+    /* Reprise pedida no meio de uma entrada: a anterior é abandonada aqui, senão
+       as duas disputariam a mesma rotação a cada quadro. */
+    cancelAnimationFrame(frameRef.current);
+
+    if (prefersLightAnimation()) {
+      grupo.rotation.y = ROTACAO_FINAL;
+      desenhar();
+      return;
+    }
+
+    grupo.rotation.y = ROTACAO_FINAL - GIRO_DE_ENTRADA;
+    const inicio = performance.now();
+    const girar = (agora: number) => {
+      const t = Math.min(1, (agora - inicio) / ENTRADA_MS);
+      const suave = 1 - (1 - t) ** 3;
+      grupo.rotation.y = ROTACAO_FINAL - GIRO_DE_ENTRADA * (1 - suave);
+      desenhar();
+      /* Chegou ao fim: nada mais é agendado, e o globo fica parado de vez. */
+      frameRef.current = t < 1 ? requestAnimationFrame(girar) : 0;
+    };
+    frameRef.current = requestAnimationFrame(girar);
+
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [entryKey]);
 
   return <div ref={mountRef} aria-hidden className={cn('aspect-square', className)} />;
 }

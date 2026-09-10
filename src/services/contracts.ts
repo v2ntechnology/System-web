@@ -81,6 +81,14 @@ export interface ChecklistService {
 
 export interface AlertService {
   list(): Promise<OperationAlert[]>;
+  /**
+   * Tira o alerta da frente de quem pediu.
+   *
+   * Não apaga: passa o alerta para `ignored`, que é o status que o domínio já
+   * previa. Ele continua na tela de alertas com o rótulo "Ignorado", some do
+   * sino e sai da contagem do painel, que é o que "dispensar" significa aqui.
+   */
+  dismiss(id: string): Promise<void>;
 }
 
 export interface FleetService {

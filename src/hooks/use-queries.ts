@@ -17,6 +17,7 @@ import {
   type VehicleListParams,
 } from '@/services';
 import { operatorService, type EntryPayload, type TriagePayload } from '@/services/operator';
+import type { OperationAlert } from '@/types/operations';
 
 export const queryKeys = {
   dashboard: ['dashboard'] as const,
@@ -139,6 +140,40 @@ export function useChecklist(id: string) {
 
 export function useAlerts() {
   return useQuery({ queryKey: queryKeys.alerts, queryFn: () => alertService.list() });
+}
+
+/**
+ * Tira o alerta da frente de quem arrastou.
+ *
+ * A lista some da tela antes de o serviço confirmar, porque o gesto já mostrou a
+ * saída: esperar a resposta faria o item voltar a aparecer por um instante
+ * depois de ter deslizado para fora. Se falhar, a lista anterior é reposta e o
+ * alerta reaparece, que é o comportamento honesto.
+ *
+ * Sem `toast` de sucesso: o próprio deslize já disse o que aconteceu, e um aviso
+ * por notificação dispensada transformaria a limpeza da caixa numa fila de
+ * avisos, que é o oposto do que a pessoa pediu.
+ */
+export function useDismissAlert() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => alertService.dismiss(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.alerts });
+      const anterior = queryClient.getQueryData<OperationAlert[]>(queryKeys.alerts);
+      queryClient.setQueryData<OperationAlert[]>(queryKeys.alerts, (atual) =>
+        atual?.map((alert) => (alert.id === id ? { ...alert, status: 'ignored' } : alert)),
+      );
+      return { anterior };
+    },
+    onError: (_erro, _id, contexto) => {
+      if (contexto?.anterior) queryClient.setQueryData(queryKeys.alerts, contexto.anterior);
+      toast.error('Não foi possível dispensar o alerta.');
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.alerts });
+    },
+  });
 }
 
 /* -------------------------------------------------------------------------- */

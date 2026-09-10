@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { Link } from 'react-router';
 
-import {
-  ArrowRightIcon,
-  ArrowUpRightIcon,
-  ChartBarIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-} from '@/components/icons';
+import { ArrowUpRightIcon, ChartBarIcon, ShieldCheckIcon, SparklesIcon } from '@/components/icons';
 import { BRAND_ON_LIGHT } from '@/components/shared/brand-assets';
 import { Globe } from '@/components/shared/globe';
 import { useSession } from '@/hooks/use-session';
@@ -20,28 +14,28 @@ const ENVIRONMENTS = {
     label: 'Inteligência artificial',
     title: 'Um universo de',
     emphasis: 'possibilidades.',
-    introduction: 'As melhores decisões começam com as perguntas certas.',
+    introduction:
+      'As melhores decisões começam com as perguntas certas. Menos distância entre você e o próximo passo.',
     cardTitle: 'Converse. Descubra. Decida.',
     description:
       'A inteligência da RookHub transforma os dados da sua operação em clareza para o próximo movimento.',
     cta: 'Conversar com a IA',
     path: '/assistente',
     features: ['Assistente de voz', 'Insights', 'Estratégia'],
-    note: 'Inteligência que acompanha o seu ritmo.',
     Icon: SparklesIcon,
   },
   management: {
     label: 'Plataforma de gestão',
     title: 'Uma nova dimensão',
     emphasis: 'de controle.',
-    introduction: 'Uma visão completa. Cada movimento na direção certa.',
+    introduction:
+      'Uma visão completa. Cada movimento na direção certa. Menos distância entre você e o próximo passo.',
     cardTitle: 'Conecte. Acompanhe. Avance.',
     description:
       'Sua frota, sua equipe e seus resultados. Toda a operação conectada, com o controle que você precisa.',
     cta: 'Entrar na gestão',
     path: '/gestao',
     features: ['Frota', 'Equipe', 'Resultados'],
-    note: 'Visão do todo. Controle de cada detalhe.',
     Icon: ChartBarIcon,
   },
 } as const;
@@ -52,6 +46,9 @@ type Environment = keyof typeof ENVIRONMENTS;
 export default function HubPage() {
   const [mode, setMode] = useState<Environment>('ai');
   const [showGlobe, setShowGlobe] = useState(true);
+  /* Cada entrada na IA reprisa o giro do globo. Começa em 0, que já conta como a
+     entrada da abertura da tela. */
+  const [entradasNaIA, setEntradasNaIA] = useState(0);
   const cardRef = useRef<HTMLElement>(null);
   const pointerFrame = useRef(0);
   const { user } = useSession();
@@ -59,16 +56,25 @@ export default function HubPage() {
   const isAI = mode === 'ai';
   const firstName = user?.name.trim().split(/\s+/)[0];
 
-  // Deixa o globo terminar sua saída antes de liberar o contexto WebGL.
+  /* Deixa o globo terminar sua saída antes de liberar o contexto WebGL.
+     ⚠️ Acompanha a transição de SAÍDA de `hub-planet-scene`, que é curta (0,45s),
+     e não a de entrada, que é longa. Segurar o contexto os 2,6s da entrada
+     manteria a GPU ocupada com uma cena que já saiu de vista. */
   useEffect(() => {
     if (isAI) return;
-    const timer = window.setTimeout(() => setShowGlobe(false), 1000);
+    const timer = window.setTimeout(() => setShowGlobe(false), 500);
     return () => window.clearTimeout(timer);
   }, [isAI]);
   useEffect(() => () => cancelAnimationFrame(pointerFrame.current), []);
 
   function selectEnvironment(next: Environment) {
-    if (next === 'ai') setShowGlobe(true);
+    if (next === 'ai') {
+      setShowGlobe(true);
+      /* Toda entrada na IA reprisa o giro do globo (decisão do usuário em
+         09/09/2026), inclusive quando ele nem chegou a ser desmontado, que é o
+         caso de quem vai à Gestão e volta antes de a saída terminar. */
+      setEntradasNaIA((n) => n + 1);
+    }
     setMode(next);
   }
 
@@ -111,6 +117,7 @@ export default function HubPage() {
               dotColor="#8e95e0"
               gridColor="#a9aeea"
               rimColor="#4348d9"
+              entryKey={entradasNaIA}
             />
           )}
           <div className="hub-planet-orbit" />
@@ -135,7 +142,7 @@ export default function HubPage() {
       <header className="hub-header">
         <img src={BRAND_ON_LIGHT.wordmark} alt="RookHub" width={556} height={120} />
         <span className="hub-header-caption">
-          <span /> INTELIGÊNCIA EM MOVIMENTO
+          INTELIGÊNCIA <span>EM MOVIMENTO</span>
         </span>
       </header>
 
@@ -156,14 +163,6 @@ export default function HubPage() {
               </h1>
               <p className="hub-introduction">{environment.introduction}</p>
             </div>
-          </div>
-          <div className="hub-editorial-footnote">
-            <span className="hub-rule" />
-            <span>
-              Menos distância entre
-              <br />
-              <strong>você e o próximo passo.</strong>
-            </span>
           </div>
         </section>
 
@@ -239,22 +238,18 @@ export default function HubPage() {
               <span>{isAI ? '01' : '02'} / 02</span>
             </div>
           </section>
-          <p className="hub-card-caption">
-            <span />
-            {environment.note}
-          </p>
         </div>
       </main>
 
+      {/* Duas linhas centralizadas (decisão do usuário em 09/09/2026): a frase do
+          movimento absorveu a dos dois ambientes, e a assinatura desceu para
+          debaixo dela. Antes eram três blocos numa grade, um em cada canto. */}
       <footer className="hub-footer">
-        <span>
+        <span className="hub-footer-line">
           <ShieldCheckIcon aria-hidden />
-          Dois ambientes. Uma operação conectada.
+          Seu próximo movimento em dois ambientes, uma operação conectada.
         </span>
-        <span className="hub-footer-signature">
-          SEU PRÓXIMO MOVIMENTO <ArrowRightIcon aria-hidden />
-        </span>
-        <span>ROOKHUB © {new Date().getFullYear()}</span>
+        <span className="hub-footer-signature">ROOKHUB © {new Date().getFullYear()}</span>
       </footer>
     </div>
   );

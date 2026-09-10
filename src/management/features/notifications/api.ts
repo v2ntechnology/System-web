@@ -41,8 +41,21 @@ const SOURCES: NotificationSource[] = [
   'INTEGRATIONS',
 ];
 
+/**
+ * Dispensas do modo simulado.
+ *
+ * No modo simulado não existe servidor para lembrar o que foi dispensado, e sem
+ * isso o gesto se desfaz sozinho na consulta seguinte: a pessoa arrasta, o item
+ * sai e volta. Um conjunto em memória basta, porque ele vive enquanto a aba
+ * viver, que é exatamente o alcance de uma demonstração.
+ */
+const dismissedInMocks = new Set<string>();
+
 export async function getNotifications(): Promise<AppNotification[]> {
-  if (env.enableMocks) return mockNotifications();
+  if (env.enableMocks) {
+    const simuladas = await mockNotifications();
+    return simuladas.filter((item) => !dismissedInMocks.has(item.id));
+  }
 
   const rows = await httpRequest<NotificationDto[]>('/v1/notifications');
 
@@ -77,6 +90,35 @@ export async function markNotificationsRead(ids: string[]): Promise<void> {
   if (env.enableMocks || ids.length === 0) return;
 
   await httpRequest<{ marked: number }>('/v1/notifications/read', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+/**
+ * Tira o alerta da frente de quem pediu.
+ *
+ * ⚠️ **Não existe excluir aqui, e não é omissão.** O alerta não é gravado: ele é
+ * derivado do estado atual a cada consulta, então não há linha para apagar. O
+ * que persiste é a decisão de não querer mais ver aquele identificador, e a
+ * derivação passa a filtrar por ela.
+ *
+ * Dispensar **não** marca como lido: são tabelas separadas no `Backend-web`,
+ * porque quem tira da frente não está dizendo que leu, e o contador de não
+ * lidas não pode mentir por causa do gesto.
+ *
+ * A chave carrega o dia, como a da leitura: dispensar hoje não silencia amanhã.
+ * Alerta contínuo, como o de veículo sem sinal, volta enquanto a condição durar.
+ */
+export async function dismissNotifications(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+
+  if (env.enableMocks) {
+    ids.forEach((id) => dismissedInMocks.add(id));
+    return;
+  }
+
+  await httpRequest<{ dismissed: number }>('/v1/notifications/dismiss', {
     method: 'POST',
     body: JSON.stringify({ ids }),
   });

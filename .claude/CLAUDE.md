@@ -4,8 +4,10 @@
 
 - Responder sempre em pt-BR, direto e objetivo, resumo breve no fim.
 - **Nunca usar travessão (`—`)** em texto de interface, README, documentação, comentário de
-  código ou mensagem de commit (decisão do usuário em 15/08/2026). Quebrar a frase em duas, ou usar
-  dois-pontos e parênteses, em vez de trocar o travessão por vírgula.
+  código ou mensagem de commit (decisão do usuário em 15/08/2026). ⚠️ **Trocar
+  por vírgula** (decisão do usuário em 04/09/2026, que substitui a orientação anterior de quebrar a
+  frase em duas). Onde a vírgula emendar duas orações independentes e prejudicar a leitura, quebrar
+  a frase e avisar.
 - Fazer só o que foi pedido: sem refatoração, limpeza ou melhoria não solicitada.
 - `.claude/memoria.md` guarda o que o código não mostra. Na primeira tarefa de código ou infra da
   sessão, rodar Grep `^#{2,3} ` nele: lista as seções e as linhas, custa pouco. Ler a seção cujo

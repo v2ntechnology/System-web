@@ -1,87 +1,39 @@
-import { BellIcon } from '@/components/icons';
-import { Link } from 'react-router';
-
-import { SeverityBadge } from '@/components/shared/status-badge';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useAlerts } from '@/hooks/use-queries';
+import { NotificationBell, type NotificationBellItem } from '@/components/shared/notification-bell';
+import { useAlerts, useDismissAlert } from '@/hooks/use-queries';
 import { formatRelative } from '@/lib/format';
 
+/**
+ * Sino do painel operacional: os alertas abertos sem sair da tela.
+ *
+ * A caixa é o `NotificationBell` compartilhado, o mesmo que o painel de gestão
+ * usa (decisão do usuário em 09/09/2026). O que mora aqui é só a tradução do
+ * alerta da operação para o formato que a caixa entende.
+ */
 export function NotificationMenu() {
   const { data: alerts } = useAlerts();
+  const dispensar = useDismissAlert();
+
+  /* Resolvido e ignorado não são pendência: o sino mostra o que ainda espera alguém. */
   const openAlerts = (alerts ?? []).filter(
     (a) => a.status === 'open' || a.status === 'in_progress',
   );
-  /* Até doze, e a caixa rola: o `max-h-80` abaixo já existia, mas com quatro
-     itens fixos nunca chegava a rolar. */
-  const preview = openAlerts.slice(0, 12);
-  const badge = openAlerts.length > 9 ? '9+' : String(openAlerts.length);
+
+  const items: NotificationBellItem[] = openAlerts.map((alert) => ({
+    id: alert.id,
+    title: alert.title,
+    severity: alert.severity,
+    meta: `${alert.vehiclePlate ? `${alert.vehiclePlate} · ` : ''}${formatRelative(alert.date)}`,
+    to: '/app/alertas',
+  }));
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          /* O `size-4` que o Button aplica a todo svg vence a classe do ícone; o tamanho do sino
-             tem que vir daqui. E `shrink-0` porque a busca ao lado espremia o botão para 26px de
-             largura: o realce do hover saía oval, e não o círculo do painel de gestão. */
-          className="relative h-10 w-10 shrink-0 rounded-full [&_svg]:size-[22px]"
-          aria-label={
-            openAlerts.length > 0
-              ? `Notificações: ${openAlerts.length} ativas`
-              : 'Notificações: nenhuma ativa'
-          }
-        >
-          <BellIcon />
-          {openAlerts.length > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold leading-none text-destructive-foreground ring-2 ring-background">
-              {badge}
-            </span>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <p className="font-display text-sm font-semibold">Notificações</p>
-          <span className="text-xs text-muted-foreground">{openAlerts.length} ativas</span>
-        </div>
-        {/* `overscroll-contain`: chegar no fim da lista e insistir na roda
-            rolava a página atrás da caixa. Mesmo defeito do sino do painel de
-            gestão, relatado pelo usuário em 05/09/2026. */}
-        <div className="max-h-80 overflow-y-auto overscroll-contain">
-          {preview.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              Nenhuma notificação ativa.
-            </p>
-          ) : (
-            preview.map((alert) => (
-              <div
-                key={alert.id}
-                className="flex flex-col gap-1 border-b border-border/60 px-4 py-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium leading-tight">{alert.title}</p>
-                  <SeverityBadge severity={alert.severity} />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {alert.vehiclePlate ? `${alert.vehiclePlate} · ` : ''}
-                  {formatRelative(alert.date)}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="p-2">
-          <Button asChild variant="ghost" size="sm" className="w-full">
-            <Link to="/app/alertas">Ver todos os alertas</Link>
-          </Button>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <NotificationBell
+      items={items}
+      badgeCount={openAlerts.length}
+      countLabel={`${openAlerts.length} ${openAlerts.length === 1 ? 'ativa' : 'ativas'}`}
+      emptyMessage="Nenhuma notificação ativa."
+      viewAllTo="/app/alertas"
+      onDismiss={(id) => dispensar.mutate(id)}
+    />
   );
 }

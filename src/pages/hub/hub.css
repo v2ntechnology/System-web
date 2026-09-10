@@ -5,7 +5,6 @@
   /* O planeta do modo IA anda no azul-noite da marca; o laranja fica para as
      ações (esfera, CTA, paginação), que é onde ele precisa chamar. */
   --hub-planet: var(--color-accent, #010066);
-  --hub-light: var(--hub-primary);
   --hub-ink: #2b2622;
   --hub-muted: #574e46;
   --hub-faint: #6f665d;
@@ -87,26 +86,35 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 11px;
+  /* Mais respiro entre o logotipo e a assinatura (decisão do usuário em
+     09/09/2026): coladas, as duas liam como um bloco só. */
+  gap: 18px;
 }
 .hub-header > img {
   width: 142px;
   height: auto;
 }
+/* A assinatura da marca, sem a bolinha que vinha antes dela e com mais presença
+   (decisão do usuário em 09/09/2026). A 9px em cinza apagado ela quase não
+   existia debaixo do logotipo.
+
+   O impacto vem do peso e da entreletra, não do corpo: em caixa alta curta, uma
+   fonte grande viraria um segundo título e disputaria com o logotipo logo acima.
+
+   ⚠️ `text-indent` compensa o espaço que a entreletra acrescenta DEPOIS da
+   última letra. Sem ele a frase parece deslocada para a esquerda, mesmo estando
+   centralizada de fato. */
 .hub-header-caption {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  color: var(--hub-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: var(--hub-ink);
 }
+/* A segunda metade em laranja (decisão do usuário em 09/09/2026), o mesmo corte
+   do título grande da página: a primeira parte na tinta, o fecho na marca. */
 .hub-header-caption > span {
-  height: 4px;
-  width: 4px;
-  border-radius: 50%;
-  background: var(--hub-light);
-  box-shadow: 0 0 9px color-mix(in srgb, var(--hub-primary) 55%, transparent);
+  color: var(--hub-primary);
 }
 .hub-main {
   position: relative;
@@ -127,11 +135,18 @@
   justify-content: center;
   padding: 25px 0;
 }
+/* A saudação abre a página e leva o nome de quem entrou, então ela precisa de
+   presença (decisão do usuário em 09/09/2026). A 16px, ao lado de um título de
+   até 72px, ela lia como legenda.
+
+   O peso do impacto está na PRIMEIRA parte: "Boa noite, Fulano." em tinta cheia
+   e 600, com "Este é o seu espaço." leve e apagado logo em seguida. É o contraste
+   entre as duas que faz o nome saltar, não o tamanho sozinho. */
 .hub-welcome {
   color: var(--hub-ink);
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.015em;
+  font-size: clamp(20px, 1.7vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
   margin-bottom: 60px;
 }
 .hub-welcome > span {
@@ -176,30 +191,15 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+/* O subtítulo absorveu a frase que ficava solta no pé da coluna (decisão do
+   usuário em 09/09/2026), então a caixa cresceu de 320px: no valor antigo o
+   texto passava a formar cinco linhas estreitas. */
 .hub-introduction {
-  max-width: 320px;
+  max-width: 420px;
   margin-top: 26px;
   font-size: 14px;
   line-height: 1.8;
   color: #4a423a;
-}
-.hub-editorial-footnote {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 50px;
-  font-size: 10px;
-  line-height: 1.7;
-  color: var(--hub-muted);
-}
-.hub-editorial-footnote strong {
-  color: var(--hub-ink);
-  font-weight: 400;
-}
-.hub-rule {
-  width: 30px;
-  height: 1px;
-  background: #c3b8ad;
 }
 .hub-portal-wrap {
   position: relative;
@@ -496,8 +496,10 @@
     box-shadow 0.25s,
     transform 0.25s;
 }
+/* Sem o halo laranja no hover (decisão do usuário em 09/09/2026). Ficou só o
+   leve levantar: a sombra de repouso continua valendo, e o botão responde ao
+   mouse sem acender. */
 .hub-cta:hover {
-  box-shadow: 0 8px 26px color-mix(in srgb, var(--hub-primary) 40%, transparent);
   transform: translateY(-2px);
 }
 .hub-cta-arrow {
@@ -559,47 +561,40 @@
   width: 21px;
   background: var(--hub-primary);
 }
-.hub-card-caption {
+/* Duas linhas centralizadas, uma sobre a outra (decisão do usuário em
+   09/09/2026). Antes era uma grade `1fr auto 1fr` com um bloco em cada canto. */
+.hub-footer {
+  min-height: 74px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--hub-muted);
+  /* Subiu de 9px em 09/09/2026: no rodapé centralizado a frase é a única linha
+     corrida da faixa, e naquele tamanho ela pedia esforço para ser lida. */
+  font-size: 11px;
+  text-align: center;
+}
+.hub-footer-line {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  margin-top: 19px;
-  color: var(--hub-muted);
-  font-size: 9px;
-}
-.hub-card-caption > span {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--hub-scene-color);
-  transition: background 0.7s;
-}
-.hub-footer {
-  min-height: 74px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 20px;
-  color: var(--hub-muted);
-  font-size: 9px;
-}
-.hub-footer > span:last-child {
-  justify-self: end;
-}
-.hub-footer > span:first-child,
-.hub-footer-signature {
-  display: flex;
-  align-items: center;
+  /* A frase é longa: em tela estreita ela quebra em vez de empurrar o rodapé. */
+  flex-wrap: wrap;
   gap: 8px;
 }
 .hub-footer svg {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
 }
-.hub-footer > span:last-child,
+/* O espacejamento largo fica só na assinatura. A frase acima é corrida, e com
+   0.15em de entreletra ela viraria uma faixa difícil de ler.
+
+   A assinatura sobe menos que a frase de propósito: ela continua sendo o registro
+   da marca, não o texto que a pessoa vem ler. */
 .hub-footer-signature {
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 0.15em;
 }
 .hub a:focus-visible,
@@ -616,14 +611,29 @@
   left: 22%;
   transform: translateX(-50%);
   opacity: 0;
+  /* SAÍDA: curta (decisão do usuário em 09/09/2026). Ao trocar para a Gestão o
+     globo tem que desocupar a cena rápido, senão ele fica pairando por cima das
+     colunas que estão entrando.
+
+     ⚠️ Entrada e saída têm tempos diferentes de propósito, e é por isso que a
+     transição está declarada duas vezes: o navegador aplica a do estado de
+     DESTINO. Indo para `data-active='false'` vale esta; indo para `true` vale a
+     de baixo. Declarar só aqui em cima daria o mesmo tempo para os dois lados. */
   transition:
-    opacity 1s,
-    translate 1.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+    opacity 0.4s ease-in,
+    translate 0.45s ease-in;
   translate: 0 90px;
 }
+/* ENTRADA: longa, para o globo ter tempo de girar e frear enquanto a cena sobe.
+   ⚠️ Casa com `ENTRADA_MS` no `globe.tsx`. Mexeu numa, mexa na outra: se o CSS
+   ficar mais lento que o giro, o globo para antes de a cena terminar de entrar e
+   o movimento morre no meio. */
 .hub-planet-scene[data-active='true'] {
   opacity: 1;
   translate: 0 0;
+  transition:
+    opacity 2s,
+    translate 2.6s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .hub-planet-surface {
   position: absolute;
@@ -665,17 +675,6 @@
   border-bottom-color: transparent;
   border-radius: 50%;
   transform: rotate(-23deg) scaleY(0.4);
-}
-.hub-planet-orbit::after {
-  content: '';
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  top: 21%;
-  right: 8%;
-  background: var(--hub-planet);
-  border-radius: 50%;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--hub-planet) 60%, transparent);
 }
 .hub-floor {
   position: absolute;
@@ -855,9 +854,11 @@
   .hub-welcome {
     margin-bottom: 44px;
   }
-  .hub-footer-signature {
-    display: none;
-  }
+  /* ⚠️ Aqui havia um `display: none` na assinatura. Ele existia quando
+     `hub-footer-signature` era o bloco do MEIO da grade ("Seu próximo
+     movimento"), que sobrava em tela estreita. Desde 09/09/2026 essa classe é o
+     "ROOKHUB © ano", que deve continuar visível: mantido escondido, a marca
+     sumia em qualquer tela abaixo de 1100px, que é a maioria dos notebooks. */
 }
 @media (max-width: 800px) {
   .hub-header,
@@ -871,8 +872,9 @@
     width: 120px;
   }
   .hub-header-caption {
-    font-size: 8px;
-    letter-spacing: 0.16em;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-indent: 0.2em;
   }
   .hub-main {
     width: calc(100% - 48px);
@@ -888,7 +890,7 @@
   }
   .hub-welcome {
     margin-bottom: 26px;
-    font-size: 14px;
+    font-size: 18px;
   }
   .hub-headline {
     min-height: 0;
@@ -905,9 +907,6 @@
     margin: 18px auto 0;
     max-width: 290px;
     font-size: 12px;
-  }
-  .hub-editorial-footnote {
-    display: none;
   }
   .hub-portal-wrap {
     width: min(100%, 370px);
@@ -936,15 +935,11 @@
   .hub-columns {
     inset: 31% -58% 8% -12%;
   }
+  /* O empilhamento e a centralização agora são o padrão do rodapé, então aqui
+     resta só o respiro maior da tela estreita. */
   .hub-footer {
-    grid-template-columns: 1fr;
-    justify-items: center;
     gap: 12px;
     padding-block: 20px;
-    text-align: center;
-  }
-  .hub-footer > span:last-child {
-    justify-self: center;
   }
 }
 @media (min-width: 801px) and (max-height: 800px) {

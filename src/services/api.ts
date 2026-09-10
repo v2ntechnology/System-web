@@ -246,8 +246,30 @@ export const checklistService: ChecklistService = {
   },
 };
 
+/**
+ * Alertas dispensados nesta sessão.
+ *
+ * ⚠️ Estes alertas ainda são mock, e não há servidor para lembrar a dispensa: um
+ * conjunto em memória é o que existe de "banco" aqui, e ele vive enquanto a aba
+ * viver. Quando os alertas passarem a vir da API, o que muda é só o corpo destes
+ * dois métodos.
+ *
+ * A lista original não é mutada de propósito: o alerta dispensado é devolvido
+ * com `status: 'ignored'`, que é o estado que o domínio já previa. Assim ele
+ * some do sino e da contagem do painel, mas continua na tela de alertas com o
+ * rótulo "Ignorado", em vez de desaparecer sem deixar rastro.
+ */
+const dismissedAlerts = new Set<string>();
+
 export const alertService: AlertService = {
   async list() {
-    return mockResponse(ALERTS);
+    return mockResponse(
+      ALERTS.map((alert) =>
+        dismissedAlerts.has(alert.id) ? { ...alert, status: 'ignored' as const } : alert,
+      ),
+    );
+  },
+  async dismiss(id: string) {
+    dismissedAlerts.add(id);
   },
 };
