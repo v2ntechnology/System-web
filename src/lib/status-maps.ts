@@ -4,17 +4,27 @@ import { CHECKLIST_STATUS_LABEL } from '@/mocks/costs/checklists';
 import { DRIVER_STATUS_LABEL } from '@/mocks/fleet/drivers';
 import { FINE_STATUS_LABEL } from '@/mocks/costs/fines';
 import { MAINTENANCE_STATUS_LABEL } from '@/mocks/costs/maintenance';
-import { TENANT_STATUS_LABEL } from '@/mocks/saas';
+import {
+  ACCESS_REQUEST_LABEL,
+  DOMAIN_LABEL,
+  PROVISIONING_LABEL,
+  TELEMETRY_LABEL,
+  TENANT_STATUS_LABEL,
+} from '@/mocks/saas';
 import { TRIP_STATUS_LABEL } from '@/mocks/operations/trips';
 import { VEHICLE_STATUS_LABEL } from '@/mocks/fleet/vehicles';
 import type {
+  AccessRequestStatus,
   AlertStatus,
   ChecklistStatus,
   Criticality,
+  DomainState,
   DriverStatus,
   FineStatus,
   MaintenanceStatus,
+  ProvisioningState,
   Severity,
+  TelemetryState,
   TenantStatus,
   TripStatus,
   VehicleStatus,
@@ -155,3 +165,59 @@ export const driverStatusDescriptor = (s: DriverStatus): StatusDescriptor => {
   };
   return { label: DRIVER_STATUS_LABEL[s], variant: variant[s] };
 };
+
+/* -------------------------------------------------------------------------- */
+/* Onboarding de transportadoras                                               */
+/* -------------------------------------------------------------------------- */
+
+const PROVISIONING_VARIANT: Record<ProvisioningState, Variant> = {
+  PENDING: 'muted',
+  RUNNING: 'info',
+  READY: 'success',
+  FAILED: 'destructive',
+};
+
+export const provisioningDescriptor = (s: ProvisioningState): StatusDescriptor => ({
+  label: PROVISIONING_LABEL[s],
+  variant: PROVISIONING_VARIANT[s],
+});
+
+/*
+ * Telemetria pendente é `warning`, não `destructive`.
+ *
+ * O ambiente é liberado sem coleta de propósito: cliente de outro fornecedor
+ * não fica esperando conector para poder usar o resto do sistema. Pintar de
+ * vermelho faria a tela mentir sobre a gravidade.
+ */
+const TELEMETRY_VARIANT: Record<TelemetryState, Variant> = {
+  CONNECTED: 'success',
+  PENDING_CONNECTOR: 'warning',
+  PENDING_CONTRACT: 'muted',
+};
+
+export const telemetryDescriptor = (s: TelemetryState): StatusDescriptor => ({
+  label: TELEMETRY_LABEL[s],
+  variant: TELEMETRY_VARIANT[s],
+});
+
+const DOMAIN_VARIANT: Record<DomainState, Variant> = {
+  REGISTERED: 'success',
+  PENDING: 'info',
+  FAILED: 'destructive',
+};
+
+export const domainDescriptor = (s: DomainState): StatusDescriptor => ({
+  label: DOMAIN_LABEL[s],
+  variant: DOMAIN_VARIANT[s],
+});
+
+const ACCESS_REQUEST_VARIANT: Record<AccessRequestStatus, Variant> = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'muted',
+};
+
+export const accessRequestDescriptor = (s: AccessRequestStatus): StatusDescriptor => ({
+  label: ACCESS_REQUEST_LABEL[s],
+  variant: ACCESS_REQUEST_VARIANT[s],
+});

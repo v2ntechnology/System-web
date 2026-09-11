@@ -81,6 +81,39 @@ tela) · Documentação e próximos passos · Gotchas
 - Arrays grandes ficam em mocks, nunca em componentes. No painel operacional, tabelas reutilizam
   `components/shared/DataTable`; no painel de gestão, usam os primitivos próprios de `management/ui`.
 
+### O backoffice `/admin-saas` foi refeito sobre o plano de onboarding (11/09/2026)
+
+O desenho segue `docs/ONBOARDING_TRANSPORTADORAS.md`, que é **proposta e não implementação**: nada
+disso existe no `Backend-web`. Estas telas são layout com dado simulado, a pedido do usuário.
+
+- As telas são nove: `saas-overview-page` (era `saas-dashboard-page`), `saas-requests-page`,
+  `saas-tenants-page` + detalhe, `saas-plans-page`, `saas-subscriptions-page`,
+  `saas-telemetry-page`, `saas-team-page` e `saas-audit-page`. Saíram `saas-users-page` e
+  `saas-integrations-page`: a primeira listava usuário de cliente, que é assunto do Dono e não
+  nosso, e a segunda virou a de telemetria. As duas rotas antigas (`usuarios`, `integracoes`)
+  continuam no router como redirecionamento, para não quebrar link salvo.
+- ⚠️ **`stores/saas-store.ts` existe porque a fila e a lista de empresas são o mesmo dado em dois
+  momentos da vida.** Com os mocks lidos direto do módulo, aprovar uma solicitação não mudava nada
+  na tela e o fluxo central do onboarding ficava impossível de conferir. O store é mutável em
+  memória e some no F5, de propósito: quando a API existir ele vira a camada de query/mutation e
+  nenhuma tela muda.
+- ⚠️ **Aprovar não é um botão, é um formulário de quatro passos** (`approval-wizard.tsx`): dados e
+  endereço, telemetria, marca, plano. O ambiente só é utilizável com os quatro resolvidos, e um
+  botão único deixaria alguém aprovar para descobrir depois que faltava escolher o fornecedor.
+- ⚠️ **O slug é subdomínio E nome do schema**, então a validação mora em `app/tenant-slug.ts` e não
+  dentro da tela: o backend precisará da mesma regra, palavra por palavra. Lá estão o formato, os
+  doze slugs reservados (`app` é o mais importante, é a porta do Super Admin) e a sugestão a partir
+  da razão social.
+- **Telemetria pendente é `warning`, nunca `destructive`** (`lib/status-maps.ts`). O ambiente é
+  liberado sem coleta de propósito, porque só a MiX tem conector: pintar de vermelho faria a tela
+  mentir sobre a gravidade. `PENDING_CONTRACT` é `muted`, que é o cliente que nem contratou
+  rastreamento.
+- A auditoria tem duas abas porque o acesso de suporte (TI Operacional lendo dados de cliente por
+  cabeçalho) é a exceção deliberada à regra de tenancy. Misturá-lo com "fulano aprovou uma
+  solicitação" esconderia justamente o que precisa ser conferível.
+- Entra-se com `superadmin@rookhub.com.br` e a senha das contas de demonstração, com
+  `VITE_ENABLE_MOCKS=true`. Ver `Entrada, sessão e perfis` para o porquê de a conta ter voltado.
+
 ## Entrada, sessão e perfis
 
 - ⚠️ **A caixa do sino cortava a lista no DADO, não na altura** (corrigido em 04/09/2026). Os
@@ -143,8 +176,17 @@ tela) · Documentação e próximos passos · Gotchas
   gestão, e no mesmo dia pediu que ela saísse da barra e ficasse só no menu do avatar.
 - Papéis canônicos: `OWNER`, `MANAGER`, `OPERATOR`, `MAINTENANCE`, `SUPER_ADMIN` e `DRIVER`. Não
   reintroduzir os nomes antigos `TENANT_ADMIN`, `FLEET_MANAGER`, `MAINTENANCE_MANAGER` ou `VIEWER`.
-- A lista de contas demonstrativas contém apenas os quatro perfis de cliente pedidos pelo usuário;
-  `SUPER_ADMIN` continua acessível pelo menu de demonstração, mas não deve voltar ao login sem pedido.
+- ⚠️ **`SUPER_ADMIN` voltou ao login em 11/09/2026, a pedido do usuário** (`superadmin@rookhub.com.br`,
+  mesma senha das demais). A regra anterior mandava alcançá-lo só pelo menu de demonstração, e esse
+  caminho **não existia mais**: o seletor de perfil vive na topbar do `/app`, `canUseDemoControls` o
+  esconde de operador e manutenção, e o `RoleAreaRoute` manda dono e gestor de volta ao `/painel`
+  antes de chegarem lá. Sobrava um nó: era preciso já ser super admin para ver o menu que tornaria
+  alguém super admin, e o `/admin-saas` ficou inalcançável por meses. Consertar o seletor foi
+  oferecido e o usuário preferiu a conta.
+- ⚠️ **O `SUPER_ADMIN` cai no `/admin-saas/dashboard`, e não na hub** (`landingForRole`, 11/09/2026).
+  A hub escolhe entre a IA e a gestão de UMA transportadora, e nenhuma das duas é o trabalho dele.
+  Ele segue em `HUB_ROLES` e em `usesManagementPanel`, então alcança `/painel` e `/gestao` pelo menu
+  quando precisa demonstrar as áreas internas.
 - **A autenticação é real desde 24/08/2026** (`services/auth.ts`): access token só na memória, com
   1 hora de validade, e refresh em cookie `HttpOnly` com `Path=/v1/auth`, que nunca aparece no corpo
   de resposta nenhuma. A sessão sobrevive ao recarregar.
