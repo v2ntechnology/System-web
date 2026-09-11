@@ -283,23 +283,31 @@ const adminRoutes: RouteObject = {
   ),
   children: [
     { index: true, element: <Navigate to="/admin-saas/dashboard" replace /> },
-    { path: 'dashboard', element: lazyElement(() => import('@/pages/saas/saas-dashboard-page')) },
+    { path: 'dashboard', element: lazyElement(() => import('@/pages/saas/saas-overview-page')) },
+    {
+      path: 'solicitacoes',
+      element: lazyElement(() => import('@/pages/saas/saas-requests-page')),
+    },
     { path: 'empresas', element: lazyElement(() => import('@/pages/saas/saas-tenants-page')) },
     {
       path: 'empresas/:tenantId',
       element: lazyElement(() => import('@/pages/saas/saas-tenant-detail-page')),
     },
-    { path: 'usuarios', element: lazyElement(() => import('@/pages/saas/saas-users-page')) },
     { path: 'planos', element: lazyElement(() => import('@/pages/saas/saas-plans-page')) },
     {
       path: 'assinaturas',
       element: lazyElement(() => import('@/pages/saas/saas-subscriptions-page')),
     },
     {
-      path: 'integracoes',
-      element: lazyElement(() => import('@/pages/saas/saas-integrations-page')),
+      path: 'telemetria',
+      element: lazyElement(() => import('@/pages/saas/saas-telemetry-page')),
     },
+    { path: 'equipe', element: lazyElement(() => import('@/pages/saas/saas-team-page')) },
     { path: 'auditoria', element: lazyElement(() => import('@/pages/saas/saas-audit-page')) },
+    /* Endereços da versão anterior do backoffice, mantidos para não quebrar
+       link salvo depois da reorganização. */
+    { path: 'usuarios', element: <Navigate to="/admin-saas/equipe" replace /> },
+    { path: 'integracoes', element: <Navigate to="/admin-saas/telemetria" replace /> },
   ],
 };
 

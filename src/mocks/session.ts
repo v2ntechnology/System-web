@@ -67,9 +67,16 @@ const DEMO_IDENTITY: Record<
  * mostra a plataforma pelos olhos do operador. Senha única e pública de
  * propósito: não há backend, e a validação só existe para exercitar a tela.
  *
- * São só os quatro perfis do cliente. `SUPER_ADMIN` continua existindo no
- * domínio (administra a plataforma, não a transportadora), mas não é papel que
- * alguém experimente pelo login — sem conta aqui, não aparece na tela.
+ * São os quatro perfis do cliente mais o `SUPER_ADMIN`, que administra a
+ * plataforma e não uma transportadora: a casa dele é o `/admin-saas`.
+ *
+ * ⚠️ O super admin ficou de fora desta lista até 11/09/2026, porque o caminho
+ * documentado para ele era o seletor de perfil do "Modo demonstração". Esse
+ * caminho não existe mais na prática: o seletor vive na topbar do `/app`, o
+ * `canUseDemoControls` o esconde de operador e manutenção, e o `RoleAreaRoute`
+ * manda dono e gestor de volta para o `/painel` antes de chegarem lá. Sobrava um
+ * nó: era preciso já ser super admin para ver o menu que tornaria alguém super
+ * admin. Com a conta abaixo o backoffice volta a ser alcançável.
  */
 export const DEMO_PASSWORD = 'rookhub123';
 
@@ -78,6 +85,7 @@ export const DEMO_CREDENTIALS: { email: string; role: UserRole }[] = [
   { email: 'gestor@rookhub.com.br', role: 'MANAGER' },
   { email: 'operador@rookhub.com.br', role: 'OPERATOR' },
   { email: 'manutencao@rookhub.com.br', role: 'MAINTENANCE' },
+  { email: 'superadmin@rookhub.com.br', role: 'SUPER_ADMIN' },
 ];
 
 /** Conta bloqueada — exercita o caminho de erro da tela de login. */

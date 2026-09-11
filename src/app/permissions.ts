@@ -121,8 +121,17 @@ export function usesManagementPanel(role: UserRole): boolean {
   return role === 'OWNER' || role === 'MANAGER' || role === 'SUPER_ADMIN';
 }
 
-/** Rota inicial depois de autenticar, por perfil. */
+/**
+ * Rota inicial depois de autenticar, por perfil.
+ *
+ * ⚠️ O `SUPER_ADMIN` cai no backoffice, e não na hub. A hub escolhe entre a IA e
+ * a gestão de UMA transportadora, e nenhuma das duas é o trabalho dele: quem
+ * administra a plataforma aprova empresa e cuida de conta. Ele continua em
+ * `HUB_ROLES` e em `usesManagementPanel`, então alcança `/painel` e `/gestao`
+ * pelo menu quando precisa demonstrar as áreas internas.
+ */
 export function landingForRole(role: UserRole): string {
+  if (role === 'SUPER_ADMIN') return '/admin-saas/dashboard';
   return usesManagementPanel(role) ? '/painel' : '/app/dashboard';
 }
 
