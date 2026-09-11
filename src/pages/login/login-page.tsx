@@ -78,7 +78,19 @@ function AuthLayout({ children }: { children: ReactNode }) {
   const noBlur = useNoBlur();
 
   return (
-    <main className="tela-proporcional management-theme bg-surface p-4 sm:p-6">
+    /*
+     * ⚠️ A referencia da escala e 900px, e nao os 1080px que a classe traz por
+     * padrao (pedido do usuario em 10/09/2026: no notebook os campos ficavam
+     * pequenos demais). O numero sai de medicao, nao de gosto: o estado MAIS
+     * ALTO destas telas e o login com mensagem de erro, que ocupa 815px de
+     * conteudo, mais os 48px de respiro do main, dando 863px. Os 900 cobrem esse
+     * pior caso com folga e ainda deixam tudo 20% maior numa janela de 768px.
+     *
+     * ⚠️ Mexeu no conteudo destas telas? Meca de novo com o zoom desligado. Se o
+     * conteudo passar de 900px em escala 1, a coluna da direita comeca a rolar
+     * por dentro, que e a salvaguarda, mas nao e o que se quer aqui.
+     */
+    <main className="tela-proporcional [--altura-de-referencia:900px] management-theme bg-surface p-4 sm:p-6">
       <div className="grid h-full gap-4 sm:gap-6 lg:grid-cols-[1fr_34rem] lg:gap-12">
         {/*
          * Painel de marca. Superfície indigo com texto branco usa
@@ -410,8 +422,20 @@ export function ForgotPasswordPage() {
     setSent(true);
   }
 
+  /*
+   * ⚠️ Cabe na janela sem rolagem, pela `.tela-proporcional`, a pedido do
+   * usuário em 10/09/2026. A referência de 660px sai de MEDIÇÃO, e não de
+   * gosto: o formulário de recuperação ocupa 608px de altura natural, e o resto é folga.
+   *
+   * O `min-h` saiu junto porque a classe já define a altura exata da janela, e
+   * manter os dois deixaria duas fontes para a mesma medida.
+   *
+   * ⚠️ Mexeu no conteúdo? Meça de novo com o zoom desligado. Passando da
+   * referência, a tela começa a ser CORTADA, porque a classe usa
+   * `overflow: hidden`.
+   */
   return (
-    <main className="management-theme bg-surface relative flex min-h-dvh flex-col items-center justify-center px-6 py-12">
+    <main className="tela-proporcional [--altura-de-referencia:660px] management-theme bg-surface relative flex flex-col items-center justify-center px-6 py-12">
       <AuroraBackdrop />
 
       <div className="w-full max-w-105">

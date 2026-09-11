@@ -102,7 +102,7 @@ export default function HubPage() {
   }
 
   return (
-    <div className="hub" data-mode={mode}>
+    <div className="hub tela-proporcional" data-mode={mode}>
       <div className="hub-scenery" aria-hidden="true">
         <div className="hub-stars" />
         <div className="hub-horizon" />

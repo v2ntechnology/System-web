@@ -1445,6 +1445,51 @@ estourou o tempo mesmo depois de restaurar as condições. Foi preciso derrubar 
 um estado que passa rápido, o caminho que funcionou foi um `MutationObserver` na página guardando a
 primeira ocorrência, sem mexer na rede.
 
+### As telas de entrada passaram a caber na janela (10/09/2026)
+
+A `.tela-proporcional` saiu do login e da voz e virou o padrão das telas de entrada, a pedido do
+usuário: 404, sessão expirada, esqueci a senha e o hub de escolha.
+
+- **Cada tela tem a própria referência, e o número sai de MEDIÇÃO** com o zoom desligado, nunca de
+  chute. As alturas naturais medidas: 404 com **404px**, esqueci a senha com **608px**, sessão
+  expirada com **676px**, hub com **781px** ou **917px**, e o resto é folga.
+- ⚠️ **O hub precisou de DUAS referências**, 940px e 820px, porque ele já muda de tamanho sozinho no
+  breakpoint de `max-height: 800px`: acima o conteúdo pede 917px, abaixo pede 781px. Uma referência
+  única serviria mal um dos lados. As duas moram no `hub.css`, a segunda dentro daquela media query.
+- ⚠️ **No hub a técnica SAI abaixo de 801px de largura, e isso é deliberado.** Ali ele empilha em uma
+  coluna e o conteúdo sobe para cerca de 1150px: forçar a janela espremeria a tela a 70% num
+  celular, o que é pior que rolar. A media query devolve `zoom: 1`, `height: auto` e o `min-height`.
+  O login e o esqueci a senha NÃO precisaram disso, porque o conteúdo deles cabe mesmo no telefone.
+- ⚠️ **O `min-h-svh`/`min-h-dvh` saiu das telas que receberam a classe.** Ela já define a altura
+  exata, e manter os dois deixaria duas fontes para a mesma medida.
+- ⚠️ **Comentário JSX não pode ficar entre o `return (` e o elemento raiz**: vira um segundo filho e
+  o TypeScript acusa `TS1005`. A nota de cada tela ficou como bloco `/* */` antes do `return`.
+- Conferido em 1920x1080, 1600x900, 1440x850, 1366x768, 1280x720, 1280x650 e nos telefones 390x844 e
+  360x740: nenhuma rola nem corta no desktop, e o hub rola só no telefone, como decidido.
+
+### A escala do login deixou de encolher demais (10/09/2026)
+
+O usuário entrou pelo notebook da empresa e achou os campos pequenos. A técnica de caber na janela
+sem rolagem estava certa, o que estava errado era a calibragem.
+
+- ⚠️ **A `--altura-de-referencia` da `.tela-proporcional` virou parâmetro.** O padrão de 1080px
+  continua e é a janela em que a tela de VOZ foi aprovada; o login passou a declarar **900px**. Sem
+  isso, mexer no login mexeria na voz junto.
+- **O número saiu de medição, não de gosto.** Com o zoom desligado, o conteúdo do login ocupa 725px,
+  e o estado mais alto (login com mensagem de erro) ocupa **815px**. Com os 48px de respiro do
+  `main`, o pior caso pede **863px**, bem abaixo dos 1080 que a referência assumia: por isso a tela
+  encolhia sem necessidade.
+- **O ganho medido é de ~20%** na altura dos campos: 37px para 44px em 1366x768, e 43px para 52px em
+  1600x900, que passou a rodar em escala 1.
+- Conferido em 1080, 900, 768, 720 e 650px de altura, no estado normal e **com erro na tela**: a
+  página não rola, a coluna não rola por dentro, e o botão Entrar e a mensagem de erro ficam
+  inteiros à vista.
+- ⚠️ **Mexeu no conteúdo do login ou do convite? Meça de novo com o zoom desligado.** Passando de
+  900px em escala 1, a coluna da direita começa a rolar por dentro. Isso é a salvaguarda do
+  `overflow-y-auto` e não quebra a tela, mas é o oposto do que se pediu aqui.
+- O `ForgotPasswordPage` NÃO usa essa técnica: ele tem `main` próprio com `min-h-dvh` e rola normal.
+  Quem herda a referência do login é o `InvitePage`, que divide o `AuthLayout`.
+
 ### O assistente virou um só nos quatro perfis (09/09/2026)
 
 Relatado pelo usuário: no painel operacional a IA abria numa tela própria, e não no drawer. A

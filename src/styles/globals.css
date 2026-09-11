@@ -476,7 +476,18 @@
    * comprimentos: `calc()` não permite dividir comprimento por comprimento.
    */
   .tela-proporcional {
-    --escala-tela: clamp(0.5, tan(atan2(100dvh, 1080px)), 1);
+    /*
+     * A altura em que a tela roda em tamanho natural. Abaixo dela tudo encolhe
+     * junto; acima, nada cresce, porque o clamp trava em 1.
+     *
+     * ⚠️ O padrao de 1080px e a janela em que a composicao da tela de VOZ foi
+     * aprovada. Quem precisar de outro numero sobrescreve a variavel no proprio
+     * elemento, e o valor certo e a altura que o CONTEUDO ocupa em escala 1,
+     * com folga: calibrar por chute encolhe a tela sem necessidade, que foi o
+     * defeito relatado pelo usuario em 10/09/2026 no login.
+     */
+    --altura-de-referencia: 1080px;
+    --escala-tela: clamp(0.5, tan(atan2(100dvh, var(--altura-de-referencia))), 1);
     zoom: var(--escala-tela);
     /* Dentro do zoom o `dvh` já chega reduzido; dividir devolve a janela cheia. */
     height: calc(100dvh / var(--escala-tela));

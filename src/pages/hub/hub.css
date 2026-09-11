@@ -1,5 +1,19 @@
 /* Cores sobre mídia e estilos exclusivos da proposta /painel2. */
 .hub {
+  /*
+   * ⚠️ Altura de referencia da `.tela-proporcional`, que faz o hub caber na
+   * janela sem rolagem (pedido do usuario em 10/09/2026: antes ele rolava
+   * abaixo de 1080px de altura).
+   *
+   * Sao DOIS numeros porque o hub ja muda de tamanho sozinho no breakpoint de
+   * `max-height: 800px`, la embaixo neste arquivo: acima dele o conteudo pede
+   * 917px de altura natural, abaixo pede 781px. Uma referencia unica serviria
+   * mal os dois lados, encolhendo a tela pequena sem necessidade.
+   *
+   * ⚠️ Mexeu no cabecalho, no rodape ou na esfera? Meca de novo com o zoom
+   * desligado, nas duas faixas.
+   */
+  --altura-de-referencia: 940px;
   --hub-primary: var(--color-primary, #d5623a);
   --hub-secondary: #8a7566;
   /* O planeta do modo IA anda no azul-noite da marca; o laranja fica para as
@@ -12,7 +26,9 @@
   --hub-scene-color: var(--hub-primary);
   position: relative;
   isolation: isolate;
-  min-height: 100svh;
+  /* A altura vem da `.tela-proporcional`; um `min-height` aqui seria uma segunda
+     fonte para a mesma medida. O `overflow` fica: ele corta a decoracao que
+     sangra para fora, e nao o conteudo. */
   overflow: hidden;
   color: var(--hub-ink);
   background: #f4f2ef;
@@ -861,6 +877,21 @@
      sumia em qualquer tela abaixo de 1100px, que é a maioria dos notebooks. */
 }
 @media (max-width: 800px) {
+  /*
+   * ⚠️ Abaixo desta largura a tecnica de caber na janela SAI, e isso e
+   * deliberado. Aqui o hub empilha em uma coluna e o conteudo sobe de 781px
+   * para cerca de 1150px de altura natural; forcar a janela espremeria a tela a
+   * 70% num celular, o que e pior que rolar. Rolagem em telefone e o esperado.
+   *
+   * O `zoom: 1` e o `height: auto` desfazem o que a `.tela-proporcional` poe, e
+   * o `min-height` volta a ser quem garante a tela cheia.
+   */
+  .hub.tela-proporcional {
+    zoom: 1;
+    height: auto;
+    min-height: 100svh;
+  }
+
   .hub-header,
   .hub-footer {
     width: calc(100% - 48px);
@@ -943,6 +974,10 @@
   }
 }
 @media (min-width: 801px) and (max-height: 800px) {
+  /* Nesta faixa o conteudo cai para 781px de altura natural. */
+  .hub {
+    --altura-de-referencia: 820px;
+  }
   .hub-main {
     padding-block: 22px;
   }

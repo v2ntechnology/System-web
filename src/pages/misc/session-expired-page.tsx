@@ -9,8 +9,20 @@ export default function SessionExpiredPage() {
   const logout = useSessionStore((s) => s.logout);
   const navigate = useNavigate();
 
+  /*
+   * ⚠️ Cabe na janela sem rolagem, pela `.tela-proporcional`, a pedido do
+   * usuário em 10/09/2026. A referência de 720px sai de MEDIÇÃO, e não de
+   * gosto: o vórtice com o texto e o botão ocupa 676px de altura natural, e o resto é folga.
+   *
+   * O `min-h` saiu junto porque a classe já define a altura exata da janela, e
+   * manter os dois deixaria duas fontes para a mesma medida.
+   *
+   * ⚠️ Mexeu no conteúdo? Meça de novo com o zoom desligado. Passando da
+   * referência, a tela começa a ser CORTADA, porque a classe usa
+   * `overflow: hidden`.
+   */
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center p-6 text-center">
+    <div className="tela-proporcional [--altura-de-referencia:720px] relative flex flex-col items-center justify-center p-6 text-center">
       {/* Fora do fluxo: a marca sobe sem deslocar o bloco central. */}
       <StackedBrandLogo
         className="absolute left-1/2 top-[7vh] -translate-x-1/2"
