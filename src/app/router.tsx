@@ -241,6 +241,22 @@ const hubRoutes: RouteObject[] = [
     ),
   },
   {
+    /* ⚠️ Tela TEMPORÁRIA (12/09/2026), fora do menu de propósito: nasceu para o
+       usuário ouvir as 43 vozes pt-BR do Google e escolher as da assistente,
+       depois da troca da ElevenLabs. As oito escolhidas estão no
+       application.yml do Backend-web, e é o catálogo da API que esta tela
+       mostra: hoje ela serve para reouvir e conferir nome, não mais para
+       escolher. Sai quando o usuário disser. */
+    path: '/assistente/vozes',
+    element: (
+      <ProtectedRoute>
+        <RoleAreaRoute belongs={isHubRole}>
+          {lazyElement(() => import('@/pages/hub/voice-catalog-page'))}
+        </RoleAreaRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/assistente',
     element: (
       <ProtectedRoute>

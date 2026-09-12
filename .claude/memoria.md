@@ -2245,6 +2245,26 @@ que ele descubra sozinho que tem caminhão parado esperando decisão dele.
 - Falta encadear a voz com a resposta do assistente: as duas peças existem, a conversa por voz do
   hub ainda não passa por elas ponta a ponta.
 
+### Catálogo de vozes em `/assistente/vozes` (12/09/2026)
+
+Tela **temporária**, fora do menu de propósito, criada para o usuário ouvir as 43 vozes pt-BR do
+Google e escolher as da assistente. Ele escolheu oito, quatro de cada gênero, e agora o catálogo da
+API tem só essas oito: a tela mostra o que a API devolve, então hoje ela serve para reouvir e
+conferir nome. Sai quando o usuário disser.
+
+- ⚠️ **O tier sai do id da voz, por substring** (`Chirp3-HD`, `Neural2`, `Wavenet`), porque a API
+  não devolve o tier e **o preço muda por tier**. Ele precisava ver o custo ao lado do timbre para
+  a escolha não ser só de gosto.
+- ⚠️ **Componente declarado DENTRO do render remonta a cada estado.** O `Grupo` nasceu dentro de
+  `VoiceCatalogPage` e o lint reprovou com razão: clicar numa estrela cortaria o áudio que estava
+  tocando. Está fora, recebendo props.
+- ⚠️ **O `AbortError` do StrictMode não é erro para mostrar.** O React aborta o primeiro fetch em
+  desenvolvimento, e a tela abria com "signal is aborted without reason" na cara de quem chegava.
+  Sai cedo quando `controlador.signal.aborted`.
+- **Quem define o nome da voz é o backend**, no `application.yml`. A tela nunca traduz id para nome:
+  no Google elas se chamam Gacrux ou só "C", e o nome de gente (Camila, Gustavo e os outros seis)
+  existe justamente para o usuário falar delas.
+
 ## Segurança e ambiente
 
 - `.env` na raiz, ignorado pelo Git, é a única cópia de valores reais. Só `VITE_*` pode chegar ao
