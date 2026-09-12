@@ -22,7 +22,8 @@ import {
 } from '@/management/ui';
 import { requestPasswordReset, signIn, signInWithGoogle, type AuthSession } from '@/services/auth';
 import { ApiError } from '@/services/http';
-import { SLUG_CLIENTE_PADRAO, enderecoDoSlug, modoDeAcesso } from '@/app/tenant-host';
+import { modoDeAcesso } from '@/app/tenant-host';
+import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/stores/session-store';
 
 /*
@@ -78,6 +79,32 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
 function AuthLayout({ children }: { children: ReactNode }) {
   const noBlur = useNoBlur();
 
+  /*
+   * ⚠️ A entrada da plataforma é MARINHO, a do cliente é terracota, e isso não é
+   * enfeite (pedido do usuário em 12/09/2026). A referência do projeto é o Itaú:
+   * laranja é a cor da ação do dia a dia. O backoffice não é o dia a dia de
+   * ninguém, é onde se cria e se suspende empresa, e a cor avisa de longe que
+   * quem está ali não está no painel de um cliente.
+   *
+   * A copy também troca: "acompanhar sua frota" é conversa de transportadora, e
+   * não diz nada a quem administra a RookHub.
+   */
+  const naPlataforma = modoDeAcesso() === 'plataforma';
+
+  const marca = naPlataforma
+    ? {
+        fundo: 'bg-secondary',
+        cores: ['#1a1a8c', '#010066', '#010066'] as const,
+        chapeu: 'Área interna',
+        titulo: 'Administrar as transportadoras que confiam na RookHub',
+      }
+    : {
+        fundo: 'bg-primary-strong',
+        cores: ['#DE733E', '#d5623a', '#d5623a'] as const,
+        chapeu: 'Você pode facilmente',
+        titulo: 'Acompanhar sua frota inteira com clareza e controle',
+      };
+
   return (
     /*
      * ⚠️ A referencia da escala e 900px, e nao os 1080px que a classe traz por
@@ -98,7 +125,12 @@ function AuthLayout({ children }: { children: ReactNode }) {
          * `primary-strong` (#b35231): o `primary` dá 4,47:1 com branco e reprova
          * AA por uma casa.
          */}
-        <aside className="bg-primary-strong relative hidden min-w-0 flex-col justify-between overflow-hidden rounded-lg p-10 lg:flex">
+        <aside
+          className={cn(
+            'relative hidden min-w-0 flex-col justify-between overflow-hidden rounded-lg p-10 lg:flex',
+            marca.fundo,
+          )}
+        >
           {/*
            * O gradiente é decoração: fica atrás do conteúdo e o `primary-strong`
            * continua embaixo como cor de base — é ele que aparece em
@@ -107,9 +139,9 @@ function AuthLayout({ children }: { children: ReactNode }) {
           {noBlur ? null : (
             <Grainient
               className="absolute inset-0"
-              color1="#DE733E"
-              color2="#d5623a"
-              color3="#d5623a"
+              color1={marca.cores[0]}
+              color2={marca.cores[1]}
+              color3={marca.cores[2]}
               timeSpeed={0.25}
               /*
                * Estes dois fazem o gradiente chegar na borda. O shader mistura as
@@ -153,7 +185,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
           <RookhubLogo variant="mark" className="relative h-12 self-start" />
 
           <div className="relative">
-            <p className="text-body-lg text-on-primary/80">Você pode facilmente</p>
+            <p className="text-body-lg text-on-primary/80">{marca.chapeu}</p>
 
             {/*
              * `ch` só vale a pena no elemento que carrega o tamanho da fonte: num
@@ -161,7 +193,7 @@ function AuthLayout({ children }: { children: ReactNode }) {
              * em cinco linhas dentro de um painel de 600px.
              */}
             <p className="font-sora text-on-primary mt-3 max-w-[18ch] text-balance text-[34px] font-bold leading-11">
-              Acompanhar sua frota inteira com clareza e controle
+              {marca.titulo}
             </p>
           </div>
         </aside>
@@ -276,25 +308,6 @@ export default function LoginPage() {
         <h1 className="font-sora text-on-surface mt-6 text-balance text-[24px] font-bold leading-8 sm:text-[26px] sm:leading-9">
           {naPlataforma ? 'Acesso da plataforma' : 'Bem-vindo de volta'}
         </h1>
-
-        {/*
-         * ⚠️ O aviso existe porque `app.rookhub.com.br` é o endereço que a
-         * Servioeste usa desde sempre. Vai continuar chegando gente dela por
-         * aqui durante meses, e a tela precisa dizer, sem drama, que a porta
-         * mudou. Quem entrar assim mesmo é levado ao lugar certo depois do
-         * login, sem perder a sessão.
-         */}
-        {naPlataforma ? (
-          <p className="text-body-md text-on-surface-variant mt-3">
-            Esta é a entrada da equipe RookHub. É de uma transportadora?{' '}
-            <a
-              href={enderecoDoSlug(SLUG_CLIENTE_PADRAO)}
-              className="text-on-surface hover:text-primary focus-visible:ring-primary rounded-sm font-semibold underline underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2"
-            >
-              {SLUG_CLIENTE_PADRAO}.rookhub.com.br
-            </a>
-          </p>
-        ) : null}
       </header>
 
       <div className="mt-8">
@@ -400,15 +413,18 @@ export default function LoginPage() {
           </SpectrumButton>
         </form>
 
-        <p className="border-outline-variant text-body-md text-on-surface-variant mt-7 border-t pt-6 text-center">
-          Ainda não usa o RookHub?{' '}
-          <a
-            href="https://rookhub.com.br"
-            className="text-on-surface hover:text-primary focus-visible:ring-primary focus-visible:ring-offset-background rounded-sm font-semibold underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
-          >
-            Fale com nosso time
-          </a>
-        </p>
+        {/* Convite comercial não tem o que fazer na entrada de quem já é da casa. */}
+        {naPlataforma ? null : (
+          <p className="border-outline-variant text-body-md text-on-surface-variant mt-7 border-t pt-6 text-center">
+            Ainda não usa o RookHub?{' '}
+            <a
+              href="https://rookhub.com.br"
+              className="text-on-surface hover:text-primary focus-visible:ring-primary focus-visible:ring-offset-background rounded-sm font-semibold underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
+            >
+              Fale com nosso time
+            </a>
+          </p>
+        )}
       </div>
 
       <footer className="text-label-md text-on-surface-variant mt-8 text-center normal-case">
