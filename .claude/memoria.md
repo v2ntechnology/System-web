@@ -83,8 +83,14 @@ tela) · Documentação e próximos passos · Gotchas
 
 ### O backoffice `/admin-saas` foi refeito sobre o plano de onboarding (11/09/2026)
 
-O desenho segue `docs/ONBOARDING_TRANSPORTADORAS.md`, que é **proposta e não implementação**: nada
-disso existe no `Backend-web`. Estas telas são layout com dado simulado, a pedido do usuário.
+O desenho segue o plano de onboarding, que ⚠️ **desde 12/09/2026 vive SÓ no repositório irmão**, em
+`../Backend-web/docs/ONBOARDING_TRANSPORTADORAS.md`. O `docs/ONBOARDING_TRANSPORTADORAS.md` deste
+lado é um ponteiro: havia duas cópias, elas divergiram, e a de cá passou a afirmar coisa errada.
+Não recriar a cópia.
+
+Do plano, só a **Fase 1** existe em código, o schema `platform` no `Backend-web`, desde 12/09/2026.
+Da Fase 2 em diante nada existe, então estas telas seguem sendo layout com dado simulado, a pedido
+do usuário.
 
 - As telas são nove: `saas-overview-page` (era `saas-dashboard-page`), `saas-requests-page`,
   `saas-tenants-page` + detalhe, `saas-plans-page`, `saas-subscriptions-page`,
@@ -168,16 +174,25 @@ Pedido do usuário: `app.rookhub.com.br` vira a porta da equipe RookHub, e a Ser
 - ⚠️ **O PDF em `docs/pdf/` não acompanha mais o Markdown**, e não há gerador no repositório. Quem
   for circular o plano com a equipe precisa regerar o PDF à mão antes.
 - ⚠️ **Revisão de conflitos internos do plano, em 11/09/2026.** Três armadilhas foram resolvidas no
-  próprio documento, e valem na hora de implementar: (1) no login o **host manda, não o corpo**, e o
-  `tenantSlug` do `LoginRequest` tem que ser comparado com o `Host` e recusado com 403 se divergir,
-  senão a Fase 5 contradiz a ordem de resolução da Fase 3 e a regra de ouro do `TenantContext`;
+  próprio documento, e valem na hora de implementar: (1) no login o **endereço manda, não o corpo**,
+  e o `tenantSlug` do `LoginRequest` tem que ser comparado e recusado com 403 se divergir, senão a
+  Fase 5 contradiz a ordem de resolução da Fase 3 e a regra de ouro do `TenantContext`;
+  ⚠️ **CORRIGIDO em 12/09/2026: compara-se o `Origin`, e NUNCA o `Host`.** O `Host` é sempre
+  `api.rookhub.com.br` para todo cliente, porque o `Caddyfile` do `Backend-web` tem um site block
+  único, então comparar com o `Host` produz uma checagem que **sempre passa**. Quem identifica o
+  painel chamador é o `Origin`, que o navegador define e a página não forja. E ⚠️ `Origin` **ausente
+  tem de passar**: o app do motorista não envia esse cabeçalho, e recusar por ausência quebraria o
+  aplicativo inteiro;
   (2) **`READY` não exige telemetria conectada**, `provisioning_state` e `telemetry_state` são
   colunas distintas, e confundi-las trancaria fora todo cliente que não é MiX; (3) a vantagem do
   schema para métricas globais é **manter aberta** a saída do `UNION ALL`, não evitar o laço, porque
   a Fase 6 agrega em laço de qualquer jeito.
-- As afirmações de código do plano foram conferidas uma a uma e **batem**: 27 migrations, 19
-  `@PreAuthorize` em 3 controllers, 21 permissões, token de 60 min com refresh de 30 dias, o
-  `GET /v1/team` realmente sem guarda e o `setAllowedOrigins` que quebra com curinga.
+- As afirmações de código do plano foram conferidas uma a uma e **batiam em 11/09/2026**: 27
+  migrations, 19 `@PreAuthorize` em 3 controllers, 21 permissões, token de 60 min com refresh de 30
+  dias, o `GET /v1/team` realmente sem guarda e o `setAllowedOrigins` que quebra com curinga.
+  ⚠️ Duas já venceram: o `Backend-web` está em **28** migrations, e o `setAllowedOrigins` **foi
+  trocado** por `setAllowedOriginPatterns`. Conferir no repositório irmão antes de repetir qualquer
+  número daqui.
 
 ## Entrada, sessão e perfis
 
