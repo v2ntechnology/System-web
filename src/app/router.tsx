@@ -4,6 +4,7 @@ import { Navigate, useLocation, useRoutes, type RouteObject } from 'react-router
 import { APP_NAVIGATION, SAAS_NAVIGATION } from '@/app/navigation';
 import { HUB_ROLES, landingForRole, usesManagementPanel } from '@/app/permissions';
 import { connectSession } from '@/app/session-bootstrap';
+import { SLUG_PLATAFORMA, enderecoCerto, enderecoDoSlug, modoDeAcesso } from '@/app/tenant-host';
 import { AppShell } from '@/components/layout/app-shell';
 import { ThemeLock } from '@/components/layout/theme-lock';
 import { NoAccessState, LoadingState } from '@/components/shared/states';
@@ -76,10 +77,33 @@ function RestoringSession() {
   );
 }
 
+/**
+ * Manda para o endereço certo quem entrou pela porta errada.
+ *
+ * ⚠️ **Redireciona, não bloqueia, e a diferença é o que evita um incidente.**
+ * `app.rookhub.com.br` é o endereço que a Servioeste usa desde sempre; barrar
+ * ali tiraria a operação inteira do ar no dia da mudança. Quem não é super admin
+ * entra normalmente e é levado para `servioeste.rookhub.com.br`, com a sessão
+ * inteira: o cookie de refresh é do `api.`, que é same-site com os dois.
+ *
+ * Não faz nada em `localhost`, senão o desenvolvimento entra em laço.
+ */
+function useEnderecoCerto(ativo: boolean) {
+  const { user } = useSession();
+  const ehSuperAdmin = user?.role === 'SUPER_ADMIN';
+
+  useEffect(() => {
+    if (!ativo) return;
+    const destino = enderecoCerto(ehSuperAdmin);
+    if (destino) window.location.replace(destino + window.location.pathname);
+  }, [ativo, ehSuperAdmin]);
+}
+
 /** Exige uma sessão autenticada. Sessão expirada é tratada em rota própria. */
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const location = useLocation();
+  useEnderecoCerto(status === 'authenticated');
 
   if (status === 'restoring') {
     return <RestoringSession />;
@@ -93,9 +117,27 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** Exige a permissão de administração global da plataforma. */
+/**
+ * Exige a permissão de administração global da plataforma.
+ *
+ * ⚠️ **E o endereço certo, desde 12/09/2026.** O backoffice mora em
+ * `app.rookhub.com.br`, e no endereço de uma transportadora ele nem aparece: um
+ * cliente vendo a lista de todos os outros é o vazamento que a tenancy existe
+ * para impedir. Quem chegar por ali é mandado para o `app.`, em vez de levar uma
+ * tela de erro.
+ *
+ * Isto vale só em produção. Em `localhost` não há dois endereços, e barrar
+ * deixaria o backoffice impossível de abrir em desenvolvimento.
+ */
 function AdminRoute({ children }: { children: ReactNode }) {
   const { hasPermission } = usePermissions();
+
+  const emProducao = window.location.hostname.endsWith('.rookhub.com.br');
+  if (emProducao && modoDeAcesso() !== 'plataforma') {
+    window.location.replace(enderecoDoSlug(SLUG_PLATAFORMA) + window.location.pathname);
+    return <LoadingState label="Levando você ao endereço da plataforma…" />;
+  }
+
   if (!hasPermission('saas.manage')) {
     return <NoAccessState className="m-6" />;
   }

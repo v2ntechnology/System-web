@@ -113,6 +113,35 @@ disso existe no `Backend-web`. Estas telas são layout com dado simulado, a pedi
   solicitação" esconderia justamente o que precisa ser conferível.
 - Entra-se com `superadmin@rookhub.com.br` e a senha das contas de demonstração, com
   `VITE_ENABLE_MOCKS=true`. Ver `Entrada, sessão e perfis` para o porquê de a conta ter voltado.
+
+### O backoffice ganhou endereço próprio e dado real (12/09/2026)
+
+Pedido do usuário: `app.rookhub.com.br` vira a porta da equipe RookHub, e a Servioeste passa para
+`servioeste.rookhub.com.br`. É uma **fatia provisória** das fases 1 a 9, não elas.
+
+- **`app/tenant-host.ts`** decide o modo pelo hostname. ⚠️ **O padrão é `cliente`, de propósito**:
+  endereço desconhecido, IP ou `*.pages.dev` caem no painel da transportadora. Errar para o lado do
+  backoffice deixaria um operador olhando administração de plataforma. Em `localhost` vale
+  `VITE_TENANT_SLUG`, e é assim que se testa o modo plataforma sem editar hosts.
+- ⚠️ **É redirecionamento, NUNCA bloqueio.** `app.` é o endereço que a Servioeste usa desde sempre;
+  barrar tiraria a operação do ar no dia da virada. Quem não é super admin entra normal e é levado
+  ao `servioeste.`. **A sessão sobrevive** porque o cookie de refresh é do `api.rookhub.com.br`, que
+  é same-site com os dois subdomínios, e o `SameSite=Lax` cobre isso.
+- **Super admin no endereço do cliente é deixado em paz**, de propósito: é assim que ele demonstra o
+  `/gestao` e o `/app`, caminho que o plano de onboarding prevê. Só o `/admin-saas` é que exige o
+  `app.`.
+- A tela de login é **uma só**, com variante: no modo plataforma o título vira "Acesso da
+  plataforma" e aparece o atalho para o endereço do cliente. Duas páginas separadas seriam duas
+  para manter em sincronia.
+- ⚠️ **`app/tenant-host.test.ts` trava justamente o que causaria incidente**: o laço de
+  redirecionamento em `localhost`, o `*.pages.dev` (que impediria conferir deploy), e
+  `rookhub.com.br.invasor.example` não virar slug `app`.
+- **O painel lê empresa de verdade** por `pages/saas/saas-api.ts`, que troca entre store e API pelo
+  `env.enableMocks`. Só `/v1/saas/tenants` e `/metrics` existem: solicitações, aprovação, equipe e
+  auditoria **continuam mock**, porque o backend delas não existe.
+- ⚠️ **`SaasTenant.mrr` virou `number | null`, e não zero.** Não existe cobrança no sistema, e zero
+  diria "esta empresa não paga nada", que é outra coisa. Cinco telas somavam esse campo e passaram a
+  ignorar o ausente. Mesma regra que o projeto já aplica à telemetria.
 - ⚠️ **O documento ganhou a visão do Lucas em 11/09/2026** (`O produto que isto constrói` e
   `Fase 6c`). Duas coisas ficaram **decididas contra o plano ou fora dele**, e valem confirmação
   antes de qualquer código: ele descreveu **um banco por cliente**, e o plano escolheu schema por

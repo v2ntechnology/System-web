@@ -22,6 +22,7 @@ import {
 } from '@/management/ui';
 import { requestPasswordReset, signIn, signInWithGoogle, type AuthSession } from '@/services/auth';
 import { ApiError } from '@/services/http';
+import { SLUG_CLIENTE_PADRAO, enderecoDoSlug, modoDeAcesso } from '@/app/tenant-host';
 import { useSessionStore } from '@/stores/session-store';
 
 /*
@@ -194,6 +195,9 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  /* O endereço decide a cara da tela, não o que ela aceita: a validação de
+     quem pode o quê continua sendo do backend. */
+  const naPlataforma = modoDeAcesso() === 'plataforma';
   const navigate = useNavigate();
   const location = useLocation();
   const authenticate = useSessionStore((state) => state.authenticate);
@@ -270,8 +274,27 @@ export default function LoginPage() {
         <BrandLogo className="h-13" />
 
         <h1 className="font-sora text-on-surface mt-6 text-balance text-[24px] font-bold leading-8 sm:text-[26px] sm:leading-9">
-          Bem-vindo de volta
+          {naPlataforma ? 'Acesso da plataforma' : 'Bem-vindo de volta'}
         </h1>
+
+        {/*
+         * ⚠️ O aviso existe porque `app.rookhub.com.br` é o endereço que a
+         * Servioeste usa desde sempre. Vai continuar chegando gente dela por
+         * aqui durante meses, e a tela precisa dizer, sem drama, que a porta
+         * mudou. Quem entrar assim mesmo é levado ao lugar certo depois do
+         * login, sem perder a sessão.
+         */}
+        {naPlataforma ? (
+          <p className="text-body-md text-on-surface-variant mt-3">
+            Esta é a entrada da equipe RookHub. É de uma transportadora?{' '}
+            <a
+              href={enderecoDoSlug(SLUG_CLIENTE_PADRAO)}
+              className="text-on-surface hover:text-primary focus-visible:ring-primary rounded-sm font-semibold underline underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2"
+            >
+              {SLUG_CLIENTE_PADRAO}.rookhub.com.br
+            </a>
+          </p>
+        ) : null}
       </header>
 
       <div className="mt-8">
