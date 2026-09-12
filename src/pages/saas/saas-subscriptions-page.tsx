@@ -27,7 +27,7 @@ export default function SaasSubscriptionsPage() {
     [tenants],
   );
 
-  const mrr = billable.reduce((sum, t) => sum + t.mrr, 0);
+  const mrr = billable.reduce((sum, t) => sum + (t.mrr ?? 0), 0);
   const active = billable.filter((t) => t.status === 'active').length;
   const trial = billable.filter((t) => t.status === 'trial').length;
   /* Trial e suspensa não pagam: a receita potencial é o que entra se todas
@@ -55,7 +55,11 @@ export default function SaasSubscriptionsPage() {
       header: 'MRR',
       align: 'right',
       cell: (t) =>
-        t.mrr > 0 ? formatCurrency(t.mrr) : <span className="text-muted-foreground">—</span>,
+        t.mrr != null && t.mrr > 0 ? (
+          formatCurrency(t.mrr)
+        ) : (
+          <span className="text-muted-foreground">{t.mrr == null ? 'não medido' : '—'}</span>
+        ),
     },
     {
       id: 'renews',

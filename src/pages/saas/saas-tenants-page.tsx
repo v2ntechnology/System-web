@@ -22,7 +22,7 @@ import {
   telemetryDescriptor,
   tenantStatusDescriptor,
 } from '@/lib/status-maps';
-import { useSaasStore } from '@/stores/saas-store';
+import { useTenants } from './saas-api';
 import { TENANT_STATUS_LABEL, type SaasTenant } from '@/mocks/saas';
 import type { PlanType, TenantStatus } from '@/types';
 
@@ -38,7 +38,7 @@ type PlanFilter = PlanType | 'all';
  */
 export default function SaasTenantsPage() {
   const navigate = useNavigate();
-  const tenants = useSaasStore((s) => s.tenants);
+  const { tenants } = useTenants();
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -86,7 +86,18 @@ export default function SaasTenantsPage() {
     { id: 'plan', header: 'Plano', cell: (t) => <Badge>{PLAN_LABELS[t.plan]}</Badge> },
     { id: 'vehicles', header: 'Veículos', align: 'right', cell: (t) => t.vehicles },
     { id: 'users', header: 'Usuários', align: 'right', cell: (t) => t.users },
-    { id: 'mrr', header: 'MRR', align: 'right', cell: (t) => formatCurrency(t.mrr) },
+    {
+      id: 'mrr',
+      header: 'MRR',
+      align: 'right',
+      /* Ausência aparece como ausência. Ver a nota em `SaasTenant.mrr`. */
+      cell: (t) =>
+        t.mrr == null ? (
+          <span className="text-muted-foreground">não medido</span>
+        ) : (
+          formatCurrency(t.mrr)
+        ),
+    },
     { id: 'created', header: 'Desde', cell: (t) => formatDate(t.createdAt) },
     {
       id: 'status',

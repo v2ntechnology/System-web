@@ -139,7 +139,11 @@ export default function SaasTenantDetailPage() {
         <InfoCard label="Plano" value={PLAN_LABELS[tenant.plan]} />
         <InfoCard label="Veículos" value={tenant.vehicles} accent="info" />
         <InfoCard label="Usuários" value={tenant.users} />
-        <InfoCard label="MRR" value={formatCurrency(tenant.mrr)} accent="success" />
+        <InfoCard
+          label="MRR"
+          value={tenant.mrr == null ? 'não medido' : formatCurrency(tenant.mrr)}
+          accent="success"
+        />
       </div>
 
       <Tabs defaultValue="geral">

@@ -23,6 +23,7 @@ import {
   tenantStatusDescriptor,
 } from '@/lib/status-maps';
 import { useSaasStore } from '@/stores/saas-store';
+import { useTenants } from './saas-api';
 import { TELEMETRY_LABEL } from '@/mocks/saas';
 import type { ChartPoint, TelemetryState } from '@/types';
 
@@ -36,7 +37,7 @@ import { Callout, ProvisioningTimeline } from './saas-ui';
  * Receita e uso vêm depois, porque não exigem ação de ninguém hoje.
  */
 export default function SaasOverviewPage() {
-  const tenants = useSaasStore((s) => s.tenants);
+  const { tenants } = useTenants();
   const requests = useSaasStore((s) => s.requests);
 
   const ready = tenants.filter((t) => t.provisioningState === 'READY');
@@ -47,7 +48,9 @@ export default function SaasOverviewPage() {
   const trial = ready.filter((t) => t.status === 'trial').length;
   const suspended = ready.filter((t) => t.status === 'suspended').length;
 
-  const mrr = ready.reduce((sum, t) => sum + t.mrr, 0);
+  /* Quem não tem MRR medido fica de fora da soma, em vez de entrar como zero e
+     puxar o total para baixo fingindo ser cliente que não paga. */
+  const mrr = ready.reduce((sum, t) => sum + (t.mrr ?? 0), 0);
   const users = ready.reduce((sum, t) => sum + t.users, 0);
   const vehicles = ready.reduce((sum, t) => sum + t.vehicles, 0);
 

@@ -31,7 +31,12 @@ export interface SaasTenant {
   branding: TenantBranding;
   vehicles: number;
   users: number;
-  mrr: number;
+  /**
+   * ⚠️ Nulo quando ninguém mede, que é o caso de toda empresa vinda da API real
+   * (12/09/2026): **não existe cobrança no sistema**. Zero diria "esta empresa
+   * não paga nada", que é outra coisa. A tela mostra a ausência.
+   */
+  mrr: number | null;
   createdAt: string;
   trialEndsAt?: string;
   /** Dono da conta. É a única credencial que a aprovação cria. */
@@ -432,7 +437,8 @@ export interface SaasSubscription {
   tenant: string;
   plan: PlanType;
   status: TenantStatus;
-  mrr: number;
+  /** Nulo quando ninguém mede. Mesma regra de `SaasTenant.mrr`. */
+  mrr: number | null;
   renewsAt: string;
   seats: number;
   vehicles: number;

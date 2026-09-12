@@ -75,7 +75,9 @@ export default function SaasPlansPage() {
         {ORDER.map((planType) => {
           const def = PLAN_DEFINITIONS[planType];
           const subscribers = tenants.filter((t) => t.plan === planType).length;
-          const mrr = tenants.filter((t) => t.plan === planType).reduce((sum, t) => sum + t.mrr, 0);
+          const mrr = tenants
+            .filter((t) => t.plan === planType)
+            .reduce((sum, t) => sum + (t.mrr ?? 0), 0);
           return (
             <Card key={planType} className={def.highlighted ? 'border-primary/50' : undefined}>
               <CardHeader>
