@@ -1202,8 +1202,24 @@ export default function VoiceAssistantPage() {
      o mesmo, e o cabeçalho diz qual das duas está aberta. */
   const turnosNaTela = conversaAberta === null ? transcricao : turnosLidos;
 
+  /*
+   * ⚠️ A referência de 820px sai de MEDIÇÃO, e não de gosto (pedido do usuário
+   * em 11/09/2026, que achou a barra lateral pequena demais no notebook).
+   *
+   * Como a `.tela-proporcional` entrega ao layout exatamente `altura-de-referência`
+   * pixels de altura e depois encolhe tudo para caber na janela, **a referência
+   * é o tamanho aparente**: quanto menor, maior a tela fica. Sem declará-la, esta
+   * página caía no padrão de 1080px, e num notebook de 768px a escala ia a 0,71,
+   * deixando a barra de 256px valendo 182px na tela. Com 820px a escala sobe para
+   * 0,94 e a barra volta a 240px.
+   *
+   * O piso medido é ~795px: abaixo disso a seção da esfera começa a ser cortada,
+   * porque a classe usa `overflow: hidden`. Os 25px de folga são de propósito.
+   *
+   * ⚠️ Mexeu no conteúdo? Meça de novo antes de baixar este número.
+   */
   return (
-    <main className="tela-proporcional relative flex bg-background">
+    <main className="tela-proporcional [--altura-de-referencia:820px] relative flex bg-background">
       <AssistantSidebar
         selectedId={conversaAberta}
         onSelect={setConversaAberta}
