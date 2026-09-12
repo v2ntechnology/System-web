@@ -113,6 +113,33 @@ disso existe no `Backend-web`. Estas telas são layout com dado simulado, a pedi
   solicitação" esconderia justamente o que precisa ser conferível.
 - Entra-se com `superadmin@rookhub.com.br` e a senha das contas de demonstração, com
   `VITE_ENABLE_MOCKS=true`. Ver `Entrada, sessão e perfis` para o porquê de a conta ter voltado.
+- ⚠️ **O documento ganhou a visão do Lucas em 11/09/2026** (`O produto que isto constrói` e
+  `Fase 6c`). Duas coisas ficaram **decididas contra o plano ou fora dele**, e valem confirmação
+  antes de qualquer código: ele descreveu **um banco por cliente**, e o plano escolheu schema por
+  tenant (a Fase 2 inteira depende de qual vence); e ele quer **entrar nas empresas** pelo Super
+  Admin, que é impersonação, deixada fora da Fase 7 de propósito.
+- ⚠️ **Matriz e filial: a árvore já existe, mas é da MiX, não nossa.** `fleet_sites` tem `parent_id`
+  e `kind = 'OrganisationGroup'`, e as views `fleet_companies` e `fleet_site_company` sobem por ela
+  (a Servioeste tem dois níveis). Só que `fleet_sites.integration_id` é `NOT NULL`: **cliente sem
+  telemetria não tem filial nenhuma**, e o plano libera ambiente sem telemetria de propósito. Por
+  isso o documento passou a prever uma tabela `units` própria, com `users.unit_id` nulo significando
+  "enxerga a organização inteira". Ver [[rookhub-e-dono-do-cadastro]].
+- **Mesma pessoa em duas transportadoras funciona por causa do isolamento.** `users_email_unique` na
+  `V1` é global; com um schema (ou banco) por cliente ela passa a valer por cliente, e o mesmo
+  e-mail existe nos dois. No `public` compartilhado de hoje, esse caso seria proibido pelo banco.
+- ⚠️ **O PDF em `docs/pdf/` não acompanha mais o Markdown**, e não há gerador no repositório. Quem
+  for circular o plano com a equipe precisa regerar o PDF à mão antes.
+- ⚠️ **Revisão de conflitos internos do plano, em 11/09/2026.** Três armadilhas foram resolvidas no
+  próprio documento, e valem na hora de implementar: (1) no login o **host manda, não o corpo**, e o
+  `tenantSlug` do `LoginRequest` tem que ser comparado com o `Host` e recusado com 403 se divergir,
+  senão a Fase 5 contradiz a ordem de resolução da Fase 3 e a regra de ouro do `TenantContext`;
+  (2) **`READY` não exige telemetria conectada**, `provisioning_state` e `telemetry_state` são
+  colunas distintas, e confundi-las trancaria fora todo cliente que não é MiX; (3) a vantagem do
+  schema para métricas globais é **manter aberta** a saída do `UNION ALL`, não evitar o laço, porque
+  a Fase 6 agrega em laço de qualquer jeito.
+- As afirmações de código do plano foram conferidas uma a uma e **batem**: 27 migrations, 19
+  `@PreAuthorize` em 3 controllers, 21 permissões, token de 60 min com refresh de 30 dias, o
+  `GET /v1/team` realmente sem guarda e o `setAllowedOrigins` que quebra com curinga.
 
 ## Entrada, sessão e perfis
 
@@ -1515,8 +1542,14 @@ O usuário entrou pelo notebook da empresa e achou os campos pequenos. A técnic
 sem rolagem estava certa, o que estava errado era a calibragem.
 
 - ⚠️ **A `--altura-de-referencia` da `.tela-proporcional` virou parâmetro.** O padrão de 1080px
-  continua e é a janela em que a tela de VOZ foi aprovada; o login passou a declarar **900px**. Sem
-  isso, mexer no login mexeria na voz junto.
+  continua no CSS, mas hoje **cada tela declara a sua**. Sem isso, mexer numa mexeria nas outras.
+- ⚠️ **A referência é o tamanho APARENTE, e quanto MENOR, maior a tela fica.** A classe entrega ao
+  layout exatamente `altura-de-referência` pixels e depois encolhe tudo para caber na janela, então
+  a escala é `altura da janela ÷ referência`. É contraintuitivo e já confundiu: baixar o número
+  aumenta a tela, subir diminui. O piso é o ponto em que o conteúdo começa a ser cortado, porque a
+  classe usa `overflow: hidden`.
+- **Valores em uso, todos medidos:** voz **820px**, login **900px**, esqueci a senha **660px**,
+  sessão expirada **720px**, 404 **460px**, hub **940px** (e 820px na faixa baixa do `hub.css`).
 - **O número saiu de medição, não de gosto.** Com o zoom desligado, o conteúdo do login ocupa 725px,
   e o estado mais alto (login com mensagem de erro) ocupa **815px**. Com os 48px de respiro do
   `main`, o pior caso pede **863px**, bem abaixo dos 1080 que a referência assumia: por isso a tela
@@ -1529,8 +1562,17 @@ sem rolagem estava certa, o que estava errado era a calibragem.
 - ⚠️ **Mexeu no conteúdo do login ou do convite? Meça de novo com o zoom desligado.** Passando de
   900px em escala 1, a coluna da direita começa a rolar por dentro. Isso é a salvaguarda do
   `overflow-y-auto` e não quebra a tela, mas é o oposto do que se pediu aqui.
-- O `ForgotPasswordPage` NÃO usa essa técnica: ele tem `main` próprio com `min-h-dvh` e rola normal.
-  Quem herda a referência do login é o `InvitePage`, que divide o `AuthLayout`.
+- ⚠️ **O `ForgotPasswordPage` passou a usar a técnica em 10/09/2026**, com referência própria de
+  660px, junto com o 404, a sessão expirada e o hub. A anotação anterior, de que ele rolava normal
+  com `min-h-dvh`, deixou de valer. Quem herda a referência do login é o `InvitePage`, que divide o
+  `AuthLayout`.
+- ⚠️ **A tela de voz ganhou referência de 820px em 11/09/2026**, a pedido do usuário, que achou a
+  barra lateral pequena demais no notebook da empresa. Ela não declarava nenhuma e caía no padrão de
+  1080px: em 1366x768 a escala ficava em 0,71 e a barra de `w-64` valia **182px** na tela. Com 820px
+  a escala sobe para 0,94 e a barra volta a **240px**. O piso medido é **~795px**, onde a `section`
+  da esfera começa a ser cortada, e os 25px de folga são de propósito. Conferido em 1024x768,
+  1280x650, 1366x768 e 1920x1080, sem corte e sem rolagem. A transcrição não entra na conta porque
+  tem `overflow-y-auto` com `max-h-[70vh]` e rola por dentro.
 
 ### O assistente virou um só nos quatro perfis (09/09/2026)
 

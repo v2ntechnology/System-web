@@ -8,6 +8,9 @@ autonomia para desenhar os cargos e montar o próprio time.
 para circular com a equipe, está em `docs/pdf/RookHub-Plano-Onboarding-Transportadoras.pdf`.
 Atualizar os dois juntos.
 
+⚠️ **O PDF está defasado desde 11/09/2026.** As seções `O produto que isto constrói` e
+`Fase 6c` entraram só neste Markdown. Regerar o PDF antes de circular com a equipe.
+
 ## Por que existe
 
 A RookHub vai deixar de ser um sistema de um cliente só, e hoje **não existe nenhum caminho para
@@ -26,12 +29,103 @@ O fluxo pretendido, fechado: a transportadora pede acesso pelo site instituciona
 RookHub é avisado por e-mail e decide no backoffice → a aprovação parametriza e provisiona a empresa
 e cria **apenas a credencial do Dono** → o Dono define os cargos e cadastra o time.
 
+## O produto que isto constrói
+
+⚠️ **Visão registrada pelo Lucas em 11/09/2026.** Ela quase não contradiz o plano abaixo: é a
+leitura de negócio dele, e serve para conferir se o plano já cobre tudo. Onde faltava, virou fase
+nova ou ponto em aberto, e a tabela aponta onde.
+
+A RookHub passa a ter **dois tipos de endereço**:
+
+- `app.rookhub.com.br` é a casa da equipe RookHub. Nós, desenvolvedores, entramos por ali com conta
+  de plataforma, e é a única porta do backoffice.
+- `<cliente>.rookhub.com.br` é a casa de cada transportadora, com dados isolados, marca própria e
+  tela de login personalizada. `amazonas.rookhub.com.br` é o exemplo de trabalho.
+
+Da tela de Super Admin, a equipe precisa conseguir:
+
+| O que o Lucas descreveu | Onde está no plano |
+| ----------------------- | ------------------ |
+| Alcançar as empresas que já estão na plataforma | Fase 7, leitura auditada. **Entrar como o cliente não está previsto**, ver os pontos em aberto |
+| **Criar uma empresa do zero**, sem esperar solicitação | **Fase 6c**, escrita a partir desta conversa |
+| Informar CNPJ, logo e os parâmetros globais da empresa | Fase 6b, passos 1 e 2 |
+| Escrever o subdomínio e vê-lo criado sozinho na Cloudflare | Fase 10, registro do domínio via API |
+| Ter o banco do cliente criado sozinho | Fase 2, `TenantProvisioningService`. ⚠️ Ver a ressalva abaixo |
+| Entregar ao cliente um login com a logo dele | Fase 6b, `platform.tenant_branding`, lida antes do login |
+
+⚠️ **"Banco isolado" precisa de uma decisão explícita.** O Lucas descreveu *um banco totalmente
+isolado por cliente*; o plano escolheu **schema por tenant num só Postgres**, pelos motivos em
+`Por que schema, e não banco físico por cliente`. As duas formas entregam a garantia que ele está
+pedindo, que é nenhuma consulta de um cliente alcançar dado de outro, mesmo com bug de `WHERE`. A
+diferença entre elas é de custo operacional e de capacidade, não de vazamento. Como a escolha muda
+a Fase 2 inteira, ela está nos pontos em aberto, para ser confirmada antes de a Fase 2 começar.
+
+### Organização, matriz e filiais
+
+⚠️ **Acrescentado pelo Lucas em 11/09/2026.** É a única parte da visão dele que o plano não
+modelava, e mexe no desenho de dados.
+
+A regra que ele descreveu: os usuários da Servioeste podem estar na **matriz** ou numa **filial**, e
+seguem pertencendo à organização Servioeste. Cada empresa do grupo tem os próprios usuários
+cadastrados.
+
+**O que já existe, e não basta.** A árvore de matriz e filiais **já está no banco**, em
+`fleet_sites` (`parent_id`, `kind = 'OrganisationGroup'`), com as views `fleet_companies` e
+`fleet_site_company` subindo por ela recursivamente. A Servioeste hoje tem dois níveis. Só que essa
+árvore é **sincronizada da MiX**: `fleet_sites.integration_id` é `NOT NULL`, então ela só existe
+para cliente com telemetria conectada. Duas consequências:
+
+1. a Fase 6b libera ambiente **sem** telemetria (`PENDING_CONNECTOR` e `PENDING_CONTRACT`), e esse
+   cliente não teria filial nenhuma a que vincular usuário;
+2. a `V16` já registra que a filial crua do fornecedor não descreve operação: 14 dos 40 caminhões da
+   Servioeste caem em "Default Site" e 2 em "DESLIGADOS / INATIVOS".
+
+**Decisão que isto exige:** matriz e filial viram **cadastro da RookHub**, e a árvore da MiX volta a
+ser o que sempre foi, ponto de partida para conferência. É a mesma regra já aplicada ao cadastro de
+veículo e de motorista.
+
+```sql
+-- No schema do cliente: a estrutura é da organização dele, não da plataforma.
+CREATE TABLE units (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id  UUID NOT NULL REFERENCES tenants (id),
+    parent_id  UUID REFERENCES units (id),        -- nulo = matriz
+    name       TEXT NOT NULL,
+    cnpj       TEXT,
+    site_id    UUID REFERENCES fleet_sites (id),  -- espelho do fornecedor, só para conferência
+    active     BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Nulo = enxerga a organização inteira. É como o Dono nasce.
+ALTER TABLE users ADD COLUMN unit_id UUID REFERENCES units (id);
+```
+
+⚠️ **`unit_id` nulo não pode virar "vê tudo" por acidente.** A regra precisa ser explícita no
+`WHERE`, do mesmo jeito que `tenant_id` é: quem tem unidade enxerga a dela e as que estão abaixo
+dela na árvore; quem não tem enxerga a organização inteira. Esquecer a checagem não gera erro, gera
+filial lendo dado de filial, em silêncio.
+
+### Mesma pessoa em duas transportadoras
+
+O Lucas confirmou em 11/09/2026 a decisão que já estava na tabela abaixo: quem trabalha na
+Servioeste e na Amazonas Transportes tem **dois acessos**, um em cada.
+
+Vale registrar por que isso sai de graça nos dois desenhos de isolamento em disputa: tanto com
+schema por tenant quanto com banco por cliente, `users` é uma tabela **por cliente**, e a unicidade
+de e-mail passa a valer dentro de cada um. O mesmo e-mail existe nos dois sem colidir, e o
+subdomínio do login já diz qual dos dois responder. **É o desenho de hoje, com um `public`
+compartilhado e a `users_email_unique` global da `V1`, que proibiria exatamente o caso que o Lucas
+descreveu.** A Fase 2 formaliza isso trocando a restrição por um índice parcial que ainda ignora
+quem foi anonimizado, para o endereço poder ser reusado.
+
 ## Decisões tomadas
 
 | Tema | Decisão |
 | ---- | ------- |
 | Isolamento | Schema por tenant, num só Postgres |
-| Vínculo usuário↔empresa | 1:1. Mesma pessoa em duas empresas = duas credenciais |
+| Vínculo usuário↔empresa | 1:1. Mesma pessoa em duas empresas = duas credenciais. Confirmado pelo Lucas em 11/09/2026 |
+| Matriz e filial | Unidades **dentro** do tenant, cadastradas pela RookHub. Um subdomínio por organização, não por filial |
 | Perfis do cliente | Cargos customizáveis: o Dono cria, nomeia e escolhe as permissões |
 | Equipe RookHub | Dois papéis fixos: TI Topo e TI Operacional |
 | Suporte | Leitura dos dados do cliente, todo acesso auditado |
@@ -44,6 +138,7 @@ e cria **apenas a credencial do Dono** → o Dono define os cargos e cadastra o 
 | Notificação | Resend (HTTP) |
 | Credencial do Dono | Link de convite por e-mail, token de uso único |
 | Formulário de pedido | Site institucional → endpoint público na API |
+| Cadastro direto | O TI Topo também cria a empresa sem solicitação nenhuma (Fase 6c) |
 | Subdomínio | Slug definido pelo time da RookHub na aprovação |
 | Bootstrap | `ROOKHUB_BOOTSTRAP_*`, idempotente no boot |
 | Hospedagem do SPA | Cloudflare Pages, domínio por tenant via API |
@@ -52,8 +147,10 @@ e cria **apenas a credencial do Dono** → o Dono define os cargos e cadastra o 
 ## Duas medições que definem o tamanho da obra
 
 **A tenancy não se espalha pelo código.** As colunas `tenant_id` e os `WHERE tenant_id = :tenant`
-**não mudam** — são 136 ocorrências em 22 arquivos Java. O schema isola; o `WHERE` vira defesa em
-profundidade de graça. O único código de tenancy que muda é *como a conexão escolhe o schema*.
+**não mudam** — são 136 ocorrências de `tenant_id` em **15** arquivos Java (os 22 arquivos saem de
+uma contagem mais larga, que inclui o `tenantId` do lado Java; conferido em 11/09/2026). O schema
+isola; o `WHERE` vira defesa em profundidade de graça. O único código de tenancy que muda é *como a
+conexão escolhe o schema*.
 
 **A autorização também não.** O backend inteiro tem **19 `@PreAuthorize` em 3 controllers**
 (`FleetController` 10, `MixDiagnosticsController` 7, `VoiceController` 2) mais uma checagem solta em
@@ -70,6 +167,47 @@ importa (nenhuma consulta atravessa clientes, mesmo com bug de `WHERE`) por uma 
 ⚠️ Detalhe específico desta stack: `daily_vehicle_metrics` é uma *continuous aggregate*
 (`V4__telemetria_desempenho.sql:79`) e `timescaledb.max_background_workers` é limite **por
 instância**, não por schema. Com banco por cliente isso viraria problema real de capacidade.
+
+⚠️ **Precisão sobre as métricas globais, conferida em 11/09/2026.** A Fase 6 implementa o agregador
+**em laço**, percorrendo os tenants ativos, que é exatamente o que aconteceria com banco por
+cliente. A vantagem do schema não é evitar o laço agora, é **manter a saída aberta**: num Postgres
+só, trocar o laço por um `UNION ALL` entre schemas é reescrever uma consulta; com banco por cliente
+essa saída não existe, e o laço vira permanente. Lidas sem esta observação, as duas passagens
+parecem se contradizer.
+
+### O que o mercado faz, e a recomendação
+
+⚠️ **Escrito em 11/09/2026, a pedido do Lucas.** Serve à decisão que está em aberto no fim do
+documento, e não substitui a confirmação dele.
+
+O vocabulário da indústria, o mesmo do AWS SaaS Lens, tem três níveis:
+
+| Modelo | Como é | Quem usa |
+| ------ | ------ | -------- |
+| **Pool** | Uma tabela para todos, separada por `tenant_id` | A maioria dos SaaS no começo. É o desenho de hoje aqui |
+| **Bridge** | Um schema por cliente, num banco só | A escolha deste plano. Comum em B2B com dezenas a centenas de clientes |
+| **Silo** | Banco ou instância por cliente | Enterprise e setor regulado, vendido como plano dedicado |
+
+O padrão corrente **não é escolher um e ficar nele**: é rodar *pool* ou *bridge* por padrão e
+**vender o silo como camada premium** ao cliente que exigir isolamento físico em contrato.
+
+**Recomendação: manter schema por tenant.** Três motivos medidos neste repositório:
+
+1. ⚠️ **O TimescaleDB corre CONTRA o banco separado, não a favor.** São 3 hypertables e **3
+   agregados contínuos por cliente**, cada um com política de refresh (`V4`). O
+   `max_background_workers` é limite por **instância**, e o TimescaleDB ainda quer um worker de
+   scheduler **por banco**. Banco por cliente no mesmo servidor paga esse custo e **não compra
+   isolamento de capacidade nenhum**. Só servidor separado compraria, e aí é outro orçamento.
+2. **O teto real é o Cloudflare, não o Postgres.** O plano free registra no máximo **100 domínios
+   por projeto** no Pages (Fase 10). Schema por tenant é confortável nessa ordem de grandeza; os
+   problemas conhecidos de muitos schemas aparecem na casa dos milhares.
+3. **A migração é de mão única.** Sair de schema para banco depois é copiar um schema para um banco
+   novo, operação conhecida. O caminho inverso é bem pior.
+
+**O que acrescentar por precaução:** o `TenantRegistry` da Fase 2 deve guardar **como se conecta a
+cada cliente**, em vez de "mesmo banco, outro schema" ficar implícito espalhado pelo código. Custa
+quase nada agora, e é o que permite depois mover um cliente grande para o banco dele sem reescrever
+a camada de dados, que é exatamente como se vende o plano dedicado.
 
 ---
 
@@ -332,6 +470,12 @@ mais as permissões implícitas.
 - outro slug → resolve a empresa, exige `provisioning_state = READY` e `active`, procura o usuário
   **dentro do schema do cliente**; JWT com `scope: "tenant"`, `tenant`, `slug` e `role_id`.
 
+⚠️ **Quem manda é o host, não o corpo (conflito resolvido em 11/09/2026).** A `Ordem de resolução
+do tenant` da Fase 3 resolve rota pública pelo `Origin`/`Host`, e a regra de ouro do `TenantContext`
+proíbe tenant vindo do corpo da requisição. O `tenantSlug` do `LoginRequest` é conveniência do SPA:
+o servidor **compara com o host e recusa com 403 se divergirem**, em vez de confiar no JSON. Sem
+essa comparação as duas passagens se contradizem, e a implementação escolhe a errada.
+
 `/refresh` passa a guardar o schema junto do refresh token no Redis — hoje faz `users.findById` sem
 saber onde procurar.
 
@@ -399,6 +543,12 @@ Guarda obrigatória: **não é possível desativar o último Dono ativo** da tra
 
 A tela de aprovação vira um formulário de quatro passos: **dados e slug → telemetria → marca →
 plano**. O ambiente só vira `READY` quando os quatro estiverem resolvidos.
+
+⚠️ **"Resolvido" é ter decidido, não é estar conectado (esclarecido em 11/09/2026).**
+`provisioning_state` e `telemetry_state` são colunas separadas em `platform.tenants`, e só a
+primeira barra o login (Fase 5). Escolher "outro fornecedor" ou "nenhum ainda" **resolve** o passo
+da telemetria, e o ambiente vira `READY` do mesmo jeito, como diz a tabela abaixo. Ler "os quatro
+resolvidos" como "telemetria conectada" deixaria todo cliente fora da MiX sem conseguir entrar.
 
 ## 1. Telemetria
 
@@ -468,6 +618,35 @@ seguinte, pelo mesmo mecanismo da Fase 4.
 `PLAN_DEFINITIONS` também define `vehicleLimit` e `userLimit`. Ficam **fora** deste plano: entram
 quando houver cobrança de verdade.
 
+# Fase 6c — Criação direta pelo backoffice
+
+⚠️ **Pedido do Lucas em 11/09/2026.** Até aqui, o plano só previa empresa nascendo de uma
+solicitação vinda do site. Na prática, as primeiras transportadoras vão chegar por conversa
+comercial, e obrigar o time a preencher o formulário público em nome do cliente, para depois
+aprovar a si mesmo, seria teatro.
+
+O backoffice ganha um botão **Cadastrar transportadora**, restrito ao `PLATFORM_ADMIN`. Ele abre o
+mesmo formulário de quatro passos da aprovação, com duas diferenças:
+
+1. o passo 1 nasce vazio, em vez de vir preenchido pela solicitação;
+2. não há solicitação para marcar como aprovada, então nada muda em `access_requests`.
+
+Tudo o que vem depois é idêntico: mesma validação de slug, mesmo `TenantProvisioningService`, mesmo
+registro de domínio na Cloudflare, mesmo convite ao Dono, mesma linha de auditoria. **O assistente é
+um código só**, e a origem da empresa entra como coluna:
+
+```sql
+ALTER TABLE platform.tenants
+    ADD COLUMN origin TEXT NOT NULL DEFAULT 'ACCESS_REQUEST';
+    -- 'ACCESS_REQUEST' | 'BACKOFFICE'
+```
+
+Vale uma coluna, e não um detalhe de tela, porque responde a uma pergunta de negócio que vai ser
+feita: quantos clientes chegaram sozinhos pelo site e quantos vieram de venda ativa.
+
+**Frontend:** `saas-tenants-page.tsx` ganha o botão, e reaproveita o `approval-wizard.tsx`, que hoje
+recebe a solicitação por prop e passa a aceitar também a ausência dela. Nenhuma tela nova.
+
 # Fase 7 — Acesso de suporte aos dados do cliente
 
 O TI Operacional precisa enxergar o problema para resolvê-lo. O mecanismo: token de plataforma mais
@@ -497,6 +676,28 @@ em dev — grava no log em vez de enviar.
 
 Pré-requisito externo: verificar `rookhub.com.br` na Resend (registros DNS na Cloudflare).
 
+## Estado do DNS, conferido em 11/09/2026
+
+A zona `rookhub.com.br` está ativa na Cloudflare e tem **4 registros**: um `A`, um `CNAME` e dois
+`AAAA`. Duas conclusões úteis:
+
+- ⚠️ **O domínio não envia nem recebe e-mail hoje.** Não há `MX`, nem `TXT` de SPF, nem DKIM, nem
+  DMARC. Isso é **boa notícia**: a verificação da Resend não vai brigar com SPF de outro provedor,
+  que é o atrito clássico. Começa do zero.
+- ⚠️ **O curinga `*.rookhub.com.br` da Fase 10 ainda não existe.** Sem ele nenhum subdomínio de
+  cliente resolve, por mais que a aprovação registre o domínio no Pages.
+
+**Ordem que evita espera parada**, já que verificação de domínio depende de propagação e de
+aprovação de terceiro:
+
+1. criar a conta na Resend e pegar os registros que ela pede (DKIM, e o SPF do subdomínio de envio);
+2. publicá-los na Cloudflare e esperar a verificação;
+3. só então implementar o `ResendEmailSender`, que já encontra o domínio pronto.
+
+O passo 1 é de quem tem o cartão e o acesso à conta, e **não** está feito. Enquanto não estiver, o
+`rookhub.email.enabled: false` de desenvolvimento mantém tudo funcionando com o e-mail indo para o
+log, então nada aqui bloqueia as outras fases.
+
 # Fase 9 — Frontend
 
 Novo `src/app/tenant-host.ts`: extrai o slug de `window.location.hostname`; `app` é modo plataforma;
@@ -505,12 +706,23 @@ Novo `src/app/tenant-host.ts`: extrai o slug de `window.location.hostname`; `app
 **O mapa estático de permissões morre.** Hoje `services/auth.ts` monta a sessão com
 `permissionsForRole(role)` a partir de `ROLE_PERMISSIONS`. Passa a vir do servidor.
 
+⚠️ **A tabela abaixo envelheceu em 11/09/2026.** `saas-requests-page.tsx` e `saas-team-page.tsx`
+estão marcadas como **nova**, mas **já existem**, criadas no redesenho do backoffice, sobre mock.
+Para as duas a tarefa é desmocar, não criar. Continuam mesmo por fazer: `change-password-page.tsx`,
+`features/roles/`, `features/units/` e `app/tenant-host.ts`.
+
+⚠️ **A lista de slugs reservados já existe em TypeScript**, em `src/app/tenant-slug.ts`, com os
+mesmos doze valores e o mesmo formato que a Fase 1 pede em Java. São duas cópias da mesma regra, e
+quem mexer numa precisa mexer na outra: o slug é subdomínio **e** nome de schema, então divergir
+aqui cria empresa que o backend aceita e o frontend recusa, ou o contrário.
+
 | Arquivo | Mudança |
 | ------- | ------- |
 | `src/app/permissions.ts` | `ROLE_PERMISSIONS`, `permissionsForRole`, `ROLE_LABELS` e `HUB_ROLES` saem |
 | `src/types/auth.ts` | `AuthUser` troca `role: UserRole` por `role: { id, name, landing }`, ganha `scope` e `tenantSlug` |
 | `src/app/router.tsx` | landing vem de `role.landing`; `AdminRoute` exige `scope === 'platform'`; guarda nova valida slug contra host |
 | `src/management/features/roles/` | **novo** — lista de cargos, editor com checkboxes por módulo, exclusão com migração |
+| `src/management/features/units/` | **novo**, árvore de matriz e filiais, do Dono. O convite de membro passa a escolher a unidade |
 | `src/management/features/team/api.ts` | trocar `mockTeam()` por `/v1/team` + convidar, trocar cargo, desligar |
 | `src/pages/saas/saas-requests-page.tsx` | **nova** — fila de solicitações, aprovar/recusar, slug, telemetria, marca, plano |
 | `src/pages/saas/saas-team-page.tsx` | **nova** — contas da equipe RookHub (só TI Topo) |
@@ -573,7 +785,8 @@ existe.
    "outro", logo e cor próprios, plano `starter`.
 4. No psql: `\dn` mostra `tenant_amazonas`; `SELECT * FROM tenant_amazonas.roles` tem 6 cargos;
    `users` tem **só** o Dono, inativo.
-5. Abrir `amazonas.rookhub.com.br` **sem logar**: a tela de login já mostra o logo e a cor.
+5. Abrir a Amazonas **sem logar**: a tela de login já mostra o logo e a cor. Em desenvolvimento o
+   host não resolve, então vale `VITE_TENANT_SLUG=amazonas`, o mesmo recurso usado no passo 3.
 6. Abrir o convite, definir senha, entrar em `/gestao`. A tela de integrações diz "aguardando
    conector", não frota vazia sem explicação.
 7. Confirmar que Analytics e IA não aparecem (fora do `starter`) e que a rota direto devolve **402**.
@@ -602,12 +815,30 @@ definidos, logar em `app.rookhub.com.br`, trocar a senha, **remover as variávei
 | 1º | 1, 2, 3 — plataforma, cargos, roteamento de schema | Base. Não entrega tela nenhuma, e nada depois funciona sem ela |
 | 2º | 4 — autorização por permissão | Mecânico, mas toca 19 anotações e a sessão do frontend. Melhor de uma vez |
 | 3º | 5 — autenticação e bootstrap | Primeiro momento em que dá para logar em produção |
-| 4º | 6, 6b, 7, 8 — endpoints, parametrização, suporte, e-mail | O fluxo passa a existir ponta a ponta, ainda sem telas |
+| 4º | 6, 6b, 6c, 7, 8 — endpoints, parametrização, cadastro direto, suporte, e-mail | O fluxo passa a existir ponta a ponta, ainda sem telas |
 | 5º | 9 — telas | Desmocar backoffice, convite e equipe; editor de cargos |
 | 6º | 10 — infra | Variáveis acompanham a fase 5; DNS e domínios no fim |
 
 ## Pontos em aberto para a equipe
 
+- ⚠️ **Confirmar o isolamento: schema por tenant ou um banco por cliente.** O plano escolheu schema
+  e o Lucas descreveu banco isolado, em 11/09/2026. Precisa ser decidido **antes** da Fase 2, que
+  depende inteiramente disso, e é a única divergência real entre a visão dele e este plano. A
+  recomendação, com o que o mercado faz e os três motivos medidos, está em
+  `O que o mercado faz, e a recomendação`. **É a decisão que destrava o resto.**
+- **O Lucas pediu para "entrar nas empresas" pelo Super Admin.** Isso é impersonação, que a Fase 7
+  deixa de fora de propósito. O ponto sobre leitura auditada bastar, mais abaixo, deixa de ser
+  hipotético: existe um pedido concreto esperando resposta.
+- **A Fase 6c cabe no mesmo lote da 6b**, porque depende só do provisionador e reaproveita o
+  assistente. Confirmar que entra junto, e não depois.
+- ⚠️ **Filial é unidade dentro do tenant, ou tenant próprio?** O plano assumiu a primeira, seguindo
+  a descrição do Lucas de que a filial continua vinculada à organização. Se aparecer cliente cujas
+  filiais tenham CNPJ, cobrança e dados que **não** podem se enxergar, a resposta muda para tenant
+  próprio, e aí cada filial ganha subdomínio e ambiente separados. Decidir com um caso real na mão,
+  não antes.
+- **A tabela `units` precisa nascer semeada pela árvore da MiX** quando o cliente já tem telemetria,
+  senão alguém vai recadastrar à mão 40 veículos de filial. Encaixa no
+  `TenantProvisioningService`, mas só depois da primeira coleta, que é quando `fleet_sites` existe.
 - **Cargos customizáveis aposentam o enum `UserRole`.** É a mudança de maior alcance e não gera tela
   nova até a fase 9. Confirmar o apetite antes de começar.
 - A migração para schema por tenant também não gera tela. Fazer agora é bem mais barato que fazer
