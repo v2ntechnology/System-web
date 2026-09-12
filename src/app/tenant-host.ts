@@ -26,18 +26,42 @@ export const SLUG_CLIENTE_PADRAO = 'servioeste';
 
 const DOMINIO = 'rookhub.com.br';
 
+/**
+ * O espelho de desenvolvimento do domínio de produção.
+ *
+ * ⚠️ **Todo navegador resolve qualquer `*.localhost` para 127.0.0.1 sozinho**,
+ * por obrigação da RFC 6761, sem ninguém editar arquivo de hosts. É o que deixa
+ * `app.localhost:5173` e `servioeste.localhost:5173` valerem no MESMO servidor
+ * do Vite, reproduzindo a separação de produção em vez de exigir uma variável de
+ * ambiente e um reinício para trocar de modo.
+ */
+const DOMINIO_LOCAL = 'localhost';
+
 export type ModoDeAcesso = 'plataforma' | 'cliente';
 
 /**
- * O slug do endereço atual, ou `null` fora do domínio de produção.
+ * O domínio a que o endereço pertence, ou `null` quando não é um dos dois.
  *
- * Em desenvolvimento o host é `localhost`, que não tem slug nenhum: aí vale o
- * `VITE_TENANT_SLUG`, para dar como testar os dois modos sem editar hosts.
+ * `localhost` puro devolve `null` de propósito: sem subdomínio não há slug, e é
+ * o que distingue "estou no espelho local" de "estou num endereço qualquer".
+ */
+function dominioDoEndereco(hostname: string): string | null {
+  if (hostname.endsWith('.' + DOMINIO)) return DOMINIO;
+  if (hostname.endsWith('.' + DOMINIO_LOCAL)) return DOMINIO_LOCAL;
+  return null;
+}
+
+/**
+ * O slug do endereço atual, ou `null` quando não há como saber.
+ *
+ * O `VITE_TENANT_SLUG` continua valendo como saída de emergência, para quem
+ * abrir em `localhost` puro, num IP da rede ou numa pré-visualização do Pages e
+ * ainda assim quiser forçar um modo.
  */
 export function slugDoEndereco(hostname: string = window.location.hostname): string | null {
-  if (hostname.endsWith('.' + DOMINIO)) {
-    return hostname.slice(0, -(DOMINIO.length + 1)).toLowerCase();
-  }
+  const dominio = dominioDoEndereco(hostname);
+  if (dominio) return hostname.slice(0, -(dominio.length + 1)).toLowerCase();
+
   const doAmbiente = import.meta.env.VITE_TENANT_SLUG;
   return typeof doAmbiente === 'string' && doAmbiente.length > 0 ? doAmbiente.toLowerCase() : null;
 }
@@ -46,7 +70,7 @@ export function slugDoEndereco(hostname: string = window.location.hostname): str
  * O modo do endereço atual.
  *
  * ⚠️ **O padrão é `cliente`, e é de propósito.** Endereço desconhecido, IP,
- * pré-visualização do Pages ou `localhost` sem variável caem no painel da
+ * pré-visualização do Pages ou `localhost` puro sem variável caem no painel da
  * transportadora, que é o que 99% das pessoas usa. Errar para o lado do
  * backoffice deixaria o operador olhando uma tela de administração de
  * plataforma.
@@ -55,9 +79,27 @@ export function modoDeAcesso(hostname?: string): ModoDeAcesso {
   return slugDoEndereco(hostname) === SLUG_PLATAFORMA ? 'plataforma' : 'cliente';
 }
 
-/** Endereço completo de um slug, para mandar alguém à porta certa. */
-export function enderecoDoSlug(slug: string): string {
+/**
+ * Endereço completo de um slug, no mesmo mundo em que se está.
+ *
+ * Em produção sai `https://<slug>.rookhub.com.br`; no espelho local sai
+ * `http://<slug>.localhost:<porta>`. A porta viaja junto porque o Vite não roda
+ * na 80, e perdê-la mandaria o desenvolvimento para um endereço morto.
+ */
+export function enderecoDoSlug(
+  slug: string,
+  hostname: string = window.location.hostname,
+  porta: string = window.location.port,
+): string {
+  if (dominioDoEndereco(hostname) === DOMINIO_LOCAL) {
+    return `http://${slug}.${DOMINIO_LOCAL}${porta ? ':' + porta : ''}`;
+  }
   return `https://${slug}.${DOMINIO}`;
+}
+
+/** Verdadeiro quando o endereço tem subdomínio que a aplicação entende. */
+export function temSubdominioConhecido(hostname: string = window.location.hostname): boolean {
+  return dominioDoEndereco(hostname) !== null;
 }
 
 /**
@@ -73,11 +115,13 @@ export function enderecoDoSlug(slug: string): string {
  * meses. Quem chegar entra normalmente e é levado ao lugar certo, com a sessão
  * intacta: o cookie de refresh é do `api.`, que é same-site com os dois.
  *
- * ⚠️ Só decide em produção. Em `localhost` devolve `null` sempre, senão o
- * desenvolvimento entra em laço tentando ir para um endereço que não existe.
+ * ⚠️ **Endereço sem subdomínio conhecido devolve `null` sempre**, e é o que
+ * impede o laço: em `localhost` puro não existe outro lugar para onde ir, e
+ * redirecionar travaria o desenvolvimento. No espelho `*.localhost` existe, e aí
+ * o redirecionamento vale, igual à produção.
  */
 export function enderecoCerto(ehSuperAdmin: boolean): string | null {
-  if (!window.location.hostname.endsWith('.' + DOMINIO)) return null;
+  if (!temSubdominioConhecido()) return null;
   if (ehSuperAdmin || modoDeAcesso() !== 'plataforma') return null;
   return enderecoDoSlug(SLUG_CLIENTE_PADRAO);
 }

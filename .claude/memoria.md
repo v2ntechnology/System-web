@@ -121,8 +121,17 @@ Pedido do usuário: `app.rookhub.com.br` vira a porta da equipe RookHub, e a Ser
 
 - **`app/tenant-host.ts`** decide o modo pelo hostname. ⚠️ **O padrão é `cliente`, de propósito**:
   endereço desconhecido, IP ou `*.pages.dev` caem no painel da transportadora. Errar para o lado do
-  backoffice deixaria um operador olhando administração de plataforma. Em `localhost` vale
-  `VITE_TENANT_SLUG`, e é assim que se testa o modo plataforma sem editar hosts.
+  backoffice deixaria um operador olhando administração de plataforma.
+- ⚠️ **O espelho local é `*.localhost`, e é a forma de conferir a separação sem publicar**
+  (12/09/2026). Todo navegador resolve qualquer subdomínio de `localhost` para 127.0.0.1 sozinho,
+  por obrigação da RFC 6761, **sem ninguém editar arquivo de hosts**. Com UM servidor do Vite:
+  `http://app.localhost:5173` dá a entrada da plataforma e `http://servioeste.localhost:5173` a do
+  cliente, com o mesmo redirecionamento de produção. `localhost` puro segue sendo o de sempre, sem
+  subdomínio e sem redirecionar, que é o que evita o laço. O `VITE_TENANT_SLUG` continua existindo
+  como saída de emergência, para IP de rede ou pré-visualização do Pages.
+- ⚠️ **Isso exigiu `server.allowedHosts: ['.localhost']` no `vite.config.ts`.** O Vite recusa host
+  desconhecido por proteção contra DNS rebinding, e sem essa linha o espelho devolve
+  "Blocked request" em vez da tela.
 - ⚠️ **É redirecionamento, NUNCA bloqueio.** `app.` é o endereço que a Servioeste usa desde sempre;
   barrar tiraria a operação do ar no dia da virada. Quem não é super admin entra normal e é levado
   ao `servioeste.`. **A sessão sobrevive** porque o cookie de refresh é do `api.rookhub.com.br`, que

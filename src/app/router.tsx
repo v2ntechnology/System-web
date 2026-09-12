@@ -4,7 +4,13 @@ import { Navigate, useLocation, useRoutes, type RouteObject } from 'react-router
 import { APP_NAVIGATION, SAAS_NAVIGATION } from '@/app/navigation';
 import { HUB_ROLES, landingForRole, usesManagementPanel } from '@/app/permissions';
 import { connectSession } from '@/app/session-bootstrap';
-import { SLUG_PLATAFORMA, enderecoCerto, enderecoDoSlug, modoDeAcesso } from '@/app/tenant-host';
+import {
+  SLUG_PLATAFORMA,
+  enderecoCerto,
+  enderecoDoSlug,
+  modoDeAcesso,
+  temSubdominioConhecido,
+} from '@/app/tenant-host';
 import { AppShell } from '@/components/layout/app-shell';
 import { ThemeLock } from '@/components/layout/theme-lock';
 import { NoAccessState, LoadingState } from '@/components/shared/states';
@@ -132,8 +138,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function AdminRoute({ children }: { children: ReactNode }) {
   const { hasPermission } = usePermissions();
 
-  const emProducao = window.location.hostname.endsWith('.rookhub.com.br');
-  if (emProducao && modoDeAcesso() !== 'plataforma') {
+  if (temSubdominioConhecido() && modoDeAcesso() !== 'plataforma') {
     window.location.replace(enderecoDoSlug(SLUG_PLATAFORMA) + window.location.pathname);
     return <LoadingState label="Levando você ao endereço da plataforma…" />;
   }

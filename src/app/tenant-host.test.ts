@@ -17,8 +17,8 @@ import {
  * inteira do ar. O caso que mais importa é o último, o do laço.
  */
 
-function fingirHost(hostname: string) {
-  vi.stubGlobal('location', { hostname, pathname: '/', replace: vi.fn() });
+function fingirHost(hostname: string, port = '') {
+  vi.stubGlobal('location', { hostname, port, pathname: '/', replace: vi.fn() });
 }
 
 afterEach(() => {
@@ -97,5 +97,48 @@ describe('enderecoDoSlug', () => {
   it('monta o endereço completo', () => {
     expect(enderecoDoSlug(SLUG_PLATAFORMA)).toBe('https://app.rookhub.com.br');
     expect(enderecoDoSlug('amazonas')).toBe('https://amazonas.rookhub.com.br');
+  });
+
+  it('⚠️ no espelho local mantém a porta, senão manda para um endereço morto', () => {
+    expect(enderecoDoSlug(SLUG_CLIENTE_PADRAO, 'app.localhost', '5173')).toBe(
+      'http://servioeste.localhost:5173',
+    );
+  });
+});
+
+/**
+ * O espelho local, que é o que permite conferir a separação sem publicar.
+ *
+ * ⚠️ Existe porque o navegador resolve `*.localhost` para 127.0.0.1 por conta
+ * própria. Um servidor do Vite só, dois endereços, os mesmos dois modos de
+ * produção.
+ */
+describe('espelho em *.localhost', () => {
+  it('lê o slug igual ao domínio de produção', () => {
+    expect(slugDoEndereco('app.localhost')).toBe('app');
+    expect(slugDoEndereco('servioeste.localhost')).toBe('servioeste');
+  });
+
+  it('decide o modo igual à produção', () => {
+    expect(modoDeAcesso('app.localhost')).toBe('plataforma');
+    expect(modoDeAcesso('servioeste.localhost')).toBe('cliente');
+  });
+
+  it('redireciona quem não é super admin, com a porta junto', () => {
+    fingirHost('app.localhost', '5173');
+    expect(enderecoCerto(false)).toBe('http://servioeste.localhost:5173');
+  });
+
+  it('deixa o super admin em paz no app local', () => {
+    fingirHost('app.localhost', '5173');
+    expect(enderecoCerto(true)).toBeNull();
+  });
+
+  it('⚠️ localhost PURO continua sem redirecionar, que é o que evita o laço', () => {
+    /* Sem subdomínio não existe outro endereço para onde ir. Esta é a linha que
+       separa "espelho local" de "máquina de desenvolvimento comum". */
+    fingirHost('localhost', '5173');
+    expect(enderecoCerto(false)).toBeNull();
+    expect(enderecoCerto(true)).toBeNull();
   });
 });
