@@ -194,6 +194,51 @@ Pedido do usuário: `app.rookhub.com.br` vira a porta da equipe RookHub, e a Ser
   trocado** por `setAllowedOriginPatterns`. Conferir no repositório irmão antes de repetir qualquer
   número daqui.
 
+### Convite, senha provisória e equipe deixaram o mock (13/09/2026)
+
+Quatro telas passaram a falar com o `Backend-web`, e o que segue é o que o código não conta.
+
+- **O convite é a ÚNICA porta de um painel de transportadora hoje.** O seed parou de criar conta em
+  13/09/2026, então o caminho para entrar como cliente é aceitar o convite do Dono, cujo token sai no
+  log da API na linha `Convite do Dono: ...`. ⚠️ **O link tem de abrir no subdomínio da empresa**
+  (`servioeste.localhost:5173/convite/<token>`): o convite mora no schema do cliente e é o `Origin`
+  que diz à API em qual procurar. Aberto em `app.`, a resposta é 404 explicando isso, e a tela
+  mostra a frase do servidor.
+- ⚠️ **O aceite devolve a sessão pronta, e a tela entra direto.** Mandar para o login em seguida
+  pediria a senha que a pessoa acabou de criar. O formulário perdeu o campo de nome: quem convidou
+  já escolheu nome e cargo, e o aceite não os aceita de volta.
+- ⚠️ **`AuthSession.tenant` é NULO de verdade desde 13/09/2026**, e o lugar-tenente "RookHub" saiu.
+  Quem decide qual painel abrir passou a ser o `scope` da sessão (`platform` ou `tenant`), e não o
+  papel: `landingForSession` substituiu o `landingForRole`, o `AdminRoute` exige escopo de
+  plataforma e o `RoleAreaRoute` manda a sessão de plataforma de volta ao `/admin-saas`. Consequência
+  pretendida: **o `SUPER_ADMIN` de uma transportadora não abre mais o `/admin-saas`**, porque a API
+  recusa aquelas rotas sem escopo de plataforma, e a sessão da equipe não abre `/gestao` nem `/app`,
+  porque entrar na empresa de um cliente é impersonação, que não existe. O `papelDeTela` continua
+  traduzindo `PLATFORM_ADMIN` para `SUPER_ADMIN`, agora só para resolver permissão de tela.
+- ⚠️ **A troca de senha obrigatória tem rota própria (`/trocar-senha`) e guarda própria.** Sem a
+  segunda guarda, a primeira mandaria a tela de troca para ela mesma, em laço. A sessão nova
+  substitui a antiga dentro do `changePassword`: o token velho continua carregando a obrigação e
+  segue barrado com 403 em toda rota.
+- ⚠️ **O `acceptUrl` aparece na tela porque o envio por e-mail não existe.** Vale para o convite novo
+  e para o reenvio. É provisório: não construir fluxo que dependa dele.
+- ⚠️ **O seletor de cargo sai de `GET /v1/roles`, e os ids são POR EMPRESA.** Nada de id fixo no
+  código. A tela mostra o `name` (o rótulo do cliente), nunca a `key`.
+- ⚠️ **Na edição, o cargo começa em "manter", e isso não é preguiça.** O `GET /v1/team` devolve o
+  PAPEL (`MANAGER`), e a edição recebe o `roleId`: os dois não são reversíveis um no outro, porque
+  dois cargos podem cair no mesmo papel. Adivinhar trocaria o cargo de alguém em silêncio, e trocar
+  cargo **derruba a sessão da pessoa na hora**.
+- **Onde o CRUD ficou:** em `/gestao/equipe`, que já lia `GET /v1/team` de verdade, e não na aba
+  Usuários de `/gestao/configuracoes`, que continua inteira no mock (plano, módulos e integrações
+  não têm API). Ligar meia tela deixaria a faixa de indicadores afirmando um número e a lista abaixo
+  outro. ⚠️ O botão "Convidar" de Configurações **continua sendo um toast**, e é a divergência a
+  resolver quando aquela tela ganhar backend.
+- ⚠️ **A lista de equipe traz os motoristas primeiro e são mais de cem**, então as ações de conta
+  caem na segunda página: quem vai administrar usa a busca ou o filtro "Acesso ativo". Sabido, e
+  deixado assim para não redesenhar a tela nesta leva.
+- **O backoffice passou a receber `provisioningState` de verdade** (antes era `READY` fixo). `READY`
+  é o único estado em que as contagens significam algo, então veículos e usuários aparecem como
+  traço no resto, pela mesma regra do MRR: ausência aparece como ausência.
+
 ## Entrada, sessão e perfis
 
 - ⚠️ **A caixa do sino cortava a lista no DADO, não na altura** (corrigido em 04/09/2026). Os
@@ -2343,6 +2388,20 @@ O fornecedor, os limites dele e as armadilhas da ingestão estão em
 
 ## Gotchas
 
+- ⚠️ **401 não significa a mesma coisa em toda rota, e o `httpRequest` acha que sim.** Ele trata todo
+  401 como sessão perdida: marca a sessão como expirada e joga a pessoa fora. Em
+  `POST /v1/auth/password` o 401 é "a senha atual que você digitou está errada", então quem errasse a
+  digitação no meio da troca obrigatória era deslogado sem explicação. Medido contra a API em
+  13/09/2026, e por isso o `changePassword` faz `fetch` próprio e usa o `motivoDoErro`, que passou a
+  ser exportado. Antes de mandar outra rota pelo `httpRequest`, conferir o que o 401 dela quer dizer.
+- ⚠️ **Tela do painel não renderiza em jsdom sem desligar o fundo.** `AuroraBackdrop` e `Grainient`
+  desenham em WebGL, e o erro que aparece é `Cannot set properties of null (setting 'renderer')`, que
+  não aponta para nenhum dos dois. Num teste de componente, `vi.mock('@/management/ui')` devolvendo
+  os dois como `() => null` resolve.
+- ⚠️ **O `fetch` do Node não manda `Origin`, e é o `Origin` que escolhe a tabela de credenciais.**
+  Num teste ou script que fale com a API, o login sem esse cabeçalho cai na empresa padrão, então
+  conta de plataforma responde "e-mail ou senha incorretos". Mandar `Origin: http://app.localhost:5173`
+  à mão é o que reproduz a porta certa.
 - ⚠️ **Apagar peça no Blender teleporta as filhas dela, e o estrago aparece longe do lugar.** Ao
   tirar o segundo eixo direcional do `cavalo-8x4` para gerar o `cavalo-6x4` (06/09/2026), 30 peças
   que deviam ficar eram filhas de peças removidas: perderam a transformação do pai e pularam até
