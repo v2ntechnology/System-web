@@ -25,10 +25,25 @@ export interface SignInInput {
   password: string;
 }
 
+/**
+ * De qual dos dois mundos é a sessão.
+ *
+ * `platform` é a equipe RookHub, que entra pela porta `app.` e não pertence a
+ * transportadora nenhuma. `tenant` é qualquer conta de cliente.
+ */
+export type SessionScope = 'platform' | 'tenant';
+
 /** Tudo que a sessão precisa. O access token fica no `token-store`, fora daqui. */
 export interface AuthSession {
   user: AuthUser;
-  tenant: Tenant;
+  /**
+   * ⚠️ **Nulo na sessão de plataforma**, porque a equipe RookHub não pertence a
+   * empresa nenhuma. Quem lê precisa tratar a ausência: é o que impede o painel
+   * de uma transportadora abrir com uma empresa que não existe.
+   */
+  tenant: Tenant | null;
+  /** Quem decide qual mundo abrir. Ver `landingForSession`. */
+  scope: SessionScope;
   /**
    * ⚠️ Verdadeiro barra TODA outra rota da API até a senha ser trocada, com 403.
    *
@@ -91,20 +106,11 @@ function normalize(email: string): string {
  * cada requisição.
  */
 /**
- * A empresa que representa a própria RookHub, na sessão da equipe.
- *
- * ⚠️ **É um LUGAR-TENENTE de tela, e não um registro.** A API responde
- * `tenant: null` para a sessão de plataforma, que é o correto: a equipe não
- * pertence a transportadora nenhuma. Só que `AuthSession.tenant` é obrigatório
- * e é lido em 21 lugares do painel, então torná-lo nulo agora espalharia a
- * mudança por doze arquivos. Isso é trabalho da Fase 9, que reorganiza o painel
- * para os dois mundos.
- *
- * Até lá, o `id` fica **vazio de propósito**: um identificador inventado aqui
- * poderia ser enviado de volta à API como se fosse uma empresa de verdade.
- */
-/**
  * O papel da API traduzido para o que o painel entende.
+ *
+ * ⚠️ **Isto NÃO decide mais qual painel abrir**, desde que a sessão passou a
+ * carregar o escopo (13/09/2026): quem escolhe o mundo é `scope`, e o que sobra
+ * aqui é resolver as permissões de tela de quem administra a plataforma.
  *
  * ⚠️ **Os dois papéis da equipe entram como `SUPER_ADMIN`, e isto é tradução de
  * modelo, não disfarce.** `SUPER_ADMIN` sempre significou "administra a
@@ -125,22 +131,18 @@ function papelDeTela(role: string): UserRole {
   return role as UserRole;
 }
 
-const EMPRESA_DA_PLATAFORMA: Tenant = {
-  id: '',
-  name: 'RookHub',
-  slug: 'app',
-  plan: 'enterprise',
-  status: 'active',
-};
-
 function toSession(payload: {
   user: UserPayload;
   tenant: TenantPayload | null;
+  scope?: SessionScope;
   mustChangePassword?: boolean;
 }): AuthSession {
   const { user, tenant } = payload;
   return {
     mustChangePassword: payload.mustChangePassword ?? false,
+    /* Sem empresa não há outro mundo possível, então a ausência do campo não
+       deixa a sessão sem escopo. */
+    scope: payload.scope ?? (tenant ? 'tenant' : 'platform'),
     user: {
       id: user.id,
       name: user.name,
@@ -158,7 +160,7 @@ function toSession(payload: {
           plan: tenant.plan,
           status: tenant.status,
         }
-      : EMPRESA_DA_PLATAFORMA,
+      : null,
   };
 }
 
@@ -203,7 +205,12 @@ async function signInMocked({ email, password }: SignInInput): Promise<AuthSessi
     throw new ApiError('E-mail ou senha incorretos.', 401);
   }
 
-  return { user: buildDemoUser(credential.role), tenant: { ...DEMO_TENANT }, mustChangePassword: false };
+  return {
+    user: buildDemoUser(credential.role),
+    tenant: { ...DEMO_TENANT },
+    scope: 'tenant',
+    mustChangePassword: false,
+  };
 }
 
 export async function signIn(input: SignInInput): Promise<AuthSession> {
@@ -268,7 +275,12 @@ export async function signInWithGoogle(): Promise<AuthSession> {
     throw new ApiError('Entrada pelo Google ainda não está disponível.', 501);
   }
   await networkDelay(600, 1200);
-  return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT }, mustChangePassword: false };
+  return {
+    user: buildDemoUser('MANAGER'),
+    tenant: { ...DEMO_TENANT },
+    scope: 'tenant',
+    mustChangePassword: false,
+  };
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
@@ -331,7 +343,12 @@ export async function fetchInvite(token: string): Promise<InviteSummary> {
 export async function acceptInvite(token: string, password: string): Promise<AuthSession> {
   if (env.enableMocks) {
     await networkDelay(400, 900);
-    return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT }, mustChangePassword: false };
+    return {
+      user: buildDemoUser('MANAGER'),
+      tenant: { ...DEMO_TENANT },
+      scope: 'tenant',
+      mustChangePassword: false,
+    };
   }
 
   const payload = await httpRequest<TokenPayload>(
@@ -366,7 +383,12 @@ export async function changePassword(input: {
 }): Promise<AuthSession> {
   if (env.enableMocks) {
     await networkDelay(400, 900);
-    return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT }, mustChangePassword: false };
+    return {
+      user: buildDemoUser('MANAGER'),
+      tenant: { ...DEMO_TENANT },
+      scope: 'tenant',
+      mustChangePassword: false,
+    };
   }
 
   const payload = await httpRequest<TokenPayload>('/v1/auth/password', {

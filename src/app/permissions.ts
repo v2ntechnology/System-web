@@ -1,3 +1,4 @@
+import type { SessionScope } from '@/services/auth';
 import type { Permission, UserRole } from '@/types';
 
 export const ALL_PERMISSIONS: Permission[] = [
@@ -122,16 +123,22 @@ export function usesManagementPanel(role: UserRole): boolean {
 }
 
 /**
- * Rota inicial depois de autenticar, por perfil.
+ * Rota inicial depois de autenticar.
  *
- * ⚠️ O `SUPER_ADMIN` cai no backoffice, e não na hub. A hub escolhe entre a IA e
- * a gestão de UMA transportadora, e nenhuma das duas é o trabalho dele: quem
- * administra a plataforma aprova empresa e cuida de conta. Ele continua em
- * `HUB_ROLES` e em `usesManagementPanel`, então alcança `/painel` e `/gestao`
- * pelo menu quando precisa demonstrar as áreas internas.
+ * ⚠️ **Quem decide o mundo é o ESCOPO da sessão, e não o papel** (13/09/2026). A
+ * sessão de plataforma vem da porta `app.` e da tabela da equipe RookHub, e o
+ * backoffice é o trabalho dela. Deduzir isso do papel era o que valia enquanto
+ * `SUPER_ADMIN` morava dentro de uma transportadora, e passou a errar quando os
+ * dois mundos se separaram: papel é o que a pessoa faz onde ela está, escopo é
+ * onde ela está.
+ *
+ * ⚠️ **O `SUPER_ADMIN` de uma transportadora não cai mais no backoffice**, e
+ * isso é consequência da mesma separação: a API exige escopo de plataforma nas
+ * rotas de lá, então mandá-lo para o `/admin-saas` daria uma tela que só sabe
+ * responder 403. Ele segue em `HUB_ROLES` e em `usesManagementPanel`.
  */
-export function landingForRole(role: UserRole): string {
-  if (role === 'SUPER_ADMIN') return '/admin-saas/dashboard';
+export function landingForSession(scope: SessionScope, role: UserRole): string {
+  if (scope === 'platform') return '/admin-saas/dashboard';
   return usesManagementPanel(role) ? '/painel' : '/app/dashboard';
 }
 

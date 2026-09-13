@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { env } from '@/app/environment';
 import { buildDemoUser, DEMO_TENANT } from '@/mocks/session';
-import { restoreSession, signOut } from '@/services/auth';
+import { restoreSession, signOut, type SessionScope } from '@/services/auth';
 import { clearAccessToken } from '@/services/token-store';
 import type { AuthUser, PlanType, Tenant, UserRole } from '@/types';
 
@@ -13,6 +13,11 @@ interface SessionState {
   user: AuthUser | null;
   tenant: Tenant | null;
   /**
+   * De qual mundo é a sessão. ⚠️ É o que decide qual painel abrir, e não o
+   * papel: a equipe RookHub entra sem empresa nenhuma.
+   */
+  scope: SessionScope;
+  /**
    * ⚠️ Verdadeiro barra a pessoa em TODA rota da API, com 403, até ela criar uma
    * senha própria. Quem decide é o backend, que carrega a obrigação dentro do
    * token: por isso as guardas de rota levam para `/trocar-senha` em vez de
@@ -22,7 +27,12 @@ interface SessionState {
   /** Entrada simulada: monta a identidade a partir do perfil, sem servidor. */
   login: (options?: { role?: UserRole }) => void;
   /** Entrada real: a identidade vem do backend, já pronta. */
-  authenticate: (session: { user: AuthUser; tenant: Tenant; mustChangePassword: boolean }) => void;
+  authenticate: (session: {
+    user: AuthUser;
+    tenant: Tenant | null;
+    scope: SessionScope;
+    mustChangePassword: boolean;
+  }) => void;
   /** Tenta recuperar a sessão pelo cookie. Roda uma vez, na abertura da página. */
   restore: () => Promise<void>;
   logout: () => void;
@@ -59,6 +69,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   status: env.enableMocks ? 'unauthenticated' : 'restoring',
   user: null,
   tenant: null,
+  scope: 'tenant',
   mustChangePassword: false,
   login: (options) => {
     const role = options?.role ?? 'MANAGER';
@@ -66,11 +77,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       status: 'authenticated',
       user: buildDemoUser(role),
       tenant: { ...DEMO_TENANT },
+      scope: 'tenant',
       mustChangePassword: false,
     });
   },
-  authenticate: ({ user, tenant, mustChangePassword }) =>
-    set({ status: 'authenticated', user, tenant, mustChangePassword }),
+  authenticate: ({ user, tenant, scope, mustChangePassword }) =>
+    set({ status: 'authenticated', user, tenant, scope, mustChangePassword }),
   restore: () => {
     restoring ??= restoreSession().then((session) => {
       if (session) {
@@ -78,6 +90,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           status: 'authenticated',
           user: session.user,
           tenant: session.tenant,
+          scope: session.scope,
           mustChangePassword: session.mustChangePassword,
         });
         return;

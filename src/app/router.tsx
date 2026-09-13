@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, type ComponentType, type ReactNode } from 'r
 import { Navigate, useLocation, useRoutes, type RouteObject } from 'react-router';
 
 import { APP_NAVIGATION, SAAS_NAVIGATION } from '@/app/navigation';
-import { HUB_ROLES, landingForRole, usesManagementPanel } from '@/app/permissions';
+import { HUB_ROLES, landingForSession, usesManagementPanel } from '@/app/permissions';
 import { connectSession } from '@/app/session-bootstrap';
 import {
   SLUG_PLATAFORMA,
@@ -14,7 +14,7 @@ import {
 import { AppShell } from '@/components/layout/app-shell';
 import { ThemeLock } from '@/components/layout/theme-lock';
 import { NoAccessState, LoadingState } from '@/components/shared/states';
-import { usePermissions, useSession } from '@/hooks/use-session';
+import { useSession } from '@/hooks/use-session';
 import { useSessionStore } from '@/stores/session-store';
 import { managementRoutes } from '@/management/routes';
 import type { UserRole } from '@/types';
@@ -96,14 +96,15 @@ function RestoringSession() {
  * Não faz nada em `localhost`, senão o desenvolvimento entra em laço.
  */
 function useEnderecoCerto(ativo: boolean) {
-  const { user } = useSession();
-  const ehSuperAdmin = user?.role === 'SUPER_ADMIN';
+  /* ⚠️ Quem fica no `app.` é a sessão de PLATAFORMA, e não um papel: a porta e a
+     tabela de credenciais são as mesmas coisas desde 13/09/2026. */
+  const daPlataforma = useSessionStore((state) => state.scope) === 'platform';
 
   useEffect(() => {
     if (!ativo) return;
-    const destino = enderecoCerto(ehSuperAdmin);
+    const destino = enderecoCerto(daPlataforma);
     if (destino) window.location.replace(destino + window.location.pathname);
-  }, [ativo, ehSuperAdmin]);
+  }, [ativo, daPlataforma]);
 }
 
 /**
@@ -142,6 +143,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
  */
 function ChangePasswordRoute({ children }: { children: ReactNode }) {
   const { status, user } = useSession();
+  const scope = useSessionStore((state) => state.scope);
   const mustChangePassword = useSessionStore((state) => state.mustChangePassword);
 
   if (status === 'restoring') {
@@ -153,7 +155,7 @@ function ChangePasswordRoute({ children }: { children: ReactNode }) {
   /* Quem chegou aqui sem obrigação nenhuma já tem senha própria: a troca
      voluntária mora nas configurações, não numa parada de entrada. */
   if (!mustChangePassword) {
-    return <Navigate to={landingForRole(user.role)} replace />;
+    return <Navigate to={landingForSession(scope, user.role)} replace />;
   }
   return <>{children}</>;
 }
@@ -171,14 +173,18 @@ function ChangePasswordRoute({ children }: { children: ReactNode }) {
  * deixaria o backoffice impossível de abrir em desenvolvimento.
  */
 function AdminRoute({ children }: { children: ReactNode }) {
-  const { hasPermission } = usePermissions();
+  const scope = useSessionStore((state) => state.scope);
 
   if (temSubdominioConhecido() && modoDeAcesso() !== 'plataforma') {
     window.location.replace(enderecoDoSlug(SLUG_PLATAFORMA) + window.location.pathname);
     return <LoadingState label="Levando você ao endereço da plataforma…" />;
   }
 
-  if (!hasPermission('saas.manage')) {
+  /* ⚠️ ESCOPO, e não papel (13/09/2026). O backoffice exige token emitido pela
+     porta `app.` contra a tabela da equipe RookHub, e a API recusa qualquer
+     outro: o `SUPER_ADMIN` de uma transportadora abriria a tela para receber 403
+     em cada consulta. */
+  if (scope !== 'platform') {
     return <NoAccessState className="m-6" />;
   }
   return <>{children}</>;
@@ -187,6 +193,7 @@ function AdminRoute({ children }: { children: ReactNode }) {
 /** Impede o acesso a páginas públicas quando já autenticado. */
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { status, user } = useSession();
+  const scope = useSessionStore((state) => state.scope);
   const mustChangePassword = useSessionStore((state) => state.mustChangePassword);
   /* Também espera: mostrar o login para quem tem cookie válido e logo tirá-lo
      dali é pior que segurar a tela por um instante. */
@@ -195,7 +202,10 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
   }
   if (status === 'authenticated' && user) {
     return (
-      <Navigate to={mustChangePassword ? '/trocar-senha' : landingForRole(user.role)} replace />
+      <Navigate
+        to={mustChangePassword ? '/trocar-senha' : landingForSession(scope, user.role)}
+        replace
+      />
     );
   }
   return <>{children}</>;
@@ -216,8 +226,17 @@ function RoleAreaRoute({
   children: ReactNode;
 }) {
   const { user } = useSession();
+  const scope = useSessionStore((state) => state.scope);
+
+  /* ⚠️ A sessão de plataforma não tem empresa, e as duas áreas de cliente são
+     sobre UMA empresa: sem esta saída, a equipe RookHub abriria o `/gestao` com
+     sessão vazia e cada consulta responderia 403. Entrar na empresa de um
+     cliente é impersonação, que não existe no produto. */
+  if (scope === 'platform') {
+    return <Navigate to="/admin-saas/dashboard" replace />;
+  }
   if (user && !belongs(user.role)) {
-    return <Navigate to={landingForRole(user.role)} replace />;
+    return <Navigate to={landingForSession(scope, user.role)} replace />;
   }
   return <>{children}</>;
 }

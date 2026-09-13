@@ -6,7 +6,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 
-import { landingForRole } from '@/app/permissions';
+import { landingForSession } from '@/app/permissions';
 import { BrandLogo } from '@/components/shared/brand-logo';
 import { GoogleMark } from '@/management/components/brand/google-mark';
 import { RookhubLogo } from '@/management/components/brand/rookhub-logo';
@@ -270,7 +270,7 @@ export default function LoginPage() {
    */
   function enter(session: AuthSession) {
     authenticate(session);
-    navigate(attempted ?? landingForRole(session.user.role), { replace: true });
+    navigate(attempted ?? landingForSession(session.scope, session.user.role), { replace: true });
   }
 
   async function onSubmit(values: LoginFormValues) {
@@ -629,7 +629,7 @@ export function ChangePasswordPage() {
         newPassword: values.newPassword,
       });
       authenticate(session);
-      navigate(landingForRole(session.user.role), { replace: true });
+      navigate(landingForSession(session.scope, session.user.role), { replace: true });
     } catch (error) {
       setFormError(
         error instanceof ApiError
@@ -777,7 +777,7 @@ export function InvitePage() {
     try {
       const session = await acceptInvite(token, values.password);
       authenticate(session);
-      navigate(landingForRole(session.user.role), { replace: true });
+      navigate(landingForSession(session.scope, session.user.role), { replace: true });
     } catch (error) {
       setFormError(
         error instanceof ApiError
