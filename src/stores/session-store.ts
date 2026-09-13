@@ -12,10 +12,17 @@ interface SessionState {
   status: SessionStatus;
   user: AuthUser | null;
   tenant: Tenant | null;
+  /**
+   * ⚠️ Verdadeiro barra a pessoa em TODA rota da API, com 403, até ela criar uma
+   * senha própria. Quem decide é o backend, que carrega a obrigação dentro do
+   * token: por isso as guardas de rota levam para `/trocar-senha` em vez de
+   * deixar a tela abrir e falhar em cada requisição.
+   */
+  mustChangePassword: boolean;
   /** Entrada simulada: monta a identidade a partir do perfil, sem servidor. */
   login: (options?: { role?: UserRole }) => void;
   /** Entrada real: a identidade vem do backend, já pronta. */
-  authenticate: (session: { user: AuthUser; tenant: Tenant }) => void;
+  authenticate: (session: { user: AuthUser; tenant: Tenant; mustChangePassword: boolean }) => void;
   /** Tenta recuperar a sessão pelo cookie. Roda uma vez, na abertura da página. */
   restore: () => Promise<void>;
   logout: () => void;
@@ -52,24 +59,32 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   status: env.enableMocks ? 'unauthenticated' : 'restoring',
   user: null,
   tenant: null,
+  mustChangePassword: false,
   login: (options) => {
     const role = options?.role ?? 'MANAGER';
     set({
       status: 'authenticated',
       user: buildDemoUser(role),
       tenant: { ...DEMO_TENANT },
+      mustChangePassword: false,
     });
   },
-  authenticate: ({ user, tenant }) => set({ status: 'authenticated', user, tenant }),
+  authenticate: ({ user, tenant, mustChangePassword }) =>
+    set({ status: 'authenticated', user, tenant, mustChangePassword }),
   restore: () => {
     restoring ??= restoreSession().then((session) => {
       if (session) {
-        set({ status: 'authenticated', user: session.user, tenant: session.tenant });
+        set({
+          status: 'authenticated',
+          user: session.user,
+          tenant: session.tenant,
+          mustChangePassword: session.mustChangePassword,
+        });
         return;
       }
       /* Não é erro: é o caso normal de quem ainda não entrou. Vai para o login
          sem passar por `expired`, que existe para sessão perdida em uso. */
-      set({ status: 'unauthenticated', user: null, tenant: null });
+      set({ status: 'unauthenticated', user: null, tenant: null, mustChangePassword: false });
     });
     return restoring;
   },
@@ -77,7 +92,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     /* Sai da tela na hora e revoga em segundo plano: o usuário não deve esperar
        a rede para sair, e o refresh expira sozinho se a chamada falhar. */
     void signOut();
-    set({ status: 'unauthenticated', user: null, tenant: null });
+    set({ status: 'unauthenticated', user: null, tenant: null, mustChangePassword: false });
   },
   expireSession: () => {
     clearAccessToken();

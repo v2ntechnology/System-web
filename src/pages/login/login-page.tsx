@@ -23,6 +23,7 @@ import {
 } from '@/management/ui';
 import {
   acceptInvite,
+  changePassword,
   fetchInvite,
   requestPasswordReset,
   signIn,
@@ -566,6 +567,152 @@ export function ForgotPasswordPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Troca de senha obrigatória                                                  */
+/* -------------------------------------------------------------------------- */
+
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Informe a senha atual.'),
+    newPassword: z.string().min(8, 'A nova senha deve ter ao menos 8 caracteres.'),
+    confirm: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirm, {
+    message: 'As senhas não coincidem.',
+    path: ['confirm'],
+  })
+  .refine((data) => data.newPassword !== data.currentPassword, {
+    message: 'A nova senha precisa ser diferente da atual.',
+    path: ['newPassword'],
+  });
+
+type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
+
+/**
+ * A parada obrigatória de quem entrou com credencial provisória.
+ *
+ * ⚠️ **Não é sugestão: a API responde 403 em toda outra rota** enquanto a troca
+ * não acontece. Por isso as guardas de rota trazem para cá em vez de deixar o
+ * painel abrir e falhar tela a tela.
+ *
+ * ⚠️ **A senha atual é pedida mesmo com a sessão aberta.** O caminho que isso
+ * fecha é a estação deixada desbloqueada: com o token vivo por uma hora, quem
+ * passasse pelo computador trocaria a senha e tomaria a conta.
+ *
+ * ⚠️ **A sessão nova substitui a antiga aqui dentro** (`changePassword` já grava
+ * o token novo): o antigo continua carregando a obrigação e seguiria barrado.
+ */
+export function ChangePasswordPage() {
+  const navigate = useNavigate();
+  const authenticate = useSessionStore((state) => state.authenticate);
+  const user = useSessionStore((state) => state.user);
+
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ChangePasswordFormValues>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { currentPassword: '', newPassword: '', confirm: '' },
+  });
+
+  async function onSubmit(values: ChangePasswordFormValues) {
+    setFormError(null);
+    try {
+      const session = await changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      });
+      authenticate(session);
+      navigate(landingForRole(session.user.role), { replace: true });
+    } catch (error) {
+      setFormError(
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível trocar a senha agora. Tente novamente em instantes.',
+      );
+    }
+  }
+
+  return (
+    <AuthLayout>
+      <header>
+        <RookhubLogo variant="mark" tone="adaptive" className="h-10" />
+        <h1 className="font-sora text-on-surface mt-6 text-[28px] font-bold leading-9">
+          Crie sua senha
+        </h1>
+        <p className="text-body-md text-on-surface-variant mt-2">
+          Você entrou com uma senha provisória. Escolha uma senha sua para continuar.
+        </p>
+        {user ? (
+          <p className="text-label-sm text-on-surface-muted mt-1 break-all normal-case">
+            {user.email}
+          </p>
+        ) : null}
+      </header>
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-8 flex flex-col gap-5">
+        {formError ? <Alert severity="error">{formError}</Alert> : null}
+
+        <PasswordField
+          label="Senha atual"
+          pill
+          autoComplete="current-password"
+          placeholder="A senha que você recebeu"
+          leading={<LockIcon size={20} aria-hidden="true" />}
+          autoFocus
+          disabled={isSubmitting}
+          error={errors.currentPassword?.message}
+          {...register('currentPassword')}
+        />
+
+        <PasswordField
+          label="Nova senha"
+          pill
+          autoComplete="new-password"
+          placeholder="Crie uma senha"
+          leading={<LockIcon size={20} aria-hidden="true" />}
+          disabled={isSubmitting}
+          error={errors.newPassword?.message}
+          {...register('newPassword')}
+        />
+
+        <PasswordField
+          label="Confirmar nova senha"
+          pill
+          autoComplete="new-password"
+          placeholder="Repita a nova senha"
+          leading={<LockIcon size={20} aria-hidden="true" />}
+          disabled={isSubmitting}
+          error={errors.confirm?.message}
+          {...register('confirm')}
+        />
+
+        <SpectrumButton
+          type="submit"
+          variant="bright"
+          shape="pill"
+          size="xl"
+          block
+          disabled={isSubmitting}
+          className="mt-2"
+        >
+          {isSubmitting ? (
+            <>
+              <Spinner label="Salvando" />
+              Salvando…
+            </>
+          ) : (
+            'Salvar e continuar'
+          )}
+        </SpectrumButton>
+      </form>
+    </AuthLayout>
   );
 }
 

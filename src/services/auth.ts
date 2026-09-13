@@ -29,6 +29,14 @@ export interface SignInInput {
 export interface AuthSession {
   user: AuthUser;
   tenant: Tenant;
+  /**
+   * ⚠️ Verdadeiro barra TODA outra rota da API até a senha ser trocada, com 403.
+   *
+   * A obrigação viaja dentro do token, então não adianta a tela ignorá-la: quem
+   * entrar assim vê erro em cada tela que abrir. É o caminho de quem recebeu
+   * credencial provisória, que o bootstrap ou um administrador criou.
+   */
+  mustChangePassword: boolean;
 }
 
 interface UserPayload {
@@ -128,9 +136,11 @@ const EMPRESA_DA_PLATAFORMA: Tenant = {
 function toSession(payload: {
   user: UserPayload;
   tenant: TenantPayload | null;
+  mustChangePassword?: boolean;
 }): AuthSession {
   const { user, tenant } = payload;
   return {
+    mustChangePassword: payload.mustChangePassword ?? false,
     user: {
       id: user.id,
       name: user.name,
@@ -193,7 +203,7 @@ async function signInMocked({ email, password }: SignInInput): Promise<AuthSessi
     throw new ApiError('E-mail ou senha incorretos.', 401);
   }
 
-  return { user: buildDemoUser(credential.role), tenant: { ...DEMO_TENANT } };
+  return { user: buildDemoUser(credential.role), tenant: { ...DEMO_TENANT }, mustChangePassword: false };
 }
 
 export async function signIn(input: SignInInput): Promise<AuthSession> {
@@ -258,7 +268,7 @@ export async function signInWithGoogle(): Promise<AuthSession> {
     throw new ApiError('Entrada pelo Google ainda não está disponível.', 501);
   }
   await networkDelay(600, 1200);
-  return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT } };
+  return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT }, mustChangePassword: false };
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
@@ -321,13 +331,49 @@ export async function fetchInvite(token: string): Promise<InviteSummary> {
 export async function acceptInvite(token: string, password: string): Promise<AuthSession> {
   if (env.enableMocks) {
     await networkDelay(400, 900);
-    return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT } };
+    return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT }, mustChangePassword: false };
   }
 
   const payload = await httpRequest<TokenPayload>(
     `/v1/public/invites/${encodeURIComponent(token)}/accept`,
     { method: 'POST', credentials: 'include', body: JSON.stringify({ password }) },
   );
+
+  return acceptSession(payload);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Troca de senha                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Troca a própria senha e devolve a sessão nova.
+ *
+ * ⚠️ **O token novo tem de substituir o antigo, e não é conveniência.** A
+ * obrigação de trocar viaja dentro do token, e o antigo continua carregando ela:
+ * mantê-lo deixaria a pessoa barrada por até uma hora, com o sistema exigindo a
+ * troca da senha que ela acabou de trocar. Por isso o `acceptSession` roda aqui.
+ *
+ * ⚠️ A API derruba as outras sessões da pessoa, inclusive o refresh anterior.
+ * `credentials: 'include'` é o que traz o cookie novo no lugar do revogado.
+ *
+ * Os erros que valem tratar na tela: 401 é senha atual errada, 400 é senha nova
+ * igual à atual ou curta demais. Os dois chegam com a frase do servidor.
+ */
+export async function changePassword(input: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<AuthSession> {
+  if (env.enableMocks) {
+    await networkDelay(400, 900);
+    return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT }, mustChangePassword: false };
+  }
+
+  const payload = await httpRequest<TokenPayload>('/v1/auth/password', {
+    method: 'POST',
+    credentials: 'include',
+    body: JSON.stringify(input),
+  });
 
   return acceptSession(payload);
 }

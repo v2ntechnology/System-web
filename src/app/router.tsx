@@ -15,6 +15,7 @@ import { AppShell } from '@/components/layout/app-shell';
 import { ThemeLock } from '@/components/layout/theme-lock';
 import { NoAccessState, LoadingState } from '@/components/shared/states';
 import { usePermissions, useSession } from '@/hooks/use-session';
+import { useSessionStore } from '@/stores/session-store';
 import { managementRoutes } from '@/management/routes';
 import type { UserRole } from '@/types';
 
@@ -105,9 +106,17 @@ function useEnderecoCerto(ativo: boolean) {
   }, [ativo, ehSuperAdmin]);
 }
 
-/** Exige uma sessão autenticada. Sessão expirada é tratada em rota própria. */
+/**
+ * Exige uma sessão autenticada. Sessão expirada é tratada em rota própria.
+ *
+ * ⚠️ **Credencial provisória não passa daqui.** Quem entrou com
+ * `mustChangePassword` é levado para a troca antes de qualquer tela: a API
+ * responde 403 em toda outra rota enquanto isso, então deixar o painel abrir
+ * daria um erro por requisição em vez de uma instrução.
+ */
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { status } = useSession();
+  const mustChangePassword = useSessionStore((state) => state.mustChangePassword);
   const location = useLocation();
   useEnderecoCerto(status === 'authenticated');
 
@@ -119,6 +128,32 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   }
   if (status !== 'authenticated') {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  }
+  if (mustChangePassword) {
+    return <Navigate to="/trocar-senha" replace />;
+  }
+  return <>{children}</>;
+}
+
+/**
+ * A troca obrigatória: exige sessão, e é a única rota interna que a credencial
+ * provisória alcança. Sem esta rota separada, a guarda acima mandaria a tela de
+ * troca para ela mesma, em laço.
+ */
+function ChangePasswordRoute({ children }: { children: ReactNode }) {
+  const { status, user } = useSession();
+  const mustChangePassword = useSessionStore((state) => state.mustChangePassword);
+
+  if (status === 'restoring') {
+    return <RestoringSession />;
+  }
+  if (status !== 'authenticated' || !user) {
+    return <Navigate to="/" replace />;
+  }
+  /* Quem chegou aqui sem obrigação nenhuma já tem senha própria: a troca
+     voluntária mora nas configurações, não numa parada de entrada. */
+  if (!mustChangePassword) {
+    return <Navigate to={landingForRole(user.role)} replace />;
   }
   return <>{children}</>;
 }
@@ -152,13 +187,16 @@ function AdminRoute({ children }: { children: ReactNode }) {
 /** Impede o acesso a páginas públicas quando já autenticado. */
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { status, user } = useSession();
+  const mustChangePassword = useSessionStore((state) => state.mustChangePassword);
   /* Também espera: mostrar o login para quem tem cookie válido e logo tirá-lo
      dali é pior que segurar a tela por um instante. */
   if (status === 'restoring') {
     return <RestoringSession />;
   }
   if (status === 'authenticated' && user) {
-    return <Navigate to={landingForRole(user.role)} replace />;
+    return (
+      <Navigate to={mustChangePassword ? '/trocar-senha' : landingForRole(user.role)} replace />
+    );
   }
   return <>{children}</>;
 }
@@ -208,6 +246,14 @@ const publicRoutes: RouteObject[] = [
       <PublicOnlyRoute>
         {lazyElement(() => authModule().then((m) => ({ default: m.ForgotPasswordPage })))}
       </PublicOnlyRoute>
+    ),
+  },
+  {
+    path: '/trocar-senha',
+    element: (
+      <ChangePasswordRoute>
+        {lazyElement(() => authModule().then((m) => ({ default: m.ChangePasswordPage })))}
+      </ChangePasswordRoute>
     ),
   },
   {
