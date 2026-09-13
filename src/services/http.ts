@@ -173,8 +173,12 @@ export async function httpBlob(path: string): Promise<string> {
  *
  * O genérico continua valendo para erro sem corpo, resposta que não é JSON e
  * falha inesperada. Nesses casos não há frase melhor para mostrar.
+ *
+ * ⚠️ Exportada porque a troca de senha não pode passar pelo `httpRequest`: lá o
+ * 401 significa sessão perdida, e ali significa "a senha atual que você digitou
+ * está errada". Ver `changePassword`.
  */
-async function motivoDoErro(response: Response): Promise<string> {
+export async function motivoDoErro(response: Response): Promise<string> {
   const generico = `Erro na requisição (${response.status}).`;
   try {
     const corpo: unknown = await response.json();

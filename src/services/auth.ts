@@ -8,8 +8,8 @@ import {
   DEMO_PASSWORD,
   DEMO_TENANT,
 } from '@/mocks/session';
-import { ApiError, httpRequest, networkDelay } from '@/services/http';
-import { clearAccessToken, setAccessToken } from '@/services/token-store';
+import { ApiError, httpRequest, motivoDoErro, networkDelay } from '@/services/http';
+import { clearAccessToken, getAccessToken, setAccessToken } from '@/services/token-store';
 import type { AuthUser, PlanType, Tenant, TenantStatus, UserRole } from '@/types';
 
 /**
@@ -391,11 +391,28 @@ export async function changePassword(input: {
     };
   }
 
-  const payload = await httpRequest<TokenPayload>('/v1/auth/password', {
+  /*
+   * ⚠️ NÃO passa pelo `httpRequest`, e isto não é preferência.
+   *
+   * Lá o 401 significa "a sessão acabou": ele marca a sessão como expirada e
+   * joga a pessoa na tela de sessão perdida. Aqui o 401 significa "a senha
+   * atual que você digitou está errada", e tratá-lo daquele jeito derrubava a
+   * sessão de quem só errou a digitação, no meio da troca obrigatória, sem
+   * dizer o motivo. Medido contra a API em 13/09/2026.
+   */
+  const response = await fetch(`${env.apiBaseUrl}/v1/auth/password`, {
     method: 'POST',
     credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getAccessToken() ?? ''}`,
+    },
     body: JSON.stringify(input),
   });
 
-  return acceptSession(payload);
+  if (!response.ok) {
+    throw new ApiError(await motivoDoErro(response), response.status);
+  }
+
+  return acceptSession((await response.json()) as TokenPayload);
 }
