@@ -1,5 +1,6 @@
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon, LockIcon, MailIcon } from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -20,7 +21,14 @@ import {
   useNoBlur,
   type GlassInputProps,
 } from '@/management/ui';
-import { requestPasswordReset, signIn, signInWithGoogle, type AuthSession } from '@/services/auth';
+import {
+  acceptInvite,
+  fetchInvite,
+  requestPasswordReset,
+  signIn,
+  signInWithGoogle,
+  type AuthSession,
+} from '@/services/auth';
 import { ApiError } from '@/services/http';
 import { modoDeAcesso } from '@/app/tenant-host';
 import { cn } from '@/lib/utils';
@@ -567,8 +575,9 @@ export function ForgotPasswordPage() {
 
 const inviteSchema = z
   .object({
-    name: z.string().min(3, 'Informe seu nome completo.'),
-    password: z.string().min(6, 'A senha deve ter ao menos 6 caracteres.'),
+    /* ⚠️ Oito, e não seis: é o mínimo que a API exige no aceite, e validar menos
+       aqui só trocaria o aviso do campo por um erro do servidor. */
+    password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
     confirm: z.string(),
   })
   .refine((data) => data.password === data.confirm, {
@@ -578,10 +587,34 @@ const inviteSchema = z
 
 type InviteFormValues = z.infer<typeof inviteSchema>;
 
+/**
+ * Aceite de convite, a porta de entrada de quem ainda não tem senha.
+ *
+ * ⚠️ **O link tem de abrir no endereço da empresa**
+ * (`servioeste.rookhub.com.br/convite/<token>`): o convite mora no schema do
+ * cliente, e é o `Origin` que diz à API em qual procurar. Aberto no endereço da
+ * plataforma, a API responde 404 explicando, e é essa frase que a tela mostra.
+ *
+ * ⚠️ **Nome e cargo não são editáveis, e o formulário só tem a senha.** Quem
+ * convidou já escolheu os dois, e o aceite não os aceita de volta: um campo de
+ * nome aqui prometeria uma edição que a API descarta em silêncio.
+ *
+ * ⚠️ **O aceite já devolve a sessão**, então daqui se entra direto no painel.
+ * Mandar para o login em seguida seria pedir a senha que a pessoa acabou de
+ * criar.
+ */
 export function InvitePage() {
-  const { token } = useParams();
-  const login = useSessionStore((state) => state.login);
+  const { token = '' } = useParams();
   const navigate = useNavigate();
+  const authenticate = useSessionStore((state) => state.authenticate);
+
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const convite = useQuery({
+    queryKey: ['convite', token],
+    queryFn: () => fetchInvite(token),
+    retry: false,
+  });
 
   const {
     register,
@@ -589,42 +622,87 @@ export function InvitePage() {
     formState: { errors, isSubmitting },
   } = useForm<InviteFormValues>({
     resolver: zodResolver(inviteSchema),
-    defaultValues: { name: '', password: '', confirm: '' },
+    defaultValues: { password: '', confirm: '' },
   });
 
-  async function onSubmit() {
-    /* Convite mockado: o perfil viria no token. Entra como gestor. */
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    login({ role: 'MANAGER' });
-    navigate(landingForRole('MANAGER'), { replace: true });
+  async function onSubmit(values: InviteFormValues) {
+    setFormError(null);
+    try {
+      const session = await acceptInvite(token, values.password);
+      authenticate(session);
+      navigate(landingForRole(session.user.role), { replace: true });
+    } catch (error) {
+      setFormError(
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível criar sua conta agora. Tente novamente em instantes.',
+      );
+    }
   }
+
+  if (convite.isPending) {
+    return (
+      <AuthLayout>
+        <div className="flex items-center justify-center py-20">
+          <Spinner label="Carregando o convite" />
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  /* ⚠️ Uma mensagem só. Token inexistente, expirado, revogado e já aceito
+     respondem o mesmo 404 de propósito: separar os casos diria a quem tem um
+     token velho que ele existiu. */
+  if (convite.isError) {
+    return (
+      <AuthLayout>
+        <header>
+          <RookhubLogo variant="mark" tone="adaptive" className="h-10" />
+          <h1 className="font-sora text-on-surface mt-6 text-[28px] font-bold leading-9">
+            Convite indisponível
+          </h1>
+        </header>
+
+        <div className="mt-6">
+          <Alert severity="error">
+            {convite.error instanceof ApiError
+              ? convite.error.message
+              : 'Não foi possível abrir o convite agora. Tente novamente em instantes.'}
+          </Alert>
+        </div>
+
+        <div className="mt-8">
+          <Link
+            to="/"
+            className="text-body-md text-on-surface-variant hover:text-on-surface focus-visible:ring-primary focus-visible:ring-offset-background inline-flex items-center gap-2 rounded-sm underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
+          >
+            <ArrowLeftIcon size={16} />
+            Ir para o login
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  const dados = convite.data;
 
   return (
     <AuthLayout>
       <header>
         <RookhubLogo variant="mark" tone="adaptive" className="h-10" />
         <h1 className="font-sora text-on-surface mt-6 text-[28px] font-bold leading-9">
-          Você foi convidado
+          {dados.nome}, você foi convidado
         </h1>
         <p className="text-body-md text-on-surface-variant mt-2">
-          Complete seu cadastro para acessar a plataforma RookHub.
+          Crie sua senha para acessar o painel da {dados.empresa} como {dados.cargo}.
         </p>
         <p className="text-label-sm text-on-surface-muted mt-1 break-all normal-case">
-          Convite: {token}
+          {dados.email}
         </p>
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-8 flex flex-col gap-5">
-        <GlassInput
-          label="Nome completo"
-          pill
-          autoComplete="name"
-          placeholder="Como você assina"
-          autoFocus
-          disabled={isSubmitting}
-          error={errors.name?.message}
-          {...register('name')}
-        />
+        {formError ? <Alert severity="error">{formError}</Alert> : null}
 
         <PasswordField
           label="Senha"
@@ -632,6 +710,7 @@ export function InvitePage() {
           autoComplete="new-password"
           placeholder="Crie uma senha"
           leading={<LockIcon size={20} aria-hidden="true" />}
+          autoFocus
           disabled={isSubmitting}
           error={errors.password?.message}
           {...register('password')}

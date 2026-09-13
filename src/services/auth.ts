@@ -8,7 +8,7 @@ import {
   DEMO_PASSWORD,
   DEMO_TENANT,
 } from '@/mocks/session';
-import { ApiError, networkDelay } from '@/services/http';
+import { ApiError, httpRequest, networkDelay } from '@/services/http';
 import { clearAccessToken, setAccessToken } from '@/services/token-store';
 import type { AuthUser, PlanType, Tenant, TenantStatus, UserRole } from '@/types';
 
@@ -266,4 +266,68 @@ export async function requestPasswordReset(email: string): Promise<void> {
   /* Resposta sempre igual: confirmar se o e-mail existe entrega a base de
      usuários a quem estiver tentando descobrir contas. */
   void email;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Convite                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** O que o convite diz antes de ser aceito. Sem nada sensível, e sem sessão. */
+export interface InviteSummary {
+  empresa: string;
+  email: string;
+  nome: string;
+  cargo: string;
+}
+
+const CONVITE_SIMULADO: InviteSummary = {
+  empresa: DEMO_TENANT.name,
+  email: 'novo.gestor@servioeste.com.br',
+  nome: 'Novo Gestor',
+  cargo: 'Gestor',
+};
+
+/**
+ * O convite que o token descreve.
+ *
+ * ⚠️ **A empresa vem do ENDEREÇO, e não do token.** A tabela de convites mora no
+ * schema do cliente, e é o `Origin` que diz à API em qual procurar: o link
+ * precisa abrir em `<empresa>.rookhub.com.br`. Aberto no endereço da
+ * plataforma, a resposta é 404 com a frase que explica isso, e a tela a mostra
+ * como está.
+ *
+ * ⚠️ **404 é uma resposta só para quatro casos** (inexistente, expirado,
+ * revogado e já aceito), de propósito: distinguir diria a quem tem um token
+ * velho que ele existiu. Por isso aqui não há tradução de status, e a tela
+ * mostra uma mensagem única pedindo novo convite.
+ */
+export async function fetchInvite(token: string): Promise<InviteSummary> {
+  if (env.enableMocks) {
+    await networkDelay();
+    return { ...CONVITE_SIMULADO };
+  }
+  return httpRequest<InviteSummary>(`/v1/public/invites/${encodeURIComponent(token)}`);
+}
+
+/**
+ * Aceita o convite e já entra.
+ *
+ * O aceite devolve a sessão pronta, então mandar a pessoa para o login em
+ * seguida seria pedir a senha que ela acabou de criar.
+ *
+ * `credentials: 'include'` porque a resposta traz o cookie de refresh: sem ele,
+ * a sessão morreria no primeiro recarregamento.
+ */
+export async function acceptInvite(token: string, password: string): Promise<AuthSession> {
+  if (env.enableMocks) {
+    await networkDelay(400, 900);
+    return { user: buildDemoUser('MANAGER'), tenant: { ...DEMO_TENANT } };
+  }
+
+  const payload = await httpRequest<TokenPayload>(
+    `/v1/public/invites/${encodeURIComponent(token)}/accept`,
+    { method: 'POST', credentials: 'include', body: JSON.stringify({ password }) },
+  );
+
+  return acceptSession(payload);
 }
