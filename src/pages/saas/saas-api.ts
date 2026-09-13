@@ -28,6 +28,8 @@ interface TenantDto {
   users: number;
   vehicles: number;
   telemetryState: string;
+  /** O estado do SCHEMA da empresa, e não o da telemetria. Ver `provisionamento`. */
+  provisioningState: string;
   /** ⚠️ Sempre nulo: não existe cobrança no sistema. Ver `mrr` abaixo. */
   mrr: number | null;
   createdAt: string;
@@ -49,6 +51,24 @@ function telemetria(estado: string): SaasTenant['telemetryState'] {
   return 'PENDING_CONTRACT';
 }
 
+/**
+ * O estado do ambiente da empresa, como o banco o guarda.
+ *
+ * ⚠️ **`READY` é o único estado em que as contagens significam algo.** Empresa
+ * em provisionamento ou com falha aparece na lista, e tem de aparecer, mas o
+ * schema dela ainda não tem o que contar: os números saem zerados, e zero ali
+ * leria como "empresa sem ninguém e sem veículo".
+ *
+ * O valor desconhecido cai em `PENDING`, que é o mais conservador: ele não
+ * afirma que o ambiente está pronto.
+ */
+function provisionamento(estado: string): SaasTenant['provisioningState'] {
+  if (estado === 'READY') return 'READY';
+  if (estado === 'RUNNING') return 'RUNNING';
+  if (estado === 'FAILED') return 'FAILED';
+  return 'PENDING';
+}
+
 function paraTela(dto: TenantDto): SaasTenant {
   return {
     id: dto.id,
@@ -57,9 +77,7 @@ function paraTela(dto: TenantDto): SaasTenant {
     document: dto.document ?? '',
     plan: dto.plan as SaasTenant['plan'],
     status: dto.status as SaasTenant['status'],
-    /* Está servindo requisição, então está pronta. Não é suposição: a empresa
-       respondeu a esta própria consulta. */
-    provisioningState: 'READY',
+    provisioningState: provisionamento(dto.provisioningState),
     telemetryState: telemetria(dto.telemetryState),
     domainState: 'REGISTERED',
     /* A marca ainda é parametrizada por ninguém: não há tabela de branding. */

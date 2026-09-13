@@ -84,8 +84,31 @@ export default function SaasTenantsPage() {
       ),
     },
     { id: 'plan', header: 'Plano', cell: (t) => <Badge>{PLAN_LABELS[t.plan]}</Badge> },
-    { id: 'vehicles', header: 'Veículos', align: 'right', cell: (t) => t.vehicles },
-    { id: 'users', header: 'Usuários', align: 'right', cell: (t) => t.users },
+    /* ⚠️ Contagem só vale com o ambiente pronto: o schema de quem ainda está
+       provisionando não tem o que contar, e zero ali leria como empresa vazia.
+       Mesma regra do MRR logo abaixo, ausência aparece como ausência. */
+    {
+      id: 'vehicles',
+      header: 'Veículos',
+      align: 'right',
+      cell: (t) =>
+        t.provisioningState === 'READY' ? (
+          t.vehicles
+        ) : (
+          <span className="text-muted-foreground">–</span>
+        ),
+    },
+    {
+      id: 'users',
+      header: 'Usuários',
+      align: 'right',
+      cell: (t) =>
+        t.provisioningState === 'READY' ? (
+          t.users
+        ) : (
+          <span className="text-muted-foreground">–</span>
+        ),
+    },
     {
       id: 'mrr',
       header: 'MRR',

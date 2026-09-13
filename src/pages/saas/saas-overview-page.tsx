@@ -220,8 +220,12 @@ export default function SaasOverviewPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{tenant.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {PLAN_LABELS[tenant.plan]} · {tenant.vehicles} veículos · {tenant.users}{' '}
-                    usuários
+                    {/* Ambiente que não está pronto não tem contagem para
+                        mostrar: ver a nota em `provisionamento`. */}
+                    {PLAN_LABELS[tenant.plan]}
+                    {tenant.provisioningState === 'READY'
+                      ? ` · ${tenant.vehicles} veículos · ${tenant.users} usuários`
+                      : ' · ambiente em preparação'}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
