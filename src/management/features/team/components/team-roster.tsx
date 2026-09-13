@@ -1,4 +1,4 @@
-import { InfoIcon, SearchIcon } from '@/components/icons';
+import { EditIcon, InfoIcon, MailIcon, PowerIcon, SearchIcon } from '@/components/icons';
 import type { TeamMember } from '@/management/lib/fleet-api';
 import {
   GlassInput,
@@ -59,9 +59,26 @@ const SITUACOES = [
 export interface TeamRosterProps {
   people: TeamMember[];
   className?: string | undefined;
+  /**
+   * As três ações de conta, quando quem olha pode administrar a equipe.
+   *
+   * ⚠️ Valem só para a linha de PAINEL: motorista vem da telemetria e não tem
+   * conta para editar aqui. Ausentes, a coluna de ações nem aparece, que é o
+   * caso de quem só enxerga o quadro.
+   */
+  onEditar?: ((pessoa: TeamMember) => void) | undefined;
+  onReenviar?: ((pessoa: TeamMember) => void) | undefined;
+  onDesativar?: ((pessoa: TeamMember) => void) | undefined;
 }
 
-export function TeamRoster({ people, className }: TeamRosterProps) {
+export function TeamRoster({
+  people,
+  className,
+  onEditar,
+  onReenviar,
+  onDesativar,
+}: TeamRosterProps) {
+  const comAcoes = Boolean(onEditar ?? onReenviar ?? onDesativar);
   const [busca, setBusca] = useState('');
   const [filial, setFilial] = useState(TODOS);
   const [situacao, setSituacao] = useState(TODOS);
@@ -202,6 +219,11 @@ export function TeamRoster({ people, className }: TeamRosterProps) {
                 <th scope="col" className="py-2 pr-3 text-right font-normal">
                   Situação
                 </th>
+                {comAcoes ? (
+                  <th scope="col" className="py-2 pr-3 text-right font-normal">
+                    Conta
+                  </th>
+                ) : null}
               </tr>
             </thead>
 
@@ -262,7 +284,7 @@ export function TeamRoster({ people, className }: TeamRosterProps) {
                   <td className="py-2.5 pr-3 text-right">
                     {pessoa.kind === 'PAINEL' ? (
                       <StatusChip tone={pessoa.active ? 'positive' : 'neutral'} surface="light">
-                        {pessoa.active ? 'Ativo' : 'Desativado'}
+                        {pessoa.active ? 'Ativo' : 'Pendente ou desativado'}
                       </StatusChip>
                     ) : (
                       <span
@@ -277,6 +299,50 @@ export function TeamRoster({ people, className }: TeamRosterProps) {
                       </span>
                     )}
                   </td>
+
+                  {comAcoes ? (
+                    <td className="py-2.5 pr-3">
+                      {/* ⚠️ Botão que é só ícone não pinta fundo: a cor é o
+                          rótulo, porque não há texto. */}
+                      <div className="flex items-center justify-end gap-1">
+                        {pessoa.kind === 'PAINEL' && onEditar ? (
+                          <button
+                            type="button"
+                            className="acao-editar"
+                            onClick={() => onEditar(pessoa)}
+                            aria-label={`Editar a conta de ${pessoa.name}`}
+                          >
+                            <EditIcon size={16} />
+                          </button>
+                        ) : null}
+
+                        {/* Reenviar só faz sentido para quem ainda não entrou:
+                            conta ativa é recusada com 409 pela API, e o caminho
+                            de quem perdeu a senha é a redefinição. */}
+                        {pessoa.kind === 'PAINEL' && !pessoa.active && onReenviar ? (
+                          <button
+                            type="button"
+                            className="acao-neutra"
+                            onClick={() => onReenviar(pessoa)}
+                            aria-label={`Reenviar o convite de ${pessoa.name}`}
+                          >
+                            <MailIcon size={16} />
+                          </button>
+                        ) : null}
+
+                        {pessoa.kind === 'PAINEL' && pessoa.active && onDesativar ? (
+                          <button
+                            type="button"
+                            className="acao-excluir"
+                            onClick={() => onDesativar(pessoa)}
+                            aria-label={`Desativar o acesso de ${pessoa.name}`}
+                          >
+                            <PowerIcon size={16} />
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

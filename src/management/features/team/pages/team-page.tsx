@@ -1,6 +1,7 @@
 import {
   IdCardIcon,
   InfoIcon,
+  PlusIcon,
   LockIcon,
   SearchIcon,
   SteeringWheelIcon,
@@ -8,8 +9,9 @@ import {
   UsersIcon,
 } from '@/components/icons';
 import type { TeamPerson } from '@/management/types';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 import { HeroBand } from '@/management/components/layout/hero-band';
 import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
@@ -20,7 +22,18 @@ import { useSession } from '@/management/features/auth/store';
 
 import { env } from '@/app/environment';
 import { PendingSource } from '@/management/components/layout/pending-source';
-import { fetchTeam } from '@/management/lib/fleet-api';
+import {
+  deactivateTeamMember,
+  fetchRoles,
+  fetchTeam,
+  resendTeamInvite,
+  type TeamMember,
+} from '@/management/lib/fleet-api';
+import { GlassModal, SpectrumButton } from '@/management/ui';
+import { usePermissions } from '@/hooks/use-session';
+import { ApiError } from '@/services/http';
+
+import { MemberDialog } from '../components/member-dialog';
 
 import { getTeam } from '../api';
 import { TeamRoster } from '../components/team-roster';
@@ -75,9 +88,69 @@ export function TeamPage() {
  * frota parada que não existe.
  */
 function EquipeReal() {
+  const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+  /*
+   * ⚠️ Guarda de TELA, e não de segurança: quem autoriza é a API, que exige
+   * `team.manage` em cada uma destas rotas. `settings.manage` é a permissão que
+   * este painel já dá a proprietário e super admin, e é a que corresponde ao
+   * único cargo com `team.manage` do lado de lá.
+   */
+  const podeAdministrar = hasPermission('settings.manage');
+
   const { data, isPending, isError } = useQuery({
     queryKey: ['equipe'],
     queryFn: () => fetchTeam(30),
+  });
+
+  /* Os ids de cargo nascem no provisionamento e são por empresa: o seletor sai
+     desta lista, nunca de constante no código. */
+  const cargos = useQuery({
+    queryKey: ['cargos'],
+    queryFn: fetchRoles,
+    enabled: podeAdministrar,
+  });
+
+  /** Aberto com uma pessoa edita; aberto com `null` convida. */
+  const [emEdicao, setEmEdicao] = useState<TeamMember | null>(null);
+  const [dialogoAberto, setDialogoAberto] = useState(false);
+
+  const abrirDialogo = (pessoa: TeamMember | null) => {
+    setEmEdicao(pessoa);
+    setDialogoAberto(true);
+  };
+
+  const fecharDialogo = () => {
+    setDialogoAberto(false);
+    setEmEdicao(null);
+  };
+
+  const recarregar = () => {
+    void queryClient.invalidateQueries({ queryKey: ['equipe'] });
+  };
+
+  const avisarErro = (causa: unknown, alternativa: string) => {
+    toast.error(causa instanceof ApiError ? causa.message : alternativa);
+  };
+
+  const reenvio = useMutation({
+    mutationFn: (pessoa: TeamMember) => resendTeamInvite(pessoa.id),
+    onSuccess: (convite) => {
+      /* ⚠️ O link volta na resposta porque o envio por e-mail ainda não existe.
+         Mostrar o endereço é o que permite entregá-lo à pessoa hoje. */
+      toast.success('Convite reemitido.', { description: convite.acceptUrl });
+      recarregar();
+    },
+    onError: (causa) => avisarErro(causa, 'Não foi possível reemitir o convite.'),
+  });
+
+  const desativacao = useMutation({
+    mutationFn: (pessoa: TeamMember) => deactivateTeamMember(pessoa.id),
+    onSuccess: () => {
+      toast.success('Acesso desativado.');
+      recarregar();
+    },
+    onError: (causa) => avisarErro(causa, 'Não foi possível desativar o acesso.'),
   });
 
   const stats: HeroStat[] = data
@@ -150,7 +223,25 @@ function EquipeReal() {
 
       <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
         <QueryState isPending={isPending} isError={isError} label="a equipe">
-          <TeamRoster people={data?.people ?? []} />
+          {podeAdministrar ? (
+            <div className="mb-5 flex justify-end">
+              <SpectrumButton type="button" size="sm" onClick={() => abrirDialogo(null)}>
+                <PlusIcon size={14} aria-hidden="true" />
+                Convidar
+              </SpectrumButton>
+            </div>
+          ) : null}
+
+          <TeamRoster
+            people={data?.people ?? []}
+            {...(podeAdministrar
+              ? {
+                  onEditar: (pessoa: TeamMember) => abrirDialogo(pessoa),
+                  onReenviar: (pessoa: TeamMember) => reenvio.mutate(pessoa),
+                  onDesativar: (pessoa: TeamMember) => desativacao.mutate(pessoa),
+                }
+              : {})}
+          />
 
           <div className="mt-6">
             <PendingSource
@@ -171,6 +262,27 @@ function EquipeReal() {
           </div>
         </QueryState>
       </PageContent>
+
+      <GlassModal
+        open={dialogoAberto}
+        onOpenChange={(aberto) => (aberto ? setDialogoAberto(true) : fecharDialogo())}
+        title={emEdicao ? `Conta de ${emEdicao.name}` : 'Convidar para a equipe'}
+        description={
+          emEdicao
+            ? 'Nome, e-mail e cargo. Trocar o cargo encerra a sessão da pessoa.'
+            : 'A pessoa recebe um link para criar a própria senha.'
+        }
+      >
+        {/* A chave remonta o formulário a cada abertura: sem ela, o estado da
+            pessoa anterior sobreviveria à troca. */}
+        <MemberDialog
+          key={emEdicao?.id ?? 'novo'}
+          member={emEdicao}
+          roles={cargos.data ?? []}
+          onClose={fecharDialogo}
+          onSaved={recarregar}
+        />
+      </GlassModal>
     </>
   );
 }

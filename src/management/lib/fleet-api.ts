@@ -1341,6 +1341,79 @@ export async function fetchTeam(days = 30): Promise<TeamOverview> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Contas que acessam o painel                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Um cargo da empresa.
+ *
+ * ⚠️ **O `id` nasce no provisionamento e é POR EMPRESA**, então ele nunca pode
+ * ser fixado no código: o seletor de cargo se preenche desta lista. A tela
+ * mostra o `name`, que o cliente escolheu, e não a `key`, que é identificador
+ * interno.
+ */
+export interface TeamRole {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  system: boolean;
+}
+
+export function fetchRoles(): Promise<TeamRole[]> {
+  return httpRequest<TeamRole[]>('/v1/roles');
+}
+
+/**
+ * O convite recém-criado.
+ *
+ * ⚠️ **O `acceptUrl` volta na resposta porque o envio por e-mail ainda não
+ * existe**, e é por isso que a tela o mostra para copiar. Isso é temporário e
+ * sai quando o e-mail entrar: nenhum fluxo deve depender dele.
+ */
+export interface TeamInvite {
+  userId: string;
+  token: string;
+  acceptUrl: string;
+}
+
+export function inviteTeamMember(input: {
+  name: string;
+  email: string;
+  roleId: string;
+}): Promise<TeamInvite> {
+  return httpRequest<TeamInvite>('/v1/team', { method: 'POST', body: JSON.stringify(input) });
+}
+
+/**
+ * Altera nome, e-mail ou cargo. Pelo menos um campo, senão a API recusa com 400.
+ *
+ * ⚠️ **Trocar o cargo derruba a sessão da pessoa na hora**, inclusive um token já
+ * emitido. Sendo a própria pessoa logada, ela cai na tela de sessão expirada, e
+ * esse é o comportamento correto: as permissões dela mudaram.
+ */
+export function updateTeamMember(
+  id: string,
+  changes: { name?: string; email?: string; roleId?: string },
+): Promise<void> {
+  return httpRequest<void>(`/v1/team/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  });
+}
+
+/** Desativa a conta. Nunca apaga: a regra do produto é desativar e anonimizar. */
+export function deactivateTeamMember(id: string): Promise<void> {
+  return httpRequest<void>(`/v1/team/${id}`, { method: 'DELETE' });
+}
+
+/** Emite outro convite para quem ainda não aceitou. Conta ativa responde 409. */
+export function resendTeamInvite(id: string): Promise<TeamInvite> {
+  return httpRequest<TeamInvite>(`/v1/team/${id}/resend-invite`, { method: 'POST' });
+}
+
+/* -------------------------------------------------------------------------- */
 /* Cadastro de motorista                                                       */
 /* -------------------------------------------------------------------------- */
 
