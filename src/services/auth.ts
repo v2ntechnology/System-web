@@ -1,5 +1,6 @@
 import { permissionsForRole } from '@/app/permissions';
 import { env } from '@/app/environment';
+import { SLUG_PLATAFORMA, slugDoEndereco } from '@/app/tenant-host';
 import {
   BLOCKED_EMAIL,
   buildDemoUser,
@@ -32,10 +33,17 @@ export interface AuthSession {
 
 interface UserPayload {
   id: string;
-  tenantId: string;
+  /** ⚠️ Nulo na sessão de plataforma, pelo mesmo motivo de `tenant`. */
+  tenantId: string | null;
   name: string;
   email: string;
-  role: UserRole;
+  /**
+   * ⚠️ **Pode vir `PLATFORM_ADMIN` ou `PLATFORM_SUPPORT`**, que NÃO estão em
+   * `UserRole`, desde a Fase 5 do onboarding (13/09/2026). Por isso o tipo é
+   * `string` aqui: o `papelDeTela` abaixo traduz. Declarar `UserRole` seria uma
+   * promessa que o servidor não faz.
+   */
+  role: string;
 }
 
 interface TenantPayload {
@@ -49,8 +57,20 @@ interface TenantPayload {
 interface TokenPayload {
   accessToken: string;
   expiresInSeconds: number;
+  /**
+   * `platform` ou `tenant`, desde a Fase 5 do onboarding (13/09/2026). Diz de
+   * qual mundo é a sessão sem depender do papel, que era como isto se deduzia
+   * antes.
+   */
+  scope?: 'platform' | 'tenant';
+  /** Obriga a criar uma senha própria antes de usar o sistema. */
+  mustChangePassword?: boolean;
   user: UserPayload;
-  tenant: TenantPayload;
+  /**
+   * ⚠️ **Nulo na sessão de plataforma**, porque a equipe RookHub não pertence a
+   * transportadora nenhuma.
+   */
+  tenant: TenantPayload | null;
 }
 
 function normalize(email: string): string {
@@ -62,35 +82,76 @@ function normalize(email: string): string {
  * são conveniência visual: a autorização que vale é a do backend, verificada a
  * cada requisição.
  */
-function toSession(payload: { user: UserPayload; tenant: TenantPayload }): AuthSession {
+/**
+ * A empresa que representa a própria RookHub, na sessão da equipe.
+ *
+ * ⚠️ **É um LUGAR-TENENTE de tela, e não um registro.** A API responde
+ * `tenant: null` para a sessão de plataforma, que é o correto: a equipe não
+ * pertence a transportadora nenhuma. Só que `AuthSession.tenant` é obrigatório
+ * e é lido em 21 lugares do painel, então torná-lo nulo agora espalharia a
+ * mudança por doze arquivos. Isso é trabalho da Fase 9, que reorganiza o painel
+ * para os dois mundos.
+ *
+ * Até lá, o `id` fica **vazio de propósito**: um identificador inventado aqui
+ * poderia ser enviado de volta à API como se fosse uma empresa de verdade.
+ */
+/**
+ * O papel da API traduzido para o que o painel entende.
+ *
+ * ⚠️ **Os dois papéis da equipe entram como `SUPER_ADMIN`, e isto é tradução de
+ * modelo, não disfarce.** `SUPER_ADMIN` sempre significou "administra a
+ * plataforma" neste painel, e é o que o backoffice já usa para liberar o
+ * `/admin-saas`. A Fase 5 apenas moveu essas contas para o lugar certo, fora de
+ * qualquer transportadora.
+ *
+ * ⚠️ **Ampliar `UserRole` foi tentado e recusado:** ele é a chave de três
+ * `Record` e de um segundo tipo `Role` no módulo de gestão, então a mudança
+ * cascateia por arquivos que a Fase 9 vai reorganizar de todo jeito. Traduzir
+ * num ponto só custa estas linhas.
+ *
+ * ⚠️ **Isto não decide acesso.** Quem autoriza é a API, que exige escopo
+ * `platform` nas rotas de backoffice e não olha este valor.
+ */
+function papelDeTela(role: string): UserRole {
+  if (role === 'PLATFORM_ADMIN' || role === 'PLATFORM_SUPPORT') return 'SUPER_ADMIN';
+  return role as UserRole;
+}
+
+const EMPRESA_DA_PLATAFORMA: Tenant = {
+  id: '',
+  name: 'RookHub',
+  slug: 'app',
+  plan: 'enterprise',
+  status: 'active',
+};
+
+function toSession(payload: {
+  user: UserPayload;
+  tenant: TenantPayload | null;
+}): AuthSession {
   const { user, tenant } = payload;
   return {
     user: {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
-      permissions: permissionsForRole(user.role),
-      tenantId: user.tenantId,
+      role: papelDeTela(user.role),
+      permissions: permissionsForRole(papelDeTela(user.role)),
+      tenantId: user.tenantId ?? '',
       operatorSeesFinancials: user.role !== 'OPERATOR',
     },
-    tenant: {
-      id: tenant.id,
-      name: tenant.name,
-      slug: tenant.slug,
-      plan: tenant.plan,
-      status: tenant.status,
-    },
+    tenant: tenant
+      ? {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          plan: tenant.plan,
+          status: tenant.status,
+        }
+      : EMPRESA_DA_PLATAFORMA,
   };
 }
 
-/**
- * `credentials: 'include'` é obrigatório: sem ele o navegador não envia nem
- * aceita o cookie do refresh em requisição para outra origem, e a sessão morreria
- * a cada recarregamento.
- *
- * Não usa `httpRequest` porque estas rotas rodam sem access token.
- */
 async function postJson<T>(path: string, body?: unknown): Promise<T | null> {
   const init: RequestInit = { method: 'POST', credentials: 'include' };
   if (body !== undefined) {
@@ -138,9 +199,19 @@ async function signInMocked({ email, password }: SignInInput): Promise<AuthSessi
 export async function signIn(input: SignInInput): Promise<AuthSession> {
   if (env.enableMocks) return signInMocked(input);
 
+  /* ⚠️ O `tenantSlug` é REDUNDANTE no navegador, e vai junto de propósito.
+     Quem manda é o `Origin`, que o navegador define e que página nenhuma
+     consegue forjar: a API compara os dois e responde 403 se divergirem. Mandar
+     o slug aqui serve a um caso só, e é valioso: `localhost` puro, sem
+     subdomínio, onde o `Origin` não carrega empresa nenhuma e a API cairia na
+     empresa padrão configurada. Com isto, quem usa o espelho local escolhe a
+     empresa pelo `VITE_TENANT_SLUG` em vez de depender do padrão do servidor. */
+  const slug = slugDoEndereco();
+
   const payload = await postJson<TokenPayload>('/v1/auth/login', {
     email: normalize(input.email),
     password: input.password,
+    ...(slug && slug !== SLUG_PLATAFORMA ? { tenantSlug: slug } : {}),
   });
 
   return acceptSession(payload as TokenPayload);
