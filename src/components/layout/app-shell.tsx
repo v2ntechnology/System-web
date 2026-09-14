@@ -7,6 +7,7 @@ import { useAssistantShortcut } from '@/management/features/assistant/use-assist
 import { AiLauncher } from './ai-launcher';
 import { AppSidebar } from './app-sidebar';
 import { MobileSidebar } from './mobile-sidebar';
+import { SaasTopbar } from './saas-topbar';
 import { Topbar } from './topbar';
 
 /**
@@ -25,10 +26,33 @@ import { Topbar } from './topbar';
  * existe para não repetir. A sessão atravessa porque
  * `management/features/auth/store` é uma ponte sobre o `session-store` único.
  */
-export function AppShell({ navigation }: { navigation: NavGroup[] }) {
+interface AppShellProps {
+  navigation: NavGroup[];
+  /** O backoffice é uma área de plataforma: a navegação mora na barra superior. */
+  navigationMode?: 'sidebar' | 'topbar';
+}
+
+export function AppShell({ navigation, navigationMode = 'sidebar' }: AppShellProps) {
   /* Ctrl+K abre o assistente aqui também. O `title` do atalho flutuante já
      prometia o atalho antes de ele existir deste lado. */
   useAssistantShortcut();
+
+  if (navigationMode === 'topbar') {
+    return (
+      <div className="saas-theme flex h-svh w-full overflow-hidden bg-background">
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          <SaasTopbar navigation={navigation} />
+          <main className="flex-1 overflow-y-auto">
+            <div className="w-full space-y-6 px-4 pb-8 pt-[5.25rem] sm:px-6 lg:px-8">
+              <Outlet />
+            </div>
+          </main>
+        </div>
+        <AiLauncher />
+        <AssistantDrawer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-svh w-full overflow-hidden bg-background">

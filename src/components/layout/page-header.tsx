@@ -13,15 +13,21 @@ export function PageHeader({ title, description, actions, className }: PageHeade
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 pb-2 sm:flex-row sm:items-end sm:justify-between',
+        'page-header flex flex-col gap-3 pb-2 sm:flex-row sm:items-end sm:justify-between',
         className,
       )}
     >
-      <div className="space-y-1">
-        <h1 className="font-display text-2xl font-bold tracking-tight">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      <div className="page-header-copy space-y-1">
+        <h1 className="page-header-title font-display text-2xl font-bold tracking-tight">
+          {title}
+        </h1>
+        {description && (
+          <p className="page-header-description text-sm text-muted-foreground">{description}</p>
+        )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="page-header-actions flex flex-wrap items-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }

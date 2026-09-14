@@ -6,6 +6,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
+      data-slot="card"
       /*
        * ⚠️ A borda saiu no redesign de 30/08/2026, e a sombra entrou.
        *

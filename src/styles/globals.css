@@ -74,6 +74,62 @@
   --radius: 1.25rem;
 }
 
+/*
+ * Administração RookHub: é a única área em que a hierarquia da marca inverte.
+ * Azul-marinho conduz a plataforma (navegação, faixa e ações principais) e o
+ * terracota fica para as ações e detalhes secundários. O escopo evita alterar
+ * os painéis das transportadoras, que continuam com o laranja como primário.
+ */
+.saas-theme {
+  --primary: #010066;
+  --primary-foreground: #ffffff;
+  --color-primary: #010066;
+  --color-primary-strong: #010066;
+  --color-primary-container: #010066;
+  --color-primary-bright: #010066;
+  --color-on-primary: #ffffff;
+
+  --secondary: #d5623a;
+  --secondary-foreground: #ffffff;
+  --color-secondary: #d5623a;
+  --color-secondary-container: #d5623a;
+  --color-on-secondary: #ffffff;
+}
+
+/* Hierarquia visual exclusiva do backoffice: a abertura azul se repete nas
+ * rotas administrativas e os blocos de conteúdo ganham os mesmos cantos e a
+ * mesma elevação dos indicadores do dashboard. */
+.saas-theme .page-header {
+  min-height: 9.5rem;
+  padding: 2rem;
+  border-radius: 1rem;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.saas-theme .page-header-title {
+  font-size: clamp(1.75rem, 2.5vw, 2.25rem);
+  letter-spacing: -0.03em;
+  color: var(--color-on-primary);
+}
+
+.saas-theme .page-header-description {
+  max-width: 44rem;
+  color: color-mix(in srgb, var(--color-on-primary) 82%, transparent);
+}
+
+.saas-theme .page-header-actions > button,
+.saas-theme .page-header-actions > a {
+  background: var(--color-secondary) !important;
+  border-color: var(--color-secondary) !important;
+  color: var(--color-on-secondary) !important;
+}
+
+.saas-theme [data-slot='card'] {
+  border-radius: 1.75rem;
+  box-shadow: 0 16px 32px -22px rgb(28 26 24 / 0.32);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
