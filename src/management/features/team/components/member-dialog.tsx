@@ -56,8 +56,17 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
 
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
-  /** O link do convite recém-criado, enquanto o e-mail não existe. */
-  const [convite, setConvite] = useState<string | null>(null);
+  /**
+   * O convite recém-criado.
+   *
+   * ⚠️ São dois estados, e não um, porque o link pode não existir. Com a entrega
+   * por e-mail ligada o `acceptUrl` vem nulo, e usar o próprio link como "já
+   * convidei" deixava a tela voltar ao formulário como se nada tivesse
+   * acontecido. `enviado` diz que deu certo; `link` diz se há endereço para
+   * entregar à mão.
+   */
+  const [enviado, setEnviado] = useState(false);
+  const [link, setLink] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
 
   const opcoesDeCargo = [
@@ -113,7 +122,8 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
         email: email.trim().toLowerCase(),
         roleId: cargoEscolhido,
       });
-      setConvite(criado.acceptUrl);
+      setLink(criado.acceptUrl);
+      setEnviado(true);
       onSaved();
     } catch (causa) {
       setErro(
@@ -126,39 +136,52 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
     }
   }
 
-  /* ⚠️ O link aparece na tela porque o envio por e-mail ainda não existe. É
-     provisório, e some quando a Fase 8 entrar. */
-  if (convite) {
+  /*
+   * ⚠️ O link só aparece quando o servidor manda um, o que hoje significa
+   * "a entrega por e-mail está desligada neste ambiente". Com ela ligada, o
+   * `acceptUrl` é nulo: mostrar o bloco assim mesmo daria um endereço em branco
+   * com um botão de copiar nada, e quem convidou concluiria que falhou.
+   */
+  if (enviado) {
+    const destinatario = email.trim().toLowerCase();
+
     return (
       <div className="flex flex-col gap-4">
-        <Alert severity="success">Convite criado para {email.trim().toLowerCase()}.</Alert>
+        <Alert severity="success">Convite enviado para {destinatario}.</Alert>
 
-        <div>
+        {link ? (
+          <div>
+            <p className="text-on-surface-variant text-body-md">
+              O envio por e-mail está desligado neste ambiente, então copie o link e mande para a
+              pessoa. Ele abre no endereço da empresa, que é o que permite encontrar o convite.
+            </p>
+
+            <p className="text-label-sm text-on-surface-muted mt-3 break-all normal-case">{link}</p>
+          </div>
+        ) : (
           <p className="text-on-surface-variant text-body-md">
-            O envio por e-mail ainda não está no ar, então copie o link e mande para a pessoa. Ele
-            abre no endereço da empresa, que é o que permite encontrar o convite.
+            A pessoa recebe o link por e-mail e define a própria senha ao aceitar. Se o convite não
+            chegar, reemita pela lista da equipe.
           </p>
-
-          <p className="text-label-sm text-on-surface-muted mt-3 break-all normal-case">
-            {convite}
-          </p>
-        </div>
+        )}
 
         <div className="flex flex-wrap justify-end gap-3">
-          <SpectrumButton
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              void navigator.clipboard.writeText(convite).then(() => setCopiado(true));
-            }}
-          >
-            {copiado ? (
-              <CheckIcon size={16} aria-hidden="true" />
-            ) : (
-              <MailIcon size={16} aria-hidden="true" />
-            )}
-            {copiado ? 'Link copiado' : 'Copiar link'}
-          </SpectrumButton>
+          {link && (
+            <SpectrumButton
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                void navigator.clipboard.writeText(link).then(() => setCopiado(true));
+              }}
+            >
+              {copiado ? (
+                <CheckIcon size={16} aria-hidden="true" />
+              ) : (
+                <MailIcon size={16} aria-hidden="true" />
+              )}
+              {copiado ? 'Link copiado' : 'Copiar link'}
+            </SpectrumButton>
+          )}
 
           <SpectrumButton type="button" onClick={onClose}>
             Concluir

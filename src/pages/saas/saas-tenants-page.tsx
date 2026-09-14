@@ -1,9 +1,12 @@
-import { ChevronRightIcon, CompanyIcon } from '@/components/icons';
+import { ChevronRightIcon, CompanyIcon, PlusIcon } from '@/components/icons';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
 import { DataTable, type DataTableColumn } from '@/components/shared/data-table';
-import { EmptyState } from '@/components/shared/states';
+import { ApiErrorState, EmptyState, LoadingState } from '@/components/shared/states';
+import { Button } from '@/components/ui/button';
 import { FilterBar, SearchInput } from '@/components/shared/filters';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -22,9 +25,17 @@ import {
   telemetryDescriptor,
   tenantStatusDescriptor,
 } from '@/lib/status-maps';
-import { useTenants } from './saas-api';
+import { ApiError } from '@/services/http';
+import { createTenant, SAAS_KEYS, useTenants, type TenantSetupInput } from './saas-api';
+import { ApprovalWizard } from './approval-wizard';
 import { TENANT_STATUS_LABEL, type SaasTenant } from '@/mocks/saas';
 import type { PlanType, TenantStatus } from '@/types';
+
+/** De onde a empresa veio, em uma palavra. */
+const ORIGIN_LABEL: Record<string, string> = {
+  ACCESS_REQUEST: 'Site',
+  BACKOFFICE: 'Venda ativa',
+};
 
 type StatusFilter = TenantStatus | 'all' | 'provisioning';
 type PlanFilter = PlanType | 'all';
@@ -38,7 +49,31 @@ type PlanFilter = PlanType | 'all';
  */
 export default function SaasTenantsPage() {
   const navigate = useNavigate();
-  const { tenants } = useTenants();
+  const queryClient = useQueryClient();
+  const { tenants, carregando, erro } = useTenants();
+
+  const [cadastrando, setCadastrando] = useState(false);
+
+  /*
+   * ⚠️ O cadastro direto é o MESMO assistente da aprovação, aberto sem
+   * solicitação. Ele mora aqui, e não na fila: quem vende ativo não passa pela
+   * fila, e procurar o botão dentro dela seria procurar no lugar errado.
+   */
+  const cadastro = useMutation({
+    mutationFn: (input: TenantSetupInput) => createTenant(input),
+    onSuccess: (resultado) => {
+      setCadastrando(false);
+      void queryClient.invalidateQueries({ queryKey: SAAS_KEYS.tenants });
+      void queryClient.invalidateQueries({ queryKey: SAAS_KEYS.metrics });
+      toast.success('Ambiente em provisionamento', {
+        description: `${resultado.slug}.rookhub.com.br. O convite do Dono sai quando o schema ficar pronto.`,
+      });
+    },
+    onError: (causa) =>
+      toast.error(
+        causa instanceof ApiError ? causa.message : 'Não foi possível cadastrar a transportadora.',
+      ),
+  });
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -84,6 +119,18 @@ export default function SaasTenantsPage() {
       ),
     },
     { id: 'plan', header: 'Plano', cell: (t) => <Badge>{PLAN_LABELS[t.plan]}</Badge> },
+    {
+      id: 'origin',
+      header: 'Entrada',
+      /* Empresa anterior à coluna não tem origem gravada, e a tela não afirma
+         nada quando não sabe. */
+      cell: (t) =>
+        t.origin ? (
+          <Badge variant="muted">{ORIGIN_LABEL[t.origin] ?? t.origin}</Badge>
+        ) : (
+          <span className="text-muted-foreground">–</span>
+        ),
+    },
     /* ⚠️ Contagem só vale com o ambiente pronto: o schema de quem ainda está
        provisionando não tem o que contar, e zero ali leria como empresa vazia.
        Mesma regra do MRR logo abaixo, ausência aparece como ausência. */
@@ -140,6 +187,12 @@ export default function SaasTenantsPage() {
       <PageHeader
         title="Transportadoras"
         description="Cada empresa tem o próprio schema no Postgres e o próprio subdomínio."
+        actions={
+          <Button onClick={() => setCadastrando(true)}>
+            <PlusIcon className="h-4 w-4" />
+            Cadastrar
+          </Button>
+        }
       />
 
       <FilterBar>
@@ -177,18 +230,33 @@ export default function SaasTenantsPage() {
         </Select>
       </FilterBar>
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        getRowId={(t) => t.id}
-        onRowClick={(t) => navigate(`/admin-saas/empresas/${t.id}`)}
-        emptyState={
-          <EmptyState
-            icon={CompanyIcon}
-            title="Nenhuma transportadora encontrada"
-            description="Ajuste os filtros ou aprove uma solicitação de acesso para criar a primeira."
-          />
-        }
+      {carregando ? (
+        <LoadingState label="Carregando as transportadoras" />
+      ) : erro ? (
+        <ApiErrorState error={erro} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={filtered}
+          getRowId={(t) => t.id}
+          onRowClick={(t) => navigate(`/admin-saas/empresas/${t.id}`)}
+          emptyState={
+            <EmptyState
+              icon={CompanyIcon}
+              title="Nenhuma transportadora encontrada"
+              description="Ajuste os filtros, cadastre uma direto ou aprove uma solicitação de acesso."
+            />
+          }
+        />
+      )}
+
+      <ApprovalWizard
+        request={null}
+        tenants={tenants}
+        open={cadastrando}
+        onOpenChange={setCadastrando}
+        onConfirm={(input) => cadastro.mutate(input)}
+        salvando={cadastro.isPending}
       />
     </div>
   );

@@ -61,7 +61,9 @@ export function ThemeSwitch() {
             aria-checked={active}
             aria-disabled={blocked}
             aria-label={label}
-            title={blocked ? 'Tema escuro em breve. A interface está sendo refeita no claro.' : label}
+            title={
+              blocked ? 'Tema escuro em breve. A interface está sendo refeita no claro.' : label
+            }
             /* Sem roubar o foco do menu: quem clica com o mouse deixaria o foco
                preso neste botão, e as setas parariam de andar pelos itens. */
             onMouseDown={(event) => event.preventDefault()}

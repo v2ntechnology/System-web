@@ -16,6 +16,7 @@ import { ThemeLock } from '@/components/layout/theme-lock';
 import { NoAccessState, LoadingState } from '@/components/shared/states';
 import { useSession } from '@/hooks/use-session';
 import { useSessionStore } from '@/stores/session-store';
+import { useSupportStore } from '@/stores/support-store';
 import { managementRoutes } from '@/management/routes';
 import type { UserRole } from '@/types';
 
@@ -227,12 +228,17 @@ function RoleAreaRoute({
 }) {
   const { user } = useSession();
   const scope = useSessionStore((state) => state.scope);
+  const emSuporte = useSupportStore((state) => state.slug) !== null;
 
   /* ⚠️ A sessão de plataforma não tem empresa, e as duas áreas de cliente são
      sobre UMA empresa: sem esta saída, a equipe RookHub abriria o `/gestao` com
      sessão vazia e cada consulta responderia 403. Entrar na empresa de um
-     cliente é impersonação, que não existe no produto. */
-  if (scope === 'platform') {
+     cliente é impersonação, que não existe no produto.
+
+     ⚠️ O modo suporte é a exceção, e NÃO é impersonação: a sessão continua sendo
+     a da equipe, o cabeçalho `X-Rookhub-Tenant` escolhe a empresa, só GET passa
+     e tudo fica auditado. Ver `stores/support-store`. */
+  if (scope === 'platform' && !emSuporte) {
     return <Navigate to="/admin-saas/dashboard" replace />;
   }
   if (user && !belongs(user.role)) {
@@ -405,7 +411,7 @@ const adminRoutes: RouteObject = {
   element: (
     <ProtectedRoute>
       <AdminRoute>
-        <AppShell navigation={SAAS_NAVIGATION} />
+        <AppShell navigation={SAAS_NAVIGATION} navigationMode="topbar" />
       </AdminRoute>
     </ProtectedRoute>
   ),

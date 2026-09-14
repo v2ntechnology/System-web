@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { PLAN_LABELS } from '@/app/plans';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { tenantStatusDescriptor } from '@/lib/status-maps';
-import { useSaasStore } from '@/stores/saas-store';
+import { useTenants } from './saas-api';
 import type { SaasTenant } from '@/mocks/saas';
 
 /**
@@ -20,7 +20,7 @@ import type { SaasTenant } from '@/mocks/saas';
  * realidade no primeiro upgrade feito no detalhe da empresa.
  */
 export default function SaasSubscriptionsPage() {
-  const tenants = useSaasStore((s) => s.tenants);
+  const { tenants } = useTenants();
 
   const billable = useMemo(
     () => tenants.filter((t) => t.provisioningState === 'READY' && t.status !== 'cancelled'),

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PLAN_DEFINITIONS } from '@/app/plans';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { useSaasStore } from '@/stores/saas-store';
+import { useTenants } from './saas-api';
 import type { ModuleKey, PlanType } from '@/types';
 
 import { Callout } from './saas-ui';
@@ -62,7 +62,7 @@ const MODULE_LABEL: Record<ModuleKey, string> = {
  * ela, a diferença entre os planos vira uma lista de preços sem consequência.
  */
 export default function SaasPlansPage() {
-  const tenants = useSaasStore((s) => s.tenants);
+  const { tenants } = useTenants();
 
   return (
     <div className="space-y-6">

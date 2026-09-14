@@ -1,4 +1,5 @@
 import { CheckIcon, InboxIcon, MailIcon, PhoneIcon, XCircleIcon } from '@/components/icons';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -27,13 +28,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ApiErrorState, LoadingState } from '@/components/shared/states';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { accessRequestDescriptor } from '@/lib/status-maps';
-import { useSession } from '@/hooks/use-session';
-import { useSaasStore, type ApprovalInput } from '@/stores/saas-store';
+import { ApiError } from '@/services/http';
 import { type SaasAccessRequest } from '@/mocks/saas';
 import type { AccessRequestStatus } from '@/types';
 
+import {
+  approveAccessRequest,
+  rejectAccessRequest,
+  SAAS_KEYS,
+  useAccessRequests,
+  useTenants,
+  type TenantSetupInput,
+} from './saas-api';
 import { ApprovalWizard } from './approval-wizard';
 import { DefinitionRow } from './saas-ui';
 
@@ -54,20 +63,63 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
  * aprovar abre o assistente que parametriza o ambiente inteiro.
  */
 export default function SaasRequestsPage() {
-  const { user } = useSession();
-  const actor = user?.name ?? 'Administração';
-
-  const requests = useSaasStore((s) => s.requests);
-  const tenants = useSaasStore((s) => s.tenants);
-  const approveRequest = useSaasStore((s) => s.approveRequest);
-  const rejectRequest = useSaasStore((s) => s.rejectRequest);
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('pending');
+
+  /*
+   * ⚠️ A API filtra por `pending` ou `all`, e os quatro filtros da tela saem
+   * daí: "aprovadas" e "recusadas" são recortes de `all`, feitos em memória.
+   * Mandar o valor da tela como parâmetro faria a lista depender de o backend
+   * aceitar cada palavra que este seletor tiver amanhã.
+   */
+  const consulta = useAccessRequests(status === 'pending' ? 'pending' : 'all');
+  const requests = useMemo(() => consulta.data ?? [], [consulta.data]);
+  const { tenants } = useTenants();
+
+  const recarregar = () => {
+    void queryClient.invalidateQueries({ queryKey: ['saas-requests'] });
+    void queryClient.invalidateQueries({ queryKey: SAAS_KEYS.tenants });
+    void queryClient.invalidateQueries({ queryKey: SAAS_KEYS.metrics });
+  };
+
+  const avisarErro = (causa: unknown, alternativa: string) =>
+    toast.error(causa instanceof ApiError ? causa.message : alternativa);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [wizardId, setWizardId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+
+  const aprovacao = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: TenantSetupInput }) =>
+      approveAccessRequest(id, input),
+    onSuccess: (resultado) => {
+      setWizardId(null);
+      setSelectedId(null);
+      recarregar();
+      /* ⚠️ "Em provisionamento", e não "pronto": a resposta é 202 e o schema
+         ainda está sendo criado. A lista acompanha pelo estado. */
+      toast.success('Ambiente em provisionamento', {
+        description: `${resultado.slug}.rookhub.com.br. O convite do Dono sai quando o schema ficar pronto.`,
+      });
+    },
+    onError: (causa) => avisarErro(causa, 'Não foi possível aprovar a solicitação.'),
+  });
+
+  const recusa = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => rejectAccessRequest(id, reason),
+    onSuccess: () => {
+      setRejectingId(null);
+      setSelectedId(null);
+      setReason('');
+      recarregar();
+      toast.success('Solicitação recusada', {
+        description: 'O motivo fica na auditoria: o e-mail ao contato apenas informa a decisão.',
+      });
+    },
+    onError: (causa) => avisarErro(causa, 'Não foi possível recusar a solicitação.'),
+  });
 
   const selected = requests.find((r) => r.id === selectedId) ?? null;
   const inWizard = requests.find((r) => r.id === wizardId) ?? null;
@@ -89,22 +141,14 @@ export default function SaasRequestsPage() {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [requests, search, status]);
 
-  function handleApprove(input: ApprovalInput) {
+  function handleApprove(input: TenantSetupInput) {
     if (!wizardId) return;
-    approveRequest(wizardId, input, actor);
-    setSelectedId(null);
-    toast.success('Ambiente em provisionamento', {
-      description: `${input.name} · ${input.slug}.rookhub.com.br. O convite do Dono sai quando o schema ficar pronto.`,
-    });
+    aprovacao.mutate({ id: wizardId, input });
   }
 
   function handleReject() {
     if (!rejectingId || !reason.trim()) return;
-    rejectRequest(rejectingId, reason.trim(), actor);
-    setRejectingId(null);
-    setSelectedId(null);
-    setReason('');
-    toast.success('Solicitação recusada', { description: 'O contato foi notificado por e-mail.' });
+    recusa.mutate({ id: rejectingId, reason: reason.trim() });
   }
 
   const columns: DataTableColumn<SaasAccessRequest>[] = [
@@ -128,25 +172,19 @@ export default function SaasRequestsPage() {
         </div>
       ),
     },
-    {
-      id: 'place',
-      header: 'Praça',
-      cell: (r) => (
-        <span className="text-sm">
-          {r.city}/{r.state}
-        </span>
-      ),
-    },
+    /* ⚠️ Praça e rastreamento declarado saíram das colunas: o formulário do site
+       não os grava, e uma coluna vazia em toda linha ocupa espaço sem informar.
+       Continuam na ficha, onde aparecem só quando existem. */
     {
       id: 'fleet',
       header: 'Frota',
       align: 'right',
-      cell: (r) => formatNumber(r.fleetSize),
-    },
-    {
-      id: 'provider',
-      header: 'Rastreamento declarado',
-      cell: (r) => <Badge variant="muted">{r.declaredProvider}</Badge>,
+      cell: (r) =>
+        r.fleetSize === undefined ? (
+          <span className="text-muted-foreground">não informada</span>
+        ) : (
+          formatNumber(r.fleetSize)
+        ),
     },
     { id: 'created', header: 'Recebida em', cell: (r) => formatDateTime(r.createdAt) },
     {
@@ -192,19 +230,25 @@ export default function SaasRequestsPage() {
         </Select>
       </FilterBar>
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        getRowId={(r) => r.id}
-        onRowClick={(r) => setSelectedId(r.id)}
-        emptyState={
-          <EmptyState
-            icon={InboxIcon}
-            title="Nenhuma solicitação nesta situação"
-            description="Pedidos novos chegam pelo formulário do site institucional e avisam o time por e-mail."
-          />
-        }
-      />
+      {consulta.isPending ? (
+        <LoadingState label="Carregando as solicitações" />
+      ) : consulta.isError ? (
+        <ApiErrorState error={consulta.error} onRetry={() => void consulta.refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={filtered}
+          getRowId={(r) => r.id}
+          onRowClick={(r) => setSelectedId(r.id)}
+          emptyState={
+            <EmptyState
+              icon={InboxIcon}
+              title="Nenhuma solicitação nesta situação"
+              description="Pedidos novos chegam pelo formulário do site institucional e avisam o time por e-mail."
+            />
+          }
+        />
+      )}
 
       <RequestDrawer
         request={selected}
@@ -219,6 +263,7 @@ export default function SaasRequestsPage() {
         open={wizardId !== null}
         onOpenChange={(open) => !open && setWizardId(null)}
         onConfirm={handleApprove}
+        salvando={aprovacao.isPending}
       />
 
       <Dialog
@@ -252,7 +297,11 @@ export default function SaasRequestsPage() {
             <Button variant="outline" onClick={() => setRejectingId(null)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={!reason.trim()}>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={!reason.trim() || recusa.isPending}
+            >
               Recusar solicitação
             </Button>
           </DialogFooter>
@@ -334,8 +383,20 @@ function RequestDrawer({
 
         <section>
           <h3 className="mb-1 font-display text-sm font-semibold">Operação declarada</h3>
-          <DefinitionRow label="Frota" value={`${formatNumber(request.fleetSize)} veículos`} />
-          <DefinitionRow label="Rastreamento" value={request.declaredProvider} />
+          <DefinitionRow
+            label="Frota"
+            value={
+              request.fleetSize === undefined
+                ? 'não informada'
+                : `${formatNumber(request.fleetSize)} veículos`
+            }
+          />
+          {request.city && (
+            <DefinitionRow label="Praça" value={`${request.city}/${request.state ?? ''}`} />
+          )}
+          {request.declaredProvider && (
+            <DefinitionRow label="Rastreamento" value={request.declaredProvider} />
+          )}
           <DefinitionRow label="Recebida em" value={formatDateTime(request.createdAt)} />
         </section>
 

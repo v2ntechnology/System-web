@@ -1,8 +1,6 @@
 import {
-  BillingIcon,
   CheckIcon,
   CloseIcon,
-  ExtensionIcon,
   HomeIcon,
   LogoutIcon,
   MenuIcon,
@@ -48,7 +46,6 @@ export function AppTopbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isOwner = session?.user.role === 'OWNER';
   /* Quem escolheu entrar pela hub precisa da porta de volta para ela. */
   const usesHub = session ? HUB_ROLES.includes(session.user.role) : false;
 
@@ -127,24 +124,12 @@ export function AppTopbar() {
                   </DropdownMenu.Item>
                 ) : null}
 
-                {/* Cobrança e extensões mexem no contrato — só o dono (RF-003). */}
-                {isOwner ? (
-                  <>
-                    <DropdownMenu.Item asChild>
-                      <Link to="/gestao/cobranca" className={itemClass}>
-                        <BillingIcon size={16} aria-hidden="true" />
-                        Plano e cobrança
-                      </Link>
-                    </DropdownMenu.Item>
-
-                    <DropdownMenu.Item asChild>
-                      <Link to="/gestao/extensoes" className={itemClass}>
-                        <ExtensionIcon size={16} aria-hidden="true" />
-                        Extensões
-                      </Link>
-                    </DropdownMenu.Item>
-                  </>
-                ) : null}
+                {/*
+                 * ⚠️ Cobrança e extensões saíram do menu do dono em 14/09/2026,
+                 * junto com a poda do painel dele: as duas telas são do contrato
+                 * (RF-003), e o que mostram hoje é mock. As rotas continuam em
+                 * `routes.tsx`, e devolver os dois itens aqui é o que reverte.
+                 */}
 
                 {/*
                  * Alto desempenho saiu do submenu "Aparência" e virou linha

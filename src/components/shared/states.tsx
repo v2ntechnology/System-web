@@ -13,6 +13,8 @@ import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PLAN_LABELS, moduleLabel, planoQueInclui } from '@/app/plans';
+import { ApiError, PlanUpgradeError } from '@/services/http';
 import { cn } from '@/lib/utils';
 
 /* -------------------------------------------------------------------------- */
@@ -159,7 +161,7 @@ export function ErrorState({
 /* Sem permissão / bloqueado por plano                                         */
 /* -------------------------------------------------------------------------- */
 
-export function NoAccessState({ className }: { className?: string }) {
+export function NoAccessState({ className }: { className?: string | undefined }) {
   return (
     <div
       className={cn(
@@ -181,7 +183,30 @@ export function NoAccessState({ className }: { className?: string }) {
   );
 }
 
-export function PlanLockedState({ className }: { className?: string }) {
+/**
+ * A oferta de upgrade: o plano da empresa não vai até este módulo.
+ *
+ * ⚠️ **É a tela do 402, e não a do 403.** O 403 é falta de permissão, e quem
+ * resolve é quem administra a equipe, que é o `NoAccessState`. Aqui a permissão
+ * existe e o plano é que não cobre, então o caminho é comercial. O backend separa os
+ * dois códigos exatamente para esta tela poder existir.
+ *
+ * `modulo` e `plano` chegam do corpo do 402 (ver `PlanUpgradeError`). Com eles o
+ * texto diz o que falta e em que plano vem; sem eles, sobra o genérico, que
+ * ainda é melhor que um erro sem explicação.
+ */
+export function PlanLockedState({
+  className,
+  modulo,
+  plano,
+}: {
+  className?: string | undefined;
+  modulo?: string | null | undefined;
+  plano?: string | null | undefined;
+}) {
+  const nome = moduleLabel(modulo ?? null);
+  const necessario = planoQueInclui(modulo ?? null);
+
   return (
     <div
       className={cn(
@@ -193,10 +218,16 @@ export function PlanLockedState({ className }: { className?: string }) {
         <LockIcon className="h-6 w-6" />
       </div>
       <div className="space-y-1">
-        <p className="font-display font-semibold">Recurso disponível em outro plano</p>
+        <p className="font-display font-semibold">
+          {nome ? `${nome} vem em outro plano` : 'Recurso disponível em outro plano'}
+        </p>
         <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-          Este módulo não está incluído no plano atual da sua empresa. Faça upgrade para desbloquear
-          recursos avançados de inteligência e integrações.
+          {nome
+            ? `${nome} não está incluído no plano ${plano ?? 'atual'} da sua empresa.`
+            : 'Este módulo não está incluído no plano atual da sua empresa.'}{' '}
+          {necessario
+            ? `A partir do plano ${PLAN_LABELS[necessario]} ele fica disponível.`
+            : 'Fale com a RookHub para saber em qual plano ele entra.'}
         </p>
       </div>
       <Button asChild size="sm" variant="brand">
@@ -206,5 +237,48 @@ export function PlanLockedState({ className }: { className?: string }) {
         </Link>
       </Button>
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Falha de uma consulta, pelo que ela significa                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A tela de uma consulta que falhou, escolhida pelo código da resposta.
+ *
+ * Existe para que nenhuma tela precise lembrar que 402 e 403 são coisas
+ * diferentes: 402 abre a oferta de upgrade com o módulo que faltou, 403 diz que
+ * falta permissão, e o resto cai no erro com botão de tentar de novo.
+ *
+ * ⚠️ **Sem `onRetry` no 402 e no 403**, de propósito: repetir a mesma
+ * requisição devolve o mesmo código, e o botão só ensinaria a insistir. O que
+ * muda essas duas respostas é contratar um plano ou ganhar uma permissão.
+ */
+export function ApiErrorState({
+  error,
+  onRetry,
+  className,
+}: {
+  error: unknown;
+  onRetry?: (() => void) | undefined;
+  className?: string | undefined;
+}) {
+  if (error instanceof PlanUpgradeError) {
+    return <PlanLockedState className={className} modulo={error.modulo} plano={error.plano} />;
+  }
+  if (error instanceof ApiError && error.status === 403) {
+    return <NoAccessState className={className} />;
+  }
+  return (
+    <ErrorState
+      className={className}
+      onRetry={onRetry}
+      description={
+        error instanceof ApiError
+          ? error.message
+          : 'Ocorreu um erro ao buscar as informações. Verifique sua conexão e tente novamente.'
+      }
+    />
   );
 }

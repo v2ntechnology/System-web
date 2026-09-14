@@ -3,23 +3,25 @@ import {
   BadgeCheckIcon,
   MailIcon,
   PowerIcon,
-  RefreshIcon,
   ShieldCheckIcon,
   UnlockIcon,
 } from '@/components/icons';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { DataTable, type DataTableColumn } from '@/components/shared/data-table';
-import { ErrorState } from '@/components/shared/states';
+import { ApiErrorState, ErrorState, LoadingState } from '@/components/shared/states';
 import { InfoCard } from '@/components/shared/cards';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -36,10 +38,23 @@ import {
   telemetryDescriptor,
   tenantStatusDescriptor,
 } from '@/lib/status-maps';
-import { useSession } from '@/hooks/use-session';
-import { useSaasStore } from '@/stores/saas-store';
-import { SEEDED_ROLES, type SeededRole } from '@/mocks/saas';
-import type { PlanType } from '@/types';
+import { APPROVED_FONTS } from '@/app/fonts';
+import { ApiError } from '@/services/http';
+import { useSupportStore } from '@/stores/support-store';
+import {
+  changeTenantPlan,
+  LOGO_MAX_BYTES,
+  LOGO_MIME_TYPES,
+  reactivateTenant,
+  SAAS_KEYS,
+  saveTenantBranding,
+  suspendTenant,
+  uploadTenantLogo,
+  useAuditLog,
+  useTenant,
+} from './saas-api';
+import { SEEDED_ROLES, type SaasTenant, type SeededRole } from '@/mocks/saas';
+import type { PlanType, TenantBranding } from '@/types';
 
 import {
   BrandPreview,
@@ -52,16 +67,62 @@ import {
 export default function SaasTenantDetailPage() {
   const { tenantId = '' } = useParams();
   const navigate = useNavigate();
-  const { user } = useSession();
-  const actor = user?.name ?? 'Administração';
+  const queryClient = useQueryClient();
 
-  const tenant = useSaasStore((s) => s.tenants.find((t) => t.id === tenantId));
-  const audit = useSaasStore((s) => s.audit);
-  const setTenantStatus = useSaasStore((s) => s.setTenantStatus);
-  const setTenantPlan = useSaasStore((s) => s.setTenantPlan);
-  const retryProvisioning = useSaasStore((s) => s.retryProvisioning);
+  const entrarEmSuporte = useSupportStore((state) => state.entrar);
+
+  const consulta = useTenant(tenantId);
+  const tenant = consulta.data;
+
+  /* A auditoria desta empresa sai do rastro da plataforma, filtrada por id no
+     servidor: filtrar por nome em memória perderia as linhas de empresa que
+     mudou de nome. */
+  const auditoria = useAuditLog({ tenantId });
 
   const [confirmingSuspend, setConfirmingSuspend] = useState(false);
+
+  const recarregar = () => {
+    void queryClient.invalidateQueries({ queryKey: SAAS_KEYS.tenant(tenantId) });
+    void queryClient.invalidateQueries({ queryKey: SAAS_KEYS.tenants });
+    void queryClient.invalidateQueries({ queryKey: ['saas-audit'] });
+  };
+
+  const avisarErro = (causa: unknown, alternativa: string) =>
+    toast.error(causa instanceof ApiError ? causa.message : alternativa);
+
+  const situacao = useMutation({
+    mutationFn: (suspender: boolean) =>
+      suspender ? suspendTenant(tenantId) : reactivateTenant(tenantId),
+    onSuccess: (_resultado, suspender) => {
+      setConfirmingSuspend(false);
+      recarregar();
+      toast.success(suspender ? 'Transportadora suspensa' : 'Transportadora reativada', {
+        description: suspender
+          ? 'Ninguém da empresa consegue entrar até a reativação, nem o suporte.'
+          : 'O acesso volta na próxima requisição, sem novo login.',
+      });
+    },
+    onError: (causa) => avisarErro(causa, 'Não foi possível alterar a situação da empresa.'),
+  });
+
+  const plano = useMutation({
+    mutationFn: (plan: PlanType) => changeTenantPlan(tenantId, plan),
+    onSuccess: (_resultado, plan) => {
+      recarregar();
+      toast.success(`Plano alterado para ${PLAN_LABELS[plan]}`, {
+        description: 'Vale na requisição seguinte: o cliente não precisa entrar de novo.',
+      });
+    },
+    onError: (causa) => avisarErro(causa, 'Não foi possível trocar o plano.'),
+  });
+
+  if (consulta.isPending) {
+    return <LoadingState label="Carregando a transportadora" />;
+  }
+
+  if (consulta.isError) {
+    return <ApiErrorState error={consulta.error} onRetry={() => void consulta.refetch()} />;
+  }
 
   if (!tenant) {
     return (
@@ -74,30 +135,14 @@ export default function SaasTenantDetailPage() {
   }
 
   const suspended = tenant.status === 'suspended';
-  const tenantAudit = audit.filter((entry) => entry.tenant === tenant.name);
+  const tenantAudit = auditoria.data ?? [];
 
   function handleToggleStatus() {
-    if (!tenant) return;
-    setTenantStatus(tenant.id, suspended ? 'active' : 'suspended', actor);
-    toast.success(suspended ? 'Transportadora reativada' : 'Transportadora suspensa', {
-      description: suspended
-        ? 'O acesso volta na próxima requisição, sem novo login.'
-        : 'Ninguém da empresa consegue entrar até a reativação.',
-    });
+    situacao.mutate(!suspended);
   }
 
-  function handlePlanChange(plan: PlanType) {
-    if (!tenant) return;
-    setTenantPlan(tenant.id, plan, actor);
-    toast.success(`Plano alterado para ${PLAN_LABELS[plan]}`, {
-      description: 'Vale na requisição seguinte: o cliente não precisa entrar de novo.',
-    });
-  }
-
-  function handleRetry() {
-    if (!tenant) return;
-    retryProvisioning(tenant.id, actor);
-    toast.success('Provisionamento reiniciado');
+  function handlePlanChange(novo: PlanType) {
+    plano.mutate(novo);
   }
 
   return (
@@ -121,17 +166,10 @@ export default function SaasTenantDetailPage() {
       </div>
 
       {tenant.provisioningState === 'FAILED' && (
-        <Callout
-          tone="destructive"
-          title="O provisionamento falhou e a empresa está inacessível"
-          action={
-            <Button size="sm" onClick={handleRetry}>
-              <RefreshIcon className="h-4 w-4" />
-              Tentar de novo
-            </Button>
-          }
-        >
-          {tenant.provisioningError}
+        /* ⚠️ Sem botão de tentar de novo: não existe rota que reinicie o
+           provisionamento. Um botão aqui prometeria o que a API não faz. */
+        <Callout tone="destructive" title="O provisionamento falhou e a empresa está inacessível">
+          {tenant.provisioningError ?? 'O schema do cliente não terminou de subir.'}
         </Callout>
       )}
 
@@ -234,6 +272,7 @@ export default function SaasTenantDetailPage() {
                 <Button
                   variant={suspended ? 'default' : 'outline'}
                   size="sm"
+                  disabled={situacao.isPending}
                   onClick={() => (suspended ? handleToggleStatus() : setConfirmingSuspend(true))}
                 >
                   {suspended ? (
@@ -243,7 +282,23 @@ export default function SaasTenantDetailPage() {
                   )}
                   {suspended ? 'Reativar' : 'Suspender'}
                 </Button>
-                <Button variant="outline" size="sm">
+                {/* ⚠️ Somente leitura, e auditado a cada tela: ver
+                    `stores/support-store`. Empresa suspensa responde 404 também
+                    para o suporte, então o botão sai daqui enquanto ela estiver
+                    fora do ar. */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={suspended || tenant.provisioningState !== 'READY'}
+                  onClick={() => {
+                    entrarEmSuporte(tenant.slug, tenant.name);
+                    /* O cache é por chave, e as chaves são as mesmas nos dois
+                       modos: sem limpar, a primeira tela do cliente mostraria o
+                       dado da plataforma. */
+                    queryClient.clear();
+                    void navigate('/gestao');
+                  }}
+                >
                   <ShieldCheckIcon className="h-4 w-4" />
                   Abrir em modo suporte
                 </Button>
@@ -255,8 +310,9 @@ export default function SaasTenantDetailPage() {
         {/* ---------------------------------------------------------------- */}
         <TabsContent value="cargos" className="mt-4 space-y-4">
           <Callout tone="info" icon={BadgeCheckIcon} title="Os cargos são do Dono, não nossos">
-            A empresa nasce com seis cargos semeados como sugestão. O Dono renomeia, muda
-            permissões, apaga ou cria outros. Só o cargo Dono é indelével.
+            Esta é a semeadura que toda empresa nova recebe, e não a lista atual desta. O Dono
+            renomeia, muda permissões, apaga ou cria outros pelo editor de cargos dele, e o
+            backoffice não lê nem escreve isso: só o cargo de comando é indelével.
           </Callout>
           <RolesTable />
         </TabsContent>
@@ -301,45 +357,8 @@ export default function SaasTenantDetailPage() {
         </TabsContent>
 
         {/* ---------------------------------------------------------------- */}
-        <TabsContent value="marca" className="mt-4 grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Parâmetros</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <DefinitionRow
-                label="Cor principal"
-                value={
-                  <span className="inline-flex items-center gap-2 font-mono">
-                    <span
-                      className="h-3 w-3 rounded-full border border-border"
-                      style={{ backgroundColor: tenant.branding.colorPrimary }}
-                      aria-hidden
-                    />
-                    {tenant.branding.colorPrimary}
-                  </span>
-                }
-              />
-              <DefinitionRow
-                label="Cor de apoio"
-                value={tenant.branding.colorAccent ?? 'Não definida'}
-              />
-              <DefinitionRow label="Fonte" value={tenant.branding.fontFamily} />
-              <DefinitionRow
-                label="Logo"
-                value={tenant.branding.logoUrl ? 'Enviado' : 'Não enviado'}
-              />
-              <p className="pt-3 text-xs text-muted-foreground">
-                A marca é lida antes do login, quando ainda não há sessão nem empresa no token. Por
-                isso mora no plano de controle, e não no schema do cliente.
-              </p>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Prévia do login do cliente</p>
-            <BrandPreview branding={tenant.branding} companyName={tenant.name} slug={tenant.slug} />
-          </div>
+        <TabsContent value="marca" className="mt-4">
+          <BrandingCard tenant={tenant} />
         </TabsContent>
 
         {/* ---------------------------------------------------------------- */}
@@ -466,8 +485,177 @@ function RolesTable() {
         </Badge>
       ),
     },
-    { id: 'members', header: 'Pessoas', align: 'right', cell: (r) => r.members },
+    /* ⚠️ Sem contagem de pessoas: é a semeadura padrão, e não a lista desta
+       empresa. Um número aqui seria de outra empresa qualquer. */
   ];
 
   return <DataTable columns={columns} data={SEEDED_ROLES} getRowId={(r) => r.key} />;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Marca do cliente                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Parametriza a marca que a transportadora vê antes do login.
+ *
+ * ⚠️ **O formulário nasce no padrão RookHub, e não no que está gravado.** Não há
+ * rota que leia a marca de uma empresa pelo id: a leitura é pública e responde
+ * pelo `Origin` do cliente, justamente para não existir um jeito de enumerar
+ * empresas. Gravar substitui os três campos de uma vez, então quem for mudar só
+ * a cor precisa conferir a fonte antes de salvar.
+ *
+ * ⚠️ **O logo vai em requisição própria, depois dos campos.** Ele são bytes
+ * crus, e não cabe no mesmo JSON. As recusas previstas são 413, acima de 256 KB,
+ * e 415, fora de PNG e SVG: as duas são conferidas aqui antes de sair, para o
+ * erro aparecer sem depender da viagem.
+ */
+function BrandingCard({ tenant }: { tenant: SaasTenant }) {
+  const queryClient = useQueryClient();
+
+  const [color, setColor] = useState(tenant.branding.colorPrimary);
+  const [accent, setAccent] = useState(tenant.branding.colorAccent ?? '');
+  const [font, setFont] = useState(tenant.branding.fontFamily);
+  const [logo, setLogo] = useState<File | null>(null);
+  const [erroDoLogo, setErroDoLogo] = useState<string | null>(null);
+
+  const colorValid = /^#[0-9a-fA-F]{6}$/.test(color);
+  const accentValid = accent === '' || /^#[0-9a-fA-F]{6}$/.test(accent);
+
+  const gravacao = useMutation({
+    mutationFn: async () => {
+      await saveTenantBranding(tenant.id, {
+        colorPrimary: color,
+        ...(accent ? { colorAccent: accent } : {}),
+        fontFamily: font,
+      });
+      if (logo) await uploadTenantLogo(tenant.id, logo);
+    },
+    onSuccess: () => {
+      setLogo(null);
+      void queryClient.invalidateQueries({ queryKey: SAAS_KEYS.tenant(tenant.id) });
+      toast.success('Marca gravada', {
+        description: 'O cliente vê a cor nova no próximo carregamento da tela de login.',
+      });
+    },
+    onError: (causa) =>
+      toast.error(causa instanceof ApiError ? causa.message : 'Não foi possível gravar a marca.'),
+  });
+
+  function escolherLogo(file: File | null) {
+    setErroDoLogo(null);
+    if (!file) {
+      setLogo(null);
+      return;
+    }
+    if (!LOGO_MIME_TYPES.includes(file.type)) {
+      setErroDoLogo('O logo precisa ser PNG ou SVG.');
+      return;
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      setErroDoLogo('O logo precisa ter até 256 KB.');
+      return;
+    }
+    setLogo(file);
+  }
+
+  const previa: TenantBranding = {
+    colorPrimary: colorValid ? color : tenant.branding.colorPrimary,
+    ...(accent && accentValid ? { colorAccent: accent } : {}),
+    fontFamily: font,
+  };
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Parâmetros</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-0">
+          <div className="space-y-1.5">
+            <Label htmlFor="marca-cor">Cor principal</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={colorValid ? color : '#d5623a'}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-9 w-12 cursor-pointer rounded-md border border-border bg-transparent p-1"
+                aria-label="Selecionar cor principal"
+              />
+              <Input
+                id="marca-cor"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+            {!colorValid && <p className="text-xs text-error-on-light">Use o formato #rrggbb.</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="marca-apoio">Cor de apoio (opcional)</Label>
+            <Input
+              id="marca-apoio"
+              value={accent}
+              onChange={(e) => setAccent(e.target.value)}
+              placeholder="#1f3a5f"
+              className="font-mono"
+            />
+            {!accentValid && <p className="text-xs text-error-on-light">Use o formato #rrggbb.</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Fonte</Label>
+            <Select value={font} onValueChange={setFont}>
+              <SelectTrigger aria-label="Escolher fonte">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {APPROVED_FONTS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="marca-logo">Logo</Label>
+            <Input
+              id="marca-logo"
+              type="file"
+              accept="image/png,image/svg+xml"
+              onChange={(e) => escolherLogo(e.target.files?.[0] ?? null)}
+            />
+            {erroDoLogo ? (
+              <p className="text-xs text-error-on-light">{erroDoLogo}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                PNG ou SVG, até 256 KB. {logo ? `Vai subir: ${logo.name}.` : 'Opcional.'}
+              </p>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            A marca é lida antes do login, quando ainda não há sessão nem empresa no token. Por isso
+            mora no plano de controle, e não no schema do cliente. Gravar substitui os três campos.
+          </p>
+
+          <Button
+            size="sm"
+            onClick={() => gravacao.mutate()}
+            disabled={!colorValid || !accentValid || gravacao.isPending}
+          >
+            Gravar marca
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">Prévia do login do cliente</p>
+        <BrandPreview branding={previa} companyName={tenant.name} slug={tenant.slug} />
+      </div>
+    </div>
+  );
 }

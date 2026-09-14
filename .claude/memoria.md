@@ -239,6 +239,85 @@ Quatro telas passaram a falar com o `Backend-web`, e o que segue é o que o cód
   é o único estado em que as contagens significam algo, então veículos e usuários aparecem como
   traço no resto, pela mesma regra do MRR: ausência aparece como ausência.
 
+### Fase 9: o backoffice saiu do mock (14/09/2026)
+
+O `Backend-web` fechou as fases 1 a 8, mais 6b e 6c, e a escrita de cargos. Todo endpoint que o
+`saas-api.ts` dizia não existir passou a existir, e o recado provisório daquele arquivo saiu.
+
+- ⚠️ **`pages/saas/saas-api.ts` é o `/v1/saas` inteiro**, mais as rotas de plataforma que moram fora
+  daquele prefixo (solicitações, equipe, auditoria, marca). **O caminho de demonstração continua**:
+  com `VITE_ENABLE_MOCKS=true`, que é o padrão da variável, cada função cai no `saas-store` em vez da
+  API. A troca fica dentro das funções, e nenhuma tela sabe em que modo está rodando.
+- ⚠️ **402 não é 403, e o `services/http` passou a separá-los.** 403 é falta de permissão, e quem
+  resolve é quem administra a equipe da própria empresa. 402 é o plano que não cobre o módulo, e quem
+  resolve é o Dono com a RookHub. O `PlanUpgradeError` carrega `modulo` e `plano` do corpo, e é com o
+  `modulo` que o `PlanLockedState` diz o que falta em vez de falar em "recursos avançados". O
+  `ApiErrorState` escolhe a tela pelo código, e o `QueryState` do `/gestao` ganhou o mesmo tratamento.
+- ⚠️ **`token` e `acceptUrl` do convite vêm NULOS quando a entrega por e-mail está ligada**, que é o
+  estado normal a partir daqui. Dois lugares usavam o campo direto e quebravam: o toast de reenvio
+  ficava vazio e o diálogo abria com link em branco. Sem link, a mensagem diz para quem o convite foi.
+- ⚠️ **A marca do cliente é lida antes do login, e a empresa vem do `Origin`.** `services/branding.ts`
+  chama `GET /v1/public/branding` sem argumento nenhum: por parâmetro de slug daria para enumerar os
+  clientes da plataforma, um por tentativa. **Endereço sem empresa conhecida devolve a marca da
+  RookHub com 200, e não 404**, então falha ali nunca é erro de tela. O bloco `<style>` usa o seletor
+  `:root:root`, e a repetição é deliberada: `html.light` da paleta tem especificidade maior que
+  `:root`, e um bloco simples valeria só no tema escuro.
+- ⚠️ **`APPROVED_FONTS` saiu de `mocks/saas.ts` para `app/fonts.ts`**: deixou de ser dado de
+  demonstração quando o serviço passou a aplicá-la. `fontFamily` é chave de lista homologada, nunca
+  arquivo, e o backend espelha a lista.
+- ⚠️ **O editor de cargos (`/gestao/cargos`) apagaria dado do cliente se mostrasse só o que o plano
+  cobre.** `GET /v1/roles` devolve as permissões GRAVADAS, e uma empresa starter tem cargos semeados
+  com `analytics.view`, que a leitura descarta mas a coluna guarda. O PATCH substitui o array inteiro:
+  um editor que omitisse as fora do plano as apagaria no primeiro salvamento, e um upgrade depois não
+  as traria de volta. Elas aparecem marcadas e desabilitadas, com "vem no plano Business", e voltam no
+  envio. `role-dialog.test.tsx` trava isso.
+- **`app/permission-catalog.ts` existe por causa disso**: a permissão fora do plano não vem na
+  resposta de `GET /v1/permissions`, por definição, então sem uma tabela local o editor só teria a
+  chave crua para mostrar. O enum `Permission` do backend registra que a fonte canônica é este
+  repositório.
+- ⚠️ **Mexer em cargo derruba sessão**, e é o mesmo mecanismo que faz rebaixamento valer na hora:
+  apagar um cargo, ou migrar alguém, dá 401 na requisição seguinte dessas pessoas. Não é defeito.
+- ⚠️ **O modo suporte manda `X-Rookhub-Tenant` SOMENTE em GET, e não nas rotas `/v1/saas/`.** A
+  segunda parte não é detalhe: o backend aplica o cabeçalho a qualquer requisição que o traga, então
+  um GET do backoffice gravaria uma linha de acesso de suporte para uma tela que não é do cliente, e
+  a auditoria encheria de ruído onde ela precisa ser conferível. Escrita no cliente é recusada antes
+  de a requisição sair, porque um POST sem o cabeçalho acertaria o plano de controle parecendo ter
+  funcionado. Empresa suspensa responde 404 também para o suporte.
+- **O que a API não tem, a tela parou de afirmar**: praça e fornecedor declarado saíram das colunas da
+  fila (o formulário do site não os grava), "último acesso" saiu da equipe RookHub, a contagem de
+  pessoas por cargo saiu da ficha da empresa (aquela lista é a semeadura padrão, não a da empresa) e o
+  botão de reiniciar provisionamento saiu, porque não existe rota que o faça.
+- ⚠️ **`temporaryPassword` de conta de plataforma volta uma vez só, no POST.** Por isso ela aparece num
+  diálogo que fica até alguém fechar, e não num toast que some: um toast perdido custa uma redefinição.
+- **O que continua fora:** `users.role` (o papel legado) segue no banco e no painel, `mrr` é sempre
+  nulo, e `vehicleLimit`/`userLimit` do `plans.ts` são referência comercial que o backend não aplica.
+  ⚠️ `integrations` é business+ no `PLAN_DEFINITIONS`, então cliente starter não conecta telemetria:
+  isso vem das definições que já estavam no painel, e mudar exige mudar os dois lados.
+
+### O painel do dono foi podado a duas telas (14/09/2026)
+
+Pedido do usuário, e temporário: o dono fica com **Visão geral e Equipe**, e o gestor, o operador e a
+manutenção não mudam.
+
+- ⚠️ **A home do dono virou `owner-overview-page`**, e a `owner-home-page` continua no repositório.
+  Aquela responde "quanto sobrou" com DRE, margem, insights e tendência, e **nenhum desses números
+  tem origem**: são do mock. A nova mostra só o que existe, que são as contas de painel vindas do
+  `GET /v1/team`. Voltar é trocar o import do `RoleHome`.
+- ⚠️ **Em Equipe o dono vê só quem ele convidou.** O quadro tem duas origens, e os 132 motoristas da
+  telemetria empurravam as contas para a segunda página de uma lista aberta para ver outra coisa. O
+  `TeamRoster` ganhou `somentePainel`, que também esconde o filtro de filial e as situações de
+  telemetria: filtro que nunca acha nada lê como defeito.
+- **Três caminhos devolviam o que o menu tirou, e saíram junto**: "Plano e cobrança" e "Extensões" no
+  menu da conta, e a barra de favoritos inteira, cujo catálogo é o sistema todo.
+- ⚠️ **As rotas continuam registradas**, e não foram apagadas: quem digitar `/gestao/resultado` ainda
+  chega. Some do menu foi o que se pediu, e é o que torna a volta barata.
+- ⚠️ **Cargos saiu do menu do dono, e ele é o único que escreve lá.** O editor exige `roles.manage`,
+  que só o cargo de comando tem, então hoje ninguém cria cargo pelo menu. Sabido, e aceito nesta
+  leva.
+- ⚠️ **O Diretor continua com o painel do gestor**, porque chega aqui traduzido para `MANAGER`:
+  `UserRole.doCargo` manda `gestor` e `diretor` para o mesmo valor. Separar os dois exige tirar o
+  painel da dependência de `users.role`, que é o item que sobrou da Fase 9.
+
 ## Entrada, sessão e perfis
 
 - ⚠️ **A caixa do sino cortava a lista no DADO, não na altura** (corrigido em 04/09/2026). Os

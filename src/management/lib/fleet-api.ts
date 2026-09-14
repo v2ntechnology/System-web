@@ -1368,14 +1368,20 @@ export function fetchRoles(): Promise<TeamRole[]> {
 /**
  * O convite recém-criado.
  *
- * ⚠️ **O `acceptUrl` volta na resposta porque o envio por e-mail ainda não
- * existe**, e é por isso que a tela o mostra para copiar. Isso é temporário e
- * sai quando o e-mail entrar: nenhum fluxo deve depender dele.
+ * ⚠️ **`token` e `acceptUrl` são NULOS quando a entrega por e-mail está ligada**,
+ * e esse é o estado normal a partir da Fase 9. Eles só voltavam preenchidos
+ * enquanto não havia envio: aí a tela precisava mostrar o endereço para alguém
+ * entregar à mão.
+ *
+ * Quem lê tem de tratar a ausência. Mostrar `null` num toast dá uma mensagem
+ * vazia, e num diálogo dá um link em branco com botão de copiar: as duas coisas
+ * parecem defeito, e o convite foi enviado. Sem link, o que se diz é para quem
+ * ele foi.
  */
 export interface TeamInvite {
   userId: string;
-  token: string;
-  acceptUrl: string;
+  token: string | null;
+  acceptUrl: string | null;
 }
 
 export function inviteTeamMember(input: {

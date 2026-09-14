@@ -48,6 +48,13 @@ const TODOS = 'TODOS';
  */
 const POR_PAGINA = 100;
 
+/** As duas que valem para conta de painel. Ver `somentePainel`. */
+const SITUACOES_DE_ACESSO = [
+  { value: TODOS, label: 'Qualquer situação' },
+  { value: 'ATIVO', label: 'Acesso ativo' },
+  { value: 'DESATIVADO', label: 'Acesso desativado' },
+];
+
 const SITUACOES = [
   { value: TODOS, label: 'Qualquer situação' },
   { value: 'RODOU', label: 'Rodou no período' },
@@ -59,6 +66,14 @@ const SITUACOES = [
 export interface TeamRosterProps {
   people: TeamMember[];
   className?: string | undefined;
+  /**
+   * A lista é só de contas de painel, e os filtros acompanham.
+   *
+   * ⚠️ Filial vem do cadastro do FORNECEDOR e só existe em motorista, e
+   * "rodou no período" é da telemetria: num quadro sem motorista, os dois
+   * devolveriam lista vazia sempre. Filtro que nunca acha nada lê como defeito.
+   */
+  somentePainel?: boolean | undefined;
   /**
    * As três ações de conta, quando quem olha pode administrar a equipe.
    *
@@ -74,6 +89,7 @@ export interface TeamRosterProps {
 export function TeamRoster({
   people,
   className,
+  somentePainel = false,
   onEditar,
   onReenviar,
   onDesativar,
@@ -161,24 +177,26 @@ export function TeamRoster({
         <GlassInput
           surface="light"
           label="Buscar"
-          placeholder="Nome, filial, placa ou e-mail"
+          placeholder={somentePainel ? 'Nome ou e-mail' : 'Nome, filial, placa ou e-mail'}
           value={busca}
           onChange={(evento) => setBusca(evento.target.value)}
           leading={<SearchIcon size={16} aria-hidden="true" />}
         />
 
-        <GlassSelect
-          surface="light"
-          label="Filial"
-          options={opcoesFilial}
-          value={filial}
-          onValueChange={setFilial}
-        />
+        {somentePainel ? null : (
+          <GlassSelect
+            surface="light"
+            label="Filial"
+            options={opcoesFilial}
+            value={filial}
+            onValueChange={setFilial}
+          />
+        )}
 
         <GlassSelect
           surface="light"
           label="Situação"
-          options={SITUACOES}
+          options={somentePainel ? SITUACOES_DE_ACESSO : SITUACOES}
           value={situacao}
           onValueChange={setSituacao}
         />
@@ -189,6 +207,7 @@ export function TeamRoster({
           {visiveis.length === people.length
             ? `${people.length} ${people.length === 1 ? 'pessoa' : 'pessoas'}`
             : `${visiveis.length} de ${people.length} pessoas`}
+          {somentePainel ? ' com acesso ao painel' : ''}
         </p>
 
         {filtrando ? (

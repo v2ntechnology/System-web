@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useBrandingStore } from '@/stores/branding-store';
 
 import { useBrandAssets } from './brand-assets';
 
@@ -62,6 +63,27 @@ interface BrandLogoProps {
 
 export function BrandLogo({ className, showWordmark = true }: BrandLogoProps) {
   const { wordmark } = useBrandAssets();
+  const logoDoCliente = useBrandingStore((state) => state.logoUrl);
+
+  /*
+   * ⚠️ O logo do cliente substitui a arte da RookHub, e não convive com ela.
+   *
+   * Esta marca aparece na tela de login, que é o primeiro lugar onde a
+   * transportadora se reconhece, antes de haver sessão. Duas marcas ali fariam
+   * a tela parecer um portal de terceiro; o nome da RookHub continua no rodapé.
+   *
+   * O `alt` não é "RookHub" porque a arte não é a nossa. A rota pública não
+   * devolve o nome da empresa, então o texto descreve o que a imagem é.
+   */
+  if (logoDoCliente) {
+    return (
+      <img
+        src={logoDoCliente}
+        alt="Logo da transportadora"
+        className={cn('h-7 w-auto object-contain', className)}
+      />
+    );
+  }
 
   if (!showWordmark) {
     return <RookMark className={className} />;

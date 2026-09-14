@@ -1,5 +1,6 @@
 import type {
   AccessRequestStatus,
+  TenantOrigin,
   DomainState,
   PlanType,
   PlatformRole,
@@ -37,6 +38,14 @@ export interface SaasTenant {
    * não paga nada", que é outra coisa. A tela mostra a ausência.
    */
   mrr: number | null;
+  /**
+   * De onde a empresa veio: `ACCESS_REQUEST` pelo formulário do site,
+   * `BACKOFFICE` por venda ativa.
+   *
+   * ⚠️ Ausente nas empresas criadas antes de 14/09/2026, que ficaram com o
+   * padrão da coluna. A tela não afirma nada quando não sabe.
+   */
+  origin?: TenantOrigin;
   createdAt: string;
   trialEndsAt?: string;
   /** Dono da conta. É a única credencial que a aprovação cria. */
@@ -251,11 +260,18 @@ export interface SaasAccessRequest {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
-  city: string;
-  state: string;
-  fleetSize: number;
+  /**
+   * ⚠️ **Opcionais porque o formulário do site não os grava** (14/09/2026).
+   *
+   * `GET /v1/saas/access-requests` devolve empresa, contato, frota e mensagem, e
+   * mais nada: praça e fornecedor declarado existiam só no mock, de quando a
+   * fila era desenho. A tela mostra a ausência em vez de inventar.
+   */
+  city?: string;
+  state?: string;
+  fleetSize?: number;
   /** O que a transportadora respondeu no site. Não é decisão nossa ainda. */
-  declaredProvider: string;
+  declaredProvider?: string;
   message: string;
   status: AccessRequestStatus;
   createdAt: string;
@@ -692,16 +708,6 @@ export const ACCESS_REQUEST_LABEL: Record<AccessRequestStatus, string> = {
   approved: 'Aprovada',
   rejected: 'Recusada',
 };
-
-/** Fontes homologadas. Chave, nunca arquivo: upload livre traria licenciamento
- *  de terceiro para dentro da nossa hospedagem. */
-export const APPROVED_FONTS: { value: string; label: string }[] = [
-  { value: 'default', label: 'Padrão RookHub (Plus Jakarta Sans)' },
-  { value: 'inter', label: 'Inter' },
-  { value: 'roboto', label: 'Roboto' },
-  { value: 'source-sans', label: 'Source Sans 3' },
-  { value: 'ibm-plex', label: 'IBM Plex Sans' },
-];
 
 /** Fornecedores de telemetria conhecidos. Só a MiX tem conector implementado. */
 export const TELEMETRY_PROVIDERS: { value: string; label: string; hasConnector: boolean }[] = [

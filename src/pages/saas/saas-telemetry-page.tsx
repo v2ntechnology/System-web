@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { telemetryDescriptor } from '@/lib/status-maps';
-import { useSaasStore } from '@/stores/saas-store';
+import { useTenants } from './saas-api';
 import { TELEMETRY_HINT, TELEMETRY_PROVIDERS, type SaasTenant } from '@/mocks/saas';
 import type { TelemetryState } from '@/types';
 
@@ -24,7 +24,8 @@ const STATES: TelemetryState[] = ['CONNECTED', 'PENDING_CONNECTOR', 'PENDING_CON
  * não uma descoberta feita quando alguém abre a frota e a vê vazia.
  */
 export default function SaasTelemetryPage() {
-  const tenants = useSaasStore((s) => s.tenants).filter((t) => t.provisioningState === 'READY');
+  const { tenants: todas } = useTenants();
+  const tenants = todas.filter((t) => t.provisioningState === 'READY');
 
   const countFor = (state: TelemetryState) =>
     tenants.filter((t) => t.telemetryState === state).length;

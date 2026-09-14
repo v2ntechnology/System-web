@@ -1,3 +1,4 @@
+import { carregarMarca } from '@/services/branding';
 import { configureHttpClient } from '@/services/http';
 import { getAccessToken } from '@/services/token-store';
 import { useSessionStore } from '@/stores/session-store';
@@ -37,4 +38,14 @@ export function connectSession(): void {
   /* Enquanto o refresh não responde, as guardas de rota seguram a tela em
      `restoring`, em vez de mandar para o login e trazer de volta. */
   void useSessionStore.getState().restore();
+
+  /*
+   * A marca do cliente, que é lida do `Origin` e não depende de sessão.
+   *
+   * ⚠️ Fica junto do `restore` porque o momento é o mesmo, e não porque uma
+   * dependa da outra: a tela de login já tem de sair pintada com a cor da
+   * transportadora, e ali ainda não há token nenhum. Não bloqueia nada, e
+   * falhar é silencioso de propósito. Ver `services/branding.ts`.
+   */
+  void carregarMarca();
 }

@@ -10,7 +10,7 @@ import {
   type SaasPlatformUser,
   type SaasTenant,
 } from '@/mocks/saas';
-import type { PlanType, PlatformRole, TelemetryState, TenantBranding } from '@/types';
+import type { PlanType, PlatformRole, TelemetryState, TenantBranding, TenantOrigin } from '@/types';
 
 /**
  * Estado do backoffice da plataforma, **mockado em memória**.
@@ -45,19 +45,62 @@ interface SaasState {
   audit: SaasAuditEntry[];
 
   approveRequest: (requestId: string, input: ApprovalInput, actor: string) => void;
+  /** Venda ativa: a mesma empresa, sem solicitação nenhuma antes. */
+  createTenant: (input: ApprovalInput, actor: string) => void;
   rejectRequest: (requestId: string, reason: string, actor: string) => void;
-  /** Segunda tentativa depois de uma falha externa (Cloudflare, migrations). */
-  retryProvisioning: (tenantId: string, actor: string) => void;
   setTenantStatus: (tenantId: string, status: 'active' | 'suspended', actor: string) => void;
   setTenantPlan: (tenantId: string, plan: PlanType, actor: string) => void;
+  setTenantBranding: (
+    tenantId: string,
+    branding: { colorPrimary?: string; colorAccent?: string; fontFamily?: string },
+    actor: string,
+  ) => void;
   invitePlatformUser: (
     input: { name: string; email: string; role: PlatformRole },
     actor: string,
   ) => void;
   setPlatformUserActive: (userId: string, active: boolean, actor: string) => void;
+  updatePlatformUser: (
+    userId: string,
+    changes: { name?: string; role?: PlatformRole },
+    actor: string,
+  ) => void;
+  /** Devolve a senha provisória, que na API aparece uma vez só. */
+  resetPlatformUserPassword: (userId: string, actor: string) => string;
 }
 
 const now = () => new Date().toISOString();
+
+/**
+ * A empresa recém-criada, do jeito que a aprovação e a venda ativa a produzem.
+ *
+ * ⚠️ Nasce em `RUNNING`, e não em `READY`. São migrations dentro de um schema
+ * recém-criado: a criação devolve o ambiente em provisionamento e a tela
+ * acompanha. Mostrar "pronto" na hora seria mentir para quem clicou e mandaria o
+ * cliente para um endereço que ainda não responde.
+ */
+function novaEmpresa(input: ApprovalInput, origin: TenantOrigin): SaasTenant {
+  return {
+    id: `tenant-${input.slug}`,
+    name: input.name,
+    slug: input.slug,
+    document: input.document,
+    plan: input.plan,
+    status: 'trial',
+    provisioningState: 'RUNNING',
+    telemetryState: input.telemetryState,
+    ...(input.telemetryProvider ? { telemetryProvider: input.telemetryProvider } : {}),
+    domainState: 'PENDING',
+    branding: input.branding,
+    vehicles: 0,
+    users: 1,
+    mrr: 0,
+    origin,
+    createdAt: now(),
+    ownerName: input.ownerName,
+    ownerEmail: input.ownerEmail,
+  };
+}
 
 function auditEntry(
   entry: Omit<SaasAuditEntry, 'id' | 'at' | 'kind' | 'actorRole'> &
@@ -83,34 +126,8 @@ export const useSaasStore = create<SaasState>()((set) => ({
       const request = state.requests.find((r) => r.id === requestId);
       if (!request || request.status !== 'pending') return state;
 
-      const tenantId = `tenant-${input.slug}`;
-      /*
-       * Nasce em `RUNNING`, e não em `READY`.
-       *
-       * São 29 migrations dentro de um schema recém-criado: a aprovação devolve
-       * o ambiente em provisionamento e a tela acompanha. Mostrar "pronto" na
-       * hora seria mentir para quem clicou e mandaria o cliente para um endereço
-       * que ainda não responde.
-       */
-      const tenant: SaasTenant = {
-        id: tenantId,
-        name: input.name,
-        slug: input.slug,
-        document: input.document,
-        plan: input.plan,
-        status: 'trial',
-        provisioningState: 'RUNNING',
-        telemetryState: input.telemetryState,
-        ...(input.telemetryProvider ? { telemetryProvider: input.telemetryProvider } : {}),
-        domainState: 'PENDING',
-        branding: input.branding,
-        vehicles: 0,
-        users: 1,
-        mrr: 0,
-        createdAt: now(),
-        ownerName: input.ownerName,
-        ownerEmail: input.ownerEmail,
-      };
+      const tenant = novaEmpresa(input, 'ACCESS_REQUEST');
+      const tenantId = tenant.id;
 
       return {
         tenants: [tenant, ...state.tenants],
@@ -130,6 +147,19 @@ export const useSaasStore = create<SaasState>()((set) => ({
       };
     }),
 
+  createTenant: (input, actor) =>
+    set((state) => ({
+      tenants: [novaEmpresa(input, 'BACKOFFICE'), ...state.tenants],
+      audit: [
+        auditEntry({
+          actor,
+          action: 'Cadastrou a transportadora por venda ativa',
+          tenant: input.name,
+        }),
+        ...state.audit,
+      ],
+    })),
+
   rejectRequest: (requestId, reason, actor) =>
     set((state) => {
       const request = state.requests.find((r) => r.id === requestId);
@@ -148,34 +178,6 @@ export const useSaasStore = create<SaasState>()((set) => ({
         ),
         audit: [
           auditEntry({ actor, action: `Recusou a solicitação de ${request.company}` }),
-          ...state.audit,
-        ],
-      };
-    }),
-
-  retryProvisioning: (tenantId, actor) =>
-    set((state) => {
-      const tenant = state.tenants.find((t) => t.id === tenantId);
-      if (!tenant) return state;
-      return {
-        tenants: state.tenants.map((t) => {
-          if (t.id !== tenantId) return t;
-          /* A mensagem de falha sai da linha em vez de virar `undefined`:
-             `exactOptionalPropertyTypes` trata os dois como coisas diferentes,
-             e o erro antigo ficaria colado na tentativa nova. */
-          const { provisioningError: _discarded, ...rest } = t;
-          return {
-            ...rest,
-            provisioningState: 'RUNNING' as const,
-            domainState: 'PENDING' as const,
-          };
-        }),
-        audit: [
-          auditEntry({
-            actor,
-            action: 'Reiniciou o provisionamento do ambiente',
-            tenant: tenant.name,
-          }),
           ...state.audit,
         ],
       };
@@ -216,6 +218,30 @@ export const useSaasStore = create<SaasState>()((set) => ({
       };
     }),
 
+  setTenantBranding: (tenantId, branding, actor) =>
+    set((state) => {
+      const tenant = state.tenants.find((t) => t.id === tenantId);
+      if (!tenant) return state;
+      return {
+        tenants: state.tenants.map((t) =>
+          t.id === tenantId
+            ? {
+                ...t,
+                branding: {
+                  colorPrimary: branding.colorPrimary ?? t.branding.colorPrimary,
+                  ...(branding.colorAccent ? { colorAccent: branding.colorAccent } : {}),
+                  fontFamily: branding.fontFamily ?? t.branding.fontFamily,
+                },
+              }
+            : t,
+        ),
+        audit: [
+          auditEntry({ actor, action: 'Alterou a marca do cliente', tenant: tenant.name }),
+          ...state.audit,
+        ],
+      };
+    }),
+
   invitePlatformUser: (input, actor) =>
     set((state) => ({
       platformUsers: [
@@ -239,6 +265,35 @@ export const useSaasStore = create<SaasState>()((set) => ({
         ...state.audit,
       ],
     })),
+
+  updatePlatformUser: (userId, changes, actor) =>
+    set((state) => {
+      const user = state.platformUsers.find((u) => u.id === userId);
+      if (!user) return state;
+      return {
+        platformUsers: state.platformUsers.map((u) =>
+          u.id === userId
+            ? { ...u, name: changes.name ?? u.name, role: changes.role ?? u.role }
+            : u,
+        ),
+        audit: [auditEntry({ actor, action: `Alterou a conta de ${user.name}` }), ...state.audit],
+      };
+    }),
+
+  /* A senha some da tela e não volta, igual à da API: o store não a guarda. */
+  resetPlatformUserPassword: (userId, actor) => {
+    const user = useSaasStore.getState().platformUsers.find((u) => u.id === userId);
+    useSaasStore.setState((state) => ({
+      platformUsers: state.platformUsers.map((u) =>
+        u.id === userId ? { ...u, pendingInvite: true } : u,
+      ),
+      audit: [
+        auditEntry({ actor, action: `Redefiniu a senha de ${user?.name ?? 'uma conta'}` }),
+        ...state.audit,
+      ],
+    }));
+    return `demo-${Math.random().toString(36).slice(2, 10)}`;
+  },
 
   setPlatformUserActive: (userId, active, actor) =>
     set((state) => {

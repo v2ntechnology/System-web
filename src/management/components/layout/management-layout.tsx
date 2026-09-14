@@ -3,6 +3,7 @@ import { Outlet } from 'react-router';
 
 import { AssistantDrawer } from '@/management/features/assistant/components/assistant-drawer';
 import { useAssistantShortcut } from '@/management/features/assistant/use-assistant-shortcut';
+import { useSession } from '@/management/features/auth/store';
 import { Spinner } from '@/management/ui';
 
 import { AssistantFab } from './assistant-fab';
@@ -22,6 +23,8 @@ import { FavoritesDock } from './favorites-dock';
 export function ManagementLayout() {
   useAssistantShortcut();
 
+  const souDono = useSession()?.user.role === 'OWNER';
+
   return (
     <div className="management-theme bg-surface min-h-dvh">
       {/*
@@ -34,9 +37,16 @@ export function ManagementLayout() {
       <Suspense fallback={<RouteFallback />}>
         <Outlet />
       </Suspense>
-      {/* Atalhos favoritos: flutuam sobre todas as telas do painel, como o
-          assistente. Centralizados na base, porque o canto direito é dele. */}
-      <FavoritesDock />
+      {/*
+       * Atalhos favoritos: flutuam sobre todas as telas do painel, como o
+       * assistente. Centralizados na base, porque o canto direito é dele.
+       *
+       * ⚠️ **Fora do painel do dono desde 14/09/2026.** O catálogo de atalhos é
+       * o sistema inteiro (mapa, viagens, custos, cadastro de frota), e o menu
+       * dele foi reduzido a duas telas: a barra devolveria pela porta dos fundos
+       * exatamente o que foi tirado do menu.
+       */}
+      {souDono ? null : <FavoritesDock />}
       <AssistantFab />
       <AssistantDrawer />
     </div>

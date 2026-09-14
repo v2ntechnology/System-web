@@ -65,9 +65,15 @@ const OWNER_AND_MANAGER: Role[] = ['OWNER', 'MANAGER', 'SUPER_ADMIN'];
 /* Home por papel                                                              */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * ⚠️ A home do dono é a visão geral ENXUTA desde 14/09/2026, a pedido do
+ * usuário. A `owner-home-page` continua no repositório e responde "quanto
+ * sobrou" com DRE, margem e tendência, tudo vindo do mock: ela volta trocando
+ * este import, quando aqueles números tiverem origem.
+ */
 const OwnerHomePage = lazy(() =>
-  import('@/management/features/owner/pages/owner-home-page').then((m) => ({
-    default: m.OwnerHomePage,
+  import('@/management/features/owner/pages/owner-overview-page').then((m) => ({
+    default: m.OwnerOverviewPage,
   })),
 );
 /**
@@ -182,6 +188,21 @@ export const managementRoutes: RouteObject = {
       element: (
         <RoleRoute allow={OWNER_AND_MANAGER}>
           {page(() => import('@/management/features/team/pages/team-page'), 'TeamPage')}
+        </RoleRoute>
+      ),
+    },
+
+    {
+      /*
+       * O editor de cargos. ⚠️ Só o Dono escreve aqui: `roles.manage` não é
+       * delegável, e é o que impede uma empresa de criar um cargo que se
+       * promove. O gestor alcança a leitura, que é o que a tela de equipe usa
+       * para saber o nome de cada cargo.
+       */
+      path: 'cargos',
+      element: (
+        <RoleRoute allow={OWNER_AND_MANAGER}>
+          {page(() => import('@/management/features/roles/pages/roles-page'), 'RolesPage')}
         </RoleRoute>
       ),
     },

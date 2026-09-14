@@ -81,6 +81,15 @@ export type PlatformRole = 'PLATFORM_ADMIN' | 'PLATFORM_SUPPORT';
 /** Situação de uma solicitação de acesso vinda do site institucional. */
 export type AccessRequestStatus = 'pending' | 'approved' | 'rejected';
 
+/**
+ * Como a empresa entrou na plataforma.
+ *
+ * `ACCESS_REQUEST` é quem pediu pelo formulário do site; `BACKOFFICE` é venda
+ * ativa, cadastrada direto pela equipe. As duas seguem o mesmo assistente e o
+ * mesmo provisionamento: o que muda é de onde vieram o nome e o documento.
+ */
+export type TenantOrigin = 'ACCESS_REQUEST' | 'BACKOFFICE';
+
 /** Marca do cliente, aplicada já na tela de login pelo host. */
 export interface TenantBranding {
   logoUrl?: string | undefined;

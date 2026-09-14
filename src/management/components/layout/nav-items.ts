@@ -92,36 +92,22 @@ const OPERATIONAL_NAV: NavEntry[] = [
 ];
 
 /**
- * Árvore estratégica — proprietário.
+ * Árvore estratégica, hoje reduzida a duas telas.
  *
- * Curta de propósito. A visão do dono existe para avaliar lucratividade **sem
- * distração operacional**: não há mapa ao vivo, viagem individual nem fila de
- * checklist aqui. O que o gestor apura no detalhe chega ao dono já sintetizado —
- * em Resultado, em Desempenho ou como parecer em Aprovações.
+ * ⚠️ **Podada a pedido do usuário em 14/09/2026, e é uma poda temporária.** O
+ * dono fica com a visão geral e a equipe, e nada mais: Resultado, Desempenho,
+ * Aprovações e Relatórios saíram do menu porque o que elas mostram ainda é dado
+ * simulado, e número inventado na tela de quem decide é pior que tela faltando.
  *
- * Cinco itens caber numa linha também é requisito: sem grupo, sem menu suspenso,
- * um clique para qualquer tela.
+ * ⚠️ **As rotas continuam registradas em `routes.tsx`**, e não foram apagadas:
+ * quem digitar o endereço ainda chega. Some do menu é o que foi pedido, e é o
+ * que se desfaz devolvendo as linhas abaixo quando o dado for real.
+ *
+ * O gestor e o operador não mudaram: a operação inteira continua lá.
  */
 const OWNER_NAV: NavEntry[] = [
-  { to: '/gestao', label: 'Visão geral', hint: 'Resultado e resumo analítico', end: true },
-  {
-    to: '/gestao/resultado',
-    label: 'Resultado',
-    hint: 'DRE, custos globais e margem',
-    module: 'COSTS',
-  },
-  {
-    to: '/gestao/desempenho',
-    label: 'Desempenho',
-    hint: 'Destaques do time e frotas rentáveis',
-  },
-  { to: '/gestao/equipe', label: 'Equipe', hint: 'Quem trabalha na operação' },
-  {
-    to: '/gestao/aprovacoes',
-    label: 'Aprovações',
-    hint: 'Pareceres do gestor e liberações graves',
-  },
-  { to: '/gestao/relatorios', label: 'Relatórios', hint: 'Exportações e agendamentos' },
+  { to: '/gestao', label: 'Visão geral', hint: 'Resumo da empresa', end: true },
+  { to: '/gestao/equipe', label: 'Equipe', hint: 'Quem tem acesso ao painel' },
 ];
 
 /**
@@ -208,6 +194,11 @@ const MANAGER_NAV: NavEntry[] = [
     label: 'Pessoas',
     items: [
       { to: '/gestao/equipe', label: 'Equipe', hint: 'Quadro completo e quem pode rodar hoje' },
+      {
+        to: '/gestao/cargos',
+        label: 'Cargos',
+        hint: 'Quem alcança o quê dentro da empresa',
+      },
       {
         /* ⚠️ `end` aqui, e não só no filho. `isItemActive` casa por prefixo
            quando `end` é falso, então sem isto "Motoristas" acenderia junto com

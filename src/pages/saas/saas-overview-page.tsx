@@ -6,28 +6,69 @@ import {
   TrendUpIcon,
   TruckIcon,
 } from '@/components/icons';
+import type { IconType } from '@/components/icons';
 import { Link } from 'react-router';
 
 import { ChartCard, SimpleBarChart } from '@/components/shared/charts';
 import { InfoCard } from '@/components/shared/cards';
-import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PLAN_LABELS } from '@/app/plans';
+import { useSession } from '@/hooks/use-session';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import {
   provisioningDescriptor,
   telemetryDescriptor,
   tenantStatusDescriptor,
 } from '@/lib/status-maps';
-import { useSaasStore } from '@/stores/saas-store';
-import { useTenants } from './saas-api';
+import { useAccessRequests, useTenants } from './saas-api';
 import { TELEMETRY_LABEL } from '@/mocks/saas';
 import type { ChartPoint, TelemetryState } from '@/types';
 
 import { Callout, ProvisioningTimeline } from './saas-ui';
+
+function saudacao() {
+  const hora = new Date().getHours();
+  if (hora < 12) return 'Bom dia';
+  if (hora < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+function PlatformMetricCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+  accent = 'secondary',
+}: {
+  icon: IconType;
+  label: string;
+  value: string | number;
+  description: string;
+  accent?: 'secondary' | 'success' | 'info';
+}) {
+  const accentClass =
+    accent === 'success'
+      ? 'bg-success/15 text-success'
+      : accent === 'info'
+        ? 'bg-info/15 text-info'
+        : 'bg-secondary/15 text-secondary';
+
+  return (
+    <article className="rounded-[28px] bg-card p-5 shadow-[0_16px_32px_-22px_rgba(28,26,24,0.32)] ring-1 ring-on-surface/[0.06] sm:p-6">
+      <span className={`flex size-9 items-center justify-center rounded-xl ${accentClass}`}>
+        <Icon className="size-[18px]" />
+      </span>
+      <p className="mt-4 text-sm font-medium text-foreground">{label}</p>
+      <p className="mt-1 font-display text-3xl font-bold leading-none tracking-tight text-foreground">
+        {value}
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+    </article>
+  );
+}
 
 /**
  * Painel de entrada do Super Admin.
@@ -37,11 +78,13 @@ import { Callout, ProvisioningTimeline } from './saas-ui';
  * Receita e uso vêm depois, porque não exigem ação de ninguém hoje.
  */
 export default function SaasOverviewPage() {
+  const { user } = useSession();
   const { tenants } = useTenants();
-  const requests = useSaasStore((s) => s.requests);
+  /* A fila só interessa aqui pelo que está parado esperando decisão: a consulta
+     já traz apenas as pendentes. */
+  const pendingRequests = useAccessRequests('pending').data ?? [];
 
   const ready = tenants.filter((t) => t.provisioningState === 'READY');
-  const pendingRequests = requests.filter((r) => r.status === 'pending');
   const provisioning = tenants.filter((t) => t.provisioningState !== 'READY');
 
   const active = ready.filter((t) => t.status === 'active').length;
@@ -67,18 +110,60 @@ export default function SaasOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Visão geral da plataforma"
-        description="Empresas atendidas, entradas em andamento e receita recorrente."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/admin-saas/solicitacoes">
-              <InboxIcon className="h-4 w-4" />
-              Ver solicitações
-            </Link>
-          </Button>
-        }
-      />
+      <div>
+        <section className="rounded-xl bg-primary px-6 pb-28 pt-8 text-on-primary sm:px-8 sm:pt-10">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h1 className="font-display text-[28px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-[36px]">
+                {saudacao()}, {user?.name?.split(' ')[0] ?? 'usuário'}
+              </h1>
+              <p className="mt-2 text-base sm:text-lg">
+                Acompanhe as transportadoras, acessos e a operação da plataforma RookHub.
+              </p>
+            </div>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="border-on-primary bg-transparent text-on-primary hover:bg-on-primary hover:text-primary"
+            >
+              <Link to="/admin-saas/solicitacoes">
+                <InboxIcon className="h-4 w-4" />
+                Ver solicitações
+              </Link>
+            </Button>
+          </div>
+        </section>
+
+        <div className="relative -mt-20 grid gap-4 px-3 sm:grid-cols-2 sm:px-6 xl:grid-cols-4 xl:px-10">
+          <PlatformMetricCard
+            icon={CompanyIcon}
+            label="Transportadoras ativas"
+            value={ready.length}
+            description="Empresas com ambiente em operação"
+          />
+          <PlatformMetricCard
+            icon={TrendUpIcon}
+            label="Receita recorrente"
+            value={formatCurrency(mrr)}
+            description="MRR dos contratos ativos"
+            accent="success"
+          />
+          <PlatformMetricCard
+            icon={CompanyIcon}
+            label="Pessoas na plataforma"
+            value={formatNumber(users)}
+            description="Usuários com acesso liberado"
+            accent="info"
+          />
+          <PlatformMetricCard
+            icon={TruckIcon}
+            label="Veículos monitorados"
+            value={formatNumber(vehicles)}
+            description="Frota conectada à plataforma"
+          />
+        </div>
+      </div>
 
       {pendingRequests.length > 0 && (
         <Callout
@@ -101,18 +186,6 @@ export default function SaasOverviewPage() {
           {pendingRequests.length > 3 && ` · +${pendingRequests.length - 3}`}
         </Callout>
       )}
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <InfoCard label="Transportadoras ativas" value={ready.length} icon={CompanyIcon} />
-        <InfoCard
-          label="Receita recorrente (MRR)"
-          value={formatCurrency(mrr)}
-          icon={TrendUpIcon}
-          accent="success"
-        />
-        <InfoCard label="Usuários" value={formatNumber(users)} icon={CompanyIcon} accent="info" />
-        <InfoCard label="Veículos monitorados" value={formatNumber(vehicles)} icon={TruckIcon} />
-      </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <InfoCard label="Em operação" value={active} accent="success" />

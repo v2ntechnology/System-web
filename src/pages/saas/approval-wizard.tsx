@@ -21,19 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PLAN_DEFINITIONS, PLAN_LABELS } from '@/app/plans';
+import { APPROVED_FONTS } from '@/app/fonts';
+import { PLAN_DEFINITIONS, PLAN_LABELS, PLAN_ORDER } from '@/app/plans';
 import { SLUG_ERROR_MESSAGE, suggestSlug, validateSlug } from '@/app/tenant-slug';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import {
-  APPROVED_FONTS,
-  TELEMETRY_PROVIDERS,
-  type SaasAccessRequest,
-  type SaasTenant,
-} from '@/mocks/saas';
-import type { ApprovalInput } from '@/stores/saas-store';
+import { TELEMETRY_PROVIDERS, type SaasAccessRequest, type SaasTenant } from '@/mocks/saas';
 import type { PlanType, TelemetryState } from '@/types';
 
+import type { TelemetrySetup, TenantSetupInput } from './saas-api';
 import { BrandPreview, Callout, DomainPreview } from './saas-ui';
 
 /* -------------------------------------------------------------------------- */
@@ -47,6 +43,12 @@ import { BrandPreview, Callout, DomainPreview } from './saas-ui';
  * ambiente só fica utilizável quando os quatro estão resolvidos, então separá-los
  * em passos é o que impede alguém de clicar "aprovar" e descobrir depois que
  * faltava escolher o fornecedor.
+ *
+ * ⚠️ **O mesmo assistente faz o cadastro direto**, sem solicitação nenhuma
+ * antes, que é o caminho da venda ativa. A única diferença de contrato está no
+ * passo 1: ali o nome e o documento da empresa são digitados, porque não há
+ * solicitação de onde tirá-los, e o e-mail do Dono passa a ser obrigatório.
+ * Duas telas separadas seriam duas cópias divergindo na primeira regra nova.
  */
 const STEPS: { id: string; label: string; icon: IconType }[] = [
   { id: 'dados', label: 'Dados e endereço', icon: CompanyIcon },
@@ -55,16 +57,19 @@ const STEPS: { id: string; label: string; icon: IconType }[] = [
   { id: 'plano', label: 'Plano', icon: PlanIcon },
 ];
 
-const PLAN_ORDER: PlanType[] = ['starter', 'business', 'enterprise'];
-
 const DEFAULT_COLOR = '#d5623a';
 
+/** Valor do seletor para "nenhum fornecedor ainda". */
+const SEM_FORNECEDOR = 'none';
+
 interface ApprovalWizardProps {
+  /** Nulo abre o cadastro direto: o mesmo assistente, com o passo 1 vazio. */
   request: SaasAccessRequest | null;
   tenants: SaasTenant[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (input: ApprovalInput) => void;
+  onConfirm: (input: TenantSetupInput) => void;
+  salvando?: boolean;
 }
 
 export function ApprovalWizard({
@@ -73,6 +78,7 @@ export function ApprovalWizard({
   open,
   onOpenChange,
   onConfirm,
+  salvando = false,
 }: ApprovalWizardProps) {
   const [step, setStep] = useState(0);
 
@@ -81,8 +87,14 @@ export function ApprovalWizard({
   const [slug, setSlug] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
+  const [commandRoleName, setCommandRoleName] = useState('');
 
-  const [provider, setProvider] = useState<string>('none');
+  const [provider, setProvider] = useState<string>(SEM_FORNECEDOR);
+  const [mixClientId, setMixClientId] = useState('');
+  const [mixClientSecret, setMixClientSecret] = useState('');
+  const [mixUsername, setMixUsername] = useState('');
+  const [mixPassword, setMixPassword] = useState('');
+
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [accent, setAccent] = useState('');
   const [font, setFont] = useState('default');
@@ -90,35 +102,55 @@ export function ApprovalWizard({
 
   /* O formulário nasce preenchido com o que a transportadora declarou no site.
      É rascunho: cada campo continua editável, porque o endereço e o fornecedor
-     são decisão nossa, não dela. */
+     são decisão nossa, não dela. No cadastro direto ele nasce vazio. */
+  const semeadoPara = request?.id ?? (open ? 'direto' : null);
   const [seededFor, setSeededFor] = useState<string | null>(null);
-  if (request && seededFor !== request.id) {
-    setSeededFor(request.id);
+  if (semeadoPara && seededFor !== semeadoPara) {
+    setSeededFor(semeadoPara);
     setStep(0);
-    setName(request.company);
-    setDocument(request.document);
-    setSlug(suggestSlug(request.company));
-    setOwnerName(request.contactName);
-    setOwnerEmail(request.contactEmail);
-    const declared = TELEMETRY_PROVIDERS.find((p) => p.label === request.declaredProvider);
-    setProvider(declared?.value ?? 'none');
+    setName(request?.company ?? '');
+    setDocument(request?.document ?? '');
+    setSlug(request ? suggestSlug(request.company) : '');
+    setOwnerName(request?.contactName ?? '');
+    setOwnerEmail(request?.contactEmail ?? '');
+    setCommandRoleName('');
+    const declared = TELEMETRY_PROVIDERS.find((p) => p.label === request?.declaredProvider);
+    setProvider(declared?.value ?? SEM_FORNECEDOR);
+    setMixClientId('');
+    setMixClientSecret('');
+    setMixUsername('');
+    setMixPassword('');
     setColor(DEFAULT_COLOR);
     setAccent('');
     setFont('default');
-    setPlan(
-      request.fleetSize > 200 ? 'enterprise' : request.fleetSize > 25 ? 'business' : 'starter',
-    );
+    const frota = request?.fleetSize ?? 0;
+    setPlan(frota > 200 ? 'enterprise' : frota > 25 ? 'business' : 'starter');
   }
 
   const takenSlugs = useMemo(() => tenants.map((t) => t.slug), [tenants]);
   const slugError = validateSlug(slug, takenSlugs);
 
   const providerEntry = TELEMETRY_PROVIDERS.find((p) => p.value === provider);
+  const usaMix = provider === 'mix';
   const telemetryState: TelemetryState = !providerEntry
     ? 'PENDING_CONTRACT'
     : providerEntry.hasConnector
       ? 'CONNECTED'
       : 'PENDING_CONNECTOR';
+
+  /*
+   * ⚠️ A credencial da MiX é obrigatória, e a recusa é do backend.
+   *
+   * Escolher MiX sem os quatro campos responde 400, porque a validação acontece
+   * ANTES de a empresa ser criada: lá dentro, um campo faltando viraria empresa
+   * com provisionamento falho em vez de uma mensagem em quem preencheu. Barrar o
+   * avanço aqui é dizer a mesma coisa antes de a requisição sair.
+   */
+  const mixCompleta =
+    mixClientId.trim() !== '' &&
+    mixClientSecret.trim() !== '' &&
+    mixUsername.trim() !== '' &&
+    mixPassword.trim() !== '';
 
   const colorValid = /^#[0-9a-fA-F]{6}$/.test(color);
   const accentValid = accent === '' || /^#[0-9a-fA-F]{6}$/.test(accent);
@@ -126,44 +158,66 @@ export function ApprovalWizard({
 
   const stepValid = [
     !slugError && name.trim().length > 1 && ownerName.trim().length > 1 && emailValid,
-    true,
+    !usaMix || mixCompleta,
     colorValid && accentValid,
     true,
   ];
 
-  const canAdvance = stepValid[step] ?? false;
+  const canAdvance = (stepValid[step] ?? false) && !salvando;
   const isLast = step === STEPS.length - 1;
+  const cadastroDireto = request === null;
+
+  function telemetria(): TelemetrySetup {
+    if (usaMix) {
+      return {
+        provider: 'MIX',
+        mix: {
+          clientId: mixClientId.trim(),
+          clientSecret: mixClientSecret.trim(),
+          username: mixUsername.trim(),
+          password: mixPassword,
+        },
+      };
+    }
+    if (providerEntry) {
+      return { provider: 'OUTRO', providerName: providerEntry.label };
+    }
+    return { provider: 'NENHUM' };
+  }
 
   function handleConfirm() {
-    if (!request) return;
     onConfirm({
       slug,
-      name: name.trim(),
-      document: document.trim(),
+      plan,
       ownerName: ownerName.trim(),
       ownerEmail: ownerEmail.trim(),
-      telemetryProvider: providerEntry?.label ?? null,
-      telemetryState,
+      ...(commandRoleName.trim() ? { commandRoleName: commandRoleName.trim() } : {}),
+      telemetry: telemetria(),
       branding: {
         colorPrimary: color,
         ...(accent ? { colorAccent: accent } : {}),
         fontFamily: font,
       },
-      plan,
+      /* Só a venda ativa manda estes dois: na aprovação eles vêm da
+         solicitação, e mandá-los de volta deixaria a tela reescrever o que o
+         cliente declarou. */
+      ...(cadastroDireto ? { companyName: name.trim(), document: document.trim() } : {}),
     });
-    onOpenChange(false);
   }
 
-  if (!request) return null;
+  if (!open) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Aprovar {request.company}</DialogTitle>
+          <DialogTitle>
+            {cadastroDireto ? 'Cadastrar transportadora' : `Aprovar ${request.company}`}
+          </DialogTitle>
           <DialogDescription>
-            A aprovação parametriza e provisiona o ambiente, e cria apenas a credencial do Dono. Ele
-            define os cargos e cadastra o time depois.
+            {cadastroDireto
+              ? 'Venda ativa: o mesmo assistente da aprovação, com os dados da empresa digitados aqui. O ambiente é provisionado igual.'
+              : 'A aprovação parametriza e provisiona o ambiente, e cria apenas a credencial do Dono. Ele define os cargos e cadastra o time depois.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -183,13 +237,31 @@ export function ApprovalWizard({
                 setOwnerName,
                 ownerEmail,
                 setOwnerEmail,
+                commandRoleName,
+                setCommandRoleName,
                 slugError,
                 emailValid,
+                cadastroDireto,
               }}
             />
           )}
           {step === 1 && (
-            <StepTelemetry provider={provider} setProvider={setProvider} state={telemetryState} />
+            <StepTelemetry
+              {...{
+                provider,
+                setProvider,
+                state: telemetryState,
+                usaMix,
+                mixClientId,
+                setMixClientId,
+                mixClientSecret,
+                setMixClientSecret,
+                mixUsername,
+                setMixUsername,
+                mixPassword,
+                setMixPassword,
+              }}
+            />
           )}
           {step === 2 && (
             <StepBranding
@@ -207,13 +279,14 @@ export function ApprovalWizard({
               }}
             />
           )}
-          {step === 3 && <StepPlan plan={plan} setPlan={setPlan} fleetSize={request.fleetSize} />}
+          {step === 3 && <StepPlan plan={plan} setPlan={setPlan} fleetSize={request?.fleetSize} />}
         </div>
 
         <DialogFooter className="gap-2 sm:justify-between">
           <Button
             variant="ghost"
             onClick={() => (step === 0 ? onOpenChange(false) : setStep(step - 1))}
+            disabled={salvando}
           >
             {step === 0 ? 'Cancelar' : 'Voltar'}
           </Button>
@@ -221,7 +294,7 @@ export function ApprovalWizard({
             onClick={() => (isLast ? handleConfirm() : setStep(step + 1))}
             disabled={!canAdvance}
           >
-            {isLast ? 'Aprovar e provisionar' : 'Continuar'}
+            {isLast ? 'Criar e provisionar' : 'Continuar'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -282,7 +355,7 @@ function Field({
   children,
 }: {
   label: string;
-  hint?: string;
+  hint?: string | undefined;
   error?: string | undefined;
   children: React.ReactNode;
 }) {
@@ -310,13 +383,19 @@ function StepIdentity(props: {
   setOwnerName: (v: string) => void;
   ownerEmail: string;
   setOwnerEmail: (v: string) => void;
+  commandRoleName: string;
+  setCommandRoleName: (v: string) => void;
   slugError: ReturnType<typeof validateSlug>;
   emailValid: boolean;
+  cadastroDireto: boolean;
 }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Razão social">
+        <Field
+          label="Razão social"
+          hint={props.cadastroDireto ? 'Não há solicitação: o nome é digitado aqui.' : undefined}
+        >
           <Input value={props.name} onChange={(e) => props.setName(e.target.value)} />
         </Field>
         <Field label="CNPJ">
@@ -344,7 +423,7 @@ function StepIdentity(props: {
         <div>
           <p className="font-display text-sm font-semibold">Credencial do Dono</p>
           <p className="text-xs text-muted-foreground">
-            É a única conta que a aprovação cria. Ele recebe um link de convite por e-mail, define a
+            É a única conta que a criação faz. Ele recebe um link de convite por e-mail, define a
             senha e monta o próprio time.
           </p>
         </div>
@@ -363,6 +442,17 @@ function StepIdentity(props: {
             />
           </Field>
         </div>
+
+        <Field
+          label="Nome do cargo de comando (opcional)"
+          hint="O cargo que administra a empresa chama-se Dono por padrão. Se o cliente usa outro nome, como Diretoria, é aqui."
+        >
+          <Input
+            value={props.commandRoleName}
+            onChange={(e) => props.setCommandRoleName(e.target.value)}
+            placeholder="Dono"
+          />
+        </Field>
       </div>
     </div>
   );
@@ -372,14 +462,19 @@ function StepIdentity(props: {
 /* Passo 2: telemetria                                                         */
 /* -------------------------------------------------------------------------- */
 
-function StepTelemetry({
-  provider,
-  setProvider,
-  state,
-}: {
+function StepTelemetry(props: {
   provider: string;
   setProvider: (v: string) => void;
   state: TelemetryState;
+  usaMix: boolean;
+  mixClientId: string;
+  setMixClientId: (v: string) => void;
+  mixClientSecret: string;
+  setMixClientSecret: (v: string) => void;
+  mixUsername: string;
+  setMixUsername: (v: string) => void;
+  mixPassword: string;
+  setMixPassword: (v: string) => void;
 }) {
   return (
     <div className="space-y-5">
@@ -387,12 +482,12 @@ function StepTelemetry({
         label="Fornecedor de rastreamento"
         hint="A conta no fornecedor é do cliente. A RookHub intermedia a integração, não revende o rastreamento."
       >
-        <Select value={provider} onValueChange={setProvider}>
+        <Select value={props.provider} onValueChange={props.setProvider}>
           <SelectTrigger>
             <SelectValue placeholder="Selecionar fornecedor" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">Nenhum ainda</SelectItem>
+            <SelectItem value={SEM_FORNECEDOR}>Nenhum ainda</SelectItem>
             {TELEMETRY_PROVIDERS.map((p) => (
               <SelectItem key={p.value} value={p.value}>
                 {p.label}
@@ -403,22 +498,71 @@ function StepTelemetry({
         </Select>
       </Field>
 
-      {state === 'CONNECTED' && (
+      {props.usaMix && (
+        <div className="space-y-3 rounded-lg border border-border p-4">
+          <div>
+            <p className="font-display text-sm font-semibold">Credencial da conta na MiX</p>
+            <p className="text-xs text-muted-foreground">
+              É a conta que o cliente já tem na MiX, e não uma nossa. Sem os quatro campos a API
+              recusa a criação, antes de a empresa existir.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Client ID">
+              <Input
+                value={props.mixClientId}
+                onChange={(e) => props.setMixClientId(e.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Client secret">
+              <Input
+                type="password"
+                value={props.mixClientSecret}
+                onChange={(e) => props.setMixClientSecret(e.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Usuário">
+              <Input
+                value={props.mixUsername}
+                onChange={(e) => props.setMixUsername(e.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Senha">
+              <Input
+                type="password"
+                value={props.mixPassword}
+                onChange={(e) => props.setMixPassword(e.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            A credencial é gravada cifrada. As URLs da MiX não mudam por cliente e ficam na
+            configuração da API.
+          </p>
+        </div>
+      )}
+
+      {props.state === 'CONNECTED' && (
         <Callout tone="success" icon={CheckIcon} title="Conecta na aprovação">
           A credencial é gravada cifrada e a coleta começa assim que o ambiente ficar pronto.
         </Callout>
       )}
-      {state === 'PENDING_CONNECTOR' && (
+      {props.state === 'PENDING_CONNECTOR' && (
         <Callout tone="warning" title="Fornecedor sem conector implementado">
           O ambiente é liberado assim mesmo: a integração entra desativada e a tela de integrações
           do cliente mostra “aguardando conector”, em vez de frota vazia sem explicação. Hoje só a
           MiX tem conector.
         </Callout>
       )}
-      {state === 'PENDING_CONTRACT' && (
+      {props.state === 'PENDING_CONTRACT' && (
         <Callout tone="info" title="Sem contrato de rastreamento">
-          A RookHub indica o fornecedor homologado; a contratação é do cliente. O ambiente é
-          liberado e a telemetria entra depois, sem refazer o onboarding.
+          Escolha válida, e não pendência: a RookHub indica o fornecedor homologado, a contratação é
+          do cliente e o ambiente fica pronto do mesmo jeito. A telemetria entra depois, sem refazer
+          o onboarding.
         </Callout>
       )}
     </div>
@@ -452,7 +596,7 @@ function StepBranding(props: {
           <div className="flex items-center gap-2">
             <input
               type="color"
-              value={props.colorValid ? props.color : '#d5623a'}
+              value={props.colorValid ? props.color : DEFAULT_COLOR}
               onChange={(e) => props.setColor(e.target.value)}
               className="h-9 w-12 cursor-pointer rounded-md border border-border bg-transparent p-1"
               aria-label="Selecionar cor principal"
@@ -504,11 +648,12 @@ function StepBranding(props: {
           </Select>
         </Field>
 
-        <Field label="Logo" hint="PNG ou SVG, até 256 KB. Pode ser enviado depois pelo TI Topo.">
-          <Button variant="outline" size="sm" type="button" className="w-full">
-            Enviar arquivo
-          </Button>
-        </Field>
+        {/* ⚠️ O logo não cabe aqui: o envio é por rota própria e exige o id da
+            empresa, que só existe depois da criação. */}
+        <Callout tone="info" title="O logo entra depois">
+          Arquivo não viaja no corpo da criação. Abra a ficha da empresa, na aba Marca, e envie o
+          PNG ou SVG por lá.
+        </Callout>
       </div>
 
       <div className="space-y-2">
@@ -517,7 +662,7 @@ function StepBranding(props: {
         </p>
         <BrandPreview
           branding={{
-            colorPrimary: props.colorValid ? props.color : '#d5623a',
+            colorPrimary: props.colorValid ? props.color : DEFAULT_COLOR,
             fontFamily: props.font,
           }}
           companyName={props.name}
@@ -539,7 +684,8 @@ function StepPlan({
 }: {
   plan: PlanType;
   setPlan: (p: PlanType) => void;
-  fleetSize: number;
+  /** Ausente no cadastro direto, e em solicitação que não informou a frota. */
+  fleetSize: number | undefined;
 }) {
   return (
     <div className="space-y-4">
@@ -553,7 +699,7 @@ function StepPlan({
         {PLAN_ORDER.map((key) => {
           const definition = PLAN_DEFINITIONS[key];
           const selected = plan === key;
-          const tooSmall = definition.vehicleLimit < fleetSize;
+          const tooSmall = fleetSize !== undefined && definition.vehicleLimit < fleetSize;
           return (
             <button
               key={key}
@@ -577,6 +723,8 @@ function StepPlan({
               <p className="text-xs text-muted-foreground">{definition.description}</p>
               <div className="flex flex-wrap gap-1 pt-1">
                 <Badge variant="muted">{definition.modules.length} módulos</Badge>
+                {/* ⚠️ Referência comercial, e não trava: o backend não aplica
+                    limite de veículo nenhum hoje. */}
                 <Badge variant={tooSmall ? 'warning' : 'muted'}>
                   até {definition.vehicleLimit} veículos
                 </Badge>

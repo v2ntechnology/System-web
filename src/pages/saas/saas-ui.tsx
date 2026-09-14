@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { tenantDomain } from '@/app/tenant-slug';
-import { APPROVED_FONTS, TELEMETRY_HINT } from '@/mocks/saas';
+import { APPROVED_FONTS } from '@/app/fonts';
+import { TELEMETRY_HINT } from '@/mocks/saas';
 import { cn } from '@/lib/utils';
 import type { ProvisioningState, TelemetryState, TenantBranding } from '@/types';
 

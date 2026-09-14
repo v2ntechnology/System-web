@@ -90,6 +90,17 @@ export function TeamPage() {
 function EquipeReal() {
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
+
+  /*
+   * ⚠️ O dono vê SÓ quem ele convidou, desde 14/09/2026, a pedido do usuário.
+   *
+   * O quadro tem duas origens: motorista, que vem da telemetria, e conta de
+   * painel, que vem do nosso cadastro. Para o dono a pergunta é "quem tem acesso
+   * ao sistema", e os 132 motoristas empurram as contas para a segunda página de
+   * uma lista que ele abriu para ver outra coisa. O gestor e o operador
+   * continuam com o quadro inteiro, que é o que responde "quem pode rodar hoje".
+   */
+  const souDono = useSession()?.user.role === 'OWNER';
   /*
    * ⚠️ Guarda de TELA, e não de segurança: quem autoriza é a API, que exige
    * `team.manage` em cada uma destas rotas. `settings.manage` é a permissão que
@@ -135,10 +146,18 @@ function EquipeReal() {
 
   const reenvio = useMutation({
     mutationFn: (pessoa: TeamMember) => resendTeamInvite(pessoa.id),
-    onSuccess: (convite) => {
-      /* ⚠️ O link volta na resposta porque o envio por e-mail ainda não existe.
-         Mostrar o endereço é o que permite entregá-lo à pessoa hoje. */
-      toast.success('Convite reemitido.', { description: convite.acceptUrl });
+    onSuccess: (convite, pessoa) => {
+      /* ⚠️ O link só volta quando a entrega por e-mail está desligada. Com ela
+         ligada o campo é nulo, e um toast com descrição nula aparece vazio: quem
+         reemitiu ficaria sem saber se funcionou. Sem link, o que informa é o
+         destinatário. */
+      if (convite.acceptUrl) {
+        toast.success('Convite reemitido.', { description: convite.acceptUrl });
+      } else {
+        toast.success(
+          pessoa.email ? `Convite enviado para ${pessoa.email}.` : 'Convite reemitido.',
+        );
+      }
       recarregar();
     },
     onError: (causa) => avisarErro(causa, 'Não foi possível reemitir o convite.'),
@@ -153,7 +172,27 @@ function EquipeReal() {
     onError: (causa) => avisarErro(causa, 'Não foi possível desativar o acesso.'),
   });
 
-  const stats: HeroStat[] = data
+  const statsDoDono: HeroStat[] = data
+    ? [
+        {
+          key: 'acessos',
+          label: 'Pessoas com acesso',
+          value: data.staff - data.staffInactive,
+          hint: 'contas que entram no painel',
+          icon: UserIcon,
+        },
+        {
+          key: 'desativados',
+          label: 'Acessos desativados',
+          value: data.staffInactive,
+          hint: 'histórico preservado',
+          icon: LockIcon,
+          tone: data.staffInactive > 0 ? 'warn' : 'neutral',
+        },
+      ]
+    : [];
+
+  const statsDaOperacao: HeroStat[] = data
     ? [
         {
           key: 'quadro',
@@ -195,11 +234,20 @@ function EquipeReal() {
       ]
     : [];
 
+  const stats = souDono ? statsDoDono : statsDaOperacao;
+  const pessoas = souDono
+    ? (data?.people ?? []).filter((pessoa) => pessoa.kind === 'PAINEL')
+    : (data?.people ?? []);
+
   return (
     <>
       <HeroBand
         title="Equipe"
-        description="Quem dirige, quem tem acesso ao painel e quem apareceu na operação nos últimos 30 dias."
+        description={
+          souDono
+            ? 'Quem você convidou para o painel da empresa.'
+            : 'Quem dirige, quem tem acesso ao painel e quem apareceu na operação nos últimos 30 dias.'
+        }
       />
 
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
@@ -214,7 +262,9 @@ function EquipeReal() {
               <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
               {/* RN-121: o número vem com a procedência colada nele. */}
               <p className="text-on-surface-muted text-label-sm mt-3 normal-case">
-                Duas origens: cadastro da telemetria e cadastro do sistema.
+                {souDono
+                  ? 'Cadastro do sistema, e não da telemetria.'
+                  : 'Duas origens: cadastro da telemetria e cadastro do sistema.'}
               </p>
             </>
           ) : null}
@@ -233,7 +283,8 @@ function EquipeReal() {
           ) : null}
 
           <TeamRoster
-            people={data?.people ?? []}
+            people={pessoas}
+            somentePainel={souDono}
             {...(podeAdministrar
               ? {
                   onEditar: (pessoa: TeamMember) => abrirDialogo(pessoa),
@@ -243,23 +294,28 @@ function EquipeReal() {
               : {})}
           />
 
-          <div className="mt-6">
-            <PendingSource
-              title="Escala e documentação ainda não estão aqui"
-              description="Saber quem pode assumir viagem hoje exige escala e documento em dia. A telemetria diz quem dirigiu, e não quem está apto a dirigir."
-              requirements={[
-                'CNH com categoria e vencimento, que vem do RH e não do rastreador',
-                'Escala de trabalho, folga e afastamento',
-                'Exame toxicológico e curso obrigatório, quando a operação exigir',
-                'Segundo fator no acesso ao painel, que ainda não foi implementado',
-              ]}
-              meanwhile={[
-                { label: 'Jornada do dia e limite legal', to: '/gestao/motoristas' },
-                { label: 'Ranking de condução', to: '/gestao/desempenho' },
-                { label: 'Papéis e acesso', to: '/gestao/configuracoes' },
-              ]}
-            />
-          </div>
+          {/* ⚠️ Escala, CNH e toxicológico são sobre MOTORISTA: na tela do dono,
+              que só lista contas de painel, o bloco prometeria resolver uma
+              ausência que ele nem está vendo. */}
+          {souDono ? null : (
+            <div className="mt-6">
+              <PendingSource
+                title="Escala e documentação ainda não estão aqui"
+                description="Saber quem pode assumir viagem hoje exige escala e documento em dia. A telemetria diz quem dirigiu, e não quem está apto a dirigir."
+                requirements={[
+                  'CNH com categoria e vencimento, que vem do RH e não do rastreador',
+                  'Escala de trabalho, folga e afastamento',
+                  'Exame toxicológico e curso obrigatório, quando a operação exigir',
+                  'Segundo fator no acesso ao painel, que ainda não foi implementado',
+                ]}
+                meanwhile={[
+                  { label: 'Jornada do dia e limite legal', to: '/gestao/motoristas' },
+                  { label: 'Ranking de condução', to: '/gestao/desempenho' },
+                  { label: 'Papéis e acesso', to: '/gestao/configuracoes' },
+                ]}
+              />
+            </div>
+          )}
         </QueryState>
       </PageContent>
 

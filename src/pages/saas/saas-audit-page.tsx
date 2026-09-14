@@ -15,9 +15,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ApiErrorState, LoadingState } from '@/components/shared/states';
 import { formatDateTime } from '@/lib/format';
-import { useSaasStore } from '@/stores/saas-store';
-import { PLATFORM_ROLE_LABEL, type AuditKind, type SaasAuditEntry } from '@/mocks/saas';
+import { ACAO_ACESSO_DE_SUPORTE, useAuditLog, useTenants } from './saas-api';
+import { type SaasAuditEntry } from '@/mocks/saas';
 
 /**
  * Trilha de auditoria da plataforma, em duas abas.
@@ -28,30 +29,51 @@ import { PLATFORM_ROLE_LABEL, type AuditKind, type SaasAuditEntry } from '@/mock
  * aprovou uma solicitação" esconderia justamente o que precisa ser conferível.
  */
 export default function SaasAuditPage() {
-  const audit = useSaasStore((s) => s.audit);
-  const tenants = useSaasStore((s) => s.tenants);
+  const { tenants } = useTenants();
 
   const [search, setSearch] = useState('');
   const [tenantFilter, setTenantFilter] = useState('all');
 
-  const filter = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return (kind: AuditKind) =>
-      audit
-        .filter((e) => e.kind === kind)
-        .filter((e) => tenantFilter === 'all' || e.tenant === tenantFilter)
-        .filter(
-          (e) =>
-            !term ||
-            e.action.toLowerCase().includes(term) ||
-            e.actor.toLowerCase().includes(term) ||
-            (e.tenant ?? '').toLowerCase().includes(term) ||
-            (e.route ?? '').toLowerCase().includes(term),
-        );
-  }, [audit, search, tenantFilter]);
+  /*
+   * ⚠️ São DUAS consultas, e não uma dividida em memória.
+   *
+   * O acesso de suporte é filtrado pelo servidor, com `action=support.access`.
+   * Puxar tudo e separar aqui esconderia os acessos de suporte assim que o
+   * rastro administrativo passasse do teto de linhas da resposta, que é
+   * justamente o que não pode sumir da tela.
+   */
+  const administrativo = useAuditLog(tenantFilter === 'all' ? {} : { tenantId: tenantFilter });
+  const suporte = useAuditLog(
+    tenantFilter === 'all'
+      ? { action: ACAO_ACESSO_DE_SUPORTE }
+      : { action: ACAO_ACESSO_DE_SUPORTE, tenantId: tenantFilter },
+  );
 
-  const adminEntries = filter('admin');
-  const supportEntries = filter('support');
+  const filtrar = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (entries: SaasAuditEntry[]) =>
+      entries.filter(
+        (e) =>
+          !term ||
+          e.action.toLowerCase().includes(term) ||
+          e.actor.toLowerCase().includes(term) ||
+          (e.tenant ?? '').toLowerCase().includes(term) ||
+          (e.route ?? '').toLowerCase().includes(term),
+      );
+  }, [search]);
+
+  /* A consulta ampla traz o acesso de suporte junto: aqui ele sai, porque tem
+     aba própria. */
+  const adminEntries = filtrar((administrativo.data ?? []).filter((e) => e.kind !== 'support'));
+  const supportEntries = filtrar(suporte.data ?? []);
+
+  const carregando = administrativo.isPending || suporte.isPending;
+  const erro = administrativo.error ?? suporte.error;
+
+  if (carregando) return <LoadingState label="Carregando a auditoria" />;
+  /* ⚠️ 403 aqui significa conta de suporte: quem é auditado não audita a si
+     mesmo, e o `ApiErrorState` já diz isso em vez de "erro ao carregar". */
+  if (erro) return <ApiErrorState error={erro} />;
 
   return (
     <div className="space-y-6">
@@ -61,20 +83,16 @@ export default function SaasAuditPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <InfoCard
-          label="Eventos administrativos"
-          value={audit.filter((e) => e.kind === 'admin').length}
-          icon={ReportIcon}
-        />
+        <InfoCard label="Eventos administrativos" value={adminEntries.length} icon={ReportIcon} />
         <InfoCard
           label="Acessos de suporte"
-          value={audit.filter((e) => e.kind === 'support').length}
+          value={supportEntries.length}
           icon={ShieldCheckIcon}
           accent="info"
         />
         <InfoCard
           label="Empresas tocadas pelo suporte"
-          value={new Set(audit.filter((e) => e.kind === 'support').map((e) => e.tenant)).size}
+          value={new Set(supportEntries.map((e) => e.tenant)).size}
         />
       </div>
 
@@ -92,8 +110,10 @@ export default function SaasAuditPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas as transportadoras</SelectItem>
+            {/* ⚠️ O valor é o id, e não o nome: é por id que a API filtra, e é o
+                que continua valendo quando uma empresa muda de razão social. */}
             {tenants.map((t) => (
-              <SelectItem key={t.id} value={t.name}>
+              <SelectItem key={t.id} value={t.id}>
                 {t.name}
               </SelectItem>
             ))}
@@ -159,8 +179,10 @@ function AuditList({ entries }: { entries: SaasAuditEntry[] }) {
                 <p className="text-sm">{entry.action}</p>
                 {entry.tenant && <Badge variant="muted">{entry.tenant}</Badge>}
               </div>
+              {/* ⚠️ Sem o papel de quem agiu: a linha guarda o e-mail e o escopo,
+                  e o papel de hoje não é necessariamente o do dia do evento. */}
               <p className="text-xs text-muted-foreground">
-                {entry.actor} · {PLATFORM_ROLE_LABEL[entry.actorRole]} · {formatDateTime(entry.at)}
+                {entry.actor} · {formatDateTime(entry.at)}
               </p>
               {entry.route && (
                 <p className="mt-1 font-mono text-xs text-muted-foreground">

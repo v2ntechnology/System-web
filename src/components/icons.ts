@@ -58,6 +58,9 @@ export {
   LuPalette as PaletteIcon,
   LuBell as BellIcon,
   LuLock as LockIcon,
+  /* Redefinir senha. A chave é o gesto de entregar uma credencial nova, e não o
+     cadeado, que é o estado de estar trancado. */
+  LuKeyRound as KeyIcon,
   LuShieldCheck as ShieldCheckIcon,
   LuShieldAlert as ShieldAlertIcon,
   LuCreditCard as BillingIcon,
