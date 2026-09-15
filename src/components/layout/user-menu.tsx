@@ -50,6 +50,11 @@ export function UserMenu() {
           </span>
         </Button>
       </DropdownMenuTrigger>
+      {/* ⚠️ Nada de `saas-theme` aqui, ainda que este conteúdo seja portalizado
+          para o `body`: quem marca o `body` na área interna é o `app-shell.tsx`,
+          e este menu herda de lá. Repor a classe por componente foi a primeira
+          tentativa, e ela consertava este menu enquanto o modal do assistente
+          continuava laranja. */}
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel>
           <p className="text-sm font-medium">{user.name}</p>
@@ -73,20 +78,16 @@ export function UserMenu() {
             Plano e cobrança
           </DropdownMenuItem>
         )}
-        {showDemoControls && (
-          <>
-            <DropdownMenuSeparator />
-            <DemoMenu />
-          </>
-        )}
+        {/* ⚠️ UM traço só para o grupo inteiro. Antes cada bloco trazia o
+            próprio, e quando os dois apareciam juntos saíam duas linhas coladas
+            acima de "Administração SaaS", que lê como um grupo vazio no meio. */}
+        {(showDemoControls || hasPermission('saas.manage')) && <DropdownMenuSeparator />}
+        {showDemoControls && <DemoMenu />}
         {hasPermission('saas.manage') && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/admin-saas/dashboard')}>
-              <ShieldCheckIcon />
-              Administração SaaS
-            </DropdownMenuItem>
-          </>
+          <DropdownMenuItem onClick={() => navigate('/admin-saas/dashboard')}>
+            <ShieldCheckIcon />
+            Administração SaaS
+          </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
 

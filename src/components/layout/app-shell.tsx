@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router';
 
 import type { NavGroup } from '@/app/navigation';
@@ -37,13 +38,38 @@ export function AppShell({ navigation, navigationMode = 'sidebar' }: AppShellPro
      prometia o atalho antes de ele existir deste lado. */
   useAssistantShortcut();
 
+  /*
+   * ⚠️ O tema do backoffice vai no `body`, e não só na div abaixo.
+   *
+   * Radix monta modal, menu, seletor e tooltip em portal no `body`, FORA da
+   * árvore desta casca: tudo que é portalizado escapava do `.saas-theme` e
+   * voltava ao terracota do painel do cliente. Era visível no assistente de
+   * cadastro de transportadora, com o anel do campo, a pastilha do passo e o
+   * botão "Continuar" laranja dentro de uma tela azul.
+   *
+   * Repor a classe em cada conteúdo portalizado (como o `glass-modal.tsx` faz no
+   * painel de gestão) resolveria um por um e esqueceria o próximo. Marcar o
+   * `body` cobre o documento inteiro, que é o alcance real da área: enquanto o
+   * dev está no `/admin-saas`, não há tela de cliente montada em lugar nenhum.
+   */
+  useEffect(() => {
+    if (navigationMode !== 'topbar') return;
+
+    document.body.classList.add('saas-theme');
+    return () => document.body.classList.remove('saas-theme');
+  }, [navigationMode]);
+
   if (navigationMode === 'topbar') {
     return (
       <div className="saas-theme flex h-svh w-full overflow-hidden bg-background">
         <div className="relative flex min-w-0 flex-1 flex-col">
           <SaasTopbar navigation={navigation} />
           <main className="flex-1 overflow-y-auto">
-            <div className="w-full space-y-6 px-4 pb-8 pt-[5.25rem] sm:px-6 lg:px-8">
+            {/* ⚠️ Sem o recuo de topo de antes. A barra deixou de flutuar em
+                14/09/2026 e passou a ocupar linha própria, como a do painel de
+                gestão: o `pt-[5.25rem]` que compensava o flutuante virou um vão
+                vazio embaixo dela. */}
+            <div className="w-full space-y-6 px-4 pb-8 pt-2 sm:px-6 lg:px-8">
               <Outlet />
             </div>
           </main>

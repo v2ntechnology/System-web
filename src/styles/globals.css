@@ -89,11 +89,45 @@
   --color-primary-bright: #010066;
   --color-on-primary: #ffffff;
 
-  --secondary: #d5623a;
-  --secondary-foreground: #ffffff;
-  --color-secondary: #d5623a;
-  --color-secondary-container: #d5623a;
+  /*
+   * ⚠️ O terracota saiu daqui em 14/09/2026, a pedido do usuário.
+   *
+   * A área interna passou a ser azul de ponta a ponta, do logo à pastilha ativa,
+   * e o laranja no botão do cabeçalho brigava com a faixa marinho em vez de
+   * conversar com ela.
+   *
+   * ⚠️ Mas a secundária NÃO é o azul cheio, e isso foi corrigido no mesmo dia.
+   * Aqui ela é o papel de PREENCHIMENTO NEUTRO: é ela que o `ghost` do botão usa
+   * como fundo de hover (`hover:bg-secondary hover:text-secondary-foreground`).
+   * Com o #4348D9 cheio, clicar no nome no topo pintava uma pastilha azul forte,
+   * a bolinha do avatar (que é marinho a 15%) virava azul sobre azul e a inicial
+   * sumia dentro dela. O equivalente no painel do cliente é o `--color-fill`,
+   * um cinza claro, e não a marca cheia.
+   *
+   * O valor é o MESMO azul claro do hover da ação do cabeçalho, logo abaixo: um
+   * azul só para "superfície de apoio" em toda a área interna. A escrita por
+   * cima é o marinho cheio, 14,1:1 sobre ele.
+   */
+  --secondary: #dfe1fb;
+  --secondary-foreground: #010066;
+  --color-secondary: #dfe1fb;
+  --color-secondary-container: #2a2f9e;
+
+  /* Texto sobre o marinho, que é o que a pastilha ativa da navegação usa
+     (`bg-accent text-on-secondary` em `saas-topbar.tsx`). */
   --color-on-secondary: #ffffff;
+
+  /*
+   * ⚠️ Estes dois faltavam, e eram o terracota que sobrava na área interna.
+   *
+   * `--ring` é o anel de foco: ele acendia LARANJA em volta do nome no topo ao
+   * abrir e fechar o menu da conta, porque o bloco acima trocava a primária e
+   * esquecia o anel, que tem token próprio. `--color-primary-on-light` é a letra
+   * da bolinha do avatar, pelo mesmo motivo.
+   */
+  --ring: #4348d9;
+  --color-ring: #4348d9;
+  --color-primary-on-light: #010066;
 }
 
 /* Hierarquia visual exclusiva do backoffice: a abertura azul se repete nas
@@ -118,11 +152,32 @@
   color: color-mix(in srgb, var(--color-on-primary) 82%, transparent);
 }
 
+/*
+ * A ação do cabeçalho: BRANCA sobre a faixa marinho.
+ *
+ * ⚠️ Não é azul sobre azul de propósito, e o motivo é contraste medido. O azul
+ * claro (#4348D9) sobre a faixa (#010066) dá 2,1:1, abaixo do 3:1 que um
+ * componente de interface precisa para se separar do fundo: o botão sumiria
+ * dentro da faixa. Branco sobre a faixa dá 17,5:1, e o texto marinho sobre o
+ * branco dá 15,6:1.
+ *
+ * O `!important` continua porque a variante do botão traz a própria cor, e este
+ * bloco existe justamente para vencê-la dentro do backoffice.
+ */
 .saas-theme .page-header-actions > button,
 .saas-theme .page-header-actions > a {
-  background: var(--color-secondary) !important;
-  border-color: var(--color-secondary) !important;
-  color: var(--color-on-secondary) !important;
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: var(--color-primary) !important;
+  transition: background-color 150ms ease;
+}
+
+/* Hover simples, só troca de cor: um azul muito claro, que mantém o texto
+   marinho legível (13,8:1) e não mexe em sombra, escala nem borda. */
+.saas-theme .page-header-actions > button:hover,
+.saas-theme .page-header-actions > a:hover {
+  background: #dfe1fb !important;
+  border-color: #dfe1fb !important;
 }
 
 .saas-theme [data-slot='card'] {
@@ -720,6 +775,90 @@
   .voice-waveform--error .voice-wave-bar {
     background: var(--color-destructive);
     opacity: 0.35;
+  }
+}
+
+/*
+ * A placa de vidro da entrada da equipe: uma ILHA ESCURA sobre o gradiente.
+ *
+ * ⚠️ **As tintas não foram inventadas: são a rampa ESCURA da própria paleta**,
+ * reposta aqui dentro. Ela continua inteira em `palette.css` mesmo com o tema
+ * escuro desligado, e a decisão de mantê-la viva está registrada justamente para
+ * casos assim. Escolher cinzas à mão daria uma segunda rampa para manter.
+ *
+ * ⚠️ **Por que ilha ESCURA e não vidro claro.** O gradiente atrás anda do
+ * azul-petróleo quase preto até um turquesa claro, e o vidro claro só funciona
+ * enquanto o que passa por ele é escuro: quando a parte clara do campo chega sob
+ * a placa, o texto escuro perde o fundo. Medido na versão clara a 60%, o texto
+ * de apoio caía para 2,93:1. O véu escuro fixa o piso: o que atravessa muda de
+ * cor, não de claridade, e a tinta clara vale sempre.
+ *
+ * ⚠️ O campo de entrada vira branco a 10%, e não o `#171717` sólido da rampa: um
+ * poço opaco no meio de uma placa translúcida denuncia que a placa é um truque.
+ */
+/*
+ * ⚠️ Os 66% do véu e a tinta apagada saíram de MEDIÇÃO, não de gosto, e o pior
+ * caso não é o que parece. O gradiente não é escuro por inteiro: ele abre num
+ * ciano claro, e quando essa parte passa sob a placa é ali que o contraste
+ * desaba. Amostrando o pixel renderizado com o véu a 52%, o vidro sob o rodapé
+ * ficava em #04698D e as tintas caíam para 4,13:1 (rótulo) e 2,65:1
+ * (placeholder). A 66%, com a apagada clareada de `#a9a9b4` para `#c2c2cc`, as
+ * três passam. Baixar qualquer um dos dois é reprovar de novo.
+ */
+.vidro-da-plataforma {
+  background: rgb(5 26 38 / 0.66);
+  backdrop-filter: blur(28px) saturate(1.35);
+  -webkit-backdrop-filter: blur(28px) saturate(1.35);
+
+  /* O contorno da placa mora aqui, e não numa classe utilitária no JSX: assim
+     ele não depende de `--color-on-primary`, que muda logo abaixo. */
+  border: 1px solid rgb(255 255 255 / 0.3);
+
+  --color-on-surface: #f0f0f2;
+  --color-on-surface-variant: #d3d3da;
+  --color-on-surface-muted: #c2c2cc;
+  --color-surface-lowest: rgb(255 255 255 / 0.1);
+  --color-outline-variant: rgb(255 255 255 / 0.22);
+  --color-bright: #f8fafc;
+  --color-on-bright: #0b1a24;
+
+  /*
+   * ⚠️ **A primária vira BRANCA dentro da ilha** (pedido do usuário em
+   * 15/09/2026). Fora daqui ela é o marinho `#010066`, que é a cor da porta da
+   * equipe e funciona sobre papel; sobre o vidro escuro ela some. O que estava
+   * sumindo, e foi o que o usuário apontou, era o quadradinho do "Manter
+   * conectado" quando marcado: marinho cheio sobre azul escuro.
+   *
+   * `--color-on-primary` acompanha e vira escuro, porque agora é ele que
+   * escreve POR CIMA do branco: é o "v" dentro do quadradinho.
+   */
+  /*
+   * ⚠️ **`--primary` E `--color-primary`, os dois.** O bloco `@theme inline`
+   * deste arquivo declara `--color-primary: var(--primary)`, e o `inline` faz o
+   * Tailwind SUBSTITUIR a referência ao gerar o utilitário: `border-primary` sai
+   * como `border-color: var(--primary)`, sem passar pelo `--color-primary`.
+   *
+   * Repor só o `--color-primary` não muda nada, e o sintoma engana: medido no
+   * próprio campo, `--color-primary` lia `#ffffff` enquanto a borda renderizada
+   * era `rgb(213, 98, 58)`, o terracota. Parece que o navegador ignorou a
+   * variável; na verdade ele nunca a consultou.
+   */
+  --primary: #ffffff;
+  --primary-foreground: #0b1a24;
+  --color-primary: #ffffff;
+  --color-primary-strong: #ffffff;
+  --color-primary-on-light: #ffffff;
+  --color-on-primary: #0b1a24;
+  --ring: #ffffff;
+  --color-ring: #ffffff;
+}
+
+/* Sem `backdrop-filter` não há vidro, e sem o desfoque o gradiente atravessa com
+   todo o desenho: o véu fecha para quase opaco, que é a mesma saída que o
+   `glass.css` já usa nesse caso. */
+@supports not (backdrop-filter: blur(1px)) {
+  .vidro-da-plataforma {
+    background: rgb(5 26 38 / 0.9);
   }
 }
 
