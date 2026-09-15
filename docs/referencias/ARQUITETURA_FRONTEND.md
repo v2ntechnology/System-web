@@ -6,7 +6,7 @@ Este documento registra as principais decisões técnicas da fundação do front
 > A fundação continua valendo, mas a Fase 2 terminou de virar produto: autenticação, frota,
 > mapa, motoristas, segurança, assistente de IA, voz e notificações vêm da API real do
 > `Backend-web`, que está **em produção** em `https://api.rookhub.com.br`, com este painel em
-> `https://app.rookhub.com.br`. Os trechos que descrevem simulação seguem verdadeiros apenas
+> `https://dev.rookhub.com.br`. Os trechos que descrevem simulação seguem verdadeiros apenas
 > para os módulos ainda não ligados: painel operacional, custos, manutenção e multas.
 
 ## 1. Objetivo e escopo

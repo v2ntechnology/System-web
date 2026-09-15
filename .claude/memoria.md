@@ -31,7 +31,7 @@ tela) · Documentação e próximos passos · Gotchas
 - As telas consomem contratos e hooks de `src/services`; mocks são uma implementação desses
   contratos e podem ser substituídos por HTTP sem reescrever as páginas. Foi o que permitiu ligar
   a API módulo a módulo.
-- **O painel está no ar em `https://app.rookhub.com.br`** desde 02/09/2026, no Cloudflare Pages
+- **O painel está no ar em `https://dev.rookhub.com.br`** desde 02/09/2026, no Cloudflare Pages
   ligado ao repositório na `main`: push dispara build. Ele fala com a API real em
   `https://api.rookhub.com.br`. Detalhe em `../Backend-web/docs/INFRAESTRUTURA.md`.
 - O produto está dividido em **quatro** projetos irmãos, sem compartilhamento automático de
@@ -122,7 +122,7 @@ do usuário.
 
 ### O backoffice ganhou endereço próprio e dado real (12/09/2026)
 
-Pedido do usuário: `app.rookhub.com.br` vira a porta da equipe RookHub, e a Servioeste passa para
+Pedido do usuário: `dev.rookhub.com.br` vira a porta da equipe RookHub, e a Servioeste passa para
 `servioeste.rookhub.com.br`. É uma **fatia provisória** das fases 1 a 9, não elas.
 
 - **`app/tenant-host.ts`** decide o modo pelo hostname. ⚠️ **O padrão é `cliente`, de propósito**:
@@ -131,7 +131,7 @@ Pedido do usuário: `app.rookhub.com.br` vira a porta da equipe RookHub, e a Ser
 - ⚠️ **O espelho local é `*.localhost`, e é a forma de conferir a separação sem publicar**
   (12/09/2026). Todo navegador resolve qualquer subdomínio de `localhost` para 127.0.0.1 sozinho,
   por obrigação da RFC 6761, **sem ninguém editar arquivo de hosts**. Com UM servidor do Vite:
-  `http://app.localhost:5173` dá a entrada da plataforma e `http://servioeste.localhost:5173` a do
+  `http://dev.localhost:5173` dá a entrada da plataforma e `http://servioeste.localhost:5173` a do
   cliente, com o mesmo redirecionamento de produção. `localhost` puro segue sendo o de sempre, sem
   subdomínio e sem redirecionar, que é o que evita o laço. O `VITE_TENANT_SLUG` continua existindo
   como saída de emergência, para IP de rede ou pré-visualização do Pages.
@@ -293,6 +293,148 @@ O `Backend-web` fechou as fases 1 a 8, mais 6b e 6c, e a escrita de cargos. Todo
   nulo, e `vehicleLimit`/`userLimit` do `plans.ts` são referência comercial que o backend não aplica.
   ⚠️ `integrations` é business+ no `PLAN_DEFINITIONS`, então cliente starter não conecta telemetria:
   isso vem das definições que já estavam no painel, e mudar exige mudar os dois lados.
+
+### O backoffice vestiu o layout da gestão, em marinho (14/09/2026)
+
+A pedido do usuário, o `/admin-saas` deixou de ter desenho próprio e passou a usar o MESMO layout do
+painel do dono e do gestor: marca à esquerda, pastilhas de navegação no meio, notificação e conta à
+direita. A cor é o que separa os dois, e não a forma: quem conhece um já sabe usar o outro.
+
+- ⚠️ **A marca do backoffice é ARQUIVO, e não filtro CSS.** `BRAND_DEV` em
+  `components/shared/brand-assets.ts` aponta para `public/logo/rookhub-*-dev.svg`, a mesma torre das
+  empresas com a rampa de sete paradas repintada de terracota para marinho. A primeira tentativa
+  usava máscara e `brightness`, que achatam o gradiente da torre num azul chapado, que é o mesmo erro
+  que o próprio `brand-assets.ts` já documentava desde 30/08/2026.
+  ⚠️ **E quem troca a arte é o `useBrandAssets`, não cada componente.** Pôr a `BRAND_DEV` só na
+  `saas-topbar` deixou a torre do assistente de IA laranja no cabeçalho do drawer e na tela de
+  boas-vindas, dentro do backoffice. O gancho decide por **rota e por endereço**: `/admin-saas` ou
+  `modoDeAcesso() === 'plataforma'`. O endereço é o que faz falta na tela de entrada, que mora em `/`
+  e abria com a marca terracota do cliente na porta dos devs.
+  ⚠️ **A área interna tem DUAS artes, uma por tema.** A `BRAND_DEV_ON_DARK` aponta para os
+  `rookhub-*-dev-light.svg`, gerados em 14/09/2026 a partir dos `-dev` com a rampa subida dois
+  degraus (saem `#2A2F9E` e `#010066`, entram duas claras no topo) e a palavra invertida ("Rook" em
+  `#F8FAFC`, "Hub" em `#83A5EF`). Conferido lado a lado sobre o grafite: com a arte de papel o
+  "Rook" desaparece. ⚠️ O sufixo segue sendo a COR da arte: `-dev-light` é a arte clara da equipe,
+  e não "dev no tema claro". ⚠️ Como `DARK_MODE_ENABLED` é `false`, isso é preparação: não dá para
+  ver na aplicação hoje.
+- ⚠️ **Os três grupos do menu viram uma fila só.** `SaasTopbar` faz `groups.flatMap`: são poucas
+  telas por grupo, e pastilha agrupada em menu suspenso esconderia metade do produto atrás de um
+  clique. O menu com os grupos volta abaixo de `lg`, onde a fila não cabe e o rótulo do grupo ajuda.
+- ⚠️ **`.saas-theme` precisa repor `--ring`, `--color-ring` e `--color-primary-on-light`, e não só
+  `--primary`/`--secondary`.** Relatado pelo usuário em 14/09/2026: o nome do dev no topo acendia um
+  anel TERRACOTA ao abrir e fechar a caixinha de conta, numa tela toda azul. Anel de foco é token
+  próprio (ver `Anel de foco é ring-primary`), então trocar a cor da marca no escopo não o alcança.
+  Mesma história da letra sobre papel claro, que é `--color-primary-on-light`.
+- ⚠️ **O escopo do tema vai no `body`, e quem o marca é o `app-shell.tsx`.** Tudo que o Radix monta
+  em portal (modal, menu, seletor, tooltip) nasce no `body`, FORA da casca, e escapava do
+  `.saas-theme`: o rótulo "Super Admin" no menu de conta, e depois o anel do campo, a pastilha do
+  passo e o botão "Continuar" do assistente de cadastro, todos laranja dentro de uma tela azul. É a
+  armadilha que `management/ui/glass-modal.tsx` já documenta.
+  ⚠️ **Repor a classe em cada conteúdo portalizado é a correção errada**, e foi a primeira tentativa:
+  ela consertou o menu de conta e deixou todos os modais laranja, e esqueceria o próximo portal. O
+  `useEffect` do `AppShell` em modo `topbar` põe e tira `saas-theme` do `body`, o que cobre o
+  documento inteiro. Enquanto o dev está no `/admin-saas` não existe tela de cliente montada, então
+  o alcance global é o alcance certo. Verificado: ao sair, o `--ring` volta ao `#d5623a`.
+- ⚠️ **A secundária do `.saas-theme` é PREENCHIMENTO, e não a marca cheia.** O `ghost` do botão usa
+  `hover:bg-secondary hover:text-secondary-foreground`, e com `--color-secondary: #4348D9` clicar no
+  nome do dev no topo pintava uma pastilha azul forte: a bolinha do avatar, que é `bg-primary/15`,
+  virava marinho sobre azul e a inicial caía para **2,25:1**, reprovado. O papel equivalente no
+  painel do cliente é o `--color-fill`, um cinza claro. O valor passou a `#DFE1FB`, o mesmo azul do
+  hover da ação do cabeçalho, com escrita `#010066`: medido em 14/09/2026, o nome dá 13,7:1 e a
+  inicial na bolinha dá 9,9:1. ⚠️ `--color-on-secondary` continua BRANCO, porque quem o usa é a
+  pastilha ativa da navegação, que tem fundo `accent` marinho, e não fundo `secondary`.
+- ⚠️ **O botão de ação do cabeçalho é branco no backoffice, não terracota.** `.page-header-actions`
+  em `globals.css`: sobre a faixa marinho o laranja da marca briga, então a ação principal vira
+  branca com letra marinho, e o hover só fecha a cor um degrau (`#dfe1fb`), que é a mecânica de hover
+  de todo botão do sistema.
+- ⚠️ **Na tela de uma transportadora, voltar fica FORA da faixa e os estados no canto superior
+  direito DELA**, escolha do usuário em 14/09/2026 depois de três tentativas minhas. Voltar é
+  navegação: sai do cabeçalho e vira migalha (`variant="link"`) acima do azul, **sem sublinhado no
+  hover**, porque a resposta de alvo discreto neste sistema é a cor fechar um degrau, e não uma
+  forma nova aparecer (a seta ainda anda um fio para a esquerda). Os estados sobem pelo `actions`
+  com `className="sm:items-start"` no `PageHeader`, que vence o `sm:items-end` da base.
+  ⚠️ O que **não** funcionou, para não repetir: os dois soltos ao lado da faixa (boiavam fora do
+  retângulo, sem alinhamento); os dois dentro dela pelo `actions` com voltar virando pastilha, que
+  disputava atenção com o título; e os estados abaixo do endereço.
+  ⚠️ **O chip de estado não sobrevive à faixa como está**: `Badge` é a matiz a 15% com letra escura,
+  feito para papel, e sobre o marinho o fundo some e a letra some junto. O `BAND_PILL` da página
+  tira o fundo e põe traço e letra brancos, e quem segue dizendo o estado é o ponto colorido.
+- ⚠️ **A tela de uma empresa é `empresas/<slug>`, e não `empresas/<uuid>`** (pedido do usuário em
+  14/09/2026: `empresas/servioeste` se lê e se manda, o UUID enchia a barra de "a"). ⚠️ **A API
+  continua por id**: `GET /v1/saas/tenants/{id}` e as cinco rotas irmãs (marca, plano, suspender,
+  reativar, logo) são todas `@PathVariable UUID` no `SaasTenantController`, então quem traduz é a
+  tela, procurando o slug na lista. ⚠️ Por isso `useTenant` ganhou `enabled: id !== ''`: sem o id a
+  consulta dispararia `GET /v1/saas/tenants/` em toda visita direta. ⚠️ **E a ordem dos desvios da
+  tela importa**: consulta desligada é `isPending` para sempre, então quem responde "não existe" é a
+  LISTA, antes de olhar a ficha; ao contrário, um endereço inexistente carregaria sem fim.
+- ⚠️ **O ícone da aba na porta da equipe é trocado em tempo de execução** (`app/favicon.ts`, chamado
+  do `main.tsx`). O `index.html` é o mesmo arquivo para as duas portas, e só o endereço diz qual é.
+  ⚠️ Os dois `<link rel="icon">` são um par de `prefers-color-scheme`, escolhido pelo SISTEMA de
+  quem olha e não pelo tema da aplicação: trocar só um deixaria metade das máquinas com o ícone
+  terracota. Isso não tem relação com `DARK_MODE_ENABLED`, que segue `false`.
+- ⚠️ **O login da equipe tem casca própria** (`PlatformAuthLayout`), e não uma variante do
+  `AuthLayout`: uma coluna centrada no viewport, sem painel de marca, **sobre o papel limpo**.
+  ⚠️ **Vale só para o login**: esqueci minha senha, convite e sessão expirada seguem nas duas
+  colunas, também na porta da equipe.
+- ⚠️ **O fundo do login da equipe é o `SoffitGradient`, trazido pelo USUÁRIO em 15/09/2026.** Antes
+  dele passaram três tentativas minhas, todas recusadas no mesmo dia: uma torre girando em Three.js,
+  uma fileira tombando em dominó, e duas torres de contorno em SVG. Não propor uma quarta por conta
+  própria. ⚠️ É **WebGL2 puro**, um triângulo e um fragment shader, sem three.js: a paleta vive na
+  `CONFIG` do componente e **mexer no GLSL para trocar cor dá barro**, porque a rampa é percorrida
+  perceptualmente e as paradas foram postas umas contra as outras. `maxDpr` é 1 porque o custo de um
+  shader de tela cheia é quadrático na densidade de pixels.
+- ⚠️ **Duas armadilhas do `SoffitGradient`, as duas custaram a tela em branco.**
+  ⚠️ **Nunca `loseContext()` no cleanup de um efeito.** O contexto pertence ao CANVAS, não ao
+  efeito: perdê-lo inutiliza o elemento, e `getContext('webgl2')` devolve o mesmo contexto morto
+  depois. Com o `StrictMode` montando todo efeito duas vezes, a segunda montagem pegava o contexto
+  que a primeira matara, e **os dois shaders falhavam com log vazio, inclusive o vertex de três
+  linhas**. O sintoma parece GLSL quebrado e não é.
+  ⚠️ **Nada em pano de fundo pode lançar.** A primeira versão lançava quando o shader não compilava,
+  e como isso roda dentro de um efeito, o React desmontou a árvore: o login virou página em branco,
+  sem campo para digitar. Falha de fundo tem que sumir sozinha e deixar a cor de trás.
+- ⚠️ **O formulário da porta da equipe é uma ILHA ESCURA de vidro** (`.vidro-da-plataforma` em
+  `globals.css`), e as tintas dentro dela são a **rampa escura da própria paleta**, reposta. Ela
+  continua inteira em `palette.css` com o tema escuro desligado, e é para casos assim que foi
+  mantida. ⚠️ **Vidro CLARO não fecha ali, e foi medido**: o gradiente abre num ciano claro, e
+  quando essa parte passa sob a placa o texto de apoio caía para 2,93:1 a 60% de papel. Precisava de
+  80%, e a essa altura já não era vidro. Com véu escuro o que atravessa muda de cor, não de
+  claridade. Medido no fim: 7,39:1 no título, 5,65:1 no rótulo e rodapé, 4,76:1 no placeholder.
+- ⚠️ **`@theme inline` faz o utilitário apontar para o token SEM o prefixo `--color-`.** Este
+  arquivo declara `--color-primary: var(--primary)` dentro de `@theme inline`, e o `inline` manda o
+  Tailwind SUBSTITUIR a referência: `border-primary` sai como `border-color: var(--primary)`. Repor
+  só `--color-primary` num escopo não muda nada, e o sintoma engana: medido no próprio campo,
+  `--color-primary` lia `#ffffff` enquanto a borda renderizada era o terracota `rgb(213,98,58)`.
+  Parece que o navegador ignorou a variável; ele nunca a consultou. Escopo novo repõe **os dois**.
+- ⚠️ **A `.saas-theme` saiu do formulário do login.** Ela esteve lá enquanto a porta era um
+  formulário sobre papel claro, para os campos acenderem azul. Com a placa de vidro ela passou a
+  atrapalhar: fica DENTRO da ilha, vence por proximidade e devolve a primária ao marinho `#010066`,
+  que sobre o vidro escuro some. O sintoma foi o quadradinho do "Manter conectado" marcado.
+- ⚠️ **As proporções da torre vieram de pesquisa, e o levantamento sobreviveu às remoções.** Fica
+  aqui porque custou 53 buscas e 69 páginas, e porque a marca da RookHub É uma torre: se um dia
+  alguém precisar desenhar uma, não recomeça do zero. Normalizando a altura da peça em 1: diâmetro
+  da base **0,630** (Jaques 1849: 0,60; faixa comercial medida 0,53 a 0,69), altura da torre sobre a
+  do rei 0,57 (FIDE 5,5/9,5 = 0,579), **raio de apoio 0,300, que NÃO é o raio máximo 0,315**, porque
+  a base tem undercut; cintura em 0,200, coroa em 0,245, fundo do vão em 0,92. ⚠️ **O fuste é cônico
+  reto**: êntase, a barriga no meio, é do rei e da dama, e foi o erro mais visível da primeira
+  tentativa. ⚠️ Ameias: as peças históricas da Jaques dão SEIS, o raciocínio de fabricação dá
+  QUATRO, e de frente só se veem TRÊS. Em `LatheGeometry`, **ponto repetido é quina viva** e
+  `computeVertexNormals` depois do lathe abre costura na emenda.
+- ⚠️ **A porta da equipe não tem Google, e o formulário dela é azul.** Pedido do usuário em
+  14/09/2026: as três contas de dev vivem no `platform_users` e entram por e-mail e senha, então o
+  botão de SSO e o separador "ou" saem quando `naPlataforma`. ⚠️ **O `.saas-theme` entra só na coluna
+  do formulário**, e não no `AuthLayout`: o contorno e o anel dos campos são `primary` (ver
+  `FIELD_SURFACES`), mas o painel da esquerda é `bg-secondary`, e no escopo a secundária vira um azul
+  claro de preenchimento, o que transformaria o retângulo marinho numa mancha pálida. A porta do
+  cliente segue intacta, terracota e com Google: conferido no `servioeste.localhost`.
+- ⚠️ **Todo modal do backoffice tem o mesmo rodapé: as duas ações juntas à direita, a de sair em
+  `outline`.** É o do convite da equipe (`member-dialog.tsx`), que o usuário apontou como referência
+  em 14/09/2026, e que o `ConfirmDialog`, o convite da plataforma e a recusa de solicitação já
+  seguiam. O `approval-wizard` era o único fora: `sm:justify-between` jogava "Cancelar" para o canto
+  oposto e `ghost` tirava o traço, deixando a saída com cara de texto solto.
+- ⚠️ **Um traço só acima de "Administração SaaS".** `DemoMenu` e o item de administração traziam cada
+  um o próprio `DropdownMenuSeparator`, e com os dois visíveis saíam duas linhas coladas, que leem
+  como um grupo vazio no meio do menu. O separador agora é do grupo:
+  `{(showDemoControls || hasPermission('saas.manage')) && <DropdownMenuSeparator />}`.
 
 ### O painel do dono foi podado a duas telas (14/09/2026)
 
@@ -2479,7 +2621,7 @@ O fornecedor, os limites dele e as armadilhas da ingestão estão em
   os dois como `() => null` resolve.
 - ⚠️ **O `fetch` do Node não manda `Origin`, e é o `Origin` que escolhe a tabela de credenciais.**
   Num teste ou script que fale com a API, o login sem esse cabeçalho cai na empresa padrão, então
-  conta de plataforma responde "e-mail ou senha incorretos". Mandar `Origin: http://app.localhost:5173`
+  conta de plataforma responde "e-mail ou senha incorretos". Mandar `Origin: http://dev.localhost:5173`
   à mão é o que reproduz a porta certa.
 - ⚠️ **Apagar peça no Blender teleporta as filhas dela, e o estrago aparece longe do lugar.** Ao
   tirar o segundo eixo direcional do `cavalo-8x4` para gerar o `cavalo-6x4` (06/09/2026), 30 peças
