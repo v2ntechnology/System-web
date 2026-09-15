@@ -33,6 +33,8 @@ import {
 import { ApiError } from '@/services/http';
 import { modoDeAcesso } from '@/app/tenant-host';
 import { cn } from '@/lib/utils';
+import { BRAND_DEV_ON_DARK } from '@/components/shared/brand-assets';
+import { SOFFIT_BG, SoffitGradient } from '@/components/shared/soffit-gradient';
 import { useSessionStore } from '@/stores/session-store';
 
 /*
@@ -79,6 +81,66 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
     );
   },
 );
+
+/**
+ * A entrada da EQUIPE: uma coluna só, centrada no viewport, sobre o papel limpo.
+ *
+ * ⚠️ Layout separado do `AuthLayout`, e não uma variante dele (pedido do usuário
+ * em 14/09/2026). Os dois não têm nada em comum além do conteúdo: aqui não há
+ * painel de marca, não há grade de duas colunas e o bloco é centrado no
+ * VIEWPORT, e não dentro da própria coluna.
+ *
+ * ⚠️ **O fundo é o `SoffitGradient`, trazido pelo usuário em 15/09/2026**, e ele
+ * substituiu três tentativas minhas que foram recusadas no mesmo dia: uma torre
+ * de xadrez girando em Three.js, uma fileira tombando em dominó, e duas torres
+ * de contorno com o traço se desenhando. Não propor uma quarta por conta
+ * própria.
+ *
+ * ⚠️ **O bloco do formulário é uma ILHA ESCURA de vidro** (`.vidro-da-plataforma`
+ * em `globals.css`), e as tintas dentro dele vêm da rampa escura da paleta. Sem
+ * isso o conteúdo, escrito com a tinta do tema claro, ficaria preto sobre
+ * azul-petróleo.
+ *
+ * ⚠️ Vale só para o login. As outras telas públicas da porta da equipe (esqueci
+ * minha senha, convite, sessão expirada) seguem no `AuthLayout` de duas colunas.
+ */
+function PlatformAuthLayout({ children }: { children: ReactNode }) {
+  return (
+    <main
+      className="tela-proporcional [--altura-de-referencia:900px] management-theme relative overflow-hidden p-4 sm:p-6"
+      style={{ background: SOFFIT_BG }}
+    >
+      {/* O gradiente cobre a tela inteira, atrás de tudo. Ele é opaco, então a
+          cor do `main` não aparece enquanto ele estiver de pé. */}
+      <SoffitGradient className="absolute inset-0 h-full w-full" />
+
+      {/* `min-h-full` no filho: em janela baixa o bloco rola por dentro em vez
+          de sair pelo topo, que é a mesma salvaguarda da coluna do outro
+          layout. */}
+      <section className="relative h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-h-full items-center justify-center py-2">
+          {/*
+           * A placa de vidro que carrega o formulário.
+           *
+           * ⚠️ NÃO é a classe `.glass` do painel de gestão: no tema claro aquela
+           * classe tem `--glass-blur: 0px` e as paradas do traço transparentes,
+           * ou seja, ela é uma placa branca sólida. O vidro de verdade só existe
+           * na rampa escura dela, e esta tela é travada no claro.
+           *
+           * ⚠️ **O caminho do vidro CLARO foi tentado e medido, e não fecha.** A
+           * 60% de papel o texto de apoio, que é o rótulo, o rodapé e o "Esqueci
+           * minha senha", caía para 2,93:1 e reprovava; para passar era preciso
+           * 80%, e a essa altura já não era vidro. A saída é a ilha escura, onde
+           * a tinta clara vale sobre qualquer trecho do gradiente.
+           */}
+          <div className="vidro-da-plataforma w-full max-w-110 rounded-[28px] p-7 shadow-[0_32px_80px_-32px_rgba(3,16,24,0.8)] sm:p-8">
+            {children}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
 
 /**
  * Layout de duas colunas do login: painel de marca à esquerda, conteúdo à
@@ -304,21 +366,56 @@ export default function LoginPage() {
     if (formError) errorRef.current?.focus();
   }, [formError]);
 
+  /* Cada porta tem a própria casca: a da equipe é uma coluna centrada sobre o
+     gradiente, a do cliente continua nas duas colunas com o painel de marca. */
+  const Casca = naPlataforma ? PlatformAuthLayout : AuthLayout;
+
   return (
-    <AuthLayout>
-      <header>
+    <Casca>
+      {/* Centrado na porta da equipe, porque ali o bloco inteiro é o centro da
+          tela: um cabeçalho alinhado à esquerda dentro de uma coluna centrada
+          leria como desalinho. */}
+      <header className={naPlataforma ? 'text-center' : undefined}>
         {/*
          * Wordmark trocado por tema (`BrandLogo`, não `RookhubLogo`): aqui a
          * marca fica sobre a superfície, não sobre foto, então no claro entra a
          * arte colorida e no escuro a branca.
+         *
+         * ⚠️ Na porta da equipe a marca é a ARTE CLARA, escolhida à mão e não
+         * pelo gancho. O gancho decide pelo TEMA, e o tema aqui é o claro; quem
+         * é escuro é a placa de vidro, que é uma ilha. Sem esta exceção entraria
+         * a arte de papel, com a rampa marinho e o "Rook" em azul-noite, que
+         * desaparece sobre o vidro. O `BrandLogo` não serve porque ele também
+         * resolve o logo do cliente, e do lado da plataforma não existe cliente.
          */}
-        <BrandLogo className="h-13" />
+        {naPlataforma ? (
+          <img
+            src={BRAND_DEV_ON_DARK.wordmark}
+            alt="RookHub"
+            draggable={false}
+            className="mx-auto h-13 w-auto select-none object-contain"
+          />
+        ) : (
+          <BrandLogo className="h-13" />
+        )}
 
         <h1 className="font-sora text-on-surface mt-6 text-balance text-[24px] font-bold leading-8 sm:text-[26px] sm:leading-9">
           {naPlataforma ? 'Acesso da plataforma' : 'Bem-vindo de volta'}
         </h1>
       </header>
 
+      {/*
+       * ⚠️ **Sem `saas-theme` aqui.** Ele esteve neste lugar enquanto a porta da
+       * equipe era um formulário sobre papel claro: servia para o contorno e o
+       * anel dos campos, que são `primary` (ver `FIELD_SURFACES` em
+       * `management/ui/lib`), acenderem azul em vez de terracota.
+       *
+       * Com a placa de vidro ele passou a ATRAPALHAR: a `.saas-theme` fica dentro
+       * da `.vidro-da-plataforma`, então vence por proximidade e devolve a
+       * primária ao marinho `#010066`, que sobre o vidro escuro some. O sintoma
+       * era o quadradinho do "Manter conectado" marcado, marinho cheio sobre azul
+       * escuro. Quem define a cor dentro da placa agora é a própria placa.
+       */}
       <div className="mt-8">
         <form
           onSubmit={handleSubmit(onSubmit)}
@@ -403,23 +500,31 @@ export default function LoginPage() {
             )}
           </SpectrumButton>
 
-          <div className="my-3 flex items-center gap-4" aria-hidden="true">
-            <span className="bg-outline-variant h-px flex-1" />
-            <span className="text-label-sm text-on-surface-muted uppercase">ou</span>
-            <span className="bg-outline-variant h-px flex-1" />
-          </div>
+          {/* ⚠️ Nada de Google na porta da equipe (decisão do usuário em
+              14/09/2026): as três contas de dev vivem no `platform_users` e
+              entram por e-mail e senha. O separador vai junto, senão sobra um
+              "ou" anunciando um caminho que não existe. */}
+          {naPlataforma ? null : (
+            <>
+              <div className="my-3 flex items-center gap-4" aria-hidden="true">
+                <span className="bg-outline-variant h-px flex-1" />
+                <span className="text-label-sm text-on-surface-muted uppercase">ou</span>
+                <span className="bg-outline-variant h-px flex-1" />
+              </div>
 
-          <SpectrumButton
-            variant="ghost"
-            shape="pill"
-            size="xl"
-            block
-            onClick={onGoogleSignIn}
-            disabled={busy}
-          >
-            {ssoPending ? <Spinner label="Conectando" /> : <GoogleMark className="h-5 w-5" />}
-            Continuar com Google
-          </SpectrumButton>
+              <SpectrumButton
+                variant="ghost"
+                shape="pill"
+                size="xl"
+                block
+                onClick={onGoogleSignIn}
+                disabled={busy}
+              >
+                {ssoPending ? <Spinner label="Conectando" /> : <GoogleMark className="h-5 w-5" />}
+                Continuar com Google
+              </SpectrumButton>
+            </>
+          )}
         </form>
 
         {/* Convite comercial não tem o que fazer na entrada de quem já é da casa. */}
@@ -439,7 +544,7 @@ export default function LoginPage() {
       <footer className="text-label-md text-on-surface-variant mt-8 text-center normal-case">
         © {new Date().getFullYear()} RookHub · Gestão inteligente de frotas
       </footer>
-    </AuthLayout>
+    </Casca>
   );
 }
 
