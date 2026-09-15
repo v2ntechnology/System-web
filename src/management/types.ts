@@ -920,6 +920,15 @@ export interface AssistantMessage {
   /** Procedência já pronta para a tela. Vazio na mensagem do usuário. */
   sources: string[];
   createdAt: string;
+  /**
+   * O gráfico ou a tabela gravados COM a resposta (15/09/2026).
+   *
+   * ⚠️ É o retrato do instante da pergunta, e não um número recalculado agora:
+   * quem relê precisa ver o que foi dito, e o `createdAt` ao lado é quem diz
+   * quando foi apurado. Ausente na mensagem de quem perguntou e na maioria das
+   * respostas.
+   */
+  visual?: { chart?: AssistantAnswer['chart']; table?: AssistantTable | null } | null;
 }
 
 export interface AssistantAskResult {

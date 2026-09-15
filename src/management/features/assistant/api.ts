@@ -1,8 +1,12 @@
 import type {
+  AssistantAnswer,
   AssistantAskResult,
   AssistantConversation,
   AssistantMessage,
+  AssistantTable,
 } from '@/management/types';
+
+import type { VoiceGender } from '@/services';
 
 import { env } from '@/app/environment';
 import { mockAssistant } from '@/management/mocks/assistant';
@@ -37,6 +41,20 @@ interface AskResponseDto {
    */
   conversationId: string | null;
   conversationTitle: string | null;
+  /**
+   * O gráfico da resposta, quando a consulta que a respondeu produziu número
+   * comparável. Nulo na maioria das perguntas.
+   *
+   * ⚠️ Vem da CONSULTA do backend, não do modelo: a barra mostra o mesmo número
+   * que a frase diz, e não uma transcrição dele.
+   */
+  chart: {
+    kind: 'bar' | 'line';
+    unit: string;
+    series: { label: string; data: { x: string; y: number }[] }[];
+  } | null;
+  /** A lista, quando o que importa é quem e quando, linha por linha. */
+  table: { columns: string[]; rows: string[][] } | null;
 }
 
 /** Rótulo de cada bloco, para a resposta declarar em cima de que dado foi feita. */
@@ -85,6 +103,16 @@ export interface AskOptions {
    * tudo de qualquer forma.
    */
   save?: boolean | undefined;
+  /**
+   * O timbre que a pessoa escolheu, que é o que decide COMO A ASSISTENTE SE
+   * CHAMA: Lia na voz feminina, Dexter na masculina (pedido do usuário em
+   * 15/09/2026).
+   *
+   * ⚠️ Vai no corpo porque o backend não tem como saber: a preferência vive no
+   * `localStorage` desta máquina, e nunca subiu. Ausente, o backend usa o
+   * feminino, que é o mesmo padrão da tela.
+   */
+  voiceGender?: VoiceGender | undefined;
 }
 
 export async function ask(question: string, options: AskOptions = {}): Promise<AssistantAskResult> {
@@ -98,6 +126,7 @@ export async function ask(question: string, options: AskOptions = {}): Promise<A
       question,
       conversationId: options.conversationId ?? null,
       saveToHistory: options.save !== false,
+      voiceGender: options.voiceGender ?? null,
     }),
   });
 
@@ -106,6 +135,8 @@ export async function ask(question: string, options: AskOptions = {}): Promise<A
       id: `ans-${Date.now()}`,
       text: dto.answer,
       source: procedencia(dto.sources),
+      ...(dto.chart ? { chart: dto.chart } : {}),
+      ...(dto.table ? { table: dto.table } : {}),
     },
     conversationId: dto.conversationId ?? '',
     conversationTitle: dto.conversationTitle ?? '',
@@ -126,6 +157,9 @@ interface VoiceEventDto {
   answer?: string;
   sources?: string[];
   millis?: number;
+  /** O gráfico da resposta falada, quando a consulta produziu número comparável. */
+  chart?: AssistantAnswer['chart'] | null;
+  table?: AssistantTable | null;
 }
 
 /**
@@ -161,7 +195,17 @@ export async function converse(
    * sintetiza a confirmação, que por isso já sai na voz nova.
    */
   onVoiceChange?: (genero: 'FEMININA' | 'MASCULINA') => void,
-): Promise<{ text: string; sources: string[] }> {
+  /**
+   * O timbre no ar agora, que é o nome pelo qual ela se apresenta: Lia na voz
+   * feminina, Dexter na masculina. Ver `voiceGender` em `AskOptions`.
+   */
+  voiceGender?: VoiceGender,
+): Promise<{
+  text: string;
+  sources: string[];
+  chart?: AssistantAnswer['chart'];
+  table?: AssistantTable;
+}> {
   if (env.enableMocks) {
     const { answer } = await mockAssistant.ask(question, undefined, false);
     return { text: answer.text, sources: answer.source ? [answer.source] : [] };
@@ -169,7 +213,12 @@ export async function converse(
 
   const response = await httpStream('/v1/assistant/voice', {
     method: 'POST',
-    body: JSON.stringify({ question, history, ...(conversationId ? { conversationId } : {}) }),
+    body: JSON.stringify({
+      question,
+      history,
+      ...(conversationId ? { conversationId } : {}),
+      ...(voiceGender ? { voiceGender } : {}),
+    }),
   });
 
   /*
@@ -180,7 +229,12 @@ export async function converse(
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let restante = '';
-  let resultado: { text: string; sources: string[] } | null = null;
+  let resultado: {
+    text: string;
+    sources: string[];
+    chart?: AssistantAnswer['chart'];
+    table?: AssistantTable;
+  } | null = null;
 
   for (;;) {
     const { done, value } = await reader.read();
@@ -196,7 +250,12 @@ export async function converse(
       if (evento.type === 'consulting') onConsulting?.();
       if (evento.type === 'voice' && evento.gender) onVoiceChange?.(evento.gender);
       if (evento.type === 'answer') {
-        resultado = { text: evento.answer ?? '', sources: evento.sources ?? [] };
+        resultado = {
+          text: evento.answer ?? '',
+          sources: evento.sources ?? [],
+          ...(evento.chart ? { chart: evento.chart } : {}),
+          ...(evento.table ? { table: evento.table } : {}),
+        };
       }
     }
   }
@@ -225,11 +284,22 @@ export async function openVoiceSession(): Promise<VoiceSession> {
   return httpRequest<VoiceSession>('/v1/assistant/voice/session', { method: 'POST' });
 }
 
-export async function listConversations(): Promise<AssistantConversation[]> {
+/**
+ * As conversas de um canal.
+ *
+ * ⚠️ **São duas listas, e não uma.** O chat e a voz vivem em canais separados no
+ * banco: a conversa falada nasce assim que a tela de voz abre, antes de existir
+ * pergunta, e com título de data. Misturá-la à do chat encheria a lista de quem
+ * só escreve. Por isso a barra lateral da tela de voz pede `'voice'`, e o drawer
+ * do painel de gestão continua no padrão, que é `'chat'`.
+ */
+export async function listConversations(
+  channel: 'chat' | 'voice' = 'chat',
+): Promise<AssistantConversation[]> {
   if (env.enableMocks) return mockAssistant.list();
 
   const dto = await httpRequest<{ conversations: AssistantConversation[] }>(
-    '/v1/assistant/conversations',
+    `/v1/assistant/conversations?channel=${channel}`,
   );
   return dto.conversations;
 }

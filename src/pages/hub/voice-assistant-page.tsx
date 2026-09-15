@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { VoiceTurn } from '@/management/features/assistant/api';
 import { converse, loadMessages, openVoiceSession } from '@/management/features/assistant/api';
+import { AnswerChart } from '@/management/features/assistant/components/answer-chart';
+import type { AssistantAnswer, AssistantTable } from '@/management/types';
 import { useSpeechRecognition } from '@/management/features/assistant/use-speech-recognition';
 import {
   proximaEspera,
@@ -24,7 +26,7 @@ import {
 } from '@/management/features/assistant/voice-phrases';
 import { fetchAssistantVoices, synthesizeAssistantSpeech } from '@/services';
 import type { AssistantVoice, VoiceGender } from '@/services';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { AssistantSidebar } from './assistant-sidebar';
 import { criarDetectorDeFala, nivelDaFaixaDeFala } from './speech-detection';
@@ -249,38 +251,39 @@ export default function VoiceAssistantPage() {
    * tempo desde a última fala. Falhar aqui não pode impedir a conversa: sem
    * sessão, a tela funciona como antes, com o fio vivendo só no navegador.
    */
-  const sessaoQuery = useQuery({
-    queryKey: ['voice', 'session'],
-    queryFn: openVoiceSession,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
+  const queryClient = useQueryClient();
 
   /*
-   * ⚠️ Só REF aqui dentro, nunca estado.
+   * ⚠️ A conversa nasce quando a pessoa INICIA, e não quando a tela monta
+   * (decisão do usuário em 15/09/2026).
    *
-   * `setState` dentro de efeito é erro de lint neste projeto, e com razão. O que
-   * a tela desenha é derivado logo abaixo; o que este efeito faz é preparar o
-   * que as funções assíncronas leem: o identificador da sessão e o fio curto que
-   * vai na requisição. Sem devolver os turnos ao fio, a primeira pergunta depois
-   * de voltar chegaria ao modelo sem o que já foi dito, e um "e o outro?" não
-   * teria a que se referir.
+   * Era um `useQuery` no mount, e o servidor retomava a conversa das últimas
+   * seis horas. Com a regra nova, cada início é uma conversa própria: abrir no
+   * mount criaria uma conversa vazia só por alguém ter passado pela tela, e a
+   * lista encheria de conversa sem uma palavra dentro.
+   *
+   * Falhar aqui não pode impedir a conversa: sem sessão, a tela funciona como
+   * antes de 05/09/2026, com o fio vivendo só no navegador e nada sendo gravado.
    */
-  useEffect(() => {
-    const sessao = sessaoQuery.data;
-    if (!sessao || sessaoIdRef.current === sessao.conversationId) return;
-    sessaoIdRef.current = sessao.conversationId;
-    historyRef.current = sessao.turns.slice(-10);
-  }, [sessaoQuery.data]);
+  const abrirSessao = useMutation({
+    mutationFn: openVoiceSession,
+    onSuccess: (sessao) => {
+      sessaoIdRef.current = sessao.conversationId;
+      /* A lista da barra lateral é buscada quando ELA monta, e a conversa nasce
+         depois. Sem invalidar, ela só apareceria no próximo carregamento da
+         página, que é exatamente o "iniciei e não criou nada na lista". */
+      void queryClient.invalidateQueries({ queryKey: ['assistant-conversations'] });
+    },
+    onError: () => {
+      /* Sem sessão a conversa continua, só não é gravada: o fio vai no corpo da
+         requisição, como antes de existir gravação. */
+      sessaoIdRef.current = null;
+    },
+  });
 
-  /* O que a pessoa lê: o que já estava gravado, mais o que ela falou agora.
-     Derivado, e não um terceiro estado a manter em dia. */
-  const transcricao = useMemo(
-    () => [...(sessaoQuery.data?.turns ?? []), ...turnosDaVisita],
-    [sessaoQuery.data?.turns, turnosDaVisita],
-  );
+  /* O que a pessoa falou nesta conversa. Conversa nova nasce vazia, então não há
+     mais o que juntar do servidor. */
+  const transcricao = turnosDaVisita;
 
   /*
    * A transcrição desce sozinha a cada turno novo.
@@ -359,14 +362,19 @@ export default function VoiceAssistantPage() {
   }, [vozAtiva]);
 
   /**
-   * A última resposta, para a tela mostrar em texto o que foi falado.
+   * A última resposta.
    *
-   * Voz sem texto obriga a decorar. O gestor que ouviu "dois caminhões passaram
-   * do limite" precisa poder reler quais eram, e ler é mais rápido que pedir de
-   * novo.
+   * ⚠️ Não é mais mostrada em texto na tela (decisão do usuário em 15/09/2026):
+   * o que ela serve hoje é a fala de emergência pelo dispositivo, quando a
+   * síntese do servidor falha, pelo `lastAnswerRef` logo abaixo.
    */
   const [lastAnswer, setLastAnswer] = useState<string | null>(null);
-  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
+
+  /** O gráfico ou a tabela da última resposta falada. Nulo na maioria delas. */
+  const [visualDaVez, setVisualDaVez] = useState<{
+    chart?: AssistantAnswer['chart'];
+    table?: AssistantTable | undefined;
+  } | null>(null);
 
   /* Ref além do estado: o fallback de voz do dispositivo lê fora do render. */
   const lastAnswerRef = useRef<string | null>(null);
@@ -422,7 +430,6 @@ export default function VoiceAssistantPage() {
       transcriptRef.current = `${transcriptRef.current} ${texto}`.trim();
       ultimaTranscricaoRef.current = Date.now();
       detectorRef.current?.marcarFala(Date.now());
-      setLastQuestion(transcriptRef.current);
     },
     /*
      * ⚠️ `onSpeech` marca fala, mas NÃO marca transcrição, e a diferença é o
@@ -844,7 +851,11 @@ export default function VoiceAssistantPage() {
        * quem avisa é o backend, no instante em que o modelo pede a primeira
        * função.
        */
-      const { text: resposta } = await converse(
+      const {
+        text: resposta,
+        chart,
+        table,
+      } = await converse(
         pergunta,
         historyRef.current,
         sessaoIdRef.current,
@@ -867,6 +878,15 @@ export default function VoiceAssistantPage() {
            */
           trocarGenero(novoGenero);
         },
+        /*
+         * O timbre no ar, que é o nome pelo qual ela se apresenta: Lia na voz
+         * feminina, Dexter na masculina. Sai do REF da voz ativa, e não do
+         * gênero preferido, por dois motivos: é a voz que a pessoa ouve que
+         * precisa casar com o nome, e ler estado aqui dentro faria o React
+         * Compiler desistir de memoizar a tela inteira, como já acontece com
+         * `vozAtivaRef` na síntese logo abaixo.
+         */
+        vozAtivaRef.current?.gender,
       );
       if (controller.signal.aborted) return;
 
@@ -884,6 +904,13 @@ export default function VoiceAssistantPage() {
       /* Dez turnos, e o corte é aqui e não no servidor: a conversa falada não
          para, e mandar meia hora de histórico a cada pergunta encareceria cada
          resposta sem melhorar nenhuma. */
+      /* ⚠️ Só o VISUAL fica na tela, nunca o texto: a conversa é para ser ouvida
+         (ver a decisão de 15/09/2026 mais acima), mas um número comparado só
+         funciona visto. O gráfico da resposta anterior sai quando chega outra
+         pergunta, senão a tela mostraria o retrato errado enquanto a próxima é
+         respondida. */
+      setVisualDaVez(chart || table ? { chart, table } : null);
+
       const novos: VoiceTurn[] = [
         { role: 'user', text: pergunta },
         { role: 'assistant', text: resposta },
@@ -972,13 +999,31 @@ export default function VoiceAssistantPage() {
   async function startListening({ saudar }: { saudar: boolean } = { saudar: true }) {
     setErrorMessage(null);
     setLastAnswer(null);
-    setLastQuestion(null);
+    setVisualDaVez(null);
     transcriptRef.current = '';
     window.speechSynthesis?.cancel();
 
     if (saudar) {
       conversationActiveRef.current = true;
       setConversationOpen(true);
+
+      /*
+       * A conversa nova nasce AQUI, antes da saudação, e o `await` é de
+       * propósito: a primeira pergunta pode chegar em poucos segundos, e sem o
+       * identificador em mãos ela seria respondida fora de qualquer conversa e
+       * não ficaria gravada em lugar nenhum.
+       *
+       * ⚠️ `mutateAsync` rejeita quando a rota falha, e o `catch` é o que mantém
+       * a promessa de que falhar aqui não impede de conversar: o `onError` já
+       * limpou o identificador, e a conversa segue sem gravação.
+       */
+      historyRef.current = [];
+      try {
+        await abrirSessao.mutateAsync();
+      } catch {
+        /* Tratado no `onError`. */
+      }
+      if (!conversationActiveRef.current) return;
       // A saudação sai antes de abrir o microfone: falada por cima da escuta,
       // ela entraria na própria transcrição pelo alto-falante.
       await sayPhrase(proximaSaudacao());
@@ -1136,6 +1181,11 @@ export default function VoiceAssistantPage() {
   function endConversation() {
     closeConversation();
     historyRef.current = [];
+    /* ⚠️ A conversa encerrada não recebe mais nada (decisão do usuário em
+       15/09/2026). Sem soltar o identificador, o próximo "iniciar conversa"
+       gravaria os turnos novos dentro da conversa que a pessoa acabou de
+       fechar. */
+    sessaoIdRef.current = null;
     stopAudioCapture();
     /* Aqui ninguém espera o fim: a conversa acabou, e não há resposta para
        tocar depois dele. */
@@ -1192,15 +1242,20 @@ export default function VoiceAssistantPage() {
     setTurnosDaVisita([]);
   }
 
-  const turnosLidos: VoiceTurn[] =
+  /* O turno relido carrega o GRÁFICO gravado com ele, e a hora em que o número
+     foi apurado. Sem a hora, um gráfico de semana passada pareceria de agora. */
+  const turnosLidos: TurnoNaTela[] =
     conversaLida.data?.map((mensagem) => ({
       role: mensagem.role === 'user' ? 'user' : 'assistant',
       text: mensagem.content,
+      ...(mensagem.visual?.chart ? { chart: mensagem.visual.chart } : {}),
+      ...(mensagem.visual?.table ? { table: mensagem.visual.table } : {}),
+      apuradoEm: mensagem.createdAt,
     })) ?? [];
 
   /* Na conversa antiga a tela LÊ; na conversa da visita ela escreve. O painel é
      o mesmo, e o cabeçalho diz qual das duas está aberta. */
-  const turnosNaTela = conversaAberta === null ? transcricao : turnosLidos;
+  const turnosNaTela: TurnoNaTela[] = conversaAberta === null ? transcricao : turnosLidos;
 
   /*
    * ⚠️ A referência de 820px sai de MEDIÇÃO, e não de gosto (pedido do usuário
@@ -1340,16 +1395,21 @@ export default function VoiceAssistantPage() {
             para baixo e o começo do que foi dito sumia da tela. */}
         <section className="flex min-h-0 flex-1 items-start justify-center gap-8 py-8 lg:py-10">
           {/*
-           * A transcrição fica à ESQUERDA e a esfera no meio da sobra, e não uma
-           * embaixo da outra: a conversa é o registro do que já foi dito, e
-           * empilhada ela empurraria a esfera para fora da tela justamente
-           * quando a conversa fica longa.
+           * ⚠️ O painel SÓ aparece na conversa GRAVADA, aberta pela lista da
+           * barra lateral (decisão do usuário em 15/09/2026).
            *
-           * Some abaixo de 1024px. Numa tela estreita, ler a conversa e falar ao
-           * mesmo tempo não acontece, e o painel comeria o espaço da esfera, que
-           * é quem dá o retorno de que a assistente está ouvindo.
+           * Durante o bate-papo a tela não mostra o que está sendo dito: quem
+           * está falando não lê, e a transcrição crescendo ao lado disputava a
+           * atenção com a esfera, que é o único retorno de que a assistente está
+           * ouvindo. O registro não se perde, porque a conversa falada é gravada
+           * desde 05/09/2026: ela está em `Conversas`, na barra lateral, e é de
+           * lá que se volta a ela depois.
+           *
+           * Fica à ESQUERDA, e não embaixo, para a esfera não ser empurrada para
+           * fora da tela numa conversa longa. Some abaixo de 1024px, onde o
+           * painel comeria o espaço dela.
            */}
-          {turnosNaTela.length > 0 || conversaAberta !== null ? (
+          {conversaAberta !== null ? (
             <aside className="hidden min-h-0 w-80 shrink-0 flex-col self-stretch lg:flex xl:w-96">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1400,6 +1460,23 @@ export default function VoiceAssistantPage() {
                       {turno.role === 'user' ? 'Você' : 'Assistente'}
                     </p>
                     <p className="mt-1 whitespace-pre-line">{turno.text}</p>
+
+                    {/* ⚠️ O gráfico gravado volta COM a hora da apuração. Ele é o
+                        retrato do instante da pergunta, e mostrá-lo sem data
+                        faria um número de semana passada passar por número de
+                        agora, que é o motivo pelo qual antes ele não era
+                        guardado. */}
+                    {turno.chart || turno.table ? (
+                      <div className="mt-2 border-t border-border/50 pt-2">
+                        {turno.chart ? <AnswerChart chart={turno.chart} /> : null}
+                        {turno.table ? <TabelaDaResposta tabela={turno.table} /> : null}
+                        {turno.apuradoEm ? (
+                          <p className="mt-2 text-[10px] text-muted-foreground">
+                            Apurado em {horaDaApuracao.format(new Date(turno.apuradoEm))}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -1436,20 +1513,17 @@ export default function VoiceAssistantPage() {
               </p>
             </div>
 
-            {/* A resposta em texto abaixo da falada.
-                Voz sem texto obriga a decorar: quem ouviu "dois caminhões
-                passaram do limite" precisa poder reler quais eram, e ler é mais
-                rápido que perguntar de novo. */}
-            {lastAnswer ? (
-              <div className="mx-auto mt-6 max-w-2xl rounded-xl border border-border/60 bg-card/60 p-4 text-left backdrop-blur">
-                {lastQuestion ? (
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {lastQuestion}
-                  </p>
-                ) : null}
-                <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line sm:text-base">
-                  {lastAnswer}
-                </p>
+            {/* ⚠️ A resposta em TEXTO não aparece aqui (decisão do usuário em
+                15/09/2026): a conversa por voz é para ser ouvida, e o texto ao
+                lado da esfera transformava a tela num chat. Quem precisa reler
+                encontra tudo em `Conversas`, na barra lateral.
+                O GRÁFICO é outra coisa, e entra: "quarenta e um caminhões, todos
+                ativos" se ouve, mas a comparação entre as quatro situações só se
+                enxerga. */}
+            {visualDaVez?.chart || visualDaVez?.table ? (
+              <div className="mx-auto mt-6 w-full max-w-2xl rounded-xl border border-border/60 bg-card/60 p-4 text-left backdrop-blur">
+                {visualDaVez.chart ? <AnswerChart chart={visualDaVez.chart} /> : null}
+                {visualDaVez.table ? <TabelaDaResposta tabela={visualDaVez.table} /> : null}
               </div>
             ) : null}
 
@@ -1496,5 +1570,58 @@ export default function VoiceAssistantPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+/** Dia e hora da apuração, no formato que a barra lateral já usa para a data. */
+const horaDaApuracao = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'America/Sao_Paulo',
+});
+
+/** Um turno do painel: o texto, e o que foi desenhado com ele. */
+interface TurnoNaTela extends VoiceTurn {
+  chart?: AssistantAnswer['chart'];
+  table?: AssistantTable | undefined;
+  /** Quando o número foi apurado. Só nos turnos relidos de uma conversa gravada. */
+  apuradoEm?: string;
+}
+
+/**
+ * A lista que acompanha a resposta, quando o que importa é quem e quando.
+ *
+ * ⚠️ Rola na horizontal em vez de encolher a fonte: seis colunas de documento
+ * numa tela estreita ou quebram a página ou viram texto ilegível, e a segunda
+ * opção esconde justamente a data que faz a pessoa agir.
+ */
+function TabelaDaResposta({ tabela }: { tabela: AssistantTable }) {
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full text-left text-xs">
+        <thead className="text-muted-foreground">
+          <tr>
+            {tabela.columns.map((coluna) => (
+              <th key={coluna} className="whitespace-nowrap px-2 py-1 font-medium">
+                {coluna}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {tabela.rows.map((linha, indice) => (
+            <tr key={indice} className="border-t border-border/50">
+              {linha.map((celula, coluna) => (
+                <td key={coluna} className="whitespace-nowrap px-2 py-1">
+                  {celula}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

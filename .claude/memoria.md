@@ -2458,6 +2458,57 @@ que ele descubra sozinho que tem caminhão parado esperando decisão dele.
 
 ## Mapas, cenas e voz
 
+- ⚠️ **O gráfico aparece nos TRÊS lugares desde 15/09/2026**: no chat de texto, na tela de voz
+  durante a conversa e no histórico relido. Na tela de voz é a exceção deliberada à regra de não
+  mostrar texto: "quarenta e um caminhões, todos ativos" se ouve, mas a comparação entre as quatro
+  situações só se enxerga. O gráfico da resposta anterior sai quando chega outra pergunta, senão a
+  tela mostraria o retrato errado enquanto a próxima é respondida.
+- ⚠️ **No histórico, o gráfico volta COM a hora da apuração**, e é isso que resolve a objeção antiga
+  de não guardá-lo: ele é o retrato do instante da pergunta, e sem a data um número de semana
+  passada passaria por número de agora. O backend grava o documento na coluna `visual` da mensagem.
+- ⚠️ **O chat mostra gráfico e tabela com a API real desde 15/09/2026.** `AnswerChart` e a tabela do
+  `assistant-turn` existiam desde sempre, mas só o mock os preenchia: `ask` agora mapeia `chart` e
+  `table` do backend para o `AssistantAnswer`. Os números são os da consulta, não os do modelo.
+  ⚠️ Isto substituiu a regra anterior de NÃO devolver gráfico ao reabrir uma conversa: apagar o
+  retrato não protegia ninguém, só tirava do gestor o que ele tinha pedido. Agora ele volta, com a
+  hora ao lado.
+- ⚠️ **Cada início de conversa falada é uma conversa nova** (15/09/2026). A sessão deixou de abrir no
+  mount da tela (era `useQuery`) e passou a abrir no `startListening`, por `useMutation`: abrir no
+  mount criaria conversa vazia só por alguém passar pela tela. O `endConversation` solta o
+  `sessaoIdRef`, senão o próximo início gravaria dentro da conversa que a pessoa acabou de fechar.
+- ⚠️ **A lista da barra lateral é do canal `voice`, e era do `chat`** (15/09/2026). A sessão falada
+  nasce no banco assim que a tela abre, mas `GET /v1/assistant/conversations` tinha
+  `channel = 'chat'` fixo: a conversa existia, gravava turno e NUNCA aparecia na lista que promete
+  "o que você falar aqui aparece nesta lista". Agora o endpoint aceita `?channel=`, a barra lateral
+  pede `voice` e o drawer do painel de gestão segue no padrão `chat`. ⚠️ A chave da query leva o
+  canal (`['assistant-conversations', 'voice']`), senão as duas listas dividiriam o mesmo cache, e
+  a tela de voz **invalida essa chave quando a sessão abre**: a barra lateral busca ao montar, e a
+  sessão nasce depois dela.
+- ⚠️ **Nada de texto da conversa aparece na tela de voz** (15/09/2026, decisão do usuário). Saíram
+  DOIS blocos, e o segundo é o que costuma escapar: o painel da esquerda, que agora só aparece ao
+  ABRIR uma conversa gravada (`conversaAberta !== null`), e **o balão da última resposta embaixo da
+  esfera** (`lastAnswer` mais `lastQuestion`), que era o que mais fazia a tela parecer um chat. Isso
+  reverte o motivo original daquele balão, que era não obrigar quem ouviu a decorar o número. O
+  `lastQuestion` foi removido junto, porque não tinha outro consumidor; o `lastAnswer` ficou, e hoje
+  serve só à fala de emergência pelo dispositivo quando a síntese do servidor falha. Durante o bate-papo a tela não mostra o que está sendo dito: quem
+  fala não lê, e a transcrição crescendo ao lado disputava a atenção com a esfera, que é o único
+  retorno de que a assistente está ouvindo. Nada se perde, porque a conversa falada é gravada desde
+  05/09/2026 e continua em `Conversas`.
+- ⚠️ **A assistente se chama Lia na voz feminina e Dexter na masculina** (15/09/2026, pedido do
+  usuário), e quem decide é o TIMBRE, não a pessoa nem a empresa. O nome é montado no `Backend-web`,
+  a partir do `voiceGender` que a tela manda no corpo: a preferência vive no `localStorage` daqui e
+  o backend não teria como saber. Ausente, ele cai no feminino, o mesmo padrão da tela.
+- ⚠️ **A tela de voz manda `vozAtivaRef.current?.gender`, e não o `generoEfetivo` do estado.** Dois
+  motivos, e o segundo custou uma rodada de lint: o nome tem de casar com a voz que a pessoa
+  realmente ouve, e ler estado dentro daquela função assíncrona faz o React Compiler desistir de
+  memoizar a tela inteira (`Compilation Skipped: Existing memoization could not be preserved`, mais
+  três erros em linhas que ninguém tocou). O padrão do arquivo já era esse: a síntese logo abaixo lê
+  `vozAtivaRef.current?.id`.
+- O chat de texto manda o mesmo campo, lido de `lerGeneroPreferido()`: ele não fala, mas responde à
+  mesma pergunta, e dizer Lia no chat e Dexter na voz seriam duas assistentes para a mesma pessoa.
+  O mock tem a intenção `identity` **primeira na lista**, porque `find` pega a primeira que casa e
+  "qual é o seu nome" tem a palavra "nome", que aparece em pergunta de cadastro.
+
 - ⚠️ **Animação pesada degrada sozinha em hardware modesto** (pedido do usuário em 04/09/2026).
   `applyPerformanceProfile()` roda no `main.tsx` antes do primeiro render e marca a raiz com duas
   classes pela mesma heurística (4 núcleos ou 4 GB, ou preferência salva): `no-blur`, que já

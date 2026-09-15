@@ -6,6 +6,7 @@ import type {
 } from '@/management/types';
 
 import { MAX_ASSISTANT_CONVERSATIONS } from '@/management/types';
+import { lerGeneroPreferido } from '@/pages/hub/voice-preference';
 import { ApiError } from '@/services/http';
 
 import { delay } from './latency';
@@ -35,6 +36,28 @@ const INTENTS: {
   keywords: string[];
   build: () => Omit<AssistantAnswer, 'id'>;
 }[] = [
+  /*
+   * ⚠️ A identidade vem PRIMEIRO, e a ordem importa: `find` pega a primeira
+   * intenção que casar, e "qual é o seu nome" tem a palavra "nome", que aparece
+   * em pergunta de cadastro.
+   *
+   * O nome acompanha o timbre escolhido, igual ao backend: Lia na voz feminina,
+   * Dexter na masculina. Sem isso a demonstração recusaria a pergunta mais óbvia
+   * que alguém faz a uma assistente.
+   */
+  {
+    id: 'identity',
+    keywords: ['seu nome', 'se chama', 'quem e voce', 'quem voce e', 'qual voce e'],
+    build: () => {
+      const masculino = lerGeneroPreferido() === 'MASCULINA';
+      const nome = masculino ? 'Dexter' : 'Lia';
+      const artigo = masculino ? 'o' : 'a';
+      return {
+        text: `Eu me chamo ${nome}, sou ${artigo} assistente da RookHub. Acompanho a frota, o cadastro de motoristas e caminhões e onde cada veículo está.`,
+        source: 'Assistente RookHub',
+      };
+    },
+  },
   {
     id: 'cost-per-km-ranking',
     keywords: ['custo', 'caro', 'km', 'quilômetro', 'quilometro', 'gasto'],

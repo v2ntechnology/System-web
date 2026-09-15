@@ -2,6 +2,8 @@ import type { AssistantConversation, AssistantTurn } from '@/management/types';
 
 import { create } from 'zustand';
 
+import { lerGeneroPreferido } from '@/pages/hub/voice-preference';
+
 import {
   ask,
   deleteConversation,
@@ -133,7 +135,17 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     }));
 
     try {
-      const resultado = await ask(texto, { conversationId: get().conversationId ?? undefined });
+      /*
+       * O timbre escolhido sobe junto, porque é ele que decide o nome pelo qual
+       * ela se apresenta: Lia na voz feminina, Dexter na masculina. O chat não
+       * fala, mas responde à mesma pergunta ("qual é o seu nome"), e responder
+       * Lia aqui e Dexter na tela de voz seriam duas assistentes diferentes para
+       * a mesma pessoa.
+       */
+      const resultado = await ask(texto, {
+        conversationId: get().conversationId ?? undefined,
+        voiceGender: lerGeneroPreferido() ?? undefined,
+      });
 
       set((state) => ({
         conversationId: resultado.conversationId,

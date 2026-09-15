@@ -55,9 +55,14 @@ export function AssistantSidebar({
   const session = useSession();
   const queryClient = useQueryClient();
 
+  /* ⚠️ Canal `voice`: esta lista é a da tela de voz, e a promessa dela ("o que
+     você falar aqui aparece nesta lista") só se cumpre com as faladas. Até
+     15/09/2026 a consulta trazia o canal do chat, então a sessão criada ao abrir
+     a tela existia no banco, gravava turno e nunca aparecia aqui. A chave da
+     query leva o canal junto, senão as duas listas dividiriam o mesmo cache. */
   const conversas = useQuery({
-    queryKey: ['assistant-conversations'],
-    queryFn: listConversations,
+    queryKey: ['assistant-conversations', 'voice'],
+    queryFn: () => listConversations('voice'),
   });
 
   const apagar = useMutation({
