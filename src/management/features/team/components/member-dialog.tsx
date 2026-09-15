@@ -146,7 +146,7 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
     const destinatario = email.trim().toLowerCase();
 
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 px-5 pb-5 sm:px-6 sm:pb-6">
         <Alert severity="success">Convite enviado para {destinatario}.</Alert>
 
         {link ? (
@@ -192,7 +192,7 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
   }
 
   return (
-    <form onSubmit={gravar} className="flex flex-col gap-4">
+    <form onSubmit={gravar} className="flex flex-col gap-4 px-5 pb-5 sm:px-6 sm:pb-6">
       {erro ? <Alert severity="error">{erro}</Alert> : null}
 
       <GlassInput

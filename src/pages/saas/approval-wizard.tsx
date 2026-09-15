@@ -282,9 +282,15 @@ export function ApprovalWizard({
           {step === 3 && <StepPlan plan={plan} setPlan={setPlan} fleetSize={request?.fleetSize} />}
         </div>
 
-        <DialogFooter className="gap-2 sm:justify-between">
+        {/* ⚠️ As duas ações andam JUNTAS, à direita, e a de sair é `outline`.
+            É o rodapé que o convite da equipe já usa (`member-dialog.tsx`), e o
+            mesmo do `ConfirmDialog`, do convite da plataforma e da recusa de
+            solicitação: um padrão só para todo modal do backoffice. Aqui havia
+            `sm:justify-between`, que jogava "Cancelar" para o canto oposto, e
+            `ghost`, que tirava o traço e deixava a saída parecendo texto solto. */}
+        <DialogFooter className="gap-2">
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => (step === 0 ? onOpenChange(false) : setStep(step - 1))}
             disabled={salvando}
           >
