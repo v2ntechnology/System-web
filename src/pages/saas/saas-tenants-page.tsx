@@ -239,7 +239,7 @@ export default function SaasTenantsPage() {
           columns={columns}
           data={filtered}
           getRowId={(t) => t.id}
-          onRowClick={(t) => navigate(`/admin-saas/empresas/${t.id}`)}
+          onRowClick={(t) => navigate(`/admin-saas/empresas/${t.slug}`)}
           emptyState={
             <EmptyState
               icon={CompanyIcon}

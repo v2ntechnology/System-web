@@ -208,7 +208,7 @@ export default function SaasOverviewPage() {
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
-                      to={`/admin-saas/empresas/${tenant.id}`}
+                      to={`/admin-saas/empresas/${tenant.slug}`}
                       className="font-medium hover:underline"
                     >
                       {tenant.name}
@@ -287,7 +287,7 @@ export default function SaasOverviewPage() {
             .map((tenant) => (
               <Link
                 key={tenant.id}
-                to={`/admin-saas/empresas/${tenant.id}`}
+                to={`/admin-saas/empresas/${tenant.slug}`}
                 className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-0 hover:bg-muted/30"
               >
                 <div className="min-w-0">

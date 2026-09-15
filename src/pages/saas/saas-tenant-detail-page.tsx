@@ -52,6 +52,7 @@ import {
   uploadTenantLogo,
   useAuditLog,
   useTenant,
+  useTenants,
 } from './saas-api';
 import { SEEDED_ROLES, type SaasTenant, type SeededRole } from '@/mocks/saas';
 import type { PlanType, TenantBranding } from '@/types';
@@ -64,12 +65,40 @@ import {
   TelemetryHint,
 } from './saas-ui';
 
+/*
+ * A pastilha de estado quando ela fica SOBRE a faixa marinho.
+ *
+ * ⚠️ O chip padrão é a matiz a 15% com a letra da mesma matiz escurecida, e foi
+ * desenhado para papel branco (ver o bloco de `badge.tsx`): sobre o marinho o
+ * fundo some e a letra escura fica ilegível. Aqui o fundo sai, o traço e a
+ * escrita viram brancos, e quem continua dizendo qual é o estado é o ponto
+ * colorido, que o `StatusBadge` pinta com o token cheio. É o mesmo desenho do
+ * `HeroPill` do painel de gestão.
+ */
+const BAND_PILL = 'border-on-primary/70 bg-transparent px-3 py-1.5 text-on-primary';
+
 export default function SaasTenantDetailPage() {
-  const { tenantId = '' } = useParams();
+  const { tenantSlug = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const entrarEmSuporte = useSupportStore((state) => state.entrar);
+
+  /*
+   * ⚠️ A URL traz o ENDEREÇO da empresa, e a API trabalha por id.
+   *
+   * A lista é quem traduz: ela já está em cache quando se chega clicando, e numa
+   * visita direta (link colado, atualizar a página) ela carrega antes. O
+   * endereço é único por definição, é ele que dá o subdomínio do cliente.
+   *
+   * ⚠️ Traduzir no servidor exigiria o backend aceitar slug em `GET
+   * /v1/saas/tenants/{id}` e nas cinco rotas irmãs (marca, plano, suspender,
+   * reativar, logo), que hoje são todas `@PathVariable UUID`. Nada aqui muda
+   * para a API: só o que aparece na barra do navegador.
+   */
+  const lista = useTenants();
+  const daLista = lista.tenants.find((empresa) => empresa.slug === tenantSlug);
+  const tenantId = daLista?.id ?? '';
 
   const consulta = useTenant(tenantId);
   const tenant = consulta.data;
@@ -116,6 +145,32 @@ export default function SaasTenantDetailPage() {
     onError: (causa) => avisarErro(causa, 'Não foi possível trocar o plano.'),
   });
 
+  /*
+   * ⚠️ A lista responde ANTES da ficha, e a ordem destes desvios importa.
+   *
+   * Sem o id a consulta da ficha fica desligada, e uma consulta desligada é
+   * `isPending` para sempre: se o endereço não existisse, a tela ficaria
+   * carregando sem fim. Quem sabe se ele existe é a lista, então ela fala
+   * primeiro.
+   */
+  if (lista.carregando) {
+    return <LoadingState label="Carregando a transportadora" />;
+  }
+
+  if (lista.erro) {
+    return <ApiErrorState error={lista.erro} />;
+  }
+
+  if (!daLista) {
+    return (
+      <ErrorState
+        title="Transportadora não encontrada"
+        description={`Nenhuma empresa atende por "${tenantSlug}".`}
+        onRetry={() => navigate('/admin-saas/empresas')}
+      />
+    );
+  }
+
   if (consulta.isPending) {
     return <LoadingState label="Carregando a transportadora" />;
   }
@@ -147,22 +202,55 @@ export default function SaasTenantDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start gap-3">
+      {/*
+       * ⚠️ Voltar FORA da faixa, e os estados DENTRO dela, sob o endereço
+       * (decisão do usuário em 14/09/2026, depois de duas tentativas).
+       *
+       * Antes eram três blocos irmãos numa linha, com a seta solta à esquerda e
+       * as pastilhas soltas à direita, as duas boiando fora do retângulo azul.
+       * A segunda tentativa levou os dois para dentro da faixa, e voltar virou
+       * uma pastilha que disputava atenção com o título.
+       *
+       * O arranjo que ficou separa por natureza: voltar é navegação, sai do
+       * cartório da página e vira migalha em cima; "Pronto" e "Ativa" descrevem
+       * a empresa, então ficam colados no que descrevem, embaixo do endereço.
+       */}
+      <div className="space-y-3">
+        {/* ⚠️ Sem sublinhado no hover, que é o que `variant="link"` traz de
+            fábrica (decisão do usuário em 14/09/2026). A resposta é a mesma de
+            todo alvo discreto do sistema: a COR fecha um degrau, do cinza de
+            apoio para a tinta cheia, e a seta anda um fio para a esquerda,
+            dizendo para onde o clique leva. Nenhuma forma nova aparece. */}
         <Button
-          variant="ghost"
-          size="icon"
+          variant="link"
+          className="text-on-surface-variant hover:text-on-surface group h-auto gap-1.5 p-0 no-underline hover:no-underline"
+          aria-label="Voltar para a lista de transportadoras"
           onClick={() => navigate('/admin-saas/empresas')}
-          aria-label="Voltar para a lista"
         >
-          <ArrowLeftIcon className="h-4 w-4" />
+          <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+          Transportadoras
         </Button>
-        <div className="min-w-[240px] flex-1">
-          <PageHeader title={tenant.name} description={`${tenant.slug}.rookhub.com.br`} />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge descriptor={provisioningDescriptor(tenant.provisioningState)} />
-          <StatusBadge descriptor={tenantStatusDescriptor(tenant.status)} />
-        </div>
+
+        {/* Os dois estados no canto superior direito da faixa: `items-start`
+            sobe o grupo para a linha do título, em vez do rodapé do bloco de
+            texto, que é onde o `page-header` alinha por padrão. */}
+        <PageHeader
+          className="sm:items-start"
+          title={tenant.name}
+          description={`${tenant.slug}.rookhub.com.br`}
+          actions={
+            <>
+              <StatusBadge
+                descriptor={provisioningDescriptor(tenant.provisioningState)}
+                className={BAND_PILL}
+              />
+              <StatusBadge
+                descriptor={tenantStatusDescriptor(tenant.status)}
+                className={BAND_PILL}
+              />
+            </>
+          }
+        />
       </div>
 
       {tenant.provisioningState === 'FAILED' && (

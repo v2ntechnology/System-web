@@ -722,8 +722,20 @@ export function useTenants(): { tenants: SaasTenant[]; carregando: boolean; erro
   return { tenants: consulta.data ?? [], carregando: consulta.isPending, erro: consulta.error };
 }
 
+/**
+ * A ficha de uma empresa, por id.
+ *
+ * ⚠️ `id` vazio é estado legítimo, e não erro: a tela de detalhe entra pelo
+ * ENDEREÇO da empresa e só descobre o id depois que a lista chega. Sem o
+ * `enabled` a consulta dispararia um `GET /v1/saas/tenants/` na primeira
+ * renderização de toda visita direta a `/admin-saas/empresas/<slug>`.
+ */
 export function useTenant(id: string): UseQueryResult<SaasTenant> {
-  return useQuery({ queryKey: SAAS_KEYS.tenant(id), queryFn: () => fetchTenant(id) });
+  return useQuery({
+    queryKey: SAAS_KEYS.tenant(id),
+    queryFn: () => fetchTenant(id),
+    enabled: id !== '',
+  });
 }
 
 export function usePlatformMetrics(): UseQueryResult<PlatformMetrics> {

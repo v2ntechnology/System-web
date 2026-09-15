@@ -35,7 +35,7 @@ export default function SaasTelemetryPage() {
       id: 'tenant',
       header: 'Transportadora',
       cell: (t) => (
-        <Link to={`/admin-saas/empresas/${t.id}`} className="font-medium hover:underline">
+        <Link to={`/admin-saas/empresas/${t.slug}`} className="font-medium hover:underline">
           {t.name}
         </Link>
       ),
