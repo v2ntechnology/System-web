@@ -3,7 +3,7 @@
  *
  * A plataforma passa a ter dois tipos de porta (12/09/2026):
  *
- * - `app.rookhub.com.br` é a da equipe RookHub, e leva ao backoffice;
+ * - `dev.rookhub.com.br` é a da equipe RookHub, e leva ao backoffice;
  * - `<cliente>.rookhub.com.br` é a da transportadora, e leva ao painel dela.
  *
  * ⚠️ **Isto é experiência de uso, não segurança.** Quem manda é o papel no
@@ -19,7 +19,7 @@
  */
 
 /** Slug reservado à equipe RookHub. É a porta do Super Admin. */
-export const SLUG_PLATAFORMA = 'app';
+export const SLUG_PLATAFORMA = 'dev';
 
 /** Enquanto houver uma transportadora só, é para cá que o cliente é mandado. */
 export const SLUG_CLIENTE_PADRAO = 'servioeste';
@@ -31,7 +31,7 @@ const DOMINIO = 'rookhub.com.br';
  *
  * ⚠️ **Todo navegador resolve qualquer `*.localhost` para 127.0.0.1 sozinho**,
  * por obrigação da RFC 6761, sem ninguém editar arquivo de hosts. É o que deixa
- * `app.localhost:5173` e `servioeste.localhost:5173` valerem no MESMO servidor
+ * `dev.localhost:5173` e `servioeste.localhost:5173` valerem no MESMO servidor
  * do Vite, reproduzindo a separação de produção em vez de exigir uma variável de
  * ambiente e um reinício para trocar de modo.
  */

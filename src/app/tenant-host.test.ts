@@ -12,7 +12,7 @@ import {
 /**
  * A porta de entrada, por endereço.
  *
- * ⚠️ Estes casos existem porque o erro aqui não é cosmético: `app.rookhub.com.br`
+ * ⚠️ Estes casos existem porque o erro aqui não é cosmético: `dev.rookhub.com.br`
  * é o endereço que a Servioeste usa todo dia, e uma regra errada tira a operação
  * inteira do ar. O caso que mais importa é o último, o do laço.
  */
@@ -28,12 +28,12 @@ afterEach(() => {
 describe('slugDoEndereco', () => {
   it('lê o slug do subdomínio', () => {
     expect(slugDoEndereco('servioeste.rookhub.com.br')).toBe('servioeste');
-    expect(slugDoEndereco('app.rookhub.com.br')).toBe('app');
+    expect(slugDoEndereco('dev.rookhub.com.br')).toBe('dev');
   });
 
   it('não confunde domínio parecido com subdomínio nosso', () => {
     /* O sufixo checado inclui o ponto, então isto NÃO vira slug "app". */
-    expect(slugDoEndereco('rookhub.com.br.invasor.example')).not.toBe('app');
+    expect(slugDoEndereco('rookhub.com.br.invasor.example')).not.toBe('dev');
   });
 
   it('ignora maiúscula, porque endereço não diferencia', () => {
@@ -43,7 +43,7 @@ describe('slugDoEndereco', () => {
 
 describe('modoDeAcesso', () => {
   it('só o `app` é plataforma', () => {
-    expect(modoDeAcesso('app.rookhub.com.br')).toBe('plataforma');
+    expect(modoDeAcesso('dev.rookhub.com.br')).toBe('plataforma');
     expect(modoDeAcesso('servioeste.rookhub.com.br')).toBe('cliente');
   });
 
@@ -58,12 +58,12 @@ describe('modoDeAcesso', () => {
 
 describe('enderecoCerto', () => {
   it('manda quem não é super admin para fora do app', () => {
-    fingirHost('app.rookhub.com.br');
+    fingirHost('dev.rookhub.com.br');
     expect(enderecoCerto(false)).toBe(enderecoDoSlug(SLUG_CLIENTE_PADRAO));
   });
 
   it('deixa o super admin em paz no app', () => {
-    fingirHost('app.rookhub.com.br');
+    fingirHost('dev.rookhub.com.br');
     expect(enderecoCerto(true)).toBeNull();
   });
 
@@ -95,12 +95,12 @@ describe('enderecoCerto', () => {
 
 describe('enderecoDoSlug', () => {
   it('monta o endereço completo', () => {
-    expect(enderecoDoSlug(SLUG_PLATAFORMA)).toBe('https://app.rookhub.com.br');
+    expect(enderecoDoSlug(SLUG_PLATAFORMA)).toBe('https://dev.rookhub.com.br');
     expect(enderecoDoSlug('amazonas')).toBe('https://amazonas.rookhub.com.br');
   });
 
   it('⚠️ no espelho local mantém a porta, senão manda para um endereço morto', () => {
-    expect(enderecoDoSlug(SLUG_CLIENTE_PADRAO, 'app.localhost', '5173')).toBe(
+    expect(enderecoDoSlug(SLUG_CLIENTE_PADRAO, 'dev.localhost', '5173')).toBe(
       'http://servioeste.localhost:5173',
     );
   });
@@ -115,22 +115,22 @@ describe('enderecoDoSlug', () => {
  */
 describe('espelho em *.localhost', () => {
   it('lê o slug igual ao domínio de produção', () => {
-    expect(slugDoEndereco('app.localhost')).toBe('app');
+    expect(slugDoEndereco('dev.localhost')).toBe('dev');
     expect(slugDoEndereco('servioeste.localhost')).toBe('servioeste');
   });
 
   it('decide o modo igual à produção', () => {
-    expect(modoDeAcesso('app.localhost')).toBe('plataforma');
+    expect(modoDeAcesso('dev.localhost')).toBe('plataforma');
     expect(modoDeAcesso('servioeste.localhost')).toBe('cliente');
   });
 
   it('redireciona quem não é super admin, com a porta junto', () => {
-    fingirHost('app.localhost', '5173');
+    fingirHost('dev.localhost', '5173');
     expect(enderecoCerto(false)).toBe('http://servioeste.localhost:5173');
   });
 
   it('deixa o super admin em paz no app local', () => {
-    fingirHost('app.localhost', '5173');
+    fingirHost('dev.localhost', '5173');
     expect(enderecoCerto(true)).toBeNull();
   });
 

@@ -89,7 +89,7 @@ function RestoringSession() {
  * Manda para o endereço certo quem entrou pela porta errada.
  *
  * ⚠️ **Redireciona, não bloqueia, e a diferença é o que evita um incidente.**
- * `app.rookhub.com.br` é o endereço que a Servioeste usa desde sempre; barrar
+ * `dev.rookhub.com.br` é o endereço que a Servioeste usa desde sempre; barrar
  * ali tiraria a operação inteira do ar no dia da mudança. Quem não é super admin
  * entra normalmente e é levado para `servioeste.rookhub.com.br`, com a sessão
  * inteira: o cookie de refresh é do `api.`, que é same-site com os dois.
@@ -165,7 +165,7 @@ function ChangePasswordRoute({ children }: { children: ReactNode }) {
  * Exige a permissão de administração global da plataforma.
  *
  * ⚠️ **E o endereço certo, desde 12/09/2026.** O backoffice mora em
- * `app.rookhub.com.br`, e no endereço de uma transportadora ele nem aparece: um
+ * `dev.rookhub.com.br`, e no endereço de uma transportadora ele nem aparece: um
  * cliente vendo a lista de todos os outros é o vazamento que a tenancy existe
  * para impedir. Quem chegar por ali é mandado para o `app.`, em vez de levar uma
  * tela de erro.
@@ -424,7 +424,10 @@ const adminRoutes: RouteObject = {
     },
     { path: 'empresas', element: lazyElement(() => import('@/pages/saas/saas-tenants-page')) },
     {
-      path: 'empresas/:tenantId',
+      /* ⚠️ O ENDEREÇO da empresa, e não o id. `empresas/servioeste` se lê e se
+         manda por mensagem; o UUID não dizia nada e enchia a barra de "a". A
+         API continua sendo por id: quem traduz um no outro é a própria tela. */
+      path: 'empresas/:tenantSlug',
       element: lazyElement(() => import('@/pages/saas/saas-tenant-detail-page')),
     },
     { path: 'planos', element: lazyElement(() => import('@/pages/saas/saas-plans-page')) },
