@@ -1532,9 +1532,9 @@ enquanto ela está aberta e volta a esticar ao fechar.
   insistência; desligando `overscroll-behavior` no ar e repetindo o mesmo gesto, ela vai para 46,
   que é o fim dela. Toda caixa rolante nova desta tela precisa da mesma classe.
 - ⚠️ **A linha reta que o trajeto desenha em trecho sem rua NÃO é defeito do mapa** (apurado em
-  06/09/2026, a partir do RDU8D06). O desenho liga leitura a leitura, a consulta ordena por
+  06/09/2026, a partir do ABC1D23). O desenho liga leitura a leitura, a consulta ordena por
   `recorded_at` e a resposta real veio com zero pontos fora de ordem: a reta é a lacuna entre uma
-  posição e a seguinte. No RDU8D06 foram 413 posições em 72 horas, em 8 rajadas curtas, contra 46
+  posição e a seguinte. No ABC1D23 foram 413 posições em 72 horas, em 8 rajadas curtas, contra 46
   viagens no mesmo período somando centenas de quilômetros (41, 55, 73, 80 km): as VIAGENS chegam
   da MiX, as POSIÇÕES não chegam na mesma densidade. A frota inteira grava de 300 a 500 posições
   por veículo por dia, uma a cada 3 a 5 minutos, e não as 2.863 diárias que o comentário do
@@ -1542,11 +1542,11 @@ enquanto ela está aberta e volta a esticar ao fechar.
 - ⚠️ **E não é culpa de o backend local ficar desligado.** A coleta guarda `since_token` por fluxo
   e recupera retroativamente: a ingestão ficou 18 horas parada em 05/09 e, ao voltar às 21:42,
   gravou posições com `recorded_at` das 15:02 daquele dia, dentro da janela parada. Nas horas em
-  que o RDU8D06 ficou mudo, outros veículos reportaram normalmente. Antes de culpar o ambiente
+  que o ABC1D23 ficou mudo, outros veículos reportaram normalmente. Antes de culpar o ambiente
   local, comparar a lacuna do veículo com a da frota na mesma hora: se a frota reportou, o buraco
   é do fornecedor.
 - ⚠️ **CORREÇÃO (06/09/2026): era, sim, o backend local desligado.** A primeira conclusão foi
-  errada e a medição em produção provou: lá o mesmo RDU8D06 tem **13.565 posições em 72 horas**
+  errada e a medição em produção provou: lá o mesmo ABC1D23 tem **13.565 posições em 72 horas**
   contra 413 aqui, e **um único salto acima de 3 km** (3,3 km com zero minuto de intervalo, que é
   ruído de GPS, não lacuna). Produção roda 12 ciclos por hora, sem nenhuma parada acima de 30
   minutos em 7 dias, e grava de 4.000 a 4.400 posições por veículo por dia. A base local ficou
@@ -1554,7 +1554,7 @@ enquanto ela está aberta e volta a esticar ao fechar.
   cerca de 1.000 registros além do corrente, e 18 horas paradas acumulam 116 mil. Com o teto de 7
   dias do `sinceToken`, o que não for drenado nessa janela se perde de vez.
 - **Conclusão para quem for depurar: buraco no trajeto local não é bug, é a base local.** Antes de
-  investigar código, comparar com produção (`ssh lucas@144.22.177.229`, container
+  investigar código, comparar com produção (`ssh <usuario>@<ip-da-vm>`, container
   `rookhub-postgres-1`). Comparar também a lacuna do veículo com a da frota na mesma hora.
 - **O mapa passou a separar trecho MEDIDO de LACUNA** (06/09/2026), que é o `gaps=split` do OSRM
   feito por nós. `track-segments.ts` quebra a rota quando passa de 5 minutos ou 1 km entre
@@ -1584,7 +1584,7 @@ enquanto ela está aberta e volta a esticar ao fechar.
   para ele. Sem isso, uma curva de 90 graus acontecia num quadro e o modelo piscava. No arrasto do
   slider a perseguição é desligada, senão ele rodopiaria até alcançar a direção nova.
 - ⚠️ **Parada NÃO é lacuna, e isso só apareceu nos dados de produção.** Com o critério só de tempo,
-  o RDU8D06 tinha 70 "trechos sem leitura" em 24 h, quase todos o caminhão parado no pátio. A
+  o ABC1D23 tinha 70 "trechos sem leitura" em 24 h, quase todos o caminhão parado no pátio. A
   condição passou a exigir tempo longo E deslocamento acima de 50 m: os mesmos dados viraram **1
   lacuna e 2 trechos**, com 3.486 dos 3.495 pontos dentro de trecho contínuo.
 - **Validar algoritmo de trajeto com dado de PRODUÇÃO, não com o local.** O caminho usado: exportar
@@ -1980,7 +1980,7 @@ grande.
   inflada gera ALERTA FALSO, que é pior que não alertar, porque quem confere perde a confiança na
   cor. O corte também foi alinhado, de 15% para os **10%** de Custos, senão o mesmo veículo ficava
   âmbar numa tela e normal na outra.
-- **O impacto visível hoje é de UMA linha**: o QJC8352, a 3,46 km/l, deixa de ser destacado. O valor
+- **O impacto visível hoje é de UMA linha**: o DEF2G34, a 3,46 km/l, deixa de ser destacado. O valor
   da correção está na consistência e no dia em que a frota mudar, não no efeito imediato.
 - ✅ **A régua do front bate exatamente com a do backend.** Conferido em 09/09/2026 chamando as duas
   rotas: `aggregateFuel` sobre os 40 veículos dá **4,13 km/l**, o mesmo valor da métrica `consumo` de
@@ -2026,7 +2026,7 @@ litros dos abastecimentos lançados à mão, que é outra fonte e outra pergunta
   corte existe para o destaque significar alguma coisa: marcar tudo abaixo da média marcaria
   metade da lista por definição.
 - ⚠️ **O agrupamento EXPÕE o erro de cadastro em vez de escondê-lo**, e isso é proposital. Com os
-  dados de hoje, o TPS6B93 aparece em "Caminhão" fazendo 13,28 km/l, e a SET2H49 (uma Renault
+  dados de hoje, o GHI3J45 aparece em "Caminhão" fazendo 13,28 km/l, e a JKL4M56 (uma Renault
   MASTER) também. Os dois são erro de classificação, e agora estão visíveis para quem confere a
   ficha corrigir.
 
@@ -2106,7 +2106,7 @@ litros dos abastecimentos lançados à mão, que é outra fonte e outra pergunta
 - O cartão ganhou LEGENDA de cores logo abaixo do mapa, com quatro situações. ⚠️ Manutenção fica de fora por decisão do usuário: é a única das cinco que não vem da telemetria, e o card Em manutenção logo acima já a informa em número.
 - O rodapé mostra só o que a telemetria sabe: placa, motorista (ou "sem motorista identificado"),
   endereço quando houver, e velocidade. Chegada prevista saiu, porque não tem origem. Conferido na
-  tela: "BAW1F62, sem motorista identificado, Rua Presidente Costa e Silva, 254, Barra do Piraí,
+  tela: "MNO5P67, sem motorista identificado, Rua Exemplo, 000, Cidade,
   0 km/h".
 - ⚠️ O mapa só aparece com posição de verdade na mão. Cartão vazio é melhor que mapa com a frota
   de outra empresa.
