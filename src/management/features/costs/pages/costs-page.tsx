@@ -405,7 +405,7 @@ export function CostsPage() {
  *
  * ⚠️ **A conta de consumo foi corrigida no backend no mesmo dia.** Ela dividia a
  * quilometragem rodada de toda a frota pelos litros de quem informa, e dava 14%
- * a mais do que a realidade. O detalhe está em `Backend-web/docs/PLANO_DADO_REAL.md`.
+ * a mais do que a realidade. O detalhe está em `Backend-web/docs/TELEMETRIA.md`.
  */
 function CustosReais() {
   /*

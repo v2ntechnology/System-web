@@ -46,7 +46,7 @@
   proprietário e gestor) e segue as convenções **de origem**: organização por feature,
   exportação nomeada, primitivos próprios em `management/ui`. O que continua escopado em
   `.management-theme` é **forma**, não cor: raio de canto, vidro, Sora e o gradiente Spectrum.
-  A cor é comum aos dois painéis desde 19/08/2026. Ver `Painel de gestão` na memória antes de
+  A cor é comum aos dois painéis desde 19/08/2026. Ver `Os três painéis` na memória antes de
   editar.
 - Antes de fechar um marco, rodar e deixar limpo:
   `npm run format:check && npm run typecheck && npm run lint && npm run test && npm run build`.

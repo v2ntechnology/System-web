@@ -12,7 +12,7 @@
  * tela que não é dela.
  *
  * ⚠️ **Versão provisória.** O desenho definitivo está em
- * `docs/ONBOARDING_TRANSPORTADORAS.md`: o slug entra no login e num cabeçalho de
+ * `Backend-web/docs/INFRAESTRUTURA.md`: o slug entra no login e num cabeçalho de
  * toda requisição, e o backend resolve o schema do cliente a partir dele. Hoje
  * existe **uma** transportadora e o tenant vem da claim do token, então o
  * endereço ainda não escolhe dado nenhum.
