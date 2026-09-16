@@ -104,10 +104,19 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         }
 
         const anterior = turnos[turnos.length - 1];
+        /*
+         * O gráfico e a tabela voltam com a resposta, e não só no instante da
+         * pergunta: é para isso que a V31 guarda o `visual` junto da mensagem.
+         * Sem estas duas linhas a conversa relida perdia o retrato e voltava só
+         * como parágrafo, que era justamente o comportamento que a coluna nova
+         * veio corrigir.
+         */
         const resposta = {
           id: mensagem.id,
           text: mensagem.content,
           source: sourceLabel(mensagem.sources),
+          ...(mensagem.visual?.chart ? { chart: mensagem.visual.chart } : {}),
+          ...(mensagem.visual?.table ? { table: mensagem.visual.table } : {}),
         };
         if (anterior && !anterior.answer) {
           anterior.answer = resposta;
