@@ -57,9 +57,9 @@ const OPERATIONAL_NAV: NavEntry[] = [
     label: 'Frota',
     items: [
       {
-        to: '/gestao/caminhoes',
-        label: 'Caminhões',
-        hint: 'Situação, custo e manutenção',
+        to: '/gestao/patio',
+        label: 'Pátio',
+        hint: 'Quem está em cada filial, e o que pode sair hoje',
         module: 'FLEET',
       },
       {
@@ -108,6 +108,10 @@ const OPERATIONAL_NAV: NavEntry[] = [
 const OWNER_NAV: NavEntry[] = [
   { to: '/gestao', label: 'Visão geral', hint: 'Resumo da empresa', end: true },
   { to: '/gestao/equipe', label: 'Equipe', hint: 'Quem tem acesso ao painel' },
+  /* ⚠️ Cargos saiu do menu do gestor e passou a ser do Dono em 16/09/2026, a
+     pedido do usuário. Quem desenha a alçada da empresa é quem responde por
+     ela: `roles.manage` não é delegável, então a tela também não é. */
+  { to: '/gestao/cargos', label: 'Cargos', hint: 'Quem alcança o quê dentro da empresa' },
 ];
 
 /**
@@ -169,9 +173,9 @@ const MANAGER_NAV: NavEntry[] = [
            quando `end` é falso, então sem isto "Caminhões" acenderia junto com
            "Cadastro": dois itens ativos ao mesmo tempo no menu. Mesma armadilha
            que já apareceu em Motoristas. */
-        to: '/gestao/caminhoes',
-        label: 'Caminhões',
-        hint: 'Situação, custo e manutenção',
+        to: '/gestao/patio',
+        label: 'Pátio',
+        hint: 'Quem está em cada filial, e o que pode sair hoje',
         module: 'FLEET',
         end: true,
       },
@@ -194,11 +198,6 @@ const MANAGER_NAV: NavEntry[] = [
     label: 'Pessoas',
     items: [
       { to: '/gestao/equipe', label: 'Equipe', hint: 'Quadro completo e quem pode rodar hoje' },
-      {
-        to: '/gestao/cargos',
-        label: 'Cargos',
-        hint: 'Quem alcança o quê dentro da empresa',
-      },
       {
         /* ⚠️ `end` aqui, e não só no filho. `isItemActive` casa por prefixo
            quando `end` é falso, então sem isto "Motoristas" acenderia junto com
@@ -270,9 +269,9 @@ const OPERATOR_NAV: NavEntry[] = [
     label: 'Consulta',
     items: [
       {
-        to: '/gestao/caminhoes',
-        label: 'Caminhões',
-        hint: 'Situação, custo e manutenção',
+        to: '/gestao/patio',
+        label: 'Pátio',
+        hint: 'Quem está em cada filial, e o que pode sair hoje',
         module: 'FLEET',
       },
       {

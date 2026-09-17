@@ -88,9 +88,9 @@ export const FAVORITE_ROUTES: FavoriteRoute[] = [
     tone: 'secundaria',
   },
   {
-    to: '/gestao/caminhoes',
-    label: 'Caminhões',
-    hint: 'Situação, custo e manutenção',
+    to: '/gestao/patio',
+    label: 'Pátio',
+    hint: 'Quem está em cada filial, e o que pode sair hoje',
     icon: TruckIcon,
     tone: 'marca',
   },

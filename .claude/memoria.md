@@ -384,6 +384,199 @@ Gramática fechada, vale para `/gestao/liberacoes`, `/pareceres`, `/aprovacoes` 
 
 ## Telas que exigem cuidado
 
+### O pátio (`/gestao/patio`)
+
+Substituiu a tela "Caminhões" em 16/09/2026, a pedido do usuário. A lista com despesa do período
+respondia "quanto cada caminhão custou"; quem abre o painel de manhã pergunta olhando para um pátio
+físico: **o que está aqui, e o que dá para mandar rodar hoje**.
+
+- ⚠️ **A `trucks-page.tsx` continua no repositório**, com a despesa e o ranking junto, e não foi
+  apagada: devolvê-la é trocar o import na rota. Mesmo tratamento da `owner-home-page`.
+- ⚠️ **`/gestao/caminhoes` virou redirecionamento para `/gestao/patio`.** Onze lugares apontavam
+  para o endereço antigo (assistente, visão geral, custos, manutenção, dono), e o redirecionamento é
+  o que evitou mexer nos onze. ⚠️ Ele casa o caminho EXATO: `caminhoes/cadastro` é outra rota e
+  continua valendo.
+- ⚠️ **O pátio É a filial**, e é dado real: o campo `unit` da telemetria. Nesta frota são cinco
+  (Queimados 12, São Cristóvão 11, Barra do Piraí 6, Campos 6, GIG 5). Com "Todos os pátios" a grade
+  sai **agrupada por filial**, porque cada pátio é uma decisão separada.
+- ⚠️ **O prefixo do nome da filial é CALCULADO, não uma string fixa.** As cinco começam com
+  "SERVIOESTE - RJ ", e repetir isso em cada título e cada opção gasta a largura dizendo o que não
+  distingue ninguém. O corte é no último separador, senão "SANTOS" e "SANTO ANDRÉ" virariam "OS" e
+  "O ANDRÉ". Sem prefixo comum, o nome inteiro continua aparecendo.
+- ⚠️ **A FOTO DO FORNECEDOR NÃO ENTRA NA GRADE, e isso foi medido olhando a tela.** A MiX devolve
+  imagem em 15 dos 40 veículos, e são fotos de verdade: carro preto à noite, frente estourada de
+  flash, e um hatch laranja no cadastro de uma van. Numa lista passam; numa grade de quarenta
+  quadrinhos cada foto rouba o olho da placa. A silhueta padronizada vale para todos. A foto continua
+  na lista e na ficha.
+- ⚠️ **O veículo do cartão é `@imgs/truckCargoSide.png`**, a mesma imagem em todos, escolhida pelo
+  usuário em 16/09/2026 no lugar do vetor isométrico (`yard-vehicle-illustration.tsx`, que ficou sem
+  uso). É por isso que o TIPO vem escrito ao lado do modelo: a imagem não distingue van de caminhão.
+- ⚠️ **O arquivo foi APARADO antes de entrar**, e isso não é capricho: o original tinha 2000x2000
+  com o caminhão ocupando 788px de altura, ou seja, 60% de transparência. Dentro da vaga ele
+  apareceria como um risco no meio do cartão. Recortado e reduzido para 760x318, o peso caiu de
+  515KB para 191KB. **Imagem nova passa pelo mesmo corte**, e não por um `scale` na tela, que é o
+  remendo que a silhueta antiga precisava.
+- ⚠️ **O TRAÇO DA VAGA SAIU do cartão** (decisão do usuário em 16/09/2026). Era um box inclinado
+  (`skewY(-7deg)`) com marca de chão, que desenhava a perspectiva do vetor isométrico: com o veículo
+  de perfil virou uma diagonal atravessando o cartão, sem nada a que corresponder. Endireitá-lo foi o
+  passo intermediário, e o usuário pediu para tirar de vez. O que restou é `.yard-vehicle-figure`, só
+  o enquadramento, e o silêncio em volta do caminhão é de propósito. **Não redesenhar vaga sem
+  cadastro de vaga**, que é a mesma regra do "vaga vazia não é inventada" acima.
+- ⚠️ **Disponível fica SEM faixa de cor** (decisão do usuário: "livre é neutro, sem cor"). São 27 dos
+  40: com faixa verde em todos, o verde vira o fundo da tela e o azul de quem está na rua deixa de
+  saltar. O chip continua escrito em todos, então a informação não se perde. **Isto diverge da lista
+  de frota de propósito**, onde a faixa vale para os cinco estados.
+- ⚠️ **"Não informado" é ausência, e não valor.** A telemetria escreve isso no lugar do modelo, e sem
+  peneira o cartão dizia "Caminhão · Volkswagen Não informado".
+- ⚠️ **VAGA VAZIA NÃO É INVENTADA.** A referência visual trazia vagas numeradas com buracos, e isso
+  exige um cadastro de vagas que o produto não tem: desenhar "A-12 livre" seria número inventado na
+  tela de quem decide.
+- ⚠️ **O cartão LEVA à página do veículo** (`/gestao/patio/<placa>`), e por isso voltou a ser
+  clicável. O endereço é a PLACA, e não o id, pela mesma razão do `empresas/<slug>` do backoffice:
+  `patio/BAW1F62` se lê e se manda por mensagem. Quem traduz placa em veículo é a tela, procurando na
+  lista da frota, que já está em cache. ⚠️ **Como `<a>`, o cartão precisou de `display: block`** no
+  CSS, senão a âncora volta a ser inline e desmonta a grade, **e o teste precisou de `MemoryRouter`**,
+  senão `Link` estoura em "Cannot destructure basename".
+
+### A ficha do veículo (`/gestao/patio/<placa>`)
+
+Desenhada em 16/09/2026 a partir de três referências de dashboard que o usuário trouxe. Faixa laranja
+com **Manual** e volta para o pátio, barra lateral de seções, e a grade de blocos.
+
+- ⚠️ **SEIS DOS NOVE BLOCOS PEDIDOS NÃO TÊM ORIGEM, e a tela DIZ isso.** Consumo (`fuelEfficiency`
+  volta nulo), nível de tanque (não existe campo), acelerador (só há `max_rpm` por jornada, que é
+  outra coisa), eficiência de rota (exige rota planejada, que o produto não tem), pneu (exige TPMS ou
+  inspeção) e cliente/frete (não existe módulo). Cada bloco aparece com a FORMA dele e uma frase
+  dizendo o que falta e de onde viria. **Não preencher com valor de exemplo**: é a regra do produto,
+  e aqui ela vale para cinco blocos ao mesmo tempo.
+- ⚠️ **O que é real**: o rastro do mapa (`/v1/vehicles/{id}/track`, 622 pontos em 24h no BAW1F62), o
+  condutor, a quilometragem por dia, os eventos de condução e o manual.
+- ⚠️ **O mapa é o PERCORRIDO, não uma rota planejada.** A referência mostrava origem, destino e
+  chegada estimada; sem ordem de frete não há destino a desenhar.
+- ⚠️ **O mapa da ficha é o MESMO `FleetMap` do `/gestao/mapa`** (pedido do usuário em 16/09/2026), com
+  a lista de posições reduzida a um veículo. Um mapa próprio chegou a existir aqui e foi apagado: o
+  desenho do caminhão, o crachá da placa, a inclinação e o tratamento de lacuna já estavam resolvidos
+  no outro, e a segunda implementação divergiria na primeira correção. **Não recriar mapa por tela.**
+- ⚠️ **`prepararTrajeto` é obrigatório antes de mandar o rastro ao mapa**, e não é enfeite: ele separa
+  trecho medido de lacuna. Com a lista crua, o mapa liga leitura a leitura sem saber quanto tempo
+  passou entre as duas e desenha como percurso uma reta de 20km que ninguém mediu.
+- ⚠️ **O `track` precisa de `useMemo` próprio.** Sendo um ternário no corpo do componente, a
+  referência muda a cada render e o `prepararTrajeto` reprocessava os 622 pontos toda vez. O lint
+  aponta isso, e o aviso é verdadeiro.
+- ⚠️ **A barra lateral é navegação DA PÁGINA**, e não do produto: o menu é a barra superior, e uma
+  segunda navegação global brigaria com ela. Os nomes vieram da referência em inglês; "Viagens" e
+  "Cliente" existem porque foram pedidos, e explicam o que o produto não tem.
+- ⚠️ **O cadastro entra na ficha só pelo número de eixos**, com a MESMA chave do manual
+  (`vehicle-registry`): os dois dividem o cache, então abrir o manual depois não vai ao servidor.
+- ⚠️ **`RKH0T99` é a PLACA DE DEMONSTRAÇÃO** (`mocks/demo-vehicle.ts`), criada a pedido do usuário
+  para ver a ficha cheia enquanto cinco blocos não têm origem. Ela **não vem da API, não aparece no
+  pátio e não entra em contagem nenhuma**: só é alcançada pelo endereço direto. A ficha dela mostra
+  uma faixa de aviso permanente, porque um print desta tela numa reunião vira número de cliente.
+- ⚠️ **O Manual da placa de demonstração é resolvido na FRONTEIRA (`api.ts`), e não com cache
+  plantado.** `setQueryData` foi tentado e não resistiu: o diálogo revalida em segundo plano, a
+  requisição de uma placa inexistente falha, e o erro vence o dado do cache. Quem decide mock contra
+  real é o `api.ts`, como no resto da feature.
+- ⚠️ **O desenho dos blocos de medida mora num molde só, o `MetricCard`.** Ele nasceu do bloco de
+  Eficiência da rota, que ganhou tratamento próprio (fundo pêssego, número gigante em marinho, selo
+  redondo terracota e rodapé de duas colunas), e o usuário pediu para repetir nos demais. Repetir à
+  mão em cinco lugares é o caminho para eles divergirem na primeira alteração. ⚠️ **As cores do
+  desenho original eram hexes literais** (`#fff8f5`, `#010066`, `#d5623a`, `#52607a`) e foram
+  trocadas por token na extração: o pêssego é a terracota a 5% sobre o branco, e o número é
+  `--accent`.
+- ⚠️ **Ligar e mandar mensagem para o motorista dependem do TELEFONE, que a rota do veículo não
+  traz**: ela devolve o NOME do condutor, e o telefone mora na ficha do motorista, buscada por id. Os
+  dois botões aparecem **desabilitados dizendo o porquê**, em vez de sumirem, senão a ficha muda de
+  forma conforme o dado. Na placa de demonstração eles funcionam (`tel:` e `wa.me`).
+- ⚠️ **O meio do cartão do condutor é odômetro e sincronização**, e existe para fechar um buraco:
+  numa linha em que o vizinho é o mapa, o cartão esticava e sobrava meia altura vazia. Os dois valem
+  para qualquer veículo, inclusive os sem condutor, então o buraco não volta.
+- ⚠️ **CONSULTA DESLIGADA É `isPending` PARA SEMPRE**, e a demonstração desliga quatro. Sem guardar
+  cada `QueryState` com `!demonstracao`, a ficha ficava girando para sempre. É a mesma armadilha já
+  registrada na ficha da empresa do backoffice.
+- ⚠️ **A TIPOGRAFIA DO PÁTIO ESTAVA FORA DA ESCALA DO PAINEL**, e o usuário percebeu comparando com
+  `/gestao/caminhoes/cadastro`. A família era a mesma (Inter no corpo, Sora no título): o que
+  divergia era o TAMANHO, campo de 13px contra 16px e rótulo de 11px contra 14px, mais uma escada de
+  9 e 10px espalhada pelos cartões. Os 27 tamanhos passaram a sair de `var(--text-*)` do
+  `theme.css`. **Tamanho literal em px não volta para este arquivo.**
+- ⚠️ **`font-size: var(--text-label-*)` SOZINHO NÃO BASTA, e foi por isso que a fonte continuou
+  diferente depois da primeira correção.** No Tailwind o peso, o `letter-spacing` e a entrelinha
+  viajam no UTILITÁRIO (`.text-label-sm`), e não na variável: escrever só o `font-size` em CSS puro
+  entrega o tamanho certo com peso 400, sem tracking e com entrelinha herdada, o que se lê como outra
+  fonte ao lado do resto do painel. Em CSS puro, os quatro andam juntos: **label-sm** 12px/500/0.04em,
+  entrelinha 16px; **label-md** 14px/500/0.05em, entrelinha 20px; **body-md** 16px, entrelinha 24px.
+- ⚠️ **O indicador do pátio copia a receita do `HeroStats`**, que é o mesmo objeto nas outras telas:
+  rótulo `label-sm` em `on-light-variant`, número em **Sora 700, 30px, entrelinha 1 e sem tracking**,
+  e dica `label-sm` em `on-light-muted`. Peso 500 com entrelinha 1,4 e tracking negativo era o que
+  fazia aquele número parecer de outra família.
+- ⚠️ **O FOCO DO CAMPO É UM ANEL NA CAIXA, e não um `outline` no `input`.** O `input` não tem canto
+  arredondado (quem tem é a caixa), então o contorno desenhava um RETÂNGULO DURO dentro de um campo
+  redondo, e era isso que aparecia ao clicar para digitar. Medida a referência do painel: **1px de
+  terracota a 50% em volta da caixa**, e nada no `input`.
+- ⚠️ **Terracota é AÇÃO e marinho é DETALHE**, que é a divisão que a paleta documenta (referência do
+  Itaú). No pátio: anel de foco e realce do seletor em `--color-primary-on-light`; ícone de título em
+  `--accent`, que é o #010066 no tema claro.
+- ⚠️ **A FICHA DO VEÍCULO NÃO MORA MAIS AQUI.** Ela chegou a abrir abaixo da grade e saiu no mesmo
+  dia, a pedido do usuário: vai viver em outro lugar, ainda a definir. Enquanto esse lugar não
+  existe, **o cartão é só leitura, sem clique**, porque cartão que parece botão e não leva a lugar
+  nenhum é pior que cartão quieto. Voltando o clique, o estado de escolha é **anel**, nunca
+  preenchimento: o cartão cheio de terracota apagaria o véu de atenção e o chip junto.
+- ⚠️ **Consequência sabida: `VehicleDetailPanel` e o manual em PDF do veículo ficaram sem porta.** A
+  `trucks-page` saiu do menu e a ficha saiu do pátio, então hoje nenhuma tela do painel abre os dois.
+  Some quando a nova casa for dita.
+- ⚠️ **Se a ficha voltar, ela não cabe numa coluna estreita ao lado da grade**: os indicadores dela
+  são um `xl:grid-cols-4` desenhado para a largura cheia, e em 400px a ficha quebra.
+- ⚠️ **`internalCode` volta NULO nos 40 veículos** (quem preenche o número da porta é a operação, não
+  o rastreador), então a placa é o identificador grande e o número da porta é complemento. O cartão
+  já o mostra quando existir.
+- ⚠️ **A tela teve paleta PRÓPRIA por algumas horas, em navy `#0b1220` com Inter**, escrita a partir
+  do prompt que a especificou. O usuário mandou trazê-la de volta para a marca no mesmo dia: **fundo
+  branco e a faixa laranja de volta**. Hoje o `yard.css` não tem cor literal nenhuma, só
+  `var(--color-*)` de `palette.css`. **Não reintroduzir paleta de tela**: era a única superfície
+  escura de um produto que o usuário usa no claro.
+- ⚠️ **`yard.css` é um arquivo de CSS por tela, e é a exceção do painel**, que é utilitário Tailwind
+  em todo o resto. O que ele guarda é FORMA que não cabe em utilitário: a vaga inclinada, o brilho no
+  topo do cartão e a grade que se adapta. Cor, não: cor sai do token.
+- ⚠️ **`--yard-accent` é a família de PREENCHIMENTO e `--yard-ink` a de TEXTO**, e trocar uma pela
+  outra é o erro que a paleta já documenta: `-on-light` como tinta chapada vira vinho e marrom, que
+  não se separam de longe.
+- ⚠️ **A `HeroBand` traz a topbar dentro dela.** Ao devolver a faixa laranja, o `AppTopbar` que a tela
+  montava sozinha teve de sair, senão saem duas barras. E a folha branca sobe com `margin-top: -68px`
+  para morder a faixa: sem isso sobra uma tira laranja vazia de 96px, que é o respiro que a faixa
+  reserva para o conteúdo encostar.
+- ⚠️ **Manutenção e bloqueado não aparecem no dado de hoje**: a frota real só devolve `DISPONIVEL`,
+  `EM_VIAGEM` e `SEM_SINAL`. O laranja e o vermelho do cartão existem e estão corretos no código, mas
+  **nunca foram vistos com dado real**.
+
+### A ficha em PDF (manual do veículo e ficha do motorista)
+
+O "Baixar" dos dois diálogos é `window.print()`, e o documento sai do próprio HTML, sem biblioteca de
+PDF no bundle. Quem monta o papel é o `@media print` do fim do `globals.css`, e ele foi reescrito em
+16/09/2026 porque o PDF saía com **uma página, oito palavras e a coluna da esquerda cortada**.
+
+- ⚠️ **`visibility` reacende o ramo marcado, mas NÃO o solta da caixa dele.** O diálogo é
+  `position: fixed`, `max-h-[85dvh]`, `max-w-3xl`, `overflow-hidden` e dois `translate` de -50%: no
+  papel isso virava uma moldura de 768px por uma tela de altura, e a folha útil de um A4 com margem
+  de 16mm tem ~673px. O resto era descartado **em silêncio**. Quem desfaz é
+  `body :has([data-print-root])`, que alcança todo ancestral e tira posição, limite, corte e
+  transformação.
+- ⚠️ **O minificador do build desfaz `translate: none`.** Ele funde `transform: none` com
+  `translate: none` num `transform: translate(0) rotate(0) scale(1)` e **descarta o `translate`**,
+  que é a propriedade onde o Tailwind 4 escreve `-translate-x-1/2`. A correção funcionava no
+  `npm run dev` e sumia no `npm run build`, que é o pior tipo de defeito. O que atravessa intacto é
+  zerar `--tw-translate-x` e `--tw-translate-y`.
+- ⚠️ **Irmão do bloco impresso sai por `display`, não por `visibility`.** O cabeçalho do diálogo e a
+  barra de botões não são ancestrais: escondidos por `visibility` continuavam ocupando altura, e a
+  ficha começava com quatro centímetros de folha em branco.
+- ⚠️ **Tinta clara sobre papel branco é papel em branco.** A rampa escura é o padrão do produto e o
+  navegador não imprime fundo: quem baixasse a ficha no tema escuro recebia #F0F0F2 sobre branco. O
+  bloco de impressão redefine os tokens com os valores do `html.light`, e **não** com uma cor
+  chapada, senão o "vencido" deixaria de ser vermelho.
+- ⚠️ **Quebra de página é por CAMPO.** `break-inside: avoid` na seção inteira empurraria
+  "Identificação", que tem onze campos, para a página seguinte e deixaria meia folha vazia.
+- **Como conferir sem clicar**: o Chromium do cache do Playwright imprime por linha de comando
+  (`--headless --print-to-pdf`), e `pdftotext -bbox` diz se alguma palavra passou da área útil.
+  Contar palavras e seções no PDF pega o corte que o olho não vê.
+
 ### As telas que cabem na janela
 
 Login, hub, voz, 404, sessão expirada e esqueci minha senha usam `.tela-proporcional`
@@ -405,7 +598,7 @@ Login, hub, voz, 404, sessão expirada e esqueci minha senha usam `.tela-proporc
 
 ### O painel do dono
 
-Podado a **Visão geral e Equipe**, temporariamente, a pedido do usuário.
+Podado a **Visão geral, Equipe e Cargos**, temporariamente, a pedido do usuário.
 
 - ⚠️ **A home é `owner-overview-page`**, e a `owner-home-page` continua no repositório: aquela
   responde "quanto sobrou" com DRE e margem, e **nenhum desses números tem origem**. Voltar é trocar
@@ -415,8 +608,14 @@ Podado a **Visão geral e Equipe**, temporariamente, a pedido do usuário.
   nunca acha nada lê como defeito.
 - ⚠️ **As rotas continuam registradas**: quem digitar `/gestao/resultado` ainda chega. Some do menu
   foi o que se pediu, e é o que torna a volta barata.
-- ⚠️ **Cargos saiu do menu do dono, e ele é o único que escreve lá.** Hoje ninguém cria cargo pelo
-  menu. Sabido e aceito.
+- ⚠️ **Cargos é do DONO, e de mais ninguém, desde 16/09/2026** (decisão do usuário). A tela saiu do
+  menu do gestor e entrou no do dono, e a guarda da rota virou `OWNER_ONLY`: o gestor que digitar
+  `/gestao/cargos` é levado de volta à visão geral. O motivo é o mesmo que a API já aplica:
+  `roles.manage` não é delegável, então ver a alçada de todo mundo numa tela cujos botões não são
+  seus só confunde. **Como o `SUPER_ADMIN` espelha o menu do gestor, ele também deixou de alcançar a
+  tela.**
+- ⚠️ **A tela de equipe NÃO depende dessa rota** para saber o nome de cada cargo: quem responde é
+  `GET /v1/roles`, e o gestor continua alcançando a API. O que saiu foi a tela, não a leitura.
 
 ## Mapas
 

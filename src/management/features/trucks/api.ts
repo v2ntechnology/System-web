@@ -1,7 +1,15 @@
 import type { ExpenseCategory, Vehicle, VehicleCostRank, VehicleDetail } from '@/management/types';
 
 import { env } from '@/app/environment';
-import { fetchVehicleDetail, fetchVehicles } from '@/management/lib/fleet-api';
+import {
+  fetchVehicleDetail,
+  fetchVehicleRegistry,
+  fetchVehicles,
+  fetchVehicleTrack,
+  type TrackPoint,
+  type VehicleRegistry,
+} from '@/management/lib/fleet-api';
+import { demoRegistry, demoVehicle } from '@/management/mocks/demo-vehicle';
 import { mockFleetExpenses, mockVehicleDetail, mockVehicles } from '@/management/mocks/trucks';
 
 /**
@@ -39,4 +47,29 @@ export function getFleetExpenses(): Promise<{
 /** Ficha do veículo, carregada sob demanda ao selecioná-lo. */
 export function getVehicleDetail(vehicleId: string): Promise<VehicleDetail> {
   return env.enableMocks ? mockVehicleDetail(vehicleId) : fetchVehicleDetail(vehicleId);
+}
+
+/**
+ * O rastro do veículo nas últimas horas.
+ *
+ * ⚠️ Sem caminho de mock: é dado de posição, e posição inventada num mapa é a
+ * pior espécie de número falso, porque parece verificável. Com mocks ligados a
+ * ficha do veículo mostra o mapa vazio, dizendo que não há posições.
+ */
+export function getVehicleTrack(vehicleId: string, hours = 24): Promise<TrackPoint[]> {
+  return env.enableMocks ? Promise.resolve([]) : fetchVehicleTrack(vehicleId, hours);
+}
+
+/**
+ * O cadastro do veículo, que alimenta o Manual.
+ *
+ * ⚠️ **A placa de demonstração é atendida AQUI, e não com cache plantado na
+ * tela.** Plantar com `setQueryData` foi tentado e não resistiu: o diálogo
+ * revalida em segundo plano, a requisição de uma placa que não existe falha, e o
+ * erro vence o dado do cache. Resolver na fronteira é o que o resto da feature
+ * já faz com `VITE_ENABLE_MOCKS`.
+ */
+export function getVehicleRegistry(vehicleId: string): Promise<VehicleRegistry> {
+  if (vehicleId === demoVehicle.id) return Promise.resolve(demoRegistry);
+  return fetchVehicleRegistry(vehicleId);
 }

@@ -194,14 +194,19 @@ export const managementRoutes: RouteObject = {
 
     {
       /*
-       * O editor de cargos. ⚠️ Só o Dono escreve aqui: `roles.manage` não é
-       * delegável, e é o que impede uma empresa de criar um cargo que se
-       * promove. O gestor alcança a leitura, que é o que a tela de equipe usa
-       * para saber o nome de cada cargo.
+       * O editor de cargos, do DONO e de mais ninguém (decisão do usuário em
+       * 16/09/2026). `roles.manage` não é delegável, e é o que impede uma
+       * empresa de criar um cargo que se promove: deixar o gestor entrar aqui,
+       * ainda que só para ler, mostrava a ele a alçada de todo mundo e uma tela
+       * cujos botões não eram dele.
+       *
+       * ⚠️ A tela de equipe NÃO depende desta rota para saber o nome de cada
+       * cargo: quem responde isso é `GET /v1/roles`, e o gestor continua
+       * alcançando a API. O que saiu foi a tela, não a leitura.
        */
       path: 'cargos',
       element: (
-        <RoleRoute allow={OWNER_AND_MANAGER}>
+        <RoleRoute allow={OWNER_ONLY}>
           {page(() => import('@/management/features/roles/pages/roles-page'), 'RolesPage')}
         </RoleRoute>
       ),
@@ -237,8 +242,35 @@ export const managementRoutes: RouteObject = {
       ),
     },
     {
+      /*
+       * O PÁTIO substituiu a antiga tela de Caminhões (decisão do usuário em
+       * 16/09/2026): a frota deixou de ser uma lista com despesa do período e
+       * virou a grade de quem olha o pátio, agrupada por filial.
+       *
+       * ⚠️ A `trucks-page` continua no repositório, com a despesa e o
+       * ranking junto, e não foi apagada: devolvê-la é trocar o import desta
+       * linha. Mesmo tratamento que a `owner-home-page` recebeu.
+       */
+      path: 'patio',
+      element: page(() => import('@/management/features/trucks/pages/yard-page'), 'YardPage'),
+    },
+    {
+      /*
+       * A página de um veículo, aberta pelo cartão do pátio.
+       *
+       * ⚠️ O endereço é a PLACA, e não o id: `patio/BAW1F62` se lê e se manda
+       * por mensagem. Mesma escolha que o backoffice fez para a empresa, e quem
+       * traduz placa em veículo é a própria tela.
+       */
+      path: 'patio/:plate',
+      element: page(() => import('@/management/features/trucks/pages/vehicle-page'), 'VehiclePage'),
+    },
+    {
+      /* Endereço anterior do pátio, mantido para não quebrar link salvo, item
+         de assistente e botão de outras telas. ⚠️ Casa só o caminho exato: o
+         `caminhoes/cadastro` abaixo é outra rota e continua valendo. */
       path: 'caminhoes',
-      element: page(() => import('@/management/features/trucks/pages/trucks-page'), 'TrucksPage'),
+      element: <Navigate to="/gestao/patio" replace />,
     },
     {
       /*

@@ -1057,9 +1057,9 @@
 /* --------------------------------------------------------------------------
  * IMPRESSÃO — isola no papel o bloco marcado com `data-print-root`.
  *
- * Existe para o "Baixar" do manual do veículo, que é a impressão do navegador:
- * ele oferece "Salvar como PDF" e compõe o documento a partir do próprio HTML,
- * sem custar uma biblioteca de PDF no bundle.
+ * Existe para o "Baixar" do manual do veículo e da ficha do motorista, que é a
+ * impressão do navegador: ele oferece "Salvar como PDF" e compõe o documento a
+ * partir do próprio HTML, sem custar uma biblioteca de PDF no bundle.
  *
  * ⚠️ A técnica é `visibility`, e não `display`. Escondendo por `display` o
  * ancestral sumiria com o filho junto, e o diálogo do Radix vive num portal no
@@ -1076,20 +1076,121 @@
     visibility: visible;
   }
 
+  /*
+   * ⚠️ OS ANCESTRAIS DEIXAM DE SER JANELA, e é isto que conserta o PDF cortado.
+   *
+   * `visibility` reacende o ramo marcado, mas NÃO o solta da caixa em que ele
+   * vive. O diálogo é `position: fixed`, com `max-h-[85dvh]`, `max-w-3xl`,
+   * `overflow-hidden` e dois `translate` de -50%: no papel isso virava uma
+   * moldura de 768px de largura por uma tela de altura, e a ficha saía cortada
+   * na direita (a folha útil de um A4 com 16mm de margem tem ~673px) e parava na
+   * primeira página, perdendo o resto em silêncio.
+   *
+   * `:has()` alcança o que nenhum seletor de ancestral alcançava: toda caixa que
+   * CONTÉM o bloco impresso perde posição, limite de tamanho, corte e
+   * transformação. A largura passa a ser a da folha, e a altura, quantas páginas
+   * o conteúdo pedir.
+   */
+  body:has([data-print-root]),
+  body :has([data-print-root]) {
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    /*
+     * ⚠️ `translate`, e NÃO só `transform`. No Tailwind 4 o `-translate-x-1/2`
+     * do diálogo escreve na propriedade `translate`, então zerar `transform`
+     * sozinho deixava a ficha meia folha à esquerda e a primeira coluna saía
+     * cortada. Medido imprimindo a ficha em PDF.
+     *
+     * ⚠️ E são as VARIÁVEIS que zeram, e não `translate: none`. O minificador
+     * do build funde `transform: none` com `translate: none` num
+     * `transform: translate(0) rotate(0) scale(1)` e **descarta** o
+     * `translate`, que é justamente o que precisava valer: a correção sumia no
+     * `npm run build` e continuava funcionando no `npm run dev`, que é o pior
+     * tipo de defeito. As variáveis do próprio utilitário atravessam intactas.
+     */
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+    --tw-translate-z: 0 !important;
+    /* Vidro, sombra e canto arredondado são da tela: no papel só gastam tinta. */
+    background: transparent !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /*
+   * ⚠️ O QUE ESTÁ AO LADO DO CAMINHO SAI DO PAPEL, e por `display`, não por
+   * `visibility`.
+   *
+   * O cabeçalho do diálogo e a barra de botões são IRMÃOS do bloco impresso, e
+   * não ancestrais: apagados por `visibility` eles continuavam ocupando altura,
+   * e a ficha começava com quatro centímetros de folha em branco. Este seletor
+   * alcança exatamente quem não é o bloco nem contém o bloco, em cada degrau do
+   * caminho, inclusive o `<div id="root">` da aplicação inteira.
+   */
+  body:has([data-print-root]) > *:not([data-print-root]):not(:has([data-print-root])),
+  body :has([data-print-root]) > *:not([data-print-root]):not(:has([data-print-root])) {
+    display: none !important;
+  }
+
   [data-print-root] {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+    position: static;
+    width: auto;
+    max-width: none;
     max-height: none;
     overflow: visible;
     padding: 0;
   }
 
-  /* Papel é branco: véu, sombra e vidro só gastam tinta. */
+  /*
+   * ⚠️ TINTA CLARA SOBRE PAPEL BRANCO É PAPEL EM BRANCO.
+   *
+   * A rampa escura é o padrão do produto (ver `palette.css`), e o navegador não
+   * imprime fundo nenhum: quem baixasse a ficha no tema escuro recebia #F0F0F2
+   * sobre branco, ou seja, uma folha quase vazia. Aqui as variáveis do bloco
+   * impresso passam a valer os valores do `html.light`, e não uma cor chapada:
+   * assim o "vencido" continua vermelho e a divisória continua discreta, em vez
+   * de tudo virar preto.
+   */
+  [data-print-root] {
+    --color-on-surface: #191817;
+    --color-on-surface-variant: #4a4741;
+    --color-on-surface-muted: #6b665e;
+    --color-outline: #a8a29a;
+    --color-outline-variant: #d8d4cd;
+    /* O tom de texto do vermelho, e não o de fundo: #E11D48 dá 3,9:1 no branco. */
+    --color-error: #9f1239;
+    color: var(--color-on-surface);
+  }
+
   [data-print-root] * {
     box-shadow: none !important;
     backdrop-filter: none !important;
+  }
+
+  /*
+   * ⚠️ QUEBRA DE PÁGINA: o corte é por CAMPO, nunca dentro de um.
+   *
+   * Uma seção inteira com `break-inside: avoid` empurraria "Identificação", que
+   * tem onze campos, para a página seguinte e deixaria meia folha em branco. O
+   * que não pode partir é o par rótulo/valor, e o título não pode ficar sozinho
+   * no rodapé da página.
+   */
+  [data-print-root] dl > div {
+    break-inside: avoid;
+  }
+
+  [data-print-root] h3 {
+    break-after: avoid;
   }
 
   @page {

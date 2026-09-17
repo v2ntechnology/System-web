@@ -3,7 +3,9 @@ import { GlassModal, SpectrumButton, Spinner, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 
 import { dateOnly, dateTime, km } from '@/management/lib/format';
-import { fetchVehicleRegistry, type VehicleRegistry } from '@/management/lib/fleet-api';
+import type { VehicleRegistry } from '@/management/lib/fleet-api';
+
+import { getVehicleRegistry } from '../api';
 
 export interface VehicleManualDialogProps {
   open: boolean;
@@ -136,7 +138,7 @@ export function VehicleManualDialog({
      manual depois de editar não vai ao servidor de novo. */
   const registro = useQuery({
     queryKey: ['vehicle-registry', vehicleId],
-    queryFn: () => fetchVehicleRegistry(vehicleId),
+    queryFn: () => getVehicleRegistry(vehicleId),
     enabled: open,
   });
 

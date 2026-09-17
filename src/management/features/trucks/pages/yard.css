@@ -1,0 +1,758 @@
+/*
+ * Pátio: papel BRANCO e cor da marca (decisão do usuário em 16/09/2026).
+ *
+ * ⚠️ **Esta tela tinha paleta PRÓPRIA, em navy `#0b1220` com Inter**, herdada do
+ * prompt que a especificou. Ela destoava das outras dez telas do painel e não
+ * acompanhava o tema: era a única superfície escura dentro de um produto que o
+ * usuário usa no claro. O fundo virou branco e toda cor literal passou a sair de
+ * `styles/palette.css`, que é a fonte única dos dois painéis.
+ *
+ * ⚠️ **Nenhuma medida mudou.** O que este arquivo guarda de próprio é FORMA,
+ * a vaga inclinada, o brilho no topo do cartão, a grade que se adapta, e isso
+ * continua igual. O que saiu foi a cor inventada.
+ *
+ * ⚠️ **`--yard-accent` é a família de PREENCHIMENTO e `--yard-ink` a de TEXTO.**
+ * Não trocar uma pela outra: `-on-light` como tinta chapada vira vinho e marrom,
+ * que não se separam de longe, e é exatamente o que a faixa de estado precisa
+ * separar. A regra é a mesma da lista de frota e das filas.
+ */
+.yard-page,
+.yard-unit-menu {
+  --yard-surface: var(--color-light);
+  --yard-well: var(--color-light-container);
+  --yard-muted: var(--color-on-light-muted);
+  --yard-line: var(--color-light-outline);
+  --yard-brand: var(--color-primary-on-light);
+  --yard-accent: var(--color-on-light-muted);
+  --yard-ink: var(--color-on-light-variant);
+  color: var(--color-on-light);
+  color-scheme: light;
+}
+.yard-page {
+  /*
+   * ⚠️ Sobe POR CIMA da faixa laranja, e é o que emenda os dois blocos: a
+   * `HeroBand` tem respiro de baixo largo justamente para o conteúdo morder a
+   * borda dela. Sem a margem negativa sobra uma tira laranja vazia de 96px.
+   */
+  position: relative;
+  z-index: 10;
+  margin-top: -68px;
+  border-radius: 32px 32px 0 0;
+  min-height: calc(100vh - 80px);
+  padding: 32px clamp(16px, 3vw, 48px) 48px;
+  background: var(--yard-surface);
+}
+.yard-page [data-tone='info'] {
+  --yard-accent: var(--color-info);
+  --yard-ink: var(--color-info-on-light);
+}
+.yard-page [data-tone='warning'] {
+  --yard-accent: var(--color-warning);
+  --yard-ink: var(--color-warning-on-light);
+}
+.yard-page [data-tone='error'] {
+  --yard-accent: var(--color-error);
+  --yard-ink: var(--color-error-on-light);
+}
+/* O título, o "consultado às" e o "Atualizar" moram na faixa laranja desde
+   16/09/2026: as regras do cabeçalho próprio saíram daqui com eles. */
+.yard-board-header p {
+  color: var(--yard-muted);
+  font-size: var(--text-label-md);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+}
+.yard-clear,
+.yard-empty-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  min-height: 40px;
+  padding: 9px 13px;
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+/* A saída do estado vazio ganha contorno: ali ela é a única ação da tela, e um
+   botão de texto no meio de um bloco vazio não se lê como botão. */
+.yard-empty-action {
+  border: 1px solid var(--yard-line);
+  background: var(--yard-surface);
+  color: var(--color-on-light-variant);
+}
+.yard-empty-action:hover {
+  background: var(--yard-well);
+  color: var(--color-on-light);
+}
+/*
+ * ⚠️ **O FOCO DO CAMPO É UM ANEL NA CAIXA, e não um contorno no `input`.**
+ *
+ * O `input` não tem canto arredondado, quem tem é a caixa em volta: um
+ * `outline` nele desenhava um RETÂNGULO DURO dentro de um campo redondo, e era
+ * isso que se via ao clicar para digitar. Aqui o campo inteiro acende, e o anel
+ * segue o raio sozinho porque é `box-shadow`.
+ *
+ * Medido no campo do `/gestao/caminhoes/cadastro`, que é a referência do
+ * painel: 1px de terracota a 50% em volta da caixa, e nada no `input`.
+ */
+.yard-page button:focus-visible,
+.yard-unit-menu button:focus-visible {
+  outline: 2px solid var(--yard-brand);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+.yard-page input:focus-visible,
+.yard-unit-menu input:focus-visible {
+  outline: none;
+}
+.yard-search:focus-within,
+.yard-unit-trigger:focus-visible,
+.yard-unit-search:focus-within {
+  border-color: color-mix(in srgb, var(--yard-brand) 60%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--yard-brand) 50%, transparent);
+}
+/* O gatilho da filial é botão: o anel acima já o marca, então ele não leva
+   também o contorno de botão, que sairia duplicado. */
+.yard-unit-trigger:focus-visible {
+  outline: none;
+}
+.yard-filters {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.yard-unit-field {
+  width: min(360px, 40%);
+  flex-shrink: 0;
+}
+.yard-field-label {
+  display: block;
+  color: var(--color-on-light-variant);
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.yard-unit-trigger,
+.yard-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border: 1px solid var(--yard-line);
+  border-radius: 14px;
+  padding: 0 15px;
+  background: var(--yard-well);
+  font-size: var(--text-body-md);
+  line-height: 24px;
+}
+.yard-unit-trigger {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-color: color-mix(in srgb, var(--yard-brand) 40%, transparent);
+  background: color-mix(in srgb, var(--yard-brand) 7%, var(--yard-surface));
+}
+.yard-unit-trigger > span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.yard-unit-trigger > svg {
+  flex-shrink: 0;
+  color: var(--yard-brand);
+}
+.yard-search-field {
+  flex: 1;
+  min-width: 0;
+}
+.yard-search {
+  color: var(--yard-muted);
+}
+.yard-search input,
+.yard-unit-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-on-light);
+  height: 38px;
+  font-size: var(--text-body-md);
+  line-height: 24px;
+}
+.yard-search input::placeholder,
+.yard-unit-search input::placeholder {
+  color: var(--color-placeholder);
+}
+.yard-clear {
+  color: var(--yard-muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+.yard-clear:hover {
+  background: var(--yard-well);
+  color: var(--color-on-light);
+}
+.yard-unit-menu {
+  z-index: 1100;
+  width: var(--radix-popover-trigger-width);
+  max-width: calc(100vw - 32px);
+  padding: 8px;
+  border: 1px solid var(--yard-line);
+  border-radius: 16px;
+  background: var(--yard-surface);
+  box-shadow: 0 18px 60px color-mix(in srgb, var(--color-on-light) 18%, transparent);
+}
+.yard-unit-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
+  padding: 6px 10px;
+  border: 1px solid var(--yard-line);
+  border-radius: 12px;
+  background: var(--yard-well);
+  color: var(--yard-muted);
+}
+.yard-unit-options {
+  max-height: min(300px, var(--radix-popover-content-available-height));
+  overflow-y: auto;
+  padding-top: 5px;
+}
+.yard-unit-option {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: left;
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+.yard-unit-option[aria-pressed='true'],
+.yard-unit-option:hover {
+  background: color-mix(in srgb, var(--yard-brand) 12%, transparent);
+  color: var(--yard-brand);
+}
+.yard-no-units {
+  padding: 16px 8px;
+  color: var(--yard-muted);
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+.yard-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.yard-summary-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  padding: 16px;
+  border: 1px solid var(--yard-line);
+  border-radius: 16px;
+  background: var(--yard-surface);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.yard-summary-item:hover {
+  background: var(--yard-well);
+}
+.yard-summary-item[aria-pressed='true'] {
+  border-color: var(--yard-accent);
+  background: color-mix(in srgb, var(--yard-accent) 8%, var(--yard-surface));
+}
+.yard-summary-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-label-sm);
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-on-light-variant);
+}
+.yard-summary-label svg {
+  color: var(--yard-accent);
+  flex-shrink: 0;
+}
+/* ⚠️ A MESMA receita do `HeroStats`, que é o bloco de indicadores das outras
+   telas: Sora 700, 30px e entrelinha 1. Peso 500 com entrelinha 1.4 era o que
+   fazia este número parecer de outra fonte ao lado do resto do painel. */
+.yard-summary-item strong {
+  font-family: var(--font-sora);
+  font-size: 30px;
+  line-height: 1;
+  margin-top: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.yard-summary-hint {
+  font-size: var(--text-label-sm);
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--yard-muted);
+  margin-top: 2px;
+}
+.yard-sync-warning {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--yard-surface));
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  color: var(--color-warning-on-light);
+  padding: 11px 15px;
+  border-radius: 12px;
+  font-size: var(--text-label-md);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.yard-sync-warning svg {
+  flex-shrink: 0;
+}
+.yard-board {
+  border: 1px solid var(--yard-line);
+  border-radius: 24px;
+  background: var(--yard-surface);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--color-on-light) 6%, transparent);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+.yard-board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid var(--yard-line);
+}
+.yard-board-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-sora);
+  font-size: var(--text-body-lg);
+  line-height: 28px;
+  font-weight: 500;
+}
+/* ⚠️ Marinho no DETALHE e terracota na AÇÃO, que é a divisão de papéis que a
+   paleta documenta: laranja é a cor do que se clica, azul escuro é a do que
+   apenas marca. O ícone do título não é clicável. */
+.yard-board-header h2 svg {
+  color: var(--accent);
+}
+.yard-board-header p {
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  margin-top: 5px;
+}
+.yard-result-count {
+  padding: 7px 10px;
+  border: 1px solid var(--yard-line);
+  border-radius: 8px;
+  color: var(--color-on-light-variant);
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.yard-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 24px;
+}
+.yard-group-header,
+.yard-group-header > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.yard-group-header {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.yard-group-header svg {
+  color: var(--yard-muted);
+  flex-shrink: 0;
+}
+.yard-group-header h3 {
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.yard-group-header span {
+  color: var(--yard-muted);
+  font-size: var(--text-label-sm);
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.yard-group-header .yard-group-caption {
+  letter-spacing: 0.13em;
+  font-size: var(--text-label-sm);
+  line-height: 16px;
+  font-weight: 500;
+}
+.yard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+  gap: 14px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.yard-grid > li {
+  min-width: 0;
+}
+.yard-vehicle {
+  /* ⚠️ `block`: o cartão é um `<a>` desde que passou a levar à página do
+     veículo, e âncora sem isto volta a ser inline e desmonta a grade. */
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  border: 1px solid color-mix(in srgb, var(--yard-accent) 38%, transparent);
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      ellipse at 50% 38%,
+      color-mix(in srgb, var(--yard-accent) 9%, transparent),
+      transparent 70%
+    ),
+    var(--yard-surface);
+}
+.yard-vehicle[data-tone='neutral'] {
+  border-color: var(--yard-line);
+  background: var(--yard-surface);
+}
+/* O cartão responde ao ponteiro, porque agora ele leva a algum lugar. A cor que
+   acende é a do ESTADO dele, e não uma cor de interface: assim o retorno do
+   mouse não apaga a informação que o cartão carrega. */
+.yard-vehicle:hover {
+  border-color: color-mix(in srgb, var(--yard-accent) 70%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-on-light) 10%, transparent);
+}
+.yard-vehicle:focus-visible {
+  outline: 2px solid var(--yard-brand);
+  outline-offset: 2px;
+}
+.yard-vehicle::before {
+  content: '';
+  position: absolute;
+  height: 2px;
+  left: 30%;
+  right: 30%;
+  top: 0;
+  background: var(--yard-accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--yard-accent) 40%, transparent);
+}
+.yard-vehicle[data-tone='neutral']::before {
+  display: none;
+}
+.yard-vehicle-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 14px 12px 0;
+}
+.yard-vehicle-type {
+  color: var(--yard-muted);
+  font-size: var(--text-label-sm);
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.yard-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--yard-accent) 10%, transparent);
+  color: var(--yard-ink);
+  font-size: var(--text-label-sm);
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+/*
+ * O lugar do veículo no cartão.
+ *
+ * ⚠️ **O TRAÇO DA VAGA SAIU** (decisão do usuário em 16/09/2026). Ele desenhava
+ * um box inclinado com marca de chão, que era a perspectiva do vetor isométrico
+ * que morava aqui: com o veículo de perfil virou uma diagonal atravessando o
+ * cartão, sem nada a que corresponder. O que restou é o enquadramento, e o
+ * silêncio em volta do caminhão é de propósito.
+ */
+.yard-vehicle-figure {
+  position: relative;
+  margin: 6px 12px 0;
+  height: 131px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+/*
+ * ⚠️ `object-fit: contain`, e o arquivo já vem APARADO. O original tinha 2000px
+ * de lado com o caminhão ocupando 788px de altura: 60% do arquivo era
+ * transparência, e dentro da vaga o veículo apareceria como um risco no meio do
+ * cartão. A margem foi cortada na geração do asset, e não com `scale` na tela,
+ * que é o remendo que a silhueta antiga precisava.
+ */
+.yard-truck {
+  position: relative;
+  width: 100%;
+  max-width: 225px;
+  height: 135px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 5px color-mix(in srgb, var(--color-on-light) 14%, transparent));
+}
+.yard-vehicle-info {
+  padding: 12px 15px 0;
+}
+.yard-plate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.yard-plate {
+  font-family: var(--font-sora);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.yard-fleet-code {
+  color: var(--color-on-light-muted);
+  font-size: var(--text-label-sm);
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.yard-model {
+  color: var(--yard-muted);
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.yard-vehicle-footer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid var(--yard-line);
+  margin-top: 12px;
+  padding: 11px 0;
+  font-size: var(--text-label-md);
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--yard-muted);
+}
+.yard-vehicle-footer svg {
+  flex-shrink: 0;
+}
+.yard-vehicle-footer span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.yard-board-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--yard-line);
+  color: var(--yard-muted);
+  font-size: var(--text-label-sm);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+}
+.yard-board-footer > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.yard-board-footer svg {
+  flex-shrink: 0;
+}
+.yard-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 70px 24px;
+  color: var(--yard-muted);
+  font-size: var(--text-body-md);
+  line-height: 24px;
+}
+.yard-empty h3 {
+  color: var(--color-on-light);
+  font-family: var(--font-sora);
+  font-size: 18px;
+}
+@media (min-width: 1700px) {
+  .yard-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1100px) {
+  .yard-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .yard-page {
+    padding-top: 24px;
+  }
+  .yard-filters {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .yard-unit-field,
+  .yard-search-field {
+    width: 100%;
+    flex: auto;
+  }
+  .yard-clear {
+    min-height: 32px;
+    padding-left: 0;
+    margin: 0;
+  }
+  .yard-summary {
+    gap: 8px;
+  }
+  .yard-summary-item {
+    padding: 12px 10px;
+  }
+  .yard-summary-label {
+    font-size: var(--text-label-sm);
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    gap: 5px;
+  }
+  .yard-summary-label svg {
+    width: 13px;
+  }
+  .yard-summary-hint {
+    display: none;
+  }
+  .yard-summary-item strong {
+    font-size: 25px;
+    margin-top: 6px;
+  }
+  .yard-board-header,
+  .yard-groups {
+    padding: 16px;
+  }
+  .yard-board-header h2 {
+    font-size: var(--text-body-md);
+    line-height: 24px;
+  }
+  .yard-result-count {
+    font-size: var(--text-label-sm);
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 6px;
+  }
+  .yard-group-caption {
+    display: none;
+  }
+  .yard-group-header > div {
+    flex-wrap: wrap;
+  }
+  .yard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .yard-vehicle-top {
+    padding: 10px 8px 0;
+  }
+  .yard-vehicle-type {
+    display: none;
+  }
+  .yard-vehicle-figure {
+    margin: 4px 4px 0;
+    height: 100px;
+  }
+  .yard-truck {
+    height: 105px;
+  }
+  .yard-vehicle-info {
+    padding: 10px 10px 0;
+  }
+  .yard-plate {
+    font-size: clamp(12px, 3.5vw, 19px);
+  }
+  .yard-plate-row {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .yard-board-footer {
+    flex-direction: column;
+    padding: 14px 16px;
+    font-size: var(--text-label-sm);
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .yard-board {
+    backdrop-filter: none;
+    background: var(--yard-surface);
+  }
+}
