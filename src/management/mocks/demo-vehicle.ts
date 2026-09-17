@@ -1,4 +1,4 @@
-import type { TrackPoint, VehicleRegistry } from '@/management/lib/fleet-api';
+import type { MaintenanceStatus, TrackPoint, VehicleRegistry } from '@/management/lib/fleet-api';
 import type { VehiclePosition } from '@/management/types';
 import type { Vehicle, VehicleDetail } from '@/management/types';
 
@@ -215,4 +215,55 @@ export const demoPosition: VehiclePosition = (() => {
     heading: (Math.atan2(lng - lngAnterior, lat - latAnterior) * 180) / Math.PI,
     lastSyncAt: ultimo.at,
   };
+})();
+
+/**
+ * O plano e o vencimento de cada item, na placa de demonstração.
+ *
+ * ⚠️ **As datas são relativas a hoje**, e não fixas: com data fixa, a
+ * demonstração envelhece e em duas semanas todos os itens aparecem vencidos, o
+ * que faria a tela parecer quebrada em vez de cheia.
+ *
+ * ⚠️ O formato é o MESMO que a API devolve, já com o vencimento calculado.
+ * Recalcular aqui seria uma segunda regra de vencimento, e a primeira coisa que
+ * duas regras fazem é divergir.
+ */
+export const demoMaintenance: MaintenanceStatus[] = (() => {
+  const hoje = new Date();
+  const emDias = (dias: number) =>
+    new Date(hoje.getTime() + dias * 86_400_000).toISOString().slice(0, 10);
+  const odometro = demoVehicle.odometerKm;
+
+  const linha = (
+    item: MaintenanceStatus['item'],
+    intervalKm: number | undefined,
+    intervalMonths: number | undefined,
+    diasParaVencer: number,
+    kmParaVencer: number | undefined,
+    oficina: string,
+  ): MaintenanceStatus => ({
+    item,
+    intervalKm,
+    intervalMonths,
+    lastDoneAt: emDias(-(intervalMonths ?? 6) * 30 + diasParaVencer),
+    lastOdometerKm:
+      kmParaVencer == null ? undefined : odometro - ((intervalKm ?? 0) - kmParaVencer),
+    lastPartnerName: oficina,
+    dueDate: emDias(diasParaVencer),
+    dueOdometerKm: kmParaVencer == null ? undefined : odometro + kmParaVencer,
+    dueInDays: diasParaVencer,
+    dueInKm: kmParaVencer,
+    overdue: diasParaVencer < 0 || (kmParaVencer != null && kmParaVencer < 0),
+  });
+
+  return [
+    linha('oleo', 10_000, 6, 12, 1_480, 'Lubrificantes Barra Mansa'),
+    linha('pneus', 10_000, undefined, 34, 4_210, 'Borracharia do Zé'),
+    linha('freios', 20_000, 12, 58, 9_870, 'Freios Pesados RJ'),
+    linha('filtros', 20_000, 12, 91, 12_400, 'Auto Peças Piraí'),
+    /* Um item vencido, porque a tela precisa mostrar o caso feio: sem ele,
+       ninguém vê o vermelho até um caminhão de verdade estourar o prazo. */
+    linha('bateria', undefined, 6, -3, undefined, 'Baterias Volta Redonda'),
+    linha('revisao', 30_000, 12, 52, 3_180, 'Iveco Autorizada Resende'),
+  ];
 })();

@@ -3,9 +3,10 @@ import { GlassModal, SpectrumButton, Spinner, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 
 import { dateOnly, dateTime, km } from '@/management/lib/format';
-import type { VehicleRegistry } from '@/management/lib/fleet-api';
+import type { MaintenanceStatus, VehicleRegistry } from '@/management/lib/fleet-api';
+import { MAINTENANCE_ITEMS } from '@/management/mocks/maintenance-partners';
 
-import { getVehicleRegistry } from '../api';
+import { getVehicleMaintenance, getVehicleRegistry } from '../api';
 
 export interface VehicleManualDialogProps {
   open: boolean;
@@ -110,6 +111,47 @@ function secoesDo(registro: VehicleRegistry): { titulo: string; campos: Campo[] 
 }
 
 /**
+ * O plano e a última troca de cada item, para o papel.
+ *
+ * <h2>⚠️ Sai de outra consulta, e por isso é uma seção separada</h2>
+ *
+ * O resto do manual vem do cadastro; manutenção vem de `vehicle_maintenance_*`,
+ * que é outra tabela e outra rota. Juntar as duas num `secoesDo` só obrigaria a
+ * função a receber dois objetos e a decidir o que fazer quando um chega e o
+ * outro não, que é exatamente o caso de a manutenção ainda estar carregando.
+ *
+ * ⚠️ **O rótulo do item vem de `MAINTENANCE_ITEMS`**, que é o mesmo que a ficha
+ * usa. Escrever "Óleo" aqui de novo faria o manual e a tela divergirem no dia em
+ * que alguém renomear um item.
+ */
+function secaoDeManutencao(status: MaintenanceStatus[]): { titulo: string; campos: Campo[] } {
+  const campos = MAINTENANCE_ITEMS.map((item) => {
+    const linha = status.find((candidato) => candidato.item === item.id);
+
+    const plano = [
+      linha?.intervalKm ? `${km.format(linha.intervalKm)} km` : null,
+      linha?.intervalMonths ? `${linha.intervalMonths} meses` : null,
+    ].filter(Boolean);
+
+    const partes: string[] = [];
+    if (plano.length > 0) partes.push(`a cada ${plano.join(' ou ')}`);
+    if (linha?.lastDoneAt) {
+      const troca = [
+        `última troca em ${dateOnly.format(new Date(`${linha.lastDoneAt}T12:00:00`))}`,
+        linha.lastOdometerKm == null ? null : `${km.format(linha.lastOdometerKm)} km`,
+        linha.lastPartnerName ?? null,
+      ].filter(Boolean);
+      partes.push(troca.join(', '));
+    }
+    if (linha?.overdue) partes.push('VENCIDO');
+
+    return { label: item.label, value: partes.length > 0 ? partes.join(' · ') : VAZIO };
+  });
+
+  return { titulo: 'Manutenção', campos };
+}
+
+/**
  * Manual do veículo: a ficha inteira em LEITURA, e baixável.
  *
  * ⚠️ Substituiu o botão "Cadastro da operação" (decisão do usuário em
@@ -139,6 +181,14 @@ export function VehicleManualDialog({
   const registro = useQuery({
     queryKey: ['vehicle-registry', vehicleId],
     queryFn: () => getVehicleRegistry(vehicleId),
+    enabled: open,
+  });
+
+  /* Mesma chave da ficha: abrir o manual depois de registrar uma troca já
+     encontra o dado em cache, e o papel nunca discorda da tela. */
+  const manutencao = useQuery({
+    queryKey: ['vehicle-maintenance', vehicleId],
+    queryFn: () => getVehicleMaintenance(vehicleId),
     enabled: open,
   });
 
@@ -175,7 +225,13 @@ export function VehicleManualDialog({
               </p>
             </div>
 
-            {secoesDo(registro.data).map((secao, indice) => (
+            {[
+              ...secoesDo(registro.data),
+              /* ⚠️ Só entra quando a consulta respondeu: imprimir a seção vazia
+                 diria que o veículo não tem plano, quando o que houve foi o
+                 manual abrir antes de a resposta chegar. */
+              ...(manutencao.data ? [secaoDeManutencao(manutencao.data)] : []),
+            ].map((secao, indice) => (
               <section key={secao.titulo} className={cn(indice > 0 && 'mt-6')}>
                 <h3 className="text-on-surface text-body-md border-outline-variant border-b pb-2 font-semibold">
                   {secao.titulo}

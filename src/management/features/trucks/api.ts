@@ -3,13 +3,15 @@ import type { ExpenseCategory, Vehicle, VehicleCostRank, VehicleDetail } from '@
 import { env } from '@/app/environment';
 import {
   fetchVehicleDetail,
+  fetchVehicleMaintenance,
   fetchVehicleRegistry,
   fetchVehicles,
   fetchVehicleTrack,
+  type MaintenanceStatus,
   type TrackPoint,
   type VehicleRegistry,
 } from '@/management/lib/fleet-api';
-import { demoRegistry, demoVehicle } from '@/management/mocks/demo-vehicle';
+import { demoMaintenance, demoRegistry, demoVehicle } from '@/management/mocks/demo-vehicle';
 import { mockFleetExpenses, mockVehicleDetail, mockVehicles } from '@/management/mocks/trucks';
 
 /**
@@ -72,4 +74,16 @@ export function getVehicleTrack(vehicleId: string, hours = 24): Promise<TrackPoi
 export function getVehicleRegistry(vehicleId: string): Promise<VehicleRegistry> {
   if (vehicleId === demoVehicle.id) return Promise.resolve(demoRegistry);
   return fetchVehicleRegistry(vehicleId);
+}
+
+/**
+ * O plano e o vencimento de cada item de manutenção.
+ *
+ * ⚠️ A placa de demonstração é atendida aqui, pela mesma razão do manual: ela
+ * não existe no servidor, e o `setQueryData` da tela não resiste à revalidação
+ * em segundo plano.
+ */
+export function getVehicleMaintenance(vehicleId: string): Promise<MaintenanceStatus[]> {
+  if (vehicleId === demoVehicle.id) return Promise.resolve(demoMaintenance);
+  return fetchVehicleMaintenance(vehicleId);
 }

@@ -98,6 +98,12 @@ export {
   LuNotebookPen as EntryIcon,
   LuFuel as FuelIcon,
   LuDroplet as DropletIcon,
+  /* Manutenção por item, na ficha do veículo. Nomes do que a oficina troca, e
+     não do desenho: quem procurar "freio" acha `BrakeIcon`. */
+  LuDisc3 as BrakeIcon,
+  LuBatteryCharging as BatteryIcon,
+  LuStore as PartnerShopIcon,
+  LuStar as StarIcon,
   LuRadar as RadarIcon,
   LuSatellite as SatelliteIcon,
   LuWarehouse as WarehouseIcon,

@@ -1684,3 +1684,142 @@ export async function fetchDriverRegistry(): Promise<DriverListEntry[]> {
 export async function fetchDriverPhoto(driverId: string): Promise<string> {
   return httpBlob(`/v1/drivers/${driverId}/photo`);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Manutenção por item                                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Os seis itens que a ficha do veículo acompanha. Espelha o CHECK da V32. */
+export type MaintenanceItemId = 'oleo' | 'pneus' | 'freios' | 'filtros' | 'bateria' | 'revisao';
+
+/**
+ * O plano, a última troca e o vencimento de um item.
+ *
+ * ⚠️ **O vencimento vem PRONTO do servidor**, e a tela não recalcula. É a mesma
+ * pergunta que a fila de manutenção e o assistente fazem, e três implementações
+ * da mesma regra divergem na primeira mudança: o sintoma seria a ficha dizendo
+ * "em dia" e a fila dizendo "vencido" sobre o mesmo caminhão.
+ *
+ * ⚠️ Os seis itens voltam SEMPRE, mesmo vazios. Campo nulo é ausência de plano
+ * ou de troca, e não zero.
+ */
+export interface MaintenanceStatus {
+  item: MaintenanceItemId;
+  intervalKm?: number | undefined;
+  intervalMonths?: number | undefined;
+  lastDoneAt?: string | undefined;
+  lastOdometerKm?: number | undefined;
+  lastPartnerName?: string | undefined;
+  dueDate?: string | undefined;
+  dueOdometerKm?: number | undefined;
+  /** Dias para vencer. Negativo já venceu. */
+  dueInDays?: number | undefined;
+  /** Quilômetros para vencer. Negativo já venceu. */
+  dueInKm?: number | undefined;
+  overdue: boolean;
+}
+
+export interface MaintenanceEvent {
+  id: string;
+  item: MaintenanceItemId;
+  doneAt: string;
+  odometerKm?: number | undefined;
+  partnerName?: string | undefined;
+  cost?: number | undefined;
+  notes?: string | undefined;
+  createdByName?: string | undefined;
+}
+
+interface MaintenanceStatusDto {
+  item: MaintenanceItemId;
+  intervalKm: number | null;
+  intervalMonths: number | null;
+  lastDoneAt: string | null;
+  lastOdometerKm: number | null;
+  lastPartnerName: string | null;
+  dueDate: string | null;
+  dueOdometerKm: number | null;
+  dueInDays: number | null;
+  dueInKm: number | null;
+  overdue: boolean;
+}
+
+const toStatus = (dto: MaintenanceStatusDto): MaintenanceStatus => ({
+  item: dto.item,
+  intervalKm: dto.intervalKm ?? undefined,
+  intervalMonths: dto.intervalMonths ?? undefined,
+  lastDoneAt: dto.lastDoneAt ?? undefined,
+  lastOdometerKm: dto.lastOdometerKm ?? undefined,
+  lastPartnerName: dto.lastPartnerName ?? undefined,
+  dueDate: dto.dueDate ?? undefined,
+  dueOdometerKm: dto.dueOdometerKm ?? undefined,
+  dueInDays: dto.dueInDays ?? undefined,
+  dueInKm: dto.dueInKm ?? undefined,
+  overdue: dto.overdue,
+});
+
+export async function fetchVehicleMaintenance(vehicleId: string): Promise<MaintenanceStatus[]> {
+  const rows = await httpRequest<MaintenanceStatusDto[]>(`/v1/vehicles/${vehicleId}/maintenance`);
+  return rows.map(toStatus);
+}
+
+export async function fetchVehicleMaintenanceEvents(
+  vehicleId: string,
+  limit = 50,
+): Promise<MaintenanceEvent[]> {
+  const rows = await httpRequest<
+    (Omit<MaintenanceEvent, 'odometerKm'> & {
+      odometerKm: number | null;
+      cost: number | null;
+      notes: string | null;
+      partnerName: string | null;
+      createdByName: string | null;
+    })[]
+  >(`/v1/vehicles/${vehicleId}/maintenance/events?limit=${limit}`);
+
+  return rows.map((row) => ({
+    id: row.id,
+    item: row.item,
+    doneAt: row.doneAt,
+    odometerKm: row.odometerKm ?? undefined,
+    partnerName: row.partnerName ?? undefined,
+    cost: row.cost ?? undefined,
+    notes: row.notes ?? undefined,
+    createdByName: row.createdByName ?? undefined,
+  }));
+}
+
+/** Registra uma troca. O vencimento do item passa a contar a partir dela. */
+export async function addMaintenanceEvent(
+  vehicleId: string,
+  evento: {
+    item: MaintenanceItemId;
+    doneAt: string;
+    odometerKm?: number | undefined;
+    partnerName?: string | undefined;
+    cost?: number | undefined;
+    notes?: string | undefined;
+  },
+): Promise<void> {
+  await httpRequest(`/v1/vehicles/${vehicleId}/maintenance/events`, {
+    method: 'POST',
+    body: JSON.stringify(evento),
+  });
+}
+
+/**
+ * Grava o plano.
+ *
+ * ⚠️ Intervalo vazio nos DOIS campos apaga o plano do item, e é assim que o
+ * cadastro remove um item do acompanhamento: não existe botão de excluir plano.
+ */
+export async function saveMaintenancePlan(
+  vehicleId: string,
+  plano: { item: MaintenanceItemId; intervalKm: number | null; intervalMonths: number | null }[],
+): Promise<MaintenanceStatus[]> {
+  const rows = await httpRequest<MaintenanceStatusDto[]>(
+    `/v1/vehicles/${vehicleId}/maintenance/plan`,
+    { method: 'PATCH', body: JSON.stringify(plano) },
+  );
+  return rows.map(toStatus);
+}

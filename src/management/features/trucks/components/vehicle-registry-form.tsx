@@ -2,7 +2,10 @@ import { CheckIcon, InfoIcon, WarningIcon } from '@/components/icons';
 import {
   createVehicle,
   fetchVehicleRegistry,
+  saveMaintenancePlan,
   saveVehicleRegistry,
+  type MaintenanceItemId,
+  type MaintenanceStatus,
   type VehicleRegistry,
   type VehicleRegistryPatch,
 } from '@/management/lib/fleet-api';
@@ -18,7 +21,10 @@ import {
   cn,
 } from '@/management/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+
+import { getVehicleMaintenance } from '../api';
+import { MaintenancePlanFields, PLANO_VAZIO, type PlanoEmEdicao } from './maintenance-plan-fields';
 
 /**
  * A ficha do caminhão, como uma transportadora precisa dela.
@@ -321,12 +327,39 @@ const tudo = (form: Formulario): VehicleRegistryPatch => diferenca(form, VAZIO);
  * A ordem é a do documento do caminhão: quem está com o CRLV na mão preenche
  * de cima para baixo sem procurar.
  */
+/** O que o servidor devolve virando campos de texto, e de volta. */
+function paraPlano(status: MaintenanceStatus[] | undefined): PlanoEmEdicao {
+  if (!status) return PLANO_VAZIO;
+
+  const saida = { ...PLANO_VAZIO };
+  for (const linha of status) {
+    saida[linha.item] = {
+      km: linha.intervalKm == null ? '' : String(linha.intervalKm),
+      meses: linha.intervalMonths == null ? '' : String(linha.intervalMonths),
+    };
+  }
+  return saida;
+}
+
+function paraEnvio(plano: PlanoEmEdicao) {
+  return (Object.keys(plano) as MaintenanceItemId[]).map((item) => ({
+    item,
+    /* ⚠️ Vazio vira `null`, e não zero: o backend apaga o plano do item quando
+       os dois chegam nulos, e zero venceria o item no instante da gravação. */
+    intervalKm: plano[item].km.trim() ? Number(plano[item].km) : null,
+    intervalMonths: plano[item].meses.trim() ? Number(plano[item].meses) : null,
+  }));
+}
+
 const ETAPAS = [
   { id: 'identificacao', label: 'Identificação' },
   { id: 'tecnica', label: 'Ficha técnica' },
   { id: 'documentacao', label: 'Documentação' },
   { id: 'propriedade', label: 'Propriedade' },
   { id: 'operacao', label: 'Operação' },
+  /* ⚠️ Só ao EDITAR: o plano é gravado por veículo, e um caminhão que ainda não
+     existe não tem onde pendurá-lo. Ver `etapasVisiveis`. */
+  { id: 'plano', label: 'Plano de manutenção' },
 ] as const;
 
 type EtapaId = (typeof ETAPAS)[number]['id'];
@@ -468,8 +501,31 @@ function Campos({
   const [salvo, setSalvo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  /*
+   * O plano vive fora do `form` porque ele NÃO é campo do cadastro: é outra
+   * tabela e outra rota. Misturá-lo no mesmo objeto faria a comparação
+   * `diferenca()` mandar intervalos no PATCH do cadastro, que os ignoraria em
+   * silêncio.
+   */
+  const planoQuery = useQuery({
+    queryKey: ['vehicle-maintenance', vehicleId],
+    queryFn: () => getVehicleMaintenance(vehicleId as string),
+    enabled: vehicleId != null,
+  });
+  const planoDoServidor = useMemo(() => paraPlano(planoQuery.data), [planoQuery.data]);
+  const [plano, setPlano] = useState<PlanoEmEdicao>(PLANO_VAZIO);
+  const [planoCarregado, setPlanoCarregado] = useState(false);
+
+  /* Semeia uma vez, quando a consulta chega. Sem a trava, cada revalidação em
+     segundo plano apagaria o que a pessoa estava digitando. */
+  if (planoQuery.data && !planoCarregado) {
+    setPlanoCarregado(true);
+    setPlano(planoDoServidor);
+  }
+
   const patch = diferenca(form, original);
-  const mudou = Object.keys(patch).length > 0;
+  const planoMudou = JSON.stringify(plano) !== JSON.stringify(planoDoServidor);
+  const mudou = Object.keys(patch).length > 0 || planoMudou;
 
   const invalidar = (id: string) => {
     void cliente.invalidateQueries({ queryKey: ['vehicles'] });
@@ -480,10 +536,18 @@ function Campos({
   };
 
   const salvar = useMutation({
-    mutationFn: () =>
-      criando
-        ? createVehicle(form.plate, tudo(form))
-        : saveVehicleRegistry(vehicleId as string, patch),
+    mutationFn: async () => {
+      const atualizado = criando
+        ? await createVehicle(form.plate, tudo(form))
+        : await saveVehicleRegistry(vehicleId as string, patch);
+
+      /* ⚠️ Depois do cadastro, e só se mudou. São duas rotas porque são duas
+         tabelas: o plano não cabe no PATCH do cadastro, que o descartaria. */
+      if (!criando && planoMudou) {
+        await saveMaintenancePlan(vehicleId as string, paraEnvio(plano));
+      }
+      return atualizado;
+    },
     onSuccess: (atualizado) => {
       const novo = paraFormulario(atualizado);
       setOriginal(novo);
@@ -491,6 +555,7 @@ function Campos({
       setSalvo(true);
       setErro(null);
       invalidar(atualizado.vehicleId);
+      void cliente.invalidateQueries({ queryKey: ['vehicle-maintenance', atualizado.vehicleId] });
       onSaved();
     },
     onError: (e) => {
@@ -513,8 +578,15 @@ function Campos({
   const vencida = registro?.kmToMaintenance != null && registro.kmToMaintenance < 0;
   const dentroDoDialogo = onClose != null;
 
-  const indiceDaEtapa = ETAPAS.findIndex((e) => e.id === etapa);
-  const ultimaEtapa = indiceDaEtapa === ETAPAS.length - 1;
+  /*
+   * ⚠️ O plano só aparece na EDIÇÃO. Ele é gravado por veículo, numa rota que
+   * pede o id, e no cadastro de uma placa nova esse id ainda não existe: a
+   * etapa apareceria para ser perdida ao salvar.
+   */
+  const etapasVisiveis = criando ? ETAPAS.filter((e) => e.id !== 'plano') : ETAPAS;
+
+  const indiceDaEtapa = etapasVisiveis.findIndex((e) => e.id === etapa);
+  const ultimaEtapa = indiceDaEtapa === etapasVisiveis.length - 1;
 
   /**
    * O botão principal avança enquanto há etapa pela frente, e só grava na
@@ -535,12 +607,12 @@ function Campos({
   };
 
   const proxima = () => {
-    const seguinte = ETAPAS[indiceDaEtapa + 1];
+    const seguinte = etapasVisiveis[indiceDaEtapa + 1];
     if (seguinte) irPara(seguinte.id);
   };
 
   const anterior = () => {
-    const previa = ETAPAS[indiceDaEtapa - 1];
+    const previa = etapasVisiveis[indiceDaEtapa - 1];
     if (previa) irPara(previa.id);
   };
   const podeSalvar = criando ? form.plate.trim().length >= 7 : mudou;
@@ -572,7 +644,7 @@ function Campos({
        */}
       {dentroDoDialogo ? (
         <WizardSteps
-          steps={ETAPAS.map((e) => ({
+          steps={etapasVisiveis.map((e) => ({
             id: e.id,
             label: e.label,
             /* Só a primeira etapa tem campo obrigatório, e só no cadastro. */
@@ -935,6 +1007,23 @@ function Campos({
               ) : null}
             </div>
           </>
+        ) : null}
+
+        {/* ------------------------------------------------------------------ */}
+        {etapa === 'plano' ? (
+          <Secao
+            semTitulo={dentroDoDialogo}
+            titulo="Plano de manutenção"
+            hint="De quanto em quanto tempo cada item é trocado. O vencimento aparece na ficha do veículo."
+          >
+            <div className="sm:col-span-2">
+              {planoQuery.isPending ? (
+                <p className="text-on-surface-muted text-body-md">Carregando o plano…</p>
+              ) : (
+                <MaintenancePlanFields valor={plano} onChange={setPlano} />
+              )}
+            </div>
+          </Secao>
         ) : null}
       </div>
 

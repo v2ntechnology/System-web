@@ -463,6 +463,37 @@ com **Manual** e volta para o pátio, barra lateral de seções, e a grade de bl
 - ⚠️ **O `track` precisa de `useMemo` próprio.** Sendo um ternário no corpo do componente, a
   referência muda a cada render e o `prepararTrajeto` reprocessava os 622 pontos toda vez. O lint
   aponta isso, e o aviso é verdadeiro.
+- ⚠️ **A ficha é uma COLUNA FLEX de uma tela de altura, e a folha branca cresce dentro dela.** Sem
+  isso ela termina onde o conteúdo termina e o papel bege do painel aparece embaixo: a página ficava
+  com duas cores nas seções curtas, e o usuário apontou. ⚠️ O invólucro é DA TELA, e não do
+  `ManagementLayout`: transformar o layout em coluna flex mudaria o empilhamento de vinte telas de
+  uma vez, e margem deixa de colapsar dentro de flex. Com `flex-1` na folha não há número mágico de
+  altura de faixa, e a rolagem continua em zero.
+- ⚠️ **Manutenção é a seção com EXEMPLO EM TODOS OS CAMINHÕES** (decisão do usuário em 16/09/2026),
+  e é a exceção deliberada ao "sem origem" dos outros blocos. O que a separa: **loja parceira é
+  CATÁLOGO, e não medição da frota do cliente**. Listar oficinas afirma algo sobre uma rede que a
+  RookHub vai montar, e a seção diz isso em uma linha; dizer "68% de tanque" afirmaria algo sobre um
+  caminhão que existe. ⚠️ **Por isso nenhum cartão traz "última troca há X km"**: aquilo seria
+  medição por veículo, e ninguém tem o dado. O catálogo está em `mocks/maintenance-partners.ts`, com
+  a forma que uma API devolveria.
+- ⚠️ **Desde 17/09/2026 o vencimento vem PRONTO da API** (`GET /v1/vehicles/{id}/maintenance`), e a
+  tela não recalcula nada: o cálculo mora no `VehicleMaintenanceService`, porque a ficha, a fila de
+  manutenção e o assistente fazem a mesma pergunta. O plano é editado no **cadastro** (etapa "Plano
+  de manutenção", só na edição, porque a rota pede o id do veículo) e a troca é registrada na
+  **ficha**, em Manutenção. Os dois se encontram na seção "Manutenção" do manual em PDF.
+- ⚠️ **Sem plano, mas com troca, o cartão diz "Trocado em 17/09, sem plano".** Sem essa frase, quem
+  acabou de lançar a troca via "sem plano cadastrado" e concluía que o lançamento se perdeu.
+- ⚠️ **O plano NÃO entra no `form` do cadastro**: é outra tabela e outra rota, e misturá-lo faria a
+  comparação `diferenca()` mandar intervalos no PATCH do cadastro, que os descartaria em silêncio. A
+  gravação são duas chamadas na mesma mutação, cadastro primeiro.
+- ⚠️ **O vencimento por item separa CATÁLOGO de MEDIÇÃO, e é aqui que a linha passa.** O intervalo
+  ("a cada 10.000 km ou 6 meses") vale para qualquer caminhão e aparece sempre. Já "vence em 12
+  dias" é afirmação sobre AQUELE veículo: só a **revisão geral** tem origem (`nextMaintenanceDate` e
+  `kmToMaintenance` do cadastro) e os outros cinco dizem **"sem última troca registrada"**, porque
+  não existe campo de última troca por item em lugar nenhum. Na placa de demonstração todos vencem,
+  para o layout aparecer inteiro.
+- ⚠️ **`kmToMaintenance` volta nulo nos 40 veículos**, então hoje a revisão mostra "sem plano
+  cadastrado" na frota inteira. O caminho para preencher é o cadastro do veículo, não a telemetria.
 - ⚠️ **A barra lateral é navegação DA PÁGINA**, e não do produto: o menu é a barra superior, e uma
   segunda navegação global brigaria com ela. Os nomes vieram da referência em inglês; "Viagens" e
   "Cliente" existem porque foram pedidos, e explicam o que o produto não tem.

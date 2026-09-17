@@ -6,6 +6,7 @@ import {
   FileIcon,
   WarningIcon,
   GridIcon,
+  MaintenanceIcon,
   RouteIcon,
   UsersIcon,
 } from '@/components/icons';
@@ -37,6 +38,7 @@ import { prepararTrajeto } from '@/management/features/live-map/track-segments';
 import { getVehicleDetail, getVehicleRegistry, getVehicles, getVehicleTrack } from '../api';
 import { YARD_STATUS } from '../yard-status';
 import { VehicleDriverCard } from '../components/vehicle-driver-card';
+import { VehicleMaintenance } from '../components/vehicle-maintenance';
 import { VehicleManualDialog } from '../components/vehicle-manual-dialog';
 import {
   FuelEfficiencyCard,
@@ -61,6 +63,9 @@ import {
 const SECOES = [
   { id: 'geral', label: 'Visão geral', icon: GridIcon },
   { id: 'viagens', label: 'Viagens', icon: RouteIcon },
+  /* Manutenção fica junto da operação, e não no fim: quem abre a ficha por causa
+     de um barulho no freio procura aqui antes de qualquer número. */
+  { id: 'manutencao', label: 'Manutenção', icon: MaintenanceIcon },
   { id: 'cliente', label: 'Cliente', icon: UsersIcon },
   { id: 'analise', label: 'Análise', icon: ChartIcon },
   { id: 'historico', label: 'Histórico', icon: ClockIcon },
@@ -193,7 +198,18 @@ export function VehiclePage() {
   }));
 
   return (
-    <>
+    /*
+     * ⚠️ **COLUNA FLEX DE UMA TELA DE ALTURA, e a folha branca cresce dentro
+     * dela.** Sem isto a folha termina onde o conteúdo termina, e o papel bege
+     * do painel aparece embaixo: a seção de Manutenção sem item escolhido é
+     * curta, e a página ficava com duas cores.
+     *
+     * ⚠️ O invólucro é DESTA tela, e não do `ManagementLayout`: transformar o
+     * layout em coluna flex mudaria o empilhamento de vinte telas de uma vez, e
+     * margem não colapsa mais dentro de flex. Com `flex-1` na folha a conta é do
+     * navegador, sem número mágico de altura de faixa.
+     */
+    <div className="flex min-h-dvh flex-col">
       <HeroBand
         title={vehicle?.plate ?? plate.toUpperCase()}
         description={modelo || 'Veículo da frota'}
@@ -217,7 +233,7 @@ export function VehiclePage() {
         </HeroLink>
       </HeroBand>
 
-      <PageContent className="bg-light rounded-t-4xl relative -mt-16 pt-8 sm:rounded-t-[40px]">
+      <PageContent className="bg-light rounded-t-4xl relative -mt-16 flex-1 pt-8 sm:rounded-t-[40px]">
         {demonstracao ? (
           /*
            * ⚠️ AVISO PERMANENTE, e não um chip discreto. Um print desta tela
@@ -394,6 +410,14 @@ export function VehiclePage() {
                   </VehicleCard>
                 ) : null}
 
+                {secao === 'manutencao' ? (
+                  <VehicleMaintenance
+                    vehicleId={vehicle.id}
+                    odometroAtual={vehicle.odometerKm}
+                    demonstracao={demonstracao}
+                  />
+                ) : null}
+
                 {secao === 'cliente' ? (
                   <VehicleCard title="Cliente" icon={UsersIcon} hint="A quem esta viagem atende">
                     <p className="text-on-light-variant text-body-md">
@@ -548,6 +572,6 @@ export function VehiclePage() {
           plate={vehicle.plate}
         />
       ) : null}
-    </>
+    </div>
   );
 }
