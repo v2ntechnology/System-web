@@ -13,7 +13,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { HeroBand } from '@/management/components/layout/hero-band';
+import { HERO_PILL, HeroBand } from '@/management/components/layout/hero-band';
 import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
@@ -23,26 +23,27 @@ import { useSession } from '@/management/features/auth/store';
 import { env } from '@/app/environment';
 import { PendingSource } from '@/management/components/layout/pending-source';
 import {
+  deleteDriver,
   deactivateTeamMember,
   fetchRoles,
   fetchTeam,
   resendTeamInvite,
+  setDriverActive,
   type TeamMember,
 } from '@/management/lib/fleet-api';
-import { GlassModal, SpectrumButton } from '@/management/ui';
-import { usePermissions } from '@/hooks/use-session';
+import { Alert, GlassModal, SpectrumButton } from '@/management/ui';
 import { ApiError } from '@/services/http';
 
 import { MemberDialog } from '../components/member-dialog';
 
 import { getTeam } from '../api';
+import { DriverRegistrationModal } from '../../drivers/components/driver-registration-modal';
 import { TeamRoster } from '../components/team-roster';
 import { PersonCard } from '../components/person-card';
 
 const TABS = [
-  { id: 'TODOS', label: 'Todos' },
   { id: 'MOTORISTAS', label: 'Motoristas' },
-  { id: 'PAINEL', label: 'Painel' },
+  { id: 'EQUIPE', label: 'Equipe de apoio' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -89,25 +90,17 @@ export function TeamPage() {
  */
 function EquipeReal() {
   const queryClient = useQueryClient();
-  const { hasPermission } = usePermissions();
+  const role = useSession()?.user.role;
 
-  /*
-   * ⚠️ O dono vê SÓ quem ele convidou, desde 14/09/2026, a pedido do usuário.
-   *
-   * O quadro tem duas origens: motorista, que vem da telemetria, e conta de
-   * painel, que vem do nosso cadastro. Para o dono a pergunta é "quem tem acesso
-   * ao sistema", e os 132 motoristas empurram as contas para a segunda página de
-   * uma lista que ele abriu para ver outra coisa. O gestor e o operador
-   * continuam com o quadro inteiro, que é o que responde "quem pode rodar hoje".
-   */
-  const souDono = useSession()?.user.role === 'OWNER';
+  const [tab, setTab] = useState<TabId>('MOTORISTAS');
   /*
    * ⚠️ Guarda de TELA, e não de segurança: quem autoriza é a API, que exige
-   * `team.manage` em cada uma destas rotas. `settings.manage` é a permissão que
-   * este painel já dá a proprietário e super admin, e é a que corresponde ao
-   * único cargo com `team.manage` do lado de lá.
+   * `team.manage` em cada uma destas rotas. Aqui o papel é a pista visual:
+   * dono, gestor e super admin chegam a esta rota e podem iniciar a tratativa.
+   * A API continua sendo a autoridade final e recusa qualquer escrita fora da
+   * alçada do usuário.
    */
-  const podeAdministrar = hasPermission('settings.manage');
+  const podeAdministrar = role === 'OWNER' || role === 'MANAGER' || role === 'SUPER_ADMIN';
 
   const { data, isPending, isError } = useQuery({
     queryKey: ['equipe'],
@@ -125,6 +118,12 @@ function EquipeReal() {
   /** Aberto com uma pessoa edita; aberto com `null` convida. */
   const [emEdicao, setEmEdicao] = useState<TeamMember | null>(null);
   const [dialogoAberto, setDialogoAberto] = useState(false);
+  const [cadastroMotorista, setCadastroMotorista] = useState<{ open: boolean; id: string | null }>({
+    open: false,
+    id: null,
+  });
+  const [motoristaParaAlternar, setMotoristaParaAlternar] = useState<TeamMember | null>(null);
+  const [motoristaParaExcluir, setMotoristaParaExcluir] = useState<TeamMember | null>(null);
 
   const abrirDialogo = (pessoa: TeamMember | null) => {
     setEmEdicao(pessoa);
@@ -172,25 +171,31 @@ function EquipeReal() {
     onError: (causa) => avisarErro(causa, 'Não foi possível desativar o acesso.'),
   });
 
-  const statsDoDono: HeroStat[] = data
-    ? [
-        {
-          key: 'acessos',
-          label: 'Pessoas com acesso',
-          value: data.staff - data.staffInactive,
-          hint: 'contas que entram no painel',
-          icon: UserIcon,
-        },
-        {
-          key: 'desativados',
-          label: 'Acessos desativados',
-          value: data.staffInactive,
-          hint: 'histórico preservado',
-          icon: LockIcon,
-          tone: data.staffInactive > 0 ? 'warn' : 'neutral',
-        },
-      ]
-    : [];
+  const alternarMotorista = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => setDriverActive(id, active),
+    onSuccess: (motorista) => {
+      toast.success(`${motorista.name} foi ${motorista.active ? 'ativado' : 'inativado'}.`);
+      setMotoristaParaAlternar(null);
+      recarregar();
+    },
+    onError: (causa) => {
+      avisarErro(causa, 'Não foi possível alterar o status do motorista.');
+      setMotoristaParaAlternar(null);
+    },
+  });
+
+  const excluirMotorista = useMutation({
+    mutationFn: (id: string) => deleteDriver(id),
+    onSuccess: () => {
+      toast.success(`${motoristaParaExcluir?.name ?? 'O motorista'} foi excluído.`);
+      setMotoristaParaExcluir(null);
+      recarregar();
+    },
+    onError: (causa) => {
+      avisarErro(causa, 'Não foi possível excluir o motorista.');
+      setMotoristaParaExcluir(null);
+    },
+  });
 
   const statsDaOperacao: HeroStat[] = data
     ? [
@@ -234,21 +239,32 @@ function EquipeReal() {
       ]
     : [];
 
-  const stats = souDono ? statsDoDono : statsDaOperacao;
-  const pessoas = souDono
-    ? (data?.people ?? []).filter((pessoa) => pessoa.kind === 'PAINEL')
-    : (data?.people ?? []);
+  const pessoas = data?.people ?? [];
+  const motoristas = pessoas.filter((pessoa) => pessoa.kind === 'MOTORISTA');
+  const equipeDeApoio = pessoas.filter((pessoa) => pessoa.kind === 'PAINEL');
+  const pessoasDaAba = tab === 'MOTORISTAS' ? motoristas : equipeDeApoio;
 
   return (
     <>
       <HeroBand
         title="Equipe"
-        description={
-          souDono
-            ? 'Quem você convidou para o painel da empresa.'
-            : 'Quem dirige, quem tem acesso ao painel e quem apareceu na operação nos últimos 30 dias.'
-        }
-      />
+        description="Motoristas de um lado; gestão, operação e manutenção do outro. Cada pessoa no lugar certo."
+      >
+        {podeAdministrar ? (
+          <button
+            type="button"
+            className={`${HERO_PILL} text-on-primary hover:bg-on-primary hover:text-primary focus-visible:ring-on-primary transition-colors focus-visible:outline-none focus-visible:ring-2`}
+            onClick={() =>
+              tab === 'MOTORISTAS'
+                ? setCadastroMotorista({ open: true, id: null })
+                : abrirDialogo(null)
+            }
+          >
+            <PlusIcon size={15} aria-hidden="true" />
+            {tab === 'MOTORISTAS' ? 'Cadastrar motorista' : 'Convidar pessoa'}
+          </button>
+        ) : null}
+      </HeroBand>
 
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">Resumo do quadro</h2>
@@ -259,12 +275,10 @@ function EquipeReal() {
               {/* A subida fica nos cards, e não na seção: em volta do
                   `QueryState` ela jogaria o carregamento e o erro por cima da
                   faixa colorida. */}
-              <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+              <HeroStats items={statsDaOperacao} className="-mt-16 sm:-mt-20" />
               {/* RN-121: o número vem com a procedência colada nele. */}
               <p className="text-on-surface-muted text-label-sm mt-3 normal-case">
-                {souDono
-                  ? 'Cadastro do sistema, e não da telemetria.'
-                  : 'Duas origens: cadastro da telemetria e cadastro do sistema.'}
+                Duas origens: cadastro da telemetria e cadastro do sistema.
               </p>
             </>
           ) : null}
@@ -273,49 +287,64 @@ function EquipeReal() {
 
       <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
         <QueryState isPending={isPending} isError={isError} label="a equipe">
-          {podeAdministrar ? (
-            <div className="mb-5 flex justify-end">
-              <SpectrumButton type="button" size="sm" onClick={() => abrirDialogo(null)}>
-                <PlusIcon size={14} aria-hidden="true" />
-                Convidar
-              </SpectrumButton>
+          <PageTabs
+            tabs={[
+              { id: 'MOTORISTAS', label: 'Motoristas', count: motoristas.length },
+              { id: 'EQUIPE', label: 'Equipe de apoio', count: equipeDeApoio.length },
+            ]}
+            value={tab}
+            onValueChange={setTab}
+            label="Pessoas da equipe"
+          >
+            <div className="mb-5">
+              <h2 className="font-sora text-on-light text-headline-md">
+                {tab === 'MOTORISTAS' ? 'Motoristas' : 'Gestão, operação e manutenção'}
+              </h2>
+              <p className="text-on-light-muted text-body-sm mt-1">
+                {tab === 'MOTORISTAS'
+                  ? 'Quem dirige os veículos da frota.'
+                  : 'Quem faz a operação acontecer fora da direção.'}
+              </p>
             </div>
-          ) : null}
-
-          <TeamRoster
-            people={pessoas}
-            somentePainel={souDono}
-            {...(podeAdministrar
-              ? {
-                  onEditar: (pessoa: TeamMember) => abrirDialogo(pessoa),
-                  onReenviar: (pessoa: TeamMember) => reenvio.mutate(pessoa),
-                  onDesativar: (pessoa: TeamMember) => desativacao.mutate(pessoa),
-                }
-              : {})}
-          />
+            <TeamRoster
+              key={tab}
+              people={pessoasDaAba}
+              kind={tab === 'MOTORISTAS' ? 'MOTORISTA' : 'PAINEL'}
+              {...(podeAdministrar
+                ? {
+                    onEditar: (pessoa: TeamMember) =>
+                      pessoa.kind === 'MOTORISTA'
+                        ? setCadastroMotorista({ open: true, id: pessoa.id })
+                        : abrirDialogo(pessoa),
+                    onReenviar: (pessoa: TeamMember) => reenvio.mutate(pessoa),
+                    onDesativar: (pessoa: TeamMember) => desativacao.mutate(pessoa),
+                    onAlternar: (pessoa: TeamMember) => setMotoristaParaAlternar(pessoa),
+                    onExcluir: (pessoa: TeamMember) => setMotoristaParaExcluir(pessoa),
+                  }
+                : {})}
+            />
+          </PageTabs>
 
           {/* ⚠️ Escala, CNH e toxicológico são sobre MOTORISTA: na tela do dono,
               que só lista contas de painel, o bloco prometeria resolver uma
               ausência que ele nem está vendo. */}
-          {souDono ? null : (
-            <div className="mt-6">
-              <PendingSource
-                title="Escala e documentação ainda não estão aqui"
-                description="Saber quem pode assumir viagem hoje exige escala e documento em dia. A telemetria diz quem dirigiu, e não quem está apto a dirigir."
-                requirements={[
-                  'CNH com categoria e vencimento, que vem do RH e não do rastreador',
-                  'Escala de trabalho, folga e afastamento',
-                  'Exame toxicológico e curso obrigatório, quando a operação exigir',
-                  'Segundo fator no acesso ao painel, que ainda não foi implementado',
-                ]}
-                meanwhile={[
-                  { label: 'Jornada do dia e limite legal', to: '/gestao/motoristas' },
-                  { label: 'Ranking de condução', to: '/gestao/desempenho' },
-                  { label: 'Papéis e acesso', to: '/gestao/configuracoes' },
-                ]}
-              />
-            </div>
-          )}
+          <div className="mt-6">
+            <PendingSource
+              title="Escala e documentação ainda não estão aqui"
+              description="Saber quem pode assumir viagem hoje exige escala e documento em dia. A telemetria diz quem dirigiu, e não quem está apto a dirigir."
+              requirements={[
+                'CNH com categoria e vencimento, que vem do RH e não do rastreador',
+                'Escala de trabalho, folga e afastamento',
+                'Exame toxicológico e curso obrigatório, quando a operação exigir',
+                'Segundo fator no acesso ao painel, que ainda não foi implementado',
+              ]}
+              meanwhile={[
+                { label: 'Motoristas da equipe', to: '/gestao/equipe' },
+                { label: 'Ranking de condução', to: '/gestao/desempenho' },
+                { label: 'Papéis e acesso', to: '/gestao/configuracoes' },
+              ]}
+            />
+          </div>
         </QueryState>
       </PageContent>
 
@@ -339,12 +368,121 @@ function EquipeReal() {
           onSaved={recarregar}
         />
       </GlassModal>
+
+      <DriverRegistrationModal
+        open={cadastroMotorista.open}
+        driverId={cadastroMotorista.id}
+        onOpenChange={(open) =>
+          setCadastroMotorista({ open, id: open ? cadastroMotorista.id : null })
+        }
+      />
+
+      <ConfirmarStatusMotorista
+        motorista={motoristaParaAlternar}
+        pending={alternarMotorista.isPending}
+        onCancel={() => setMotoristaParaAlternar(null)}
+        onConfirm={() => {
+          if (motoristaParaAlternar) {
+            alternarMotorista.mutate({
+              id: motoristaParaAlternar.id,
+              active: !motoristaParaAlternar.active,
+            });
+          }
+        }}
+      />
+
+      <ConfirmarExclusaoMotorista
+        motorista={motoristaParaExcluir}
+        pending={excluirMotorista.isPending}
+        onCancel={() => setMotoristaParaExcluir(null)}
+        onConfirm={() => motoristaParaExcluir && excluirMotorista.mutate(motoristaParaExcluir.id)}
+      />
     </>
   );
 }
 
+function ConfirmarStatusMotorista({
+  motorista,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  motorista: TeamMember | null;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const ativando = motorista != null && !motorista.active;
+
+  return (
+    <GlassModal
+      open={motorista != null}
+      onOpenChange={(open) => !open && onCancel()}
+      title={ativando ? 'Ativar motorista' : 'Inativar motorista'}
+      className="w-[calc(100vw-2rem)] max-w-[460px]"
+    >
+      <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6">
+        <p className="text-on-surface text-body-md">
+          {ativando ? 'Ativar ' : 'Inativar '}
+          <strong>{motorista?.name}</strong>?
+          {ativando
+            ? ' A pessoa volta a aparecer nas listas de motorista ativo.'
+            : ' O histórico é preservado; apenas deixa de aparecer nas listas de motorista ativo.'}
+        </p>
+        <div className="flex justify-end gap-2">
+          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+            Cancelar
+          </SpectrumButton>
+          <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>
+            {pending ? (ativando ? 'Ativando…' : 'Inativando…') : ativando ? 'Ativar' : 'Inativar'}
+          </SpectrumButton>
+        </div>
+      </div>
+    </GlassModal>
+  );
+}
+
+function ConfirmarExclusaoMotorista({
+  motorista,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  motorista: TeamMember | null;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <GlassModal
+      open={motorista != null}
+      onOpenChange={(open) => !open && onCancel()}
+      title="Excluir motorista"
+      className="w-[calc(100vw-2rem)] max-w-[480px]"
+    >
+      <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6">
+        <p className="text-on-surface text-body-md">
+          Excluir <strong>{motorista?.name}</strong>? Essa ação não pode ser desfeita.
+        </p>
+        <Alert severity="warning">
+          Só é possível excluir um cadastro sem vínculo. Para quem já tem viagens, eventos ou
+          veículo associado, use inativar e preserve o histórico.
+        </Alert>
+        <div className="flex justify-end gap-2">
+          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+            Cancelar
+          </SpectrumButton>
+          <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>
+            {pending ? 'Excluindo…' : 'Excluir'}
+          </SpectrumButton>
+        </div>
+      </div>
+    </GlassModal>
+  );
+}
+
 function EquipeSimulada() {
-  const [tab, setTab] = useState<TabId>('TODOS');
+  const [tab, setTab] = useState<TabId>('MOTORISTAS');
   const [term, setTerm] = useState('');
 
   const role = useSession()?.user.role;
@@ -361,7 +499,7 @@ function EquipeSimulada() {
       people
         .filter((person) => {
           if (tab === 'MOTORISTAS' && person.kind !== 'MOTORISTA') return false;
-          if (tab === 'PAINEL' && person.kind !== 'PAINEL') return false;
+          if (tab === 'EQUIPE' && person.kind !== 'PAINEL') return false;
           if (!needle) return true;
 
           const haystack = [
@@ -380,7 +518,6 @@ function EquipeSimulada() {
          * acesso aparecer entre dois motoristas sem motivo.
          */
         .sort((a, b) => {
-          if (a.kind !== b.kind) return a.kind === 'MOTORISTA' ? -1 : 1;
           return a.name.localeCompare(b.name, 'pt-BR');
         })
     );
@@ -388,9 +525,8 @@ function EquipeSimulada() {
 
   const counts = useMemo(
     () => ({
-      TODOS: people.length,
       MOTORISTAS: people.filter((person) => person.kind === 'MOTORISTA').length,
-      PAINEL: people.filter((person) => person.kind === 'PAINEL').length,
+      EQUIPE: people.filter((person) => person.kind === 'PAINEL').length,
     }),
     [people],
   );
@@ -526,8 +662,9 @@ function EquipeSimulada() {
             {/* ⚠️ `mt-8`, e não `mt-auto`: o `mt-auto` empurrava para o rodapé da
                 coluna flex do `LightCard`, que não existe mais. */}
             <p className="text-on-light-muted text-label-md mt-8 normal-case">
-              Ficha, advertências e histórico ficam em Motoristas. Papéis e acesso, em
-              Configurações.
+              {tab === 'MOTORISTAS'
+                ? 'Ficha, advertências e histórico de direção ficam reunidos nesta lista.'
+                : 'Papéis e acesso são gerenciados por quem tem permissão para administrar a equipe.'}
             </p>
           </QueryState>
         </PageTabs>

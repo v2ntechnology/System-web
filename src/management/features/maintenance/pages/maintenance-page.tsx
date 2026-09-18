@@ -27,7 +27,7 @@ import { PendingSource } from '@/management/components/layout/pending-source';
 import { QueryState } from '@/management/components/layout/query-state';
 import { env } from '@/app/environment';
 
-import { fetchMechanicalAlerts } from '@/management/lib/fleet-api';
+import { fetchFleetMaintenanceDue, fetchMechanicalAlerts } from '@/management/lib/fleet-api';
 
 import { getMaintenanceSummary } from '../api';
 import { aggregateMechanicalAlerts, formatAlertDescription } from '../alerts';
@@ -35,6 +35,7 @@ import {
   MechanicalAlertsQueue,
   MechanicalKindFilters,
 } from '../components/mechanical-alerts-queue';
+import { FleetMaintenanceDueQueue } from '../components/fleet-maintenance-due-queue';
 
 const TABS = [
   { id: 'ORDENS', label: 'Ordens de serviço' },
@@ -110,8 +111,8 @@ export function MaintenancePage() {
   return (
     <>
       <HeroBand
-        title="Manutenção"
-        description="Ordens de serviço, planos preventivos e o desempenho de cada oficina."
+        title="Pendências de manutenção"
+        description="Acompanhe o que pede atenção na frota. O plano e o histórico de cada caminhão ficam na ficha da placa."
       />
 
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
@@ -439,7 +440,49 @@ export function MaintenancePage() {
  * contrário faria a pessoa fechar a página antes de ver que existe informação
  * confiável ali.
  */
+/** A visão operacional: vencimentos e, em seguida, a futura rede de oficinas. */
 function ManutencaoReal() {
+  const vencimentos = useQuery({
+    queryKey: ['manutencao', 'vencimentos-frota'],
+    queryFn: fetchFleetMaintenanceDue,
+  });
+
+  return (
+    <>
+      <HeroBand
+        title="Pendências de manutenção"
+        description="O que a frota precisa fazer agora: itens vencidos e próximos do vencimento."
+      />
+      <PageContent className="rounded-t-4xl bg-light mt-8 pt-8 sm:rounded-t-[40px]">
+        <QueryState
+          isPending={vencimentos.isPending}
+          isError={vencimentos.isError}
+          label="os vencimentos da frota"
+        >
+          <FleetMaintenanceDueQueue linhas={vencimentos.data ?? []} />
+        </QueryState>
+        <div className="mt-8">
+          <PendingSource
+            title="A rede de oficinas está em configuração"
+            description="A ficha do veículo já ordena o catálogo pela última posição do caminhão. A contratação de parceiros e as ordens de serviço serão os próximos dados desta visão."
+            requirements={[
+              'Parceiros contratados, com especialidade e área de atendimento',
+              'Ordem de serviço: abertura, peças, valor e conclusão',
+              'Tempo parado, que é o custo invisível da manutenção',
+            ]}
+            className="bg-light-container p-5 shadow-none ring-0 sm:p-6"
+          />
+        </div>
+      </PageContent>
+    </>
+  );
+}
+
+/**
+ * A fila CAN vive em Notificações. Mantida exportada temporariamente enquanto
+ * os filtros completos são consolidados na nova seção daquela central.
+ */
+export function MechanicalAlertsLegacy() {
   /*
    * Trinta dias, fixos.
    *
@@ -453,6 +496,10 @@ function ManutencaoReal() {
   const alertas = useQuery({
     queryKey: ['manutencao', 'alertas-mecanicos', JANELA],
     queryFn: () => fetchMechanicalAlerts(JANELA),
+  });
+  const vencimentos = useQuery({
+    queryKey: ['manutencao', 'vencimentos-frota'],
+    queryFn: fetchFleetMaintenanceDue,
   });
 
   const [tipo, setTipo] = useState<string | null>(null);
@@ -520,7 +567,7 @@ function ManutencaoReal() {
   return (
     <>
       <HeroBand
-        title="Manutenção"
+        title="Pendências de manutenção"
         description="O que o rastreador acusa de mecânico, e o que ainda depende de cadastro. A fila começa pelo caminhão que mais dispara, e os tipos recortam a lista sem mudar essa ordem."
       >
         <HeroPill icon={ClockIcon}>{PERIODO}</HeroPill>
@@ -583,79 +630,89 @@ function ManutencaoReal() {
 
       <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
         <QueryState
+          isPending={vencimentos.isPending}
+          isError={vencimentos.isError}
+          label="os vencimentos da frota"
+        >
+          <FleetMaintenanceDueQueue linhas={vencimentos.data ?? []} />
+        </QueryState>
+
+        <QueryState
           isPending={alertas.isPending}
           isError={alertas.isError}
           label="os alertas mecânicos"
         >
-          {resumo.porTipo.length > 0 ? (
-            <>
-              {/* ⚠️ Sem cartão em volta: a barra já vive dentro do painel branco,
+          <div className="mt-10">
+            {resumo.porTipo.length > 0 ? (
+              <>
+                {/* ⚠️ Sem cartão em volta: a barra já vive dentro do painel branco,
                   e cartão dentro de cartão é moldura sobre moldura. É o mesmo
                   desenho de `FleetFilters`, com `surface="light"` nos campos. */}
-              <div
-                role="group"
-                aria-label="Filtros dos alertas mecânicos"
-                className="grid items-end gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
-              >
-                <GlassInput
-                  id="alerta-busca"
-                  surface="light"
-                  label="Buscar"
-                  placeholder="Placa ou modelo"
-                  value={busca}
-                  onChange={(event) => escolherBusca(event.target.value)}
-                  leading={<SearchIcon size={16} aria-hidden="true" />}
-                />
-
-                {/* O seletor só existe quando o rastreador informa unidade em mais
-                    de uma: com uma só, ele seria um controle sem escolha. */}
-                {resumo.unidades.length > 1 ? (
-                  <GlassSelect
-                    id="alerta-unidade"
+                <div
+                  role="group"
+                  aria-label="Filtros dos alertas mecânicos"
+                  className="grid items-end gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
+                >
+                  <GlassInput
+                    id="alerta-busca"
                     surface="light"
-                    label="Unidade"
-                    value={unidade}
-                    onValueChange={escolherUnidade}
-                    options={[
-                      { value: TODAS_UNIDADES, label: 'Todas as unidades' },
-                      ...resumo.unidades.map((nome) => ({ value: nome, label: nome })),
-                    ]}
+                    label="Buscar"
+                    placeholder="Placa ou modelo"
+                    value={busca}
+                    onChange={(event) => escolherBusca(event.target.value)}
+                    leading={<SearchIcon size={16} aria-hidden="true" />}
                   />
-                ) : null}
-              </div>
 
-              <h3 className="text-on-light-variant text-label-md mt-6 normal-case">
-                Por tipo de alerta
-              </h3>
-              <div className="mt-3">
-                <MechanicalKindFilters
-                  porTipo={resumo.porTipo}
-                  selected={tipo}
-                  onSelect={escolherTipo}
-                />
-              </div>
+                  {/* O seletor só existe quando o rastreador informa unidade em mais
+                    de uma: com uma só, ele seria um controle sem escolha. */}
+                  {resumo.unidades.length > 1 ? (
+                    <GlassSelect
+                      id="alerta-unidade"
+                      surface="light"
+                      label="Unidade"
+                      value={unidade}
+                      onValueChange={escolherUnidade}
+                      options={[
+                        { value: TODAS_UNIDADES, label: 'Todas as unidades' },
+                        ...resumo.unidades.map((nome) => ({ value: nome, label: nome })),
+                      ]}
+                    />
+                  ) : null}
+                </div>
 
-              <div className="mt-8">
-                <MechanicalAlertsQueue
-                  veiculos={filtrados}
-                  note={note}
-                  page={pagina}
-                  onPageChange={setPagina}
-                  action={
-                    filtrando ? (
-                      <SpectrumButton variant="ghost" size="sm" onClick={limpar}>
-                        Limpar filtro
-                      </SpectrumButton>
-                    ) : null
-                  }
-                />
-              </div>
-            </>
-          ) : (
-            <p className="text-on-light-variant text-body-md py-10 text-center">
-              Nenhum alerta mecânico nos {JANELA} dias.
-            </p>
-          )}
+                <h3 className="text-on-light-variant text-label-md mt-6 normal-case">
+                  Por tipo de alerta
+                </h3>
+                <div className="mt-3">
+                  <MechanicalKindFilters
+                    porTipo={resumo.porTipo}
+                    selected={tipo}
+                    onSelect={escolherTipo}
+                  />
+                </div>
+
+                <div className="mt-8">
+                  <MechanicalAlertsQueue
+                    veiculos={filtrados}
+                    note={note}
+                    page={pagina}
+                    onPageChange={setPagina}
+                    action={
+                      filtrando ? (
+                        <SpectrumButton variant="ghost" size="sm" onClick={limpar}>
+                          Limpar filtro
+                        </SpectrumButton>
+                      ) : null
+                    }
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-on-light-variant text-body-md py-10 text-center">
+                Nenhum alerta mecânico nos {JANELA} dias.
+              </p>
+            )}
+          </div>
         </QueryState>
 
         {/*
@@ -665,10 +722,9 @@ function ManutencaoReal() {
         */}
         <div className="mt-8">
           <PendingSource
-            title="A oficina e o plano ainda não têm origem"
-            description="Os alertas acima dizem o que o veículo está acusando. O que foi feito a respeito, quanto custou e quando vence o próximo serviço dependem de cadastro que ainda não existe."
+            title="O custo e a ordem de serviço ainda não têm origem"
+            description="Os vencimentos acima saem do plano e do histórico por veículo. Os alertas dizem o que o sensor acusou; o que foi feito, quanto custou e quanto tempo o caminhão parou ainda dependem de ordem de serviço."
             requirements={[
-              'Plano preventivo: qual serviço, a cada quantos quilômetros ou horas',
               'Ordem de serviço: abertura, oficina, peças, valor e conclusão',
               'Tempo parado, que é o custo invisível da manutenção',
             ]}

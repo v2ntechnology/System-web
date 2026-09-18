@@ -32,7 +32,8 @@ export interface MaintenancePartner {
   name: string;
   /** Bairro e cidade, como a operação fala. */
   place: string;
-  distanceKm: number;
+  /** Latitude/longitude do catálogo. A distância é calculada pela posição do caminhão. */
+  coordinates: readonly [latitude: number, longitude: number];
   rating: number;
   phone: string;
   /** O que ela faz melhor, em duas ou três palavras. */
@@ -81,7 +82,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'oleo-1',
         name: 'Lubrificantes Barra Mansa',
         place: 'Centro, Barra Mansa',
-        distanceKm: 4.2,
+        coordinates: [-22.5445, -44.1714],
         rating: 4.7,
         phone: '+55 24 3322-1100',
         highlight: 'Troca em 40 minutos',
@@ -91,7 +92,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'oleo-2',
         name: 'Posto Rodoviário BR-116',
         place: 'km 284, Volta Redonda',
-        distanceKm: 11.8,
+        coordinates: [-22.5221, -44.1047],
         rating: 4.3,
         phone: '+55 24 3344-2200',
         highlight: 'Aberto 24 horas',
@@ -111,7 +112,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'pneus-1',
         name: 'Borracharia do Zé',
         place: 'Vila Rica, Volta Redonda',
-        distanceKm: 6.5,
+        coordinates: [-22.5187, -44.1165],
         rating: 4.8,
         phone: '+55 24 3355-3300',
         highlight: 'Atende na estrada',
@@ -121,7 +122,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'pneus-2',
         name: 'Pneus Sul Fluminense',
         place: 'Aterrado, Volta Redonda',
-        distanceKm: 9.1,
+        coordinates: [-22.5308, -44.1026],
         rating: 4.5,
         phone: '+55 24 3366-4400',
         highlight: 'Recapagem própria',
@@ -141,7 +142,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'freios-1',
         name: 'Freios Pesados RJ',
         place: 'Distrito Industrial, Resende',
-        distanceKm: 22.4,
+        coordinates: [-22.4779, -44.4503],
         rating: 4.6,
         phone: '+55 24 3377-5500',
         highlight: 'Especialista em pesados',
@@ -161,7 +162,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'filtros-1',
         name: 'Auto Peças Piraí',
         place: 'Centro, Piraí',
-        distanceKm: 18.7,
+        coordinates: [-22.6288, -43.9027],
         rating: 4.4,
         phone: '+55 24 3388-6600',
         highlight: 'Linha Iveco completa',
@@ -181,7 +182,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'bateria-1',
         name: 'Baterias Volta Redonda',
         place: 'Retiro, Volta Redonda',
-        distanceKm: 7.9,
+        coordinates: [-22.4989, -44.1191],
         rating: 4.2,
         phone: '+55 24 3399-7700',
         highlight: 'Socorro no pátio',
@@ -201,7 +202,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'revisao-1',
         name: 'Oficina Central Servioeste',
         place: 'Queimados',
-        distanceKm: 78.3,
+        coordinates: [-22.8093, -43.4137],
         rating: 4.9,
         phone: '+55 21 2233-8800',
         highlight: 'Oficina da própria frota',
@@ -211,7 +212,7 @@ export const MAINTENANCE_ITEMS: MaintenanceItem[] = [
         id: 'revisao-2',
         name: 'Iveco Autorizada Resende',
         place: 'Rodovia Presidente Dutra, Resende',
-        distanceKm: 24.6,
+        coordinates: [-22.4708, -44.4623],
         rating: 4.7,
         phone: '+55 24 3311-9900',
         highlight: 'Garantia de fábrica',

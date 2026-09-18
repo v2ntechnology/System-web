@@ -40,12 +40,6 @@ const OPERATIONAL_NAV: NavEntry[] = [
         module: 'FLEET',
       },
       {
-        to: '/gestao/viagens',
-        label: 'Viagens',
-        hint: 'Em curso, atrasadas e concluídas',
-        module: 'TRIPS',
-      },
-      {
         to: '/gestao/checklists',
         label: 'Checklists',
         hint: 'Preenchimentos, pendências e bloqueios',
@@ -63,27 +57,20 @@ const OPERATIONAL_NAV: NavEntry[] = [
         module: 'FLEET',
       },
       {
-        to: '/gestao/manutencao',
-        label: 'Manutenção',
-        hint: 'Ordens de serviço e preventivas',
-        module: 'MAINTENANCE',
+        to: '/gestao/notificacoes',
+        label: 'Alertas',
+        hint: 'Segurança, pendências e avisos da operação',
       },
     ],
   },
   {
     label: 'Pessoas',
     items: [
-      { to: '/gestao/motoristas', label: 'Motoristas', hint: 'Ficha, score e advertências' },
+      { to: '/gestao/equipe', label: 'Equipe', hint: 'Motoristas, operação e manutenção' },
       {
         to: '/gestao/gamificacao',
         label: 'Gamificação',
         hint: 'Pódio e classificação por score de condução',
-      },
-      {
-        to: '/gestao/seguranca',
-        label: 'Segurança',
-        hint: 'Eventos, contestações e copiloto',
-        module: 'SAFETY',
       },
     ],
   },
@@ -152,12 +139,6 @@ const MANAGER_NAV: NavEntry[] = [
         module: 'FLEET',
       },
       {
-        to: '/gestao/viagens',
-        label: 'Viagens',
-        hint: 'Em curso, atrasadas e concluídas',
-        module: 'TRIPS',
-      },
-      {
         to: '/gestao/checklists',
         label: 'Checklists',
         hint: 'Preenchimentos, pendências e bloqueios',
@@ -187,10 +168,9 @@ const MANAGER_NAV: NavEntry[] = [
         end: true,
       },
       {
-        to: '/gestao/manutencao',
-        label: 'Manutenção',
-        hint: 'Ordens de serviço e preventivas',
-        module: 'MAINTENANCE',
+        to: '/gestao/notificacoes',
+        label: 'Alertas',
+        hint: 'Segurança, pendências e avisos da operação',
       },
     ],
   },
@@ -199,30 +179,9 @@ const MANAGER_NAV: NavEntry[] = [
     items: [
       { to: '/gestao/equipe', label: 'Equipe', hint: 'Quadro completo e quem pode rodar hoje' },
       {
-        /* ⚠️ `end` aqui, e não só no filho. `isItemActive` casa por prefixo
-           quando `end` é falso, então sem isto "Motoristas" acenderia junto com
-           "Cadastrar motorista": dois itens ativos ao mesmo tempo no menu. */
-        to: '/gestao/motoristas',
-        label: 'Motoristas',
-        hint: 'Ficha, score e advertências',
-        end: true,
-      },
-      {
-        to: '/gestao/motoristas/cadastro',
-        label: 'Cadastro',
-        hint: 'Quem a telemetria entrega, e quem já foi conferido por uma pessoa',
-        end: true,
-      },
-      {
         to: '/gestao/gamificacao',
         label: 'Gamificação',
         hint: 'Pódio e classificação por score de condução',
-      },
-      {
-        to: '/gestao/seguranca',
-        label: 'Segurança',
-        hint: 'Eventos, contestações e copiloto',
-        module: 'SAFETY',
       },
     ],
   },
@@ -275,22 +234,15 @@ const OPERATOR_NAV: NavEntry[] = [
         module: 'FLEET',
       },
       {
-        to: '/gestao/viagens',
-        label: 'Viagens',
-        hint: 'Em curso, atrasadas e concluídas',
-        module: 'TRIPS',
-      },
-      {
         to: '/gestao/mapa',
         label: 'Mapa ao vivo',
         hint: 'Onde a frota está agora',
         module: 'FLEET',
       },
       {
-        to: '/gestao/manutencao',
-        label: 'Manutenção',
-        hint: 'Ordens de serviço e preventivas',
-        module: 'MAINTENANCE',
+        to: '/gestao/notificacoes',
+        label: 'Alertas',
+        hint: 'Segurança, pendências e avisos da operação',
       },
     ],
   },

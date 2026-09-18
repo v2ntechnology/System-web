@@ -1,4 +1,13 @@
-import { EditIcon, InfoIcon, MailIcon, PowerIcon, SearchIcon } from '@/components/icons';
+import {
+  ArrowRightIcon,
+  DeleteIcon,
+  EditIcon,
+  InfoIcon,
+  MailIcon,
+  PowerIcon,
+  SearchIcon,
+  TruckIcon,
+} from '@/components/icons';
 import type { TeamMember } from '@/management/lib/fleet-api';
 import {
   GlassInput,
@@ -6,9 +15,11 @@ import {
   Pagination,
   SpectrumButton,
   StatusChip,
+  Avatar,
   cn,
 } from '@/management/ui';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useNavigate } from 'react-router';
 
 /**
  * O quadro de pessoas, com as duas origens visíveis.
@@ -66,6 +77,8 @@ const SITUACOES = [
 export interface TeamRosterProps {
   people: TeamMember[];
   className?: string | undefined;
+  /** A aba dona do conjunto. Evita oferecer filtro de acesso para motorista e vice-versa. */
+  kind?: 'MOTORISTA' | 'PAINEL' | undefined;
   /**
    * A lista é só de contas de painel, e os filtros acompanham.
    *
@@ -84,17 +97,24 @@ export interface TeamRosterProps {
   onEditar?: ((pessoa: TeamMember) => void) | undefined;
   onReenviar?: ((pessoa: TeamMember) => void) | undefined;
   onDesativar?: ((pessoa: TeamMember) => void) | undefined;
+  onAlternar?: ((pessoa: TeamMember) => void) | undefined;
+  onExcluir?: ((pessoa: TeamMember) => void) | undefined;
 }
 
 export function TeamRoster({
   people,
   className,
+  kind,
   somentePainel = false,
   onEditar,
   onReenviar,
   onDesativar,
+  onAlternar,
+  onExcluir,
 }: TeamRosterProps) {
-  const comAcoes = Boolean(onEditar ?? onReenviar ?? onDesativar);
+  const soMotoristas = kind === 'MOTORISTA';
+  const soPainel = kind === 'PAINEL' || somentePainel;
+  const comAcoes = Boolean(onEditar ?? onReenviar ?? onDesativar ?? onAlternar ?? onExcluir);
   const [busca, setBusca] = useState('');
   const [filial, setFilial] = useState(TODOS);
   const [situacao, setSituacao] = useState(TODOS);
@@ -177,13 +197,19 @@ export function TeamRoster({
         <GlassInput
           surface="light"
           label="Buscar"
-          placeholder={somentePainel ? 'Nome ou e-mail' : 'Nome, filial, placa ou e-mail'}
+          placeholder={
+            soPainel
+              ? 'Nome, cargo ou e-mail'
+              : soMotoristas
+                ? 'Nome, filial ou placa'
+                : 'Nome, filial, placa ou e-mail'
+          }
           value={busca}
           onChange={(evento) => setBusca(evento.target.value)}
           leading={<SearchIcon size={16} aria-hidden="true" />}
         />
 
-        {somentePainel ? null : (
+        {soPainel ? null : (
           <GlassSelect
             surface="light"
             label="Filial"
@@ -196,7 +222,9 @@ export function TeamRoster({
         <GlassSelect
           surface="light"
           label="Situação"
-          options={somentePainel ? SITUACOES_DE_ACESSO : SITUACOES}
+          options={
+            soPainel ? SITUACOES_DE_ACESSO : soMotoristas ? SITUACOES.slice(0, 3) : SITUACOES
+          }
           value={situacao}
           onValueChange={setSituacao}
         />
@@ -207,7 +235,7 @@ export function TeamRoster({
           {visiveis.length === people.length
             ? `${people.length} ${people.length === 1 ? 'pessoa' : 'pessoas'}`
             : `${visiveis.length} de ${people.length} pessoas`}
-          {somentePainel ? ' com acesso ao painel' : ''}
+          {soPainel ? ' com acesso ao painel' : ''}
         </p>
 
         {filtrando ? (
@@ -222,151 +250,20 @@ export function TeamRoster({
           Ninguém encontrado com esses filtros.
         </p>
       ) : (
-        <div className="-mx-1 overflow-x-auto px-1">
-          <table className="w-full min-w-[620px] border-collapse">
-            <thead>
-              <tr className="text-on-light-muted text-label-md normal-case">
-                <th scope="col" className="py-2 pl-3 text-left font-normal">
-                  Pessoa
-                </th>
-                <th scope="col" className="py-2 text-left font-normal">
-                  Onde
-                </th>
-                <th scope="col" className="py-2 text-right font-normal">
-                  No período
-                </th>
-                <th scope="col" className="py-2 pr-3 text-right font-normal">
-                  Situação
-                </th>
-                {comAcoes ? (
-                  <th scope="col" className="py-2 pr-3 text-right font-normal">
-                    Conta
-                  </th>
-                ) : null}
-              </tr>
-            </thead>
-
-            <tbody>
-              {daPagina.map((pessoa, indice) => (
-                <tr
-                  key={`${pessoa.kind}-${pessoa.id}`}
-                  className={cn(
-                    /* Linha par no branco do painel, ímpar na faixa: com o
-                       quadro passando de cem pessoas, o olho perde a linha ao
-                       atravessar do nome até a situação. */
-                    'hover:bg-primary-on-light/[0.07] transition-colors',
-                    indice % 2 === 1 && 'bg-light-stripe',
-                  )}
-                >
-                  <td className="py-2.5 pl-3 pr-3">
-                    <span className="text-on-light block truncate">{pessoa.name}</span>
-                    <span className="text-on-light-muted text-label-md normal-case">
-                      {pessoa.kind === 'PAINEL'
-                        ? (PAPEL_LABEL[pessoa.role ?? ''] ?? 'Acesso ao painel')
-                        : 'Motorista'}
-                    </span>
-                  </td>
-
-                  <td className="text-on-light-variant text-label-md py-2.5 pr-3 normal-case">
-                    {/* Motorista traz a filial do fornecedor; usuário traz o
-                        e-mail, que é como a empresa o identifica. */}
-                    <span className="block truncate">
-                      {pessoa.kind === 'PAINEL' ? (pessoa.email ?? '–') : (pessoa.unit ?? '–')}
-                    </span>
-                    {pessoa.currentVehiclePlate ? (
-                      <span className="text-on-light-muted tabular">
-                        {pessoa.currentVehiclePlate}
-                      </span>
-                    ) : null}
-                  </td>
-
-                  <td className="py-2.5 text-right">
-                    {pessoa.kind === 'MOTORISTA' ? (
-                      <>
-                        <span className="tabular text-on-light-variant block">
-                          {numero(pessoa.distanceKm)} km
-                        </span>
-                        <span className="text-on-light-muted text-label-md tabular normal-case">
-                          {pessoa.journeys ?? 0} {pessoa.journeys === 1 ? 'percurso' : 'percursos'}
-                          {pessoa.criticalEvents ? ` · ${pessoa.criticalEvents} graves` : ''}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-on-light-muted text-label-md normal-case">
-                        {pessoa.lastSeenAt
-                          ? `desde ${dia.format(new Date(pessoa.lastSeenAt))}`
-                          : '–'}
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="py-2.5 pr-3 text-right">
-                    {pessoa.kind === 'PAINEL' ? (
-                      <StatusChip tone={pessoa.active ? 'positive' : 'neutral'} surface="light">
-                        {pessoa.active ? 'Ativo' : 'Pendente ou desativado'}
-                      </StatusChip>
-                    ) : (
-                      <span
-                        className={cn(
-                          'text-label-md normal-case',
-                          (pessoa.journeys ?? 0) > 0
-                            ? 'text-on-light-variant'
-                            : 'text-on-light-muted',
-                        )}
-                      >
-                        {(pessoa.journeys ?? 0) > 0 ? 'rodou' : 'sem registro'}
-                      </span>
-                    )}
-                  </td>
-
-                  {comAcoes ? (
-                    <td className="py-2.5 pr-3">
-                      {/* ⚠️ Botão que é só ícone não pinta fundo: a cor é o
-                          rótulo, porque não há texto. */}
-                      <div className="flex items-center justify-end gap-1">
-                        {pessoa.kind === 'PAINEL' && onEditar ? (
-                          <button
-                            type="button"
-                            className="acao-editar"
-                            onClick={() => onEditar(pessoa)}
-                            aria-label={`Editar a conta de ${pessoa.name}`}
-                          >
-                            <EditIcon size={16} />
-                          </button>
-                        ) : null}
-
-                        {/* Reenviar só faz sentido para quem ainda não entrou:
-                            conta ativa é recusada com 409 pela API, e o caminho
-                            de quem perdeu a senha é a redefinição. */}
-                        {pessoa.kind === 'PAINEL' && !pessoa.active && onReenviar ? (
-                          <button
-                            type="button"
-                            className="acao-neutra"
-                            onClick={() => onReenviar(pessoa)}
-                            aria-label={`Reenviar o convite de ${pessoa.name}`}
-                          >
-                            <MailIcon size={16} />
-                          </button>
-                        ) : null}
-
-                        {pessoa.kind === 'PAINEL' && pessoa.active && onDesativar ? (
-                          <button
-                            type="button"
-                            className="acao-excluir"
-                            onClick={() => onDesativar(pessoa)}
-                            aria-label={`Desativar o acesso de ${pessoa.name}`}
-                          >
-                            <PowerIcon size={16} />
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {daPagina.map((pessoa) => (
+            <TeamCard
+              key={`${pessoa.kind}-${pessoa.id}`}
+              pessoa={pessoa}
+              comAcoes={comAcoes}
+              onEditar={onEditar}
+              onReenviar={onReenviar}
+              onDesativar={onDesativar}
+              onAlternar={onAlternar}
+              onExcluir={onExcluir}
+            />
+          ))}
+        </ul>
       )}
 
       <Pagination
@@ -384,5 +281,190 @@ export function TeamRoster({
         listas diferentes e quase não se cruzam.
       </p>
     </div>
+  );
+}
+
+function TeamCard({
+  pessoa,
+  comAcoes,
+  onEditar,
+  onReenviar,
+  onDesativar,
+  onAlternar,
+  onExcluir,
+}: {
+  pessoa: TeamMember;
+  comAcoes: boolean;
+  onEditar?: ((pessoa: TeamMember) => void) | undefined;
+  onReenviar?: ((pessoa: TeamMember) => void) | undefined;
+  onDesativar?: ((pessoa: TeamMember) => void) | undefined;
+  onAlternar?: ((pessoa: TeamMember) => void) | undefined;
+  onExcluir?: ((pessoa: TeamMember) => void) | undefined;
+}) {
+  const navigate = useNavigate();
+  const motorista = pessoa.kind === 'MOTORISTA';
+  const rodou = (pessoa.journeys ?? 0) > 0;
+  const abrirFicha = () => navigate(`/gestao/equipe/motoristas/${pessoa.id}`);
+
+  return (
+    <li
+      {...(motorista && !comAcoes
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            onClick: abrirFicha,
+            onKeyDown: (event: KeyboardEvent) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                abrirFicha();
+              }
+            },
+          }
+        : {})}
+      className={cn(
+        'bg-light-container border-light-outline hover:border-primary-on-light/30 min-w-0 rounded-xl border p-4 transition-colors',
+        motorista &&
+          'focus-visible:ring-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2',
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <Avatar name={pessoa.name} className="size-11 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-on-light truncate font-semibold">{pessoa.name}</p>
+          <p className="text-on-light-muted text-label-md truncate normal-case">
+            {motorista ? 'Motorista' : (PAPEL_LABEL[pessoa.role ?? ''] ?? 'Equipe de apoio')}
+          </p>
+        </div>
+        {motorista ? (
+          <StatusChip tone={pessoa.active && rodou ? 'positive' : 'neutral'} surface="light">
+            {pessoa.active ? (rodou ? 'Em atividade' : 'Sem registro') : 'Inativo'}
+          </StatusChip>
+        ) : (
+          <StatusChip tone={pessoa.active ? 'positive' : 'neutral'} surface="light">
+            {pessoa.active ? 'Ativo' : 'Inativo'}
+          </StatusChip>
+        )}
+      </div>
+
+      {motorista ? (
+        <>
+          <dl className="border-light-outline mt-4 grid grid-cols-2 gap-3 border-y py-3">
+            <div>
+              <dt className="text-on-light-muted text-label-sm normal-case">No período</dt>
+              <dd className="text-on-light text-body-sm tabular">{numero(pessoa.distanceKm)} km</dd>
+            </div>
+            <div>
+              <dt className="text-on-light-muted text-label-sm normal-case">Percursos</dt>
+              <dd className="text-on-light text-body-sm tabular">{pessoa.journeys ?? 0}</dd>
+            </div>
+          </dl>
+          <p className="text-on-light-variant text-label-md mt-3 flex items-center gap-1.5 normal-case">
+            <TruckIcon size={14} className="text-on-light-muted" aria-hidden="true" />
+            {pessoa.currentVehiclePlate ?? pessoa.unit ?? 'Sem veículo identificado'}
+          </p>
+          {pessoa.criticalEvents ? (
+            <p className="text-error-on-light text-label-md mt-1.5 normal-case">
+              {pessoa.criticalEvents}{' '}
+              {pessoa.criticalEvents === 1 ? 'evento crítico' : 'eventos críticos'}
+            </p>
+          ) : null}
+          <p className="text-accent text-label-md mt-4 normal-case">Abrir ficha do motorista</p>
+        </>
+      ) : (
+        <>
+          <p className="text-on-light-variant text-body-sm mt-4 truncate">
+            {pessoa.email ?? 'E-mail não informado'}
+          </p>
+          <p className="text-on-light-muted text-label-md mt-1.5 normal-case">
+            {pessoa.lastSeenAt
+              ? `Último acesso em ${dia.format(new Date(pessoa.lastSeenAt))}`
+              : 'Ainda não acessou'}
+          </p>
+        </>
+      )}
+
+      {comAcoes ? (
+        <div className="border-light-outline mt-4 flex items-center justify-end gap-1 border-t pt-3">
+          {motorista ? (
+            <button
+              type="button"
+              className="acao-neutra mr-auto"
+              onClick={abrirFicha}
+              aria-label={`Abrir ficha de ${pessoa.name}`}
+              title="Abrir ficha"
+            >
+              <ArrowRightIcon size={16} />
+            </button>
+          ) : null}
+          {onEditar ? (
+            <button
+              type="button"
+              className="acao-editar"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEditar(pessoa);
+              }}
+              aria-label={`Editar cadastro de ${pessoa.name}`}
+            >
+              <EditIcon size={16} />
+            </button>
+          ) : null}
+          {motorista && onAlternar ? (
+            <button
+              type="button"
+              className={pessoa.active ? 'acao-excluir' : 'acao-ativar'}
+              onClick={(event) => {
+                event.stopPropagation();
+                onAlternar(pessoa);
+              }}
+              aria-label={`${pessoa.active ? 'Inativar' : 'Ativar'} motorista ${pessoa.name}`}
+              title={pessoa.active ? 'Inativar motorista' : 'Ativar motorista'}
+            >
+              <PowerIcon size={16} />
+            </button>
+          ) : null}
+          {motorista && onExcluir ? (
+            <button
+              type="button"
+              className="acao-excluir"
+              onClick={(event) => {
+                event.stopPropagation();
+                onExcluir(pessoa);
+              }}
+              aria-label={`Excluir cadastro de ${pessoa.name}`}
+              title="Excluir cadastro"
+            >
+              <DeleteIcon size={16} />
+            </button>
+          ) : null}
+          {!motorista && !pessoa.active && onReenviar ? (
+            <button
+              type="button"
+              className="acao-neutra"
+              onClick={(event) => {
+                event.stopPropagation();
+                onReenviar(pessoa);
+              }}
+              aria-label={`Reenviar o convite de ${pessoa.name}`}
+            >
+              <MailIcon size={16} />
+            </button>
+          ) : null}
+          {!motorista && pessoa.active && onDesativar ? (
+            <button
+              type="button"
+              className="acao-excluir"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDesativar(pessoa);
+              }}
+              aria-label={`Desativar o acesso de ${pessoa.name}`}
+            >
+              <PowerIcon size={16} />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }

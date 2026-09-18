@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { HeroBand } from '@/management/components/layout/hero-band';
+import { HERO_PILL, HeroBand } from '@/management/components/layout/hero-band';
 import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
@@ -278,6 +278,29 @@ export function DriverRegistryPage() {
     setPage(1);
   };
 
+  const filtrosAtivos = [
+    search.trim()
+      ? { key: 'busca', label: `Busca: ${search.trim()}`, onRemove: () => setSearch('') }
+      : null,
+    company !== ALL ? { key: 'empresa', label: company, onRemove: () => setCompany(ALL) } : null,
+    status !== ALL
+      ? {
+          key: 'status',
+          label: STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status,
+          onRemove: () => setStatus(ALL),
+        }
+      : null,
+    review !== ALL
+      ? {
+          key: 'conferencia',
+          label: REVIEW_OPTIONS.find((option) => option.value === review)?.label ?? review,
+          onRemove: () => setReview(ALL),
+        }
+      : null,
+  ].filter(
+    (filter): filter is { key: string; label: string; onRemove: () => void } => filter != null,
+  );
+
   const stats: HeroStat[] = [
     {
       key: 'cadastro',
@@ -332,7 +355,16 @@ export function DriverRegistryPage() {
       <HeroBand
         title="Cadastro de motoristas"
         description="Quem a plataforma conhece como motorista, em que empresa está e quem já foi conferido por uma pessoa."
-      />
+      >
+        <button
+          type="button"
+          onClick={() => setDialog({ open: true, driverId: null })}
+          className={`${HERO_PILL} text-on-primary hover:bg-on-primary hover:text-primary focus-visible:ring-on-primary transition-colors focus-visible:outline-none focus-visible:ring-2`}
+        >
+          <PlusIcon size={16} aria-hidden="true" />
+          Cadastrar motorista
+        </button>
+      </HeroBand>
 
       <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
         <h2 className="sr-only">O tamanho do cadastro</h2>
@@ -363,7 +395,23 @@ export function DriverRegistryPage() {
             {/* ⚠️ `surface="light"` em todos: os campos moram dentro do painel
                 branco, e a versão escura deles inverte a hierarquia da tela. */}
             <div className="flex flex-col gap-4">
-              <div className="grid items-end gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_auto]">
+              <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+                <div>
+                  <h2 className="text-on-light text-body-md font-semibold">
+                    Localize um motorista
+                  </h2>
+                  <p className="text-on-light-muted text-label-md mt-0.5 normal-case">
+                    Consulte a ficha ou encontre pendências antes de editar.
+                  </p>
+                </div>
+                <p className="text-on-light-muted text-label-md normal-case" aria-live="polite">
+                  {filtered.length === drivers.length
+                    ? `${drivers.length} motoristas no cadastro`
+                    : `${filtered.length} de ${drivers.length} motoristas`}
+                </p>
+              </div>
+
+              <div className="bg-on-light/[0.025] grid gap-3 rounded-xl p-3 sm:p-4 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
                 <GlassInput
                   surface="light"
                   label="Buscar"
@@ -396,29 +444,29 @@ export function DriverRegistryPage() {
                   value={review}
                   onValueChange={setReview}
                 />
-
-                <SpectrumButton
-                  type="button"
-                  onClick={() => setDialog({ open: true, driverId: null })}
-                >
-                  <PlusIcon size={16} aria-hidden="true" />
-                  Cadastrar motorista
-                </SpectrumButton>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-on-light-muted text-label-md normal-case">
-                  {filtered.length === drivers.length
-                    ? `${drivers.length} motoristas`
-                    : `${filtered.length} de ${drivers.length} motoristas`}
-                </p>
-
-                {filtering ? (
+              {filtering ? (
+                <div className="flex flex-wrap items-center gap-2" aria-label="Filtros ativos">
+                  <span className="text-on-light-muted text-label-md mr-1 normal-case">
+                    Filtros ativos:
+                  </span>
+                  {filtrosAtivos.map((filter) => (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={filter.onRemove}
+                      className="bg-on-light/8 text-on-light-variant hover:bg-on-light/12 hover:text-on-light focus-visible:ring-primary rounded-full px-3 py-1.5 text-xs font-medium normal-case transition-colors focus-visible:outline-none focus-visible:ring-2"
+                      title={`Remover filtro: ${filter.label}`}
+                    >
+                      {filter.label} <span aria-hidden="true">×</span>
+                    </button>
+                  ))}
                   <SpectrumButton type="button" variant="ghost" size="sm" onClick={limparFiltros}>
-                    Limpar filtros
+                    Limpar tudo
                   </SpectrumButton>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
 
             {/* ---------------------------------------------------------- */}

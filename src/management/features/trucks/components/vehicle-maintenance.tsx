@@ -11,6 +11,7 @@ import { useState } from 'react';
 
 import { km } from '@/management/lib/format';
 import type { MaintenanceStatus } from '@/management/lib/fleet-api';
+import type { VehiclePosition } from '@/management/types';
 import { MAINTENANCE_ITEMS } from '@/management/mocks/maintenance-partners';
 import { cn } from '@/management/ui';
 
@@ -97,6 +98,26 @@ const umaCasa = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 1,
 });
 
+/** Distância em linha reta: serve para ordenar a rede, não para prometer rota. */
+function distanciaKm(
+  origem: readonly [longitude: number, latitude: number],
+  destino: readonly [latitude: number, longitude: number],
+) {
+  const raioTerraKm = 6371;
+  const paraRad = (graus: number) => (graus * Math.PI) / 180;
+  const [longitude, latitude] = origem;
+  const [latitudeDestino, longitudeDestino] = destino;
+  const deltaLatitude = paraRad(latitudeDestino - latitude);
+  const deltaLongitude = paraRad(longitudeDestino - longitude);
+  const a =
+    Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(paraRad(latitude)) *
+      Math.cos(paraRad(latitudeDestino)) *
+      Math.sin(deltaLongitude / 2) ** 2;
+
+  return raioTerraKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 /** Só dígitos: `tel:` recusa telefone com pontuação. */
 const somenteDigitos = (telefone: string) => telefone.replace(/\D/g, '');
 
@@ -123,10 +144,13 @@ const somenteDigitos = (telefone: string) => telefone.replace(/\D/g, '');
 export function VehicleMaintenance({
   vehicleId,
   odometroAtual,
+  position,
   demonstracao = false,
 }: {
   vehicleId: string;
   odometroAtual?: number | undefined;
+  /** Última posição da telemetria, em [longitude, latitude]. */
+  position?: VehiclePosition | undefined;
   demonstracao?: boolean | undefined;
 }) {
   const [itemAberto, setItemAberto] = useState<string | null>(null);
@@ -140,6 +164,14 @@ export function VehicleMaintenance({
   const porItem = new Map((manutencao.data ?? []).map((linha) => [linha.item, linha]));
 
   const aRegistrar = MAINTENANCE_ITEMS.find((candidato) => candidato.id === registrando);
+  const lojasProximas = item
+    ? item.partners
+        .map((loja) => ({
+          ...loja,
+          distanceKm: position ? distanciaKm(position.coordinates, loja.coordinates) : undefined,
+        }))
+        .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
+    : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -151,8 +183,8 @@ export function VehicleMaintenance({
         <p className="text-on-light-muted text-label-sm mb-4 flex items-start gap-2 normal-case">
           <PartnerShopIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
-            <strong className="font-semibold">Rede de parceiros em construção.</strong> As lojas
-            abaixo são exemplo, para desenhar a tela: nenhuma delas está contratada ainda.
+            <strong className="font-semibold">Rede de parceiros em configuração.</strong> As lojas
+            abaixo são referências de catálogo, ainda não contratadas pela sua empresa.
           </span>
         </p>
 
@@ -216,7 +248,11 @@ export function VehicleMaintenance({
         <VehicleCard
           title={`Lojas para ${item.label.toLowerCase()}`}
           icon={PartnerShopIcon}
-          hint={item.description}
+          hint={
+            position
+              ? 'Ordenadas pela distância em linha reta da última posição do veículo'
+              : `${item.description}. Sem posição recente para ordenar por proximidade`
+          }
           action={
             /* ⚠️ Desabilitado na demonstração: a placa não existe no servidor, e
                o POST responderia 404 justamente na tela que existe para mostrar
@@ -238,7 +274,7 @@ export function VehicleMaintenance({
           }
         >
           <ul className="flex flex-col gap-3">
-            {item.partners.map((loja) => (
+            {lojasProximas.map((loja) => (
               <li
                 key={loja.id}
                 className="border-light-outline flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border p-4"
@@ -247,7 +283,10 @@ export function VehicleMaintenance({
                   <p className="text-on-light text-body-md font-semibold">{loja.name}</p>
                   <p className="text-on-light-muted text-label-sm mt-0.5 flex items-center gap-1.5 normal-case">
                     <MapPinIcon size={13} aria-hidden="true" />
-                    {loja.place} · {umaCasa.format(loja.distanceKm)} km
+                    {loja.place}
+                    {loja.distanceKm != null
+                      ? ` · ${umaCasa.format(loja.distanceKm)} km em linha reta`
+                      : ''}
                   </p>
                 </div>
 

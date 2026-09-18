@@ -1730,6 +1730,18 @@ export interface MaintenanceEvent {
   createdByName?: string | undefined;
 }
 
+/** Um item vencido ou próximo do vencimento, em toda a frota. */
+export interface FleetMaintenanceDue {
+  vehicleId: string;
+  plate: string;
+  model: string;
+  unit?: string | undefined;
+  item: MaintenanceItemId;
+  dueInDays?: number | undefined;
+  dueInKm?: number | undefined;
+  overdue: boolean;
+}
+
 interface MaintenanceStatusDto {
   item: MaintenanceItemId;
   intervalKm: number | null;
@@ -1761,6 +1773,10 @@ const toStatus = (dto: MaintenanceStatusDto): MaintenanceStatus => ({
 export async function fetchVehicleMaintenance(vehicleId: string): Promise<MaintenanceStatus[]> {
   const rows = await httpRequest<MaintenanceStatusDto[]>(`/v1/vehicles/${vehicleId}/maintenance`);
   return rows.map(toStatus);
+}
+
+export async function fetchFleetMaintenanceDue(): Promise<FleetMaintenanceDue[]> {
+  return httpRequest<FleetMaintenanceDue[]>('/v1/fleet/maintenance/due');
 }
 
 export async function fetchVehicleMaintenanceEvents(

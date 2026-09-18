@@ -1,15 +1,12 @@
 import {
+  BellIcon,
   ChartBarIcon,
   ChecklistIcon,
   DashboardIcon,
-  IdCardIcon,
-  MaintenanceIcon,
   MapPinIcon,
   MedalIcon,
   MoneyIcon,
   ReportIcon,
-  RouteIcon,
-  ShieldAlertIcon,
   SteeringWheelIcon,
   TruckIcon,
   UsersIcon,
@@ -74,13 +71,6 @@ export const FAVORITE_ROUTES: FavoriteRoute[] = [
     tone: 'secundaria',
   },
   {
-    to: '/gestao/viagens',
-    label: 'Viagens',
-    hint: 'Em curso, atrasadas e concluídas',
-    icon: RouteIcon,
-    tone: 'secundaria',
-  },
-  {
     to: '/gestao/checklists',
     label: 'Checklists',
     hint: 'Preenchimentos e bloqueios',
@@ -102,10 +92,10 @@ export const FAVORITE_ROUTES: FavoriteRoute[] = [
     tone: 'marca',
   },
   {
-    to: '/gestao/manutencao',
-    label: 'Manutenção',
-    hint: 'O que o rastreador acusa de mecânico',
-    icon: MaintenanceIcon,
+    to: '/gestao/notificacoes',
+    label: 'Alertas',
+    hint: 'Segurança, pendências e avisos da operação',
+    icon: BellIcon,
     tone: 'marca',
   },
   {
@@ -116,25 +106,11 @@ export const FAVORITE_ROUTES: FavoriteRoute[] = [
     tone: 'secundaria',
   },
   {
-    to: '/gestao/motoristas/cadastro',
-    label: 'Cadastro de motoristas',
-    hint: 'Quem a plataforma conhece como motorista',
-    icon: IdCardIcon,
-    tone: 'secundaria',
-  },
-  {
     to: '/gestao/gamificacao',
     label: 'Gamificação',
     hint: 'Pódio e classificação',
     icon: MedalIcon,
     tone: 'secundaria',
-  },
-  {
-    to: '/gestao/seguranca',
-    label: 'Segurança',
-    hint: 'Eventos e contestações',
-    icon: ShieldAlertIcon,
-    tone: 'marca',
   },
   {
     to: '/gestao/equipe',
@@ -178,7 +154,7 @@ const STORAGE_KEY = 'rookhub:gestao:favoritos';
  * tela mais funda da navegação: `Frota › Cadastro` custa dois cliques e um menu
  * suspenso, todo dia.
  */
-export const DEFAULT_FAVORITES = ['/gestao/caminhoes/cadastro', '/gestao/motoristas/cadastro'];
+export const DEFAULT_FAVORITES = ['/gestao/caminhoes/cadastro', '/gestao/equipe'];
 
 export function findFavorite(to: string): FavoriteRoute | undefined {
   return FAVORITE_ROUTES.find((route) => route.to === to);

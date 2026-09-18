@@ -231,8 +231,10 @@ export const managementRoutes: RouteObject = {
       ),
     },
     {
+      /* Percursos são consultados no contexto da placa, em Pátio. A rota
+         antiga ainda leva a uma escolha de veículo para não quebrar favoritos. */
       path: 'viagens',
-      element: page(() => import('@/management/features/trips/pages/trips-page'), 'TripsPage'),
+      element: <Navigate to="/gestao/patio" replace />,
     },
     {
       path: 'checklists',
@@ -295,17 +297,17 @@ export const managementRoutes: RouteObject = {
     },
     {
       path: 'manutencao',
-      element: page(
-        () => import('@/management/features/maintenance/pages/maintenance-page'),
-        'MaintenancePage',
-      ),
+      element: <Navigate to="/gestao/notificacoes?aba=pendencias" replace />,
     },
     {
+      /* Motoristas agora é uma aba de Equipe. Mantemos o endereço antigo para
+         favoritos, notificações e links enviados antes da unificação. */
       path: 'motoristas',
-      element: page(
-        () => import('@/management/features/drivers/pages/drivers-page'),
-        'DriversPage',
-      ),
+      element: <Navigate to="/gestao/equipe" replace />,
+    },
+    {
+      path: 'equipe/motoristas/:driverId',
+      element: page(() => import('@/management/features/drivers/pages/driver-page'), 'DriverPage'),
     },
     {
       /* O pódio saiu da tela de motoristas em 01/09/2026: lá a pergunta é "como
@@ -317,25 +319,14 @@ export const managementRoutes: RouteObject = {
       ),
     },
     {
-      /*
-       * Cadastro de pessoa, e não de veículo. A distinção está no
-       * `DriverRegistryService`. Fica na alçada do gestor, que é quem responde
-       * pelo quadro de motoristas; o backend aceita o proprietário também, para
-       * não trancar o dono fora do próprio cadastro de pessoal.
-       */
+      /* Cadastro de motorista agora abre dentro de Equipe. Mantemos o endereço
+         para links e favoritos salvos antes da unificação. */
       path: 'motoristas/cadastro',
-      element: (
-        <RoleRoute allow={OWNER_AND_MANAGER}>
-          {page(
-            () => import('@/management/features/drivers/pages/driver-registry-page'),
-            'DriverRegistryPage',
-          )}
-        </RoleRoute>
-      ),
+      element: <Navigate to="/gestao/equipe" replace />,
     },
     {
       path: 'seguranca',
-      element: page(() => import('@/management/features/safety/pages/safety-page'), 'SafetyPage'),
+      element: <Navigate to="/gestao/notificacoes?aba=seguranca" replace />,
     },
     {
       path: 'custos',

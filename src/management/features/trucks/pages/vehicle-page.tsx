@@ -34,6 +34,8 @@ import {
 import { getVehiclePositions } from '@/management/features/live-map/api';
 import { FleetMap } from '@/management/features/live-map/components/fleet-map';
 import { prepararTrajeto } from '@/management/features/live-map/track-segments';
+import { fetchJourneys } from '@/management/lib/fleet-api';
+import { JourneyList } from '@/management/features/trips/components/journey-list';
 
 import { getVehicleDetail, getVehicleRegistry, getVehicles, getVehicleTrack } from '../api';
 import { YARD_STATUS } from '../yard-status';
@@ -137,6 +139,14 @@ export function VehiclePage() {
     enabled: Boolean(vehicle?.id) && !demonstracao,
   });
   const detail = demonstracao ? demoVehicleDetail : detailQuery.data;
+  /* Percurso pertence ao veículo. A página geral de Viagens ocultava essa
+     relação atrás de um filtro de placa; aqui a placa já é o contexto. */
+  const percursosQuery = useQuery({
+    queryKey: ['veiculo', vehicle?.id, 'percursos'],
+    queryFn: () => fetchJourneys({ vehicleId: vehicle!.id, days: 30 }),
+    enabled: Boolean(vehicle?.id) && !demonstracao,
+  });
+  const percursos = percursosQuery.data?.journeys ?? [];
   /*
    * O cadastro entra só pelo número de eixos, que é o que o desenho dos pneus
    * precisa. ⚠️ A CHAVE É A MESMA do manual (`vehicle-registry`): os dois
@@ -398,15 +408,62 @@ export function VehiclePage() {
 
                 {secao === 'viagens' ? (
                   <VehicleCard
-                    title="Viagens"
+                    title="Percursos do veículo"
                     icon={RouteIcon}
-                    hint="Ordem de frete, carga e entrega"
+                    hint="Trechos medidos pela telemetria nos últimos 30 dias"
                   >
-                    <p className="text-on-light-variant text-body-md">
-                      O produto registra <strong>trechos</strong> percorridos, e não viagens com
-                      ordem de frete: não há carga, remetente nem entrega no sistema. Os trechos
-                      deste veículo estão em Análise, com a quilometragem por dia.
-                    </p>
+                    <QueryState
+                      isPending={!demonstracao && percursosQuery.isPending}
+                      isError={!demonstracao && percursosQuery.isError}
+                      error={percursosQuery.error}
+                      label="os percursos deste veículo"
+                    >
+                      {demonstracao ? (
+                        <p className="text-on-light-muted text-body-md">
+                          Percursos não são exibidos no veículo de demonstração.
+                        </p>
+                      ) : percursos.length === 0 ? (
+                        <p className="text-on-light-muted text-body-md">
+                          Nenhum percurso registrado para este veículo nos últimos 30 dias.
+                        </p>
+                      ) : (
+                        <>
+                          <dl className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                            <div>
+                              <dt className="text-on-light-muted text-label-sm normal-case">
+                                Percursos
+                              </dt>
+                              <dd className="text-on-light font-sora tabular text-[26px] font-bold leading-none">
+                                {percursos.length}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-on-light-muted text-label-sm normal-case">
+                                Distância
+                              </dt>
+                              <dd className="text-on-light font-sora tabular text-[26px] font-bold leading-none">
+                                {km.format(
+                                  percursos.reduce(
+                                    (total, item) => total + (item.distanceKm ?? 0),
+                                    0,
+                                  ),
+                                )}{' '}
+                                km
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-on-light-muted text-label-sm normal-case">
+                                Motorista
+                              </dt>
+                              <dd className="text-on-light text-body-md mt-1">
+                                {percursos[0]?.driverName ?? 'Não identificado'}
+                              </dd>
+                            </div>
+                          </dl>
+                          <JourneyList journeys={percursos} />
+                        </>
+                      )}
+                    </QueryState>
                   </VehicleCard>
                 ) : null}
 
@@ -414,6 +471,7 @@ export function VehiclePage() {
                   <VehicleMaintenance
                     vehicleId={vehicle.id}
                     odometroAtual={vehicle.odometerKm}
+                    position={posicao}
                     demonstracao={demonstracao}
                   />
                 ) : null}
