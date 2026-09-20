@@ -23,12 +23,14 @@ import { HeroBand } from '@/management/components/layout/hero-band';
 import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import { PageContent } from '@/management/components/layout/page-content';
 import { QueryState } from '@/management/components/layout/query-state';
+import { SegmentedFilter } from '@/management/components/layout/segmented-filter';
 import {
   VEHICLE_STATUS_LABELS,
   VehicleStatusChip,
 } from '@/management/features/trucks/vehicle-status';
 
 import { getEventHeatmap, getVehiclePositions, getVehicleTrack } from '../api';
+import { SOBRE_O_MAPA } from '../overlay';
 import { CORES_DA_GESTAO } from '../components/fleet-3d-layer';
 import { FleetMap, type FleetMapHandle } from '../components/fleet-map';
 import { TrackReplay } from '../components/track-replay';
@@ -142,33 +144,6 @@ function locationLabel(vehicle: VehiclePosition) {
   );
 }
 
-/**
- * Cartão flutuante sobre o mapa.
- *
- * ⚠️ **É a MESMA receita do mapa da operação** (`components/shared/operation-map`),
- * a pedido do usuário em 30/08/2026: papel a 80%, traço de divisória, canto
- * pequeno e desfoque padrão. São dois mapas do mesmo produto, e a informação que
- * flutua sobre eles não pode ter dois desenhos.
- *
- * Os tokens têm nomes diferentes nos dois lados e apontam para os mesmos
- * valores: `background`, `border` e `muted-foreground` do painel operacional
- * são aliases de `surface`, `outline-variant` e `on-surface-muted`, declarados
- * em `globals.css`. Aqui usa-se o nome da gestão, que é a convenção da pasta.
- *
- * ⚠️ O caminho até aqui passou por duas versões recusadas, e as duas valem como
- * aviso. A primeira era uma placa quase preta: sobre o Liberty, que é um mapa
- * claro, ela não lê como vidro, lê como buraco. A segunda era branco puro com
- * desfoque muito forte, que ficava mais pesado que o mapa. O papel a 80% é o que
- * deixa o território aparecer sem disputar com ele.
- *
- * ⚠️ Quem garante a leitura é a camada de papel, e não o desfoque. O
- * `backdrop-blur` só dissolve a malha de ruas; ele não escurece nem clareia
- * nada, e um cartão com blur e fundo transparente fica ilegível sobre mapa
- * detalhado.
- */
-const SOBRE_O_MAPA =
-  'border-outline-variant bg-surface/80 text-on-surface-muted pointer-events-auto rounded-md border backdrop-blur';
-
 export function LiveMapPage() {
   const { data, isPending, isError } = useQuery({
     queryKey: ['vehicle-positions'],
@@ -252,6 +227,59 @@ export function LiveMapPage() {
   }, [selectedId]);
 
   /**
+   * Rolar a lista não pode custar o mapa inteiro.
+   *
+   * ⚠️ Relatado pelo usuário em 19/09/2026 como travamento ao rolar as placas, e
+   * a causa não é a lista: é o HOVER. Cada cartão tem `onMouseEnter` e
+   * `onMouseLeave` que escrevem `hoveredId`, que é estado DESTA página e desce
+   * até o `FleetMap`. Lá, o efeito de destaque chama `toGeoJson` sobre as 37
+   * posições e devolve tudo ao MapLibre com `setData`. Parado isso é imperceptível
+   * e acontece uma vez; rolando, o cursor atravessa dezenas de cartões em menos de
+   * um segundo, e cada um deles reconstrói a frota inteira e re-renderiza a
+   * página, mapa incluído.
+   *
+   * Enquanto o rolo anda, o destaque fica suspenso: os cartões continuam
+   * recebendo o cursor, mas não escrevem estado, então não há render nem
+   * `setData`. O destaque volta sozinho 140ms depois da última rolagem, e o
+   * primeiro movimento do mouse já o aplica no cartão certo.
+   *
+   * ⚠️ A trava é um `ref`, e não `pointer-events: none` na lista, que foi a
+   * primeira tentativa. Desligar o ponteiro no elemento que rola é justamente o
+   * que pode cortar um gesto de toque em andamento, e serviria só para evitar
+   * uma chamada de função barata: o caro aqui é o `setState`, e é ele que a
+   * trava impede.
+   */
+  const rolandoALista = useRef(false);
+  useEffect(() => {
+    const lista = listaDeVeiculos.current;
+    if (!lista) return;
+
+    let retomar: number | undefined;
+    const aoRolar = () => {
+      rolandoALista.current = true;
+      window.clearTimeout(retomar);
+      /* 140ms é o silêncio que separa duas rodadas do mesmo gesto de uma parada
+         de verdade: abaixo disso o destaque volta no meio do rolo. */
+      retomar = window.setTimeout(() => {
+        rolandoALista.current = false;
+      }, 140);
+    };
+
+    lista.addEventListener('scroll', aoRolar, { passive: true });
+    return () => {
+      window.clearTimeout(retomar);
+      lista.removeEventListener('scroll', aoRolar);
+      rolandoALista.current = false;
+    };
+  }, []);
+
+  /** O destaque que os cartões pedem, ignorado enquanto a lista está rolando. */
+  const destacar = (vehicleId: string | null) => {
+    if (rolandoALista.current) return;
+    setHoveredId(vehicleId);
+  };
+
+  /**
    * Roda do mouse dentro da moldura é ZOOM, nunca rolagem da página.
    *
    * ⚠️ Relatado pelo usuário em 09/09/2026: no meio de um zoom a página dava um
@@ -329,6 +357,17 @@ export function LiveMapPage() {
     }
     return counts;
   }, [positions]);
+
+  /* Situação que zerou não vira botão: um filtro que só sabe devolver lista
+     vazia é um clique que promete algo e não entrega. "Todos" fica sempre. */
+  const situacoesVisiveis = useMemo(
+    () =>
+      SITUACOES.map((option) => ({
+        ...option,
+        count: option.id === 'TODOS' ? positions.length : (countByStatus.get(option.id) ?? 0),
+      })).filter((option) => option.id === 'TODOS' || option.count > 0),
+    [positions, countByStatus],
+  );
 
   const selectedVehicle = useMemo(
     () => positions.find((vehicle) => vehicle.vehicleId === selectedId) ?? null,
@@ -418,7 +457,46 @@ export function LiveMapPage() {
     );
   }, [staleCount]);
 
+  /*
+   * ⚠️ **O aviso sai junto com a tela** (pedido do usuário em 19/09/2026). O
+   * `Toaster` vive no layout, acima das rotas, então o toast sobrevive à
+   * navegação: quem trocasse de tela antes dos segundos acabarem levava para a
+   * tela nova um aviso sobre as posições do mapa, sem nada ali que o
+   * explicasse.
+   *
+   * ⚠️ **O efeito é separado e com lista de dependências VAZIA, de propósito.**
+   * Dispensar no `return` do efeito de cima faria o aviso piscar a cada
+   * mudança de contagem, porque aquele efeito roda de novo a cada
+   * `staleCount`. Este só roda na desmontagem.
+   */
+  useEffect(
+    () => () => {
+      /* ⚠️ Chave no corpo: `toast.dismiss` DEVOLVE o id, e um `return` implícito
+         aqui faria o cleanup devolver `string`, que o TypeScript recusa. */
+      toast.dismiss('mapa-sem-sincronizar');
+    },
+    [],
+  );
+
   const semSinal = countByStatus.get('SEM_SINAL') ?? 0;
+
+  /**
+   * Os indicadores, que também SÃO o filtro de situação.
+   *
+   * ⚠️ Cada cartão aponta para a mesma escolha que o segmentado logo abaixo
+   * (pedido do usuário em 18/09/2026, como no Pátio e na Equipe): são duas
+   * entradas para um estado só, e não dois filtros. Clicar no cartão já
+   * escolhido volta para "Todos", senão o número vira uma armadilha, porque a
+   * única saída seria procurar o segmentado.
+   *
+   * ⚠️ As contagens continuam sendo da frota INTEIRA, e não do que sobrou do
+   * filtro: seguindo o recorte, escolher "sem sinal" zeraria os outros três e
+   * quem opera perderia a noção do todo.
+   */
+  const recortar = (alvo: VehicleStatus | 'TODOS') => () => {
+    setSituacao((atual) => (atual === alvo ? 'TODOS' : alvo));
+    setBusca('');
+  };
 
   const stats: HeroStat[] = [
     {
@@ -427,6 +505,8 @@ export function LiveMapPage() {
       value: positions.length,
       hint: 'veículos com posição conhecida',
       icon: RadarIcon,
+      onSelect: recortar('TODOS'),
+      selected: situacao === 'TODOS',
     },
     {
       key: 'viagem',
@@ -434,6 +514,8 @@ export function LiveMapPage() {
       value: countByStatus.get('EM_VIAGEM') ?? 0,
       hint: 'rodando agora',
       icon: RouteIcon,
+      onSelect: recortar('EM_VIAGEM'),
+      selected: situacao === 'EM_VIAGEM',
     },
     {
       key: 'disponiveis',
@@ -441,6 +523,8 @@ export function LiveMapPage() {
       value: countByStatus.get('DISPONIVEL') ?? 0,
       hint: 'prontos para sair',
       icon: TruckIcon,
+      onSelect: recortar('DISPONIVEL'),
+      selected: situacao === 'DISPONIVEL',
     },
     {
       key: 'sem-sinal',
@@ -449,6 +533,8 @@ export function LiveMapPage() {
       hint: 'a parte da frota sobre a qual não se sabe',
       icon: SatelliteIcon,
       tone: semSinal > 0 ? 'alert' : 'neutral',
+      onSelect: recortar('SEM_SINAL'),
+      selected: situacao === 'SEM_SINAL',
     },
   ];
 
@@ -459,18 +545,19 @@ export function LiveMapPage() {
         description="Uma central de comando para acompanhar a frota e agir antes que a operação pare."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      {/*
+       * ⚠️ **A folha branca é que morde a faixa laranja**, e não os cartões
+       * (18/09/2026, o molde que a Equipe estreou). Eles subiam sozinhos e
+       * metade de cada um ficava sobre o laranja, o que obrigava o cartão a ter
+       * sombra para se descolar de dois fundos ao mesmo tempo. Dentro da folha
+       * ele é uma placa clara sobre papel branco, e a faixa volta a ser só o
+       * cabeçalho da tela.
+       */}
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pb-24 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Situação da frota</h2>
 
         <QueryState isPending={isPending} isError={isError} label="as posições">
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
-              ela puxaria também o estado de carregando para dentro da faixa. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
-        </QueryState>
-      </section>
-
-      <PageContent className="rounded-t-4xl bg-light mt-0 pb-24 sm:mt-0 sm:rounded-t-[40px]">
-        <QueryState isPending={isPending} isError={isError} label="as posições">
+          <HeroStats items={stats} className="mb-6" />
           {/*
             Os filtros de situação subiram para cá em 05/09/2026, a pedido do
             usuário: eles dividem a linha com o chip da leitura, e a lista à
@@ -492,42 +579,12 @@ export function LiveMapPage() {
            * branco, e o trilho do `PageTabs` mora sobre o papel.
            */}
           <div className="mb-5 flex flex-wrap items-center gap-4">
-            <div
-              role="group"
-              aria-label="Filtrar por situação"
-              className="bg-light-container rounded-pill flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
-            >
-              {SITUACOES.map((option) => {
-                const total =
-                  option.id === 'TODOS' ? positions.length : (countByStatus.get(option.id) ?? 0);
-                if (total === 0 && option.id !== 'TODOS') return null;
-
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setSituacao(option.id)}
-                    aria-pressed={situacao === option.id}
-                    className={cn(
-                      'group text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
-                      situacao === option.id
-                        ? 'bg-light text-accent font-medium shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]'
-                        : 'text-on-light-variant hover:text-on-light hover:bg-on-light/[0.06]',
-                    )}
-                  >
-                    {option.label}
-                    <span
-                      className={cn(
-                        'tabular ml-2 opacity-70',
-                        situacao === option.id && 'opacity-100',
-                      )}
-                    >
-                      {total}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <SegmentedFilter
+              label="Filtrar por situação"
+              options={situacoesVisiveis}
+              value={situacao}
+              onValueChange={setSituacao}
+            />
 
             {/*
              * ⚠️ O frescor da leitura VOLTOU para esta linha em 09/09/2026, a
@@ -592,7 +649,17 @@ export function LiveMapPage() {
            */}
           <section
             className={cn(
-              'grid gap-5 2xl:h-[clamp(32rem,calc(100dvh-30rem),52rem)]',
+              /*
+               * ⚠️ A altura subiu em 19/09/2026, a pedido do usuário, e o que
+               * mudou foi o DESCONTO: de 30rem para 24rem, ou seja, 96px a mais
+               * de mapa na tela de 1080. O desconto é o que fica acima do mapa,
+               * a faixa e os indicadores, e era generoso demais.
+               *
+               * O piso e o teto subiram junto para a proporção não quebrar nas
+               * pontas: sem mexer no teto, telas altas ganhariam nada, porque
+               * elas já batiam nos 52rem antigos.
+               */
+              'grid gap-5 2xl:h-[clamp(34rem,calc(100dvh-24rem),58rem)]',
               /*
                * ⚠️ Duas colunas SEMPRE, desde 05/09/2026.
                *
@@ -613,32 +680,49 @@ export function LiveMapPage() {
                   usuário em 05/09/2026). Ele era decoração: não clicava, não
                   informava nada que o título já não dissesse, e num cabeçalho sem
                   moldura sobrava como um botão que não é botão. */}
+              {/*
+               * ⚠️ Família `light` em toda esta coluna, e não `surface` (pedido
+               * do usuário em 18/09/2026).
+               *
+               * Ela nasceu quando a lista ficava sobre o papel, e continuou com
+               * os tokens de lá depois de a tela virar painel branco: o cartão
+               * de veículo saía em `surface-lowest`, que é #eae7e2, um cinza
+               * chapado sobre o branco #ffffff da folha. Não era escolha de
+               * desenho, era a família errada, e é a armadilha que a memória do
+               * projeto registra: ao mover algo para dentro do painel, troque a
+               * família junto.
+               */}
               <div>
-                <p className="text-on-surface text-body-md font-semibold">Monitoramento da frota</p>
-                <p className="text-on-surface-muted text-label-md mt-1 normal-case">
+                <p className="text-on-light text-body-md font-semibold">Monitoramento da frota</p>
+                <p className="text-on-light-muted text-label-md mt-1 normal-case">
                   {visibleVehicles.length} de {positions.length} veículos
                 </p>
               </div>
 
-              <label className="border-outline-variant bg-surface-lowest mt-5 flex items-center gap-2 rounded-xl border px-3 py-2.5">
-                <SearchIcon
-                  size={17}
-                  className="text-on-surface-muted shrink-0"
-                  aria-hidden="true"
-                />
+              <label className="light-well mt-5 flex items-center gap-2 rounded-xl px-3 py-2.5">
+                <SearchIcon size={17} className="text-on-light-muted shrink-0" aria-hidden="true" />
                 <span className="sr-only">Buscar por placa ou motorista</span>
                 <input
                   type="search"
                   value={busca}
                   onChange={(event) => setBusca(event.target.value)}
                   placeholder="Placa ou motorista"
-                  className="text-on-surface placeholder:text-on-surface-muted min-w-0 flex-1 bg-transparent text-sm outline-none"
+                  className="text-on-light placeholder:text-placeholder min-w-0 flex-1 bg-transparent text-sm outline-none"
                 />
               </label>
 
               <ul
                 ref={listaDeVeiculos}
-                className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
+                /*
+                 * ⚠️ `overscroll-contain`: com o cursor sobre a lista, a roda
+                 * move a lista e só ela, inclusive depois de bater no fim do
+                 * rolo (pedido do usuário em 19/09/2026). Sem isso o navegador
+                 * encadeia o resto do gesto para a página, e quem estava lendo
+                 * as placas via a tela inteira saltar. É a mesma regra da caixa
+                 * de notificações. Fora da lista a página rola normal: isto não
+                 * é um modal.
+                 */
+                className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1"
                 aria-label="Veículos encontrados"
               >
                 {visibleVehicles.map((vehicle) => {
@@ -650,23 +734,23 @@ export function LiveMapPage() {
                       <button
                         type="button"
                         onClick={() => select(vehicle.vehicleId)}
-                        onMouseEnter={() => setHoveredId(vehicle.vehicleId)}
-                        onMouseLeave={() => setHoveredId(null)}
+                        onMouseEnter={() => destacar(vehicle.vehicleId)}
+                        onMouseLeave={() => destacar(null)}
                         onFocus={() => setHoveredId(vehicle.vehicleId)}
                         onBlur={() => setHoveredId(null)}
                         aria-current={active ? 'true' : undefined}
                         className={cn(
-                          'border-outline-variant w-full rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                          'border-light-outline w-full rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                           active
                             ? 'border-primary-strong bg-primary-strong text-on-primary'
-                            : 'bg-surface-lowest hover:border-primary-strong/45 hover:bg-surface-high',
+                            : 'bg-light hover:border-primary-strong/45 hover:bg-light-container',
                         )}
                       >
                         <span className="flex items-center justify-between gap-2">
                           <span
                             className={cn(
                               'tabular text-sm font-semibold',
-                              active ? 'text-on-primary' : 'text-on-surface',
+                              active ? 'text-on-primary' : 'text-on-light',
                             )}
                           >
                             {vehicle.plate}
@@ -687,15 +771,15 @@ export function LiveMapPage() {
                            */}
                           <VehicleStatusChip
                             status={vehicle.status}
-                            surface={active ? 'light' : 'dark'}
-                            {...(active ? { className: 'bg-surface-container' } : {})}
+                            surface="light"
+                            {...(active ? { className: 'bg-light' } : {})}
                           />
                         </span>
 
                         <span
                           className={cn(
                             'mt-2 flex items-center gap-1.5 text-xs',
-                            active ? 'text-on-primary/80' : 'text-on-surface-muted',
+                            active ? 'text-on-primary/80' : 'text-on-light-muted',
                           )}
                         >
                           <MapPinIcon size={13} aria-hidden="true" />
@@ -705,7 +789,7 @@ export function LiveMapPage() {
                         <span
                           className={cn(
                             'mt-2 flex items-center justify-between gap-3 text-xs',
-                            active ? 'text-on-primary/80' : 'text-on-surface-muted',
+                            active ? 'text-on-primary/80' : 'text-on-light-muted',
                           )}
                         >
                           <span className="tabular inline-flex items-center gap-1.5">
@@ -753,7 +837,7 @@ export function LiveMapPage() {
                 <div
                   ref={molduraDoMapa}
                   className={cn(
-                    'border-outline-variant bg-surface-lowest relative min-h-0 flex-1 overflow-hidden rounded-2xl border',
+                    'border-light-outline bg-light-container relative min-h-0 flex-1 overflow-hidden rounded-2xl border',
                     /* Canto reto do lado da gaveta: com o arredondado, sobrava uma
                      lasca de fundo entre o mapa e o painel, e os dois pareciam
                      duas peças soltas em vez de uma gaveta encostada. */

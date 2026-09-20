@@ -97,7 +97,10 @@ const DESLOCAMENTO_MINIMO_KM = 0.05;
 const VELOCIDADE_IMPOSSIVEL_KMH = 200;
 
 /** Distância em linha reta entre duas coordenadas, em quilômetros. */
-function distanciaKm([lngA, latA]: [number, number], [lngB, latB]: [number, number]): number {
+export function distanciaKm(
+  [lngA, latA]: [number, number],
+  [lngB, latB]: [number, number],
+): number {
   const R = 6371;
   const rad = (grau: number) => (grau * Math.PI) / 180;
   const cosseno =

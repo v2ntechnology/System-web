@@ -3,30 +3,34 @@ import { LightCard, SpectrumButton, cn } from '@/management/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
-import type { VehiclePosition } from '@/management/types';
+import type { VehiclePosition, VehicleStatus } from '@/management/types';
 
-import { STATUS_COLOR } from '@/management/features/live-map/status-color';
+import { CORES_DA_GESTAO } from '@/management/features/live-map/components/fleet-3d-layer';
+import { FleetMap } from '@/management/features/live-map/components/fleet-map';
+import { SOBRE_O_MAPA } from '@/management/features/live-map/overlay';
+import { VEHICLE_STATUS_LABELS } from '@/management/features/trucks/vehicle-status';
 
 import { LIVE_MAP_PATH } from '../paths';
-import { FleetMiniMap, type PontoDaFrota } from './fleet-mini-map';
 
 /**
- * As situações explicadas na legenda do cartão.
+ * A legenda das cores, igual à do mapa ao vivo (pedido do usuário em
+ * 18/09/2026).
  *
- * ⚠️ **Manutenção fica de fora**, por decisão do usuário em 06/09/2026. É a
- * única das cinco que não vem da telemetria: ela é estado de cadastro, e o card
- * "Em manutenção" logo acima já a informa em número. Repetir a cor aqui gastaria
- * espaço de uma legenda curta com o que o mapa quase nunca desenha.
+ * ⚠️ **Derivada, e nunca escrita à mão**: as cores saem de `CORES_DA_GESTAO`,
+ * que é a mesma constante que pinta os caminhões, e os rótulos de
+ * `VEHICLE_STATUS_LABELS`, que é o nome que o resto do sistema dá a cada estado.
+ * Status novo aparece aqui sozinho; escrito à mão, ele nasceria invisível.
  *
- * As quatro que ficam são as que o rastreador deriva sozinho, e a ordem é a da
- * leitura: primeiro quem está rodando, por último quem sumiu.
+ * ⚠️ A versão anterior era uma lista fixa de quatro, que **omitia manutenção**
+ * por decisão de 06/09/2026, quando este mapa desenhava pontinhos. Com o mesmo
+ * mapa do ao vivo, omitir um estado passou a ser mentir por omissão: o caminhão
+ * amarelo aparece na tela sem nada que o explique.
  */
-const LEGENDA = [
-  { id: 'EM_VIAGEM', label: 'Em viagem' },
-  { id: 'DISPONIVEL', label: 'Disponível' },
-  { id: 'BLOQUEADO', label: 'Bloqueado' },
-  { id: 'SEM_SINAL', label: 'Sem sinal' },
-] as const;
+const LEGENDA = (Object.keys(CORES_DA_GESTAO) as VehicleStatus[]).map((status) => ({
+  status,
+  cor: CORES_DA_GESTAO[status],
+  label: VEHICLE_STATUS_LABELS[status],
+}));
 
 /**
  * Consulta rápida de onde está um caminhão, sem sair da visão geral.
@@ -157,13 +161,6 @@ export function OperationMapCard({ vehicles }: { vehicles: VehiclePosition[] }) 
     alvo?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }, [selectedId]);
 
-  const pontos: PontoDaFrota[] = vehicles.map((v) => ({
-    id: v.vehicleId,
-    plate: v.plate,
-    position: v.coordinates,
-    status: v.status,
-  }));
-
   return (
     <LightCard
       title="Mapa da operação"
@@ -220,34 +217,56 @@ export function OperationMapCard({ vehicles }: { vehicles: VehiclePosition[] }) 
         })}
       </div>
 
-      <FleetMiniMap
-        trips={pontos}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        className="h-64 xl:h-72"
-      />
-
       {/*
-        A legenda das cores, logo abaixo do mapa.
-        ⚠️ Ela existe porque os pontos passaram a ser coloridos por situação
-        (06/09/2026): antes eram todos da mesma cor e não havia o que explicar.
-        Sem legenda, um ponto cinza ao lado de um verde vira adivinhação.
+        ⚠️ **É o MESMO `FleetMap` do mapa ao vivo** (pedido do usuário em
+        18/09/2026), e não um mini mapa próprio. Com ele vêm os caminhões em 3D,
+        a inclinação, o crachá da placa e o tratamento de lacuna, tudo já
+        resolvido lá. É a mesma decisão que a ficha do veículo tomou em 16/09: o
+        segundo mapa divergiria do primeiro na primeira correção.
+
+        ⚠️ O preço é sabido: esta tela passa a carregar o `three` e o modelo do
+        caminhão. O `fleet-mini-map.tsx` continua no repositório, sem uso, porque
+        voltar atrás é trocar este bloco de volta.
       */}
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5" aria-label="Legenda das cores">
-        {LEGENDA.map((item) => (
-          <li
-            key={item.id}
-            className="text-on-light-variant text-label-md flex items-center gap-1.5 normal-case"
+      <div className="relative">
+        <FleetMap
+          positions={vehicles}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          /* ⚠️ Balão curto: esta moldura tem 288px de altura, e o balão cheio
+             levava 125 deles. Ver a nota da prop em `FleetMap`. */
+          compactPopup
+          className="h-64 overflow-hidden rounded-lg xl:h-72"
+        />
+
+        {/*
+          A legenda flutua SOBRE o mapa, como no ao vivo, e usa a mesma receita
+          de papel a 80%.
+
+          ⚠️ `pointer-events-none` na moldura: sem isso o retângulo invisível
+          come o arrasto do mapa na faixa em que ela está, e o território para de
+          responder ao gesto justamente na parte de cima.
+        */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start gap-3 p-3">
+          <div
+            className={cn(
+              SOBRE_O_MAPA,
+              'flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[11px]',
+            )}
           >
-            <span
-              aria-hidden="true"
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: STATUS_COLOR[item.id] }}
-            />
-            {item.label}
-          </li>
-        ))}
-      </ul>
+            {LEGENDA.map((item) => (
+              <span key={item.status} className="flex items-center gap-1.5">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: item.cor }}
+                  aria-hidden="true"
+                />
+                {item.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/*
         ⚠️ O rodapé só existe com um caminhão escolhido.

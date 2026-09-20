@@ -1,4 +1,4 @@
-import { PlayIcon } from '@/components/icons';
+import { PlaybackIcon } from '@/components/icons';
 import type { TrackPoint } from '@/management/lib/fleet-api';
 import { cn } from '@/management/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -236,7 +236,7 @@ export function TrackReplay({ points, onPose, onPlayingChange, className }: Trac
         {playing ? (
           <span aria-hidden="true" className="block h-3 w-3 rounded-[2px] bg-current" />
         ) : (
-          <PlayIcon size={15} aria-hidden="true" />
+          <PlaybackIcon size={14} aria-hidden="true" />
         )}
       </button>
 
@@ -244,9 +244,10 @@ export function TrackReplay({ points, onPose, onPlayingChange, className }: Trac
         type="range"
         min={0}
         max={linha.duracao}
-        /* Passo fino: a barra percorre o trajeto inteiro em 160 segundos a 1x,
-           e um passo de 1 daria saltos de 0,6% a cada tecla. Quinhentas divisões
-           mantêm o arrasto e a seta do teclado com a mesma resolução, que é o
+        /* Passo fino: a barra percorre o trajeto inteiro entre 160 e 900
+           segundos a 1x, conforme o tamanho dele, e um passo de 1 daria saltos
+           de até 0,6% a cada tecla. Quinhentas divisões mantêm o arrasto e a
+           seta do teclado com a mesma resolução seja qual for a duração, que é o
            que importa aqui: o valor é tempo de linha do tempo, e não segundos de
            relógio. */
         step={linha.duracao / 500}

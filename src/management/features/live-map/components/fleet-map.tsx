@@ -248,6 +248,16 @@ export interface FleetMapProps {
    * arrastaria a câmera doze vezes.
    */
   hoveredId?: string | null | undefined;
+  /**
+   * O balão do cursor traz só placa, situação e velocidade.
+   *
+   * ⚠️ Para o mapa PEQUENO da visão geral (pedido do usuário em 19/09/2026).
+   * Ali a moldura tem 644x288px e o balão cheio ocupava 240x125, 43% da altura
+   * do mapa: passando o cursor num caminhão da metade de cima ele era cortado
+   * pela borda do container, e a informação não aparecia inteira. Empresa,
+   * motorista e endereço continuam no mapa ao vivo, que tem altura para eles.
+   */
+  compactPopup?: boolean | undefined;
   className?: string | undefined;
 }
 
@@ -335,7 +345,7 @@ const ROTULO_DO_STATUS: Record<string, string> = {
  * onde está. Linha sem dado não aparece, em vez de aparecer vazia: dica com
  * campo em branco parece defeito.
  */
-function dicaDoVeiculo(p: Record<string, unknown>): string {
+function dicaDoVeiculo(p: Record<string, unknown>, compacto = false): string {
   const status = String(p.status ?? '');
   /*
    * `bloco` é para o valor longo, como o endereço: ele desce para a linha de
@@ -357,11 +367,13 @@ function dicaDoVeiculo(p: Record<string, unknown>): string {
     `<div class="fleet-popup__velocidade">` +
     `<b>${Number(p.speedKmh ?? 0).toLocaleString('pt-BR')}</b> km/h` +
     `</div>` +
-    `<dl class="fleet-popup__lista">` +
-    linha('Motorista', String(p.driverName ?? '')) +
-    linha('Empresa', String(p.company ?? '')) +
-    linha('Local', String(p.place ?? ''), true) +
-    `</dl>`
+    (compacto
+      ? ''
+      : `<dl class="fleet-popup__lista">` +
+        linha('Motorista', String(p.driverName ?? '')) +
+        linha('Empresa', String(p.company ?? '')) +
+        linha('Local', String(p.place ?? ''), true) +
+        `</dl>`)
   );
 }
 
@@ -458,7 +470,7 @@ function toTrackEnds(track: [number, number][]): FeatureCollection<Point> {
  * recebida, e o resultado é um veículo que anda.
  */
 export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function FleetMap(
-  { positions, selectedId, onSelect, track, heat, hoveredId, basemap, className },
+  { positions, selectedId, onSelect, track, heat, hoveredId, basemap, compactPopup, className },
   ref,
 ) {
   const container = useRef<HTMLDivElement>(null);
@@ -537,6 +549,13 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
   }, [selectedId]);
 
   /* Em ref porque o laço de animação lê fora do render. */
+  /* Numa ref, e não na dependência do efeito: o mapa é montado uma vez, e o
+     ouvinte do cursor precisa ler o valor de agora, e não o da montagem. */
+  const compactoRef = useRef(compactPopup);
+  useEffect(() => {
+    compactoRef.current = compactPopup;
+  }, [compactPopup]);
+
   const hoveredRef = useRef<string | null | undefined>(hoveredId);
   useEffect(() => {
     hoveredRef.current = hoveredId;
@@ -955,7 +974,7 @@ export const FleetMap = forwardRef<FleetMapHandle, FleetMapProps>(function Fleet
         const p = feature.properties ?? {};
         const coordenadas = (feature.geometry as Point).coordinates.slice() as [number, number];
 
-        popup.setLngLat(coordenadas).setHTML(dicaDoVeiculo(p)).addTo(mapa);
+        popup.setLngLat(coordenadas).setHTML(dicaDoVeiculo(p, compactoRef.current)).addTo(mapa);
       });
 
       mapa.on('mouseleave', LAYER_ICON, () => {

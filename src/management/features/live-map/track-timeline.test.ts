@@ -22,7 +22,13 @@ describe('montarLinhaDoTempo', () => {
     expect(montarLinhaDoTempo([ponto(0, -43.3, -22.9)]).vazia).toBe(true);
   });
 
-  it('dura sempre o mesmo a 1x, seja o trajeto curto ou longo', () => {
+  it('dá mais tempo de tela ao trajeto maior, mas menos que a proporção dele', () => {
+    /*
+     * ⚠️ Mudado em 19/09/2026, e antes este teste afirmava o oposto: que os dois
+     * duravam igual. Era daí que vinha a reclamação do usuário de que "em 24 e
+     * 72 horas o 1x, o 2x e o 4x estão muito rápidos": 478 km e 16 km cabiam nos
+     * mesmos 160 segundos, então o de 478 corria 29 vezes mais.
+     */
     const curto = montarLinhaDoTempo([
       ponto(0, -43.3, -22.9),
       ponto(1, -43.301, -22.9),
@@ -32,7 +38,30 @@ describe('montarLinhaDoTempo', () => {
       Array.from({ length: 200 }, (_, i) => ponto(i * 5, -43.3 - i * 0.001, -22.9)),
     );
 
-    expect(curto.duracao).toBe(longo.duracao);
+    expect(longo.duracao).toBeGreaterThan(curto.duracao);
+    /* E o expoente abaixo de 1 é o que mantém isso assistível: cem vezes mais
+       estrada não pode custar cem vezes mais tela. */
+    expect(longo.duracao / curto.duracao).toBeLessThan(200 / 2);
+  });
+
+  it('não passa do teto, por maior que seja o trajeto', () => {
+    /* Um trajeto absurdo: sem teto, ele levaria mais de uma hora a 1x. */
+    const gigante = montarLinhaDoTempo(
+      Array.from({ length: 3000 }, (_, i) => ponto(i * 2, -43.3 - i * 0.002, -22.9)),
+    );
+
+    expect(gigante.duracao).toBeLessThanOrEqual(900);
+  });
+
+  it('trajeto curto não encolhe abaixo da duração de referência', () => {
+    /* Caminhão que mal saiu do lugar: o replay não pode virar um piscar. */
+    const quaseParado = montarLinhaDoTempo([
+      ponto(0, -43.3, -22.9),
+      ponto(1, -43.3004, -22.9),
+      ponto(2, -43.3008, -22.9),
+    ]);
+
+    expect(quaseParado.duracao).toBe(160);
   });
 
   it('dá à lacuna um tempo próprio, em vez de atravessá-la num quadro', () => {
@@ -64,6 +93,64 @@ describe('montarLinhaDoTempo', () => {
     /* Sem o teto, a parada de 4 minutos valeria quatro vezes o passo de 1
        minuto. Com o teto de 30 segundos, ela vale no máximo metade dele. */
     expect(passoDaParada?.duracao).toBeLessThanOrEqual(passoDoMovimento?.duracao ?? 0);
+  });
+
+  it('cobra a parada UMA vez, por mais leituras que ela tenha', () => {
+    /*
+     * ⚠️ O defeito que este teste tranca: parado no pátio, a MiX manda uma
+     * leitura a cada 30 segundos, e cada uma delas virava um passo. Medido no
+     * RIQ7B85 em 6 horas, as 295 leituras paradas comiam 23% do replay com o
+     * caminhão sem sair do lugar.
+     */
+    const doisPontosParados = montarLinhaDoTempo([
+      ponto(0, -43.3, -22.9),
+      ponto(0.5, -43.3, -22.9),
+      ponto(1, -43.299, -22.9),
+    ]);
+    const vinteParados = montarLinhaDoTempo([
+      ponto(0, -43.3, -22.9),
+      ...Array.from({ length: 19 }, (_, i) => ponto((i + 1) * 0.5, -43.3, -22.9)),
+      ponto(10, -43.299, -22.9),
+    ]);
+
+    const fatia = (linha: ReturnType<typeof montarLinhaDoTempo>) => {
+      const parados = linha.passos.filter((passo) => passo.parado);
+      return parados.reduce((soma, passo) => soma + passo.duracao, 0) / linha.duracao;
+    };
+
+    /* Dez vezes mais leituras paradas, e a parada continua ocupando a mesma
+       fatia do replay. */
+    expect(fatia(vinteParados)).toBeCloseTo(fatia(doisPontosParados), 3);
+  });
+
+  it('anda na mesma velocidade de tela num trecho rápido e num lento', () => {
+    /*
+     * O pedido do usuário em 19/09/2026: "o 1x é 1x em todo o trecho, mesmo que
+     * o motorista esteja a 90 por hora ou a 2 km por hora".
+     *
+     * As leituras da MiX chegam de 30 em 30 segundos independentemente da
+     * velocidade, então aqui o primeiro trecho cobre dez vezes mais distância
+     * que o segundo no mesmo tempo de relógio. Na tela, os dois precisam ser
+     * percorridos na mesma velocidade.
+     */
+    const linha = montarLinhaDoTempo([
+      ponto(0, -43.3, -22.9),
+      /* ⚠️ Abaixo de 1 km, senão o próprio salto vira lacuna e quebra o
+         segmento, e aí não há dois passos para comparar. */
+      ponto(0.5, -43.296, -22.9), // rápido: 0,004 grau, cerca de 410 m
+      ponto(1, -43.295, -22.9), // lento: 0,001 grau, cerca de 102 m
+    ]);
+
+    const rapido = linha.passos[0];
+    const lento = linha.passos[1];
+    const velocidade = (passo: (typeof linha.passos)[number]) =>
+      Math.abs(passo.para.coordinates[0] - passo.de.coordinates[0]) / passo.duracao;
+
+    expect(rapido).toBeDefined();
+    expect(lento).toBeDefined();
+    /* Dez vezes a distância custa dez vezes o tempo de tela, então a razão
+       entre as duas velocidades é 1. Antes desta mudança era 10. */
+    expect(velocidade(rapido!) / velocidade(lento!)).toBeCloseTo(1, 2);
   });
 
   it('mantém o rumo anterior quando o veículo não sai do lugar', () => {
