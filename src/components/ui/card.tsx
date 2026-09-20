@@ -21,11 +21,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
        * mesma nos três, de propósito: é o que faz os dois painéis lerem como um
        * sistema só apesar de terem cascas diferentes.
        */
-      className={cn(
-        'rounded-xl bg-card text-card-foreground',
-        'shadow-[0_1px_2px_rgba(28,26,24,0.04),0_8px_24px_-12px_rgba(28,26,24,0.14)]',
-        className,
-      )}
+      className={cn('rounded-xl bg-card text-card-foreground', className)}
       {...props}
     />
   ),

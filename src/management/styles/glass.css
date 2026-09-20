@@ -196,6 +196,18 @@
  */
 .fleet-popup {
   pointer-events: none;
+
+  /*
+   * ⚠️ Acima da legenda e dos controles que flutuam sobre o mapa (pedido do
+   * usuário em 19/09/2026).
+   *
+   * Os dois nasciam sem camada declarada, então quem vencia era a ordem no
+   * documento: a legenda é irmã do mapa e vem depois dele no JSX, e por isso
+   * cobria o balão de qualquer caminhão da faixa de cima. O número é baixo de
+   * propósito, porque isto vive DENTRO do contêiner do mapa e não deve
+   * disputar com o cromo da página.
+   */
+  z-index: 5;
 }
 
 .fleet-popup .maplibregl-popup-content {

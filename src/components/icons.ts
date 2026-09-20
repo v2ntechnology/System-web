@@ -57,6 +57,9 @@ export {
   LuMoon as MoonIcon,
   LuPalette as PaletteIcon,
   LuBell as BellIcon,
+  /* Caixa de notificações vazia. O sino riscado diz "não há nada"; o sino comum
+     no meio de uma caixa branca leria como conteúdo que não carregou. */
+  LuBellOff as BellOffIcon,
   LuLock as LockIcon,
   /* Redefinir senha. A chave é o gesto de entregar uma credencial nova, e não o
      cadeado, que é o estado de estar trancado. */
@@ -112,6 +115,8 @@ export {
   LuChartColumn as ChartBarIcon,
   LuCircleDollarSign as MoneyIcon,
   LuFileText as FileIcon,
+  /* Copiar para a área de transferência: linha digitável, chave, código. */
+  LuCopy as CopyIcon,
   LuTarget as TargetIcon,
   LuGavel as ApprovalIcon,
   LuScrollText as ReportIcon,
@@ -134,6 +139,8 @@ export {
   LuCircleMinus as MinusCircleIcon,
   LuBan as BlockedIcon,
   LuInfo as InfoIcon,
+  /* A ajuda de um campo de formulário. Ver `FieldHint`. */
+  LuCircleHelp as HelpIcon,
   LuTrendingUp as TrendUpIcon,
   LuTrendingDown as TrendDownIcon,
   LuLoaderCircle as SpinnerIcon,
@@ -157,6 +164,16 @@ export {
   LuVolume2 as VolumeIcon,
   LuAudioLines as AudioWaveIcon,
   LuCirclePlay as PlayIcon,
+  /*
+   * ⚠️ Dois plays, e a diferença é onde cada um vive.
+   *
+   * `PlayIcon` é o disco cheio, que se sobrepõe a uma miniatura de vídeo e
+   * precisa do próprio corpo para se destacar da imagem. `PlaybackIcon` é o
+   * controle de um player, que já mora dentro de um botão: ali o disco vira
+   * círculo dentro de círculo, que foi o que o usuário mandou tirar do replay do
+   * mapa em 19/09/2026.
+   */
+  LuPlay as PlaybackIcon,
   LuBot as BotIcon,
   LuBrainCircuit as AiIcon,
   LuSparkles as SparklesIcon,

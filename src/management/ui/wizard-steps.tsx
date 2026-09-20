@@ -39,6 +39,17 @@ export interface WizardStep<T extends string> {
   done?: boolean | undefined;
 }
 
+/*
+ * ⚠️ **A barra NÃO carrega explicação de etapa** (decisão do usuário em
+ * 19/09/2026), e a prop `hint` que existiu aqui por algumas horas foi removida
+ * junto com as frases que a alimentavam.
+ *
+ * O caminho foi: parágrafo abaixo da barra → balão solto na ponta direita →
+ * balão dentro da pastilha escolhida → nada. O rótulo da etapa já diz o que ela
+ * pede ("Ficha técnica", "Documentação"), e um ícone por etapa era ruído
+ * permanente para uma frase que se lê uma vez na vida.
+ */
+
 export interface WizardStepsProps<T extends string> {
   steps: readonly WizardStep<T>[];
   value: T;
@@ -81,7 +92,6 @@ export function WizardSteps<T extends string>({
 }: WizardStepsProps<T>) {
   const barra = useRef<HTMLDivElement>(null);
   const atualRef = useRef<HTMLButtonElement>(null);
-
   /**
    * Leva a barra até um ponto, animando.
    *
@@ -284,9 +294,9 @@ export function WizardSteps<T extends string>({
       aria-label={label}
       className={cn(
         /* Rola no eixo x quando não cabe. A barra de rolagem é invisível no
-           sistema inteiro (19/08/2026), e aqui isso não atrapalha: a etapa atual
-           é trazida para a vista sozinha. */
-        'flex shrink-0 gap-1 overflow-x-auto',
+             sistema inteiro (19/08/2026), e aqui isso não atrapalha: a etapa atual
+             é trazida para a vista sozinha. */
+        'flex gap-1 overflow-x-auto',
         /* Impede que a rolagem que chega à ponta continue e leve a página junto. */
         'overscroll-x-contain',
         className,
@@ -306,16 +316,24 @@ export function WizardSteps<T extends string>({
             aria-invalid={step.invalid ? true : undefined}
             onClick={() => onValueChange(step.id)}
             className={cn(
-              'text-label-md rounded-pill focus-visible:ring-primary flex shrink-0 items-center gap-2',
-              'px-3.5 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
+              'text-label-md rounded-pill focus-visible:ring-primary flex shrink-0 items-center gap-1.5',
+              /* ⚠️ px-3 e gap-1.5, e não os px-3.5 e gap-2 de antes: as cinco etapas do
+                 cadastro de caminhão somavam 31px a mais do que a largura do diálogo, e
+                 "Operação" abria cortada ao meio. A barra rola, então nada se perdia, mas
+                 rótulo cortado na abertura lê como defeito. */
+              'px-3 py-2 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2',
               /*
-               * ⚠️ Etapa atual em MARINHO cheio, e não na tinta preta
-               * (08/09/2026).
+               * ⚠️ **Etapa atual na COR DA EMPRESA** (pedido do usuário em
+               * 18/09/2026), e não mais no marinho.
                *
-               * O preto era o maior contraste da tela gasto numa barra de
-               * navegação interna de formulário, e ficou destoando depois que as
-               * abas da página adotaram o marinho. Marinho é a cor de controle
-               * do sistema, e é a família certa para "onde estou".
+               * `primary` é o token que o `services/branding` sobrescreve com a
+               * cor que cada cliente cadastra, então a barra acompanha a marca
+               * de quem está usando: terracota na SERVIOESTE, outra cor em quem
+               * tiver outra. O marinho era fixo e igual para todos.
+               *
+               * Histórico: era preto até 08/09/2026, virou marinho porque o
+               * preto gastava o maior contraste da tela numa navegação interna
+               * de formulário.
                *
                * ⚠️ Aqui é CHEIO, e não a pastilha clara que sobe do poço como nas
                * abas: esta barra mora dentro do diálogo, cuja superfície já é a
@@ -329,7 +347,7 @@ export function WizardSteps<T extends string>({
                * responder.
                */
               atual
-                ? 'bg-accent text-on-secondary font-medium'
+                ? 'bg-primary text-on-primary font-medium'
                 : step.done && !step.invalid
                   ? 'text-on-surface hover:bg-on-surface/[0.06]'
                   : 'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]',
@@ -348,9 +366,9 @@ export function WizardSteps<T extends string>({
                 step.invalid && !atual && 'text-error',
                 step.done && !step.invalid && !atual && 'text-success',
                 /* Dentro da pastilha cheia o sinal herda o contraste dela: verde
-                   e vermelho sobre o marinho reprovam, e o estado já está dito
-                   pelo próprio desenho do ícone. */
-                atual && 'text-on-secondary',
+                   e vermelho sobre a cor da marca reprovam, e o estado já está
+                   dito pelo próprio desenho do ícone. */
+                atual && 'text-on-primary',
               )}
             >
               {step.invalid ? (

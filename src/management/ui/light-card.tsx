@@ -29,7 +29,6 @@ export function LightCard({ title, action, children, className, ...props }: Ligh
            diferença é o que fazia cada bloco parecer um campo de formulário.
            Quem dá a profundidade agora é a sombra, com deslocamento e desfoque. */
         'bg-light ring-light-edge rounded-xl p-6 ring-1 sm:p-7',
-        'shadow-[0_1px_2px_rgba(28,26,24,0.04),0_8px_24px_-12px_rgba(28,26,24,0.14)]',
         // `min-w-0`: item de grid tem `min-width: auto` e se recusa a encolher abaixo
         // do conteúdo — sem isso o card estoura o viewport no mobile.
         // `flex flex-col`: permite que o conteúdo estique até o fim do card quando a

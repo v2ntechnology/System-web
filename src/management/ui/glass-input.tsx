@@ -1,8 +1,9 @@
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from '@/components/icons';
+import { CheckIcon, ChevronDownIcon } from '@/components/icons';
 import * as LabelPrimitive from '@radix-ui/react-label';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { forwardRef, useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { usePointerClose } from '@/hooks/use-pointer-close';
+import { FieldHint } from './field-hint';
 import { cn } from './lib/cn';
 import { FIELD_SURFACES, HIGHLIGHT_ITEM, POPOVER_LAYER } from './lib/field-surfaces';
 
@@ -63,12 +64,17 @@ export const GlassInput = forwardRef<HTMLInputElement, GlassInputProps>(function
 
   return (
     <div className="flex flex-col gap-1.5">
-      <LabelPrimitive.Root
-        htmlFor={inputId}
-        className={cn('text-label-md uppercase', styles.label, hideLabel && 'sr-only')}
-      >
-        {label}
-      </LabelPrimitive.Root>
+      {/* ⚠️ A ajuda fica ao lado do RÓTULO, e não do campo: no rótulo ela é
+          lida antes de digitar, que é quando serve. Ver `FieldHint`. */}
+      <div className={cn('flex items-center gap-1.5', hideLabel && 'sr-only')}>
+        <LabelPrimitive.Root
+          htmlFor={inputId}
+          className={cn('text-label-md uppercase', styles.label)}
+        >
+          {label}
+        </LabelPrimitive.Root>
+        {hint && !error ? <FieldHint id={`${inputId}-hint`} text={hint} /> : null}
+      </div>
 
       <div
         className={cn(
@@ -97,6 +103,8 @@ export const GlassInput = forwardRef<HTMLInputElement, GlassInputProps>(function
         {trailing}
       </div>
 
+      {/* Só o erro continua em texto fixo: a ajuda subiu para o balão no
+          rótulo, e erro que depende de gesto para aparecer não é erro. */}
       {error ? (
         <p
           id={`${inputId}-error`}
@@ -104,13 +112,6 @@ export const GlassInput = forwardRef<HTMLInputElement, GlassInputProps>(function
           className={cn('text-label-md normal-case', styles.error, pill && 'px-5')}
         >
           {error}
-        </p>
-      ) : hint ? (
-        <p
-          id={`${inputId}-hint`}
-          className={cn('text-label-md normal-case', styles.muted, pill && 'px-5')}
-        >
-          {hint}
         </p>
       ) : null}
     </div>
@@ -122,6 +123,20 @@ export interface GlassSelectProps {
   options: { value: string; label: string }[];
   value: string;
   onValueChange: (value: string) => void;
+  /**
+   * O que o campo mostra enquanto ninguém escolheu.
+   *
+   * ⚠️ **Sem isto o gatilho fica em BRANCO**, e não é um detalhe estético: o
+   * Radix trata `value=""` como "nada escolhido", então a opção `{ value: '' }`
+   * que várias listas daqui usam para "Não informado" nunca consegue se
+   * desenhar no gatilho. Quem escolhia "Não informado" via o campo esvaziar e
+   * lia como falha (relatado em 18/09/2026).
+   *
+   * Por isso, em lista que tem opção vazia o texto daqui é o RÓTULO dela, e não
+   * um convite como "Selecione…": assim o campo diz o que está gravado em vez
+   * de contradizer a escolha que a pessoa acabou de fazer.
+   */
+  placeholder?: string | undefined;
   error?: string | undefined;
   hint?: string | undefined;
   surface?: 'dark' | 'light' | undefined;
@@ -152,6 +167,7 @@ export function GlassSelect({
   options,
   value,
   onValueChange,
+  placeholder,
   error,
   hint,
   surface = 'dark',
@@ -179,12 +195,16 @@ export function GlassSelect({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <LabelPrimitive.Root
-        htmlFor={selectId}
-        className={cn('text-label-md uppercase', styles.label, hideLabel && 'sr-only')}
-      >
-        {label}
-      </LabelPrimitive.Root>
+      {/* Mesma regra do `GlassInput`: a ajuda mora ao lado do rótulo. */}
+      <div className={cn('flex items-center gap-1.5', hideLabel && 'sr-only')}>
+        <LabelPrimitive.Root
+          htmlFor={selectId}
+          className={cn('text-label-md uppercase', styles.label)}
+        >
+          {label}
+        </LabelPrimitive.Root>
+        {hint && !error ? <FieldHint id={`${selectId}-hint`} text={hint} /> : null}
+      </div>
 
       <SelectPrimitive.Root
         value={value}
@@ -199,6 +219,10 @@ export function GlassSelect({
           className={cn(
             /* O giro vive no gatilho porque é ele que carrega `data-state`. */
             'text-body-md flex h-11 w-full items-center justify-between gap-2 overflow-hidden transition-colors data-[state=open]:[&>svg]:rotate-180 disabled:pointer-events-none disabled:opacity-50',
+            /* Mesmo cinza do `placeholder:` do `GlassInput`, para o campo vazio
+               ler igual nos dois. O Radix põe `data-placeholder` no gatilho
+               enquanto nada foi escolhido. */
+            'data-[placeholder]:text-placeholder',
             /* `wellTrigger`, e não `well`: o gatilho é focável por si só, e o
                `focus-within` do poço acenderia o anel em mais casos do que o
                teclado justifica. Ver a nota em `field-surfaces.ts`. */
@@ -227,7 +251,7 @@ export function GlassSelect({
            * padrão, e um valor centralizado desalinha da coluna do rótulo.
            */}
           <span className="min-w-0 flex-1 truncate text-left">
-            <SelectPrimitive.Value />
+            <SelectPrimitive.Value placeholder={placeholder} />
           </span>
           {/* A seta gira no próprio eixo ao abrir e desfaz o giro ao fechar. */}
           <SelectPrimitive.Icon asChild>
@@ -251,11 +275,16 @@ export function GlassSelect({
             {...pointer.contentProps}
             className={cn(
               'bg-surface-low ring-outline-variant min-w-[var(--radix-select-trigger-width)] max-w-[min(30rem,calc(100vw-2rem))] overflow-hidden rounded-md p-1.5 ring-1',
-              /* Sombra de papel: deslocamento e desfoque de verdade, no lugar
-                 dos 90% de preto de antes. Sombra quase opaca sobre papel é
-                 mancha, e ela só existia para destacar a lista contra a foto
-                 escura do banner, que saiu no redesign de 30/08/2026. */
-              'shadow-[0_2px_6px_rgba(28,26,24,0.05),0_20px_40px_-16px_rgba(28,26,24,0.18)]',
+              /*
+               * ⚠️ **SEM SOMBRA** (decisão do usuário em 18/09/2026, valendo
+               * para o sistema inteiro). A lista já se separa do fundo pelo
+               * `ring-1`, e a sombra acrescentava um borrão em volta da caixa que
+               * o usuário lia como brilho, não como elevação.
+               *
+               * Histórico, para não voltar por engano: eram 90% de preto, que
+               * viraram sombra de papel em 30/08/2026 quando a foto escura do
+               * banner saiu, e agora saem de vez.
+               */
               /* Abre a partir da borda do gatilho, e não do centro da tela: o
                  movimento diz de onde a lista saiu. */
               'origin-[var(--radix-select-content-transform-origin)]',
@@ -265,18 +294,15 @@ export function GlassSelect({
             )}
           >
             {/*
-             * ⚠️ Os botões de rolagem não são enfeite: a barra de rolagem é
-             * invisível no sistema inteiro (decisão do usuário em 19/08/2026), e
-             * numa lista cortada sem pista nenhuma o corte lê como fim da lista.
-             * Com vinte filiais, a pessoa concluía que a dela não estava ali.
+             * ⚠️ **Sem botões de rolagem** (decisão do usuário em 18/09/2026),
+             * nem em cima nem embaixo. Eles existiam desde 19/08/2026 como pista
+             * de que a lista continua, porque a barra de rolagem é invisível no
+             * sistema inteiro. O usuário preferiu a lista limpa: a rolagem
+             * continua funcionando por roda, arrasto e teclado.
              *
-             * O Radix só os monta quando há de fato o que rolar, então em lista
-             * curta eles não ocupam espaço.
+             * Se um dia o corte voltar a enganar em lista longa, a pista que
+             * cabe aqui é um esmaecido na borda, e não a seta de volta.
              */}
-            <SelectPrimitive.ScrollUpButton className="text-on-surface-muted flex h-6 cursor-default items-center justify-center">
-              <ChevronUpIcon size={14} aria-hidden="true" />
-            </SelectPrimitive.ScrollUpButton>
-
             <SelectPrimitive.Viewport className="max-h-[min(18rem,var(--radix-select-content-available-height))]">
               {options.map((option) => (
                 <SelectPrimitive.Item
@@ -323,10 +349,6 @@ export function GlassSelect({
                 </SelectPrimitive.Item>
               ))}
             </SelectPrimitive.Viewport>
-
-            <SelectPrimitive.ScrollDownButton className="text-on-surface-muted flex h-6 cursor-default items-center justify-center">
-              <ChevronDownIcon size={14} aria-hidden="true" />
-            </SelectPrimitive.ScrollDownButton>
           </SelectPrimitive.Content>
         </SelectPrimitive.Portal>
       </SelectPrimitive.Root>
@@ -338,10 +360,6 @@ export function GlassSelect({
           className={cn('text-label-md normal-case', styles.error)}
         >
           {error}
-        </p>
-      ) : hint ? (
-        <p id={`${selectId}-hint`} className={cn('text-label-md normal-case', styles.muted)}>
-          {hint}
         </p>
       ) : null}
     </div>

@@ -6,6 +6,7 @@ import { format, isSameDay, isSameMonth, setMonth, setYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useId } from 'react';
 
+import { FieldHint } from './field-hint';
 import { FIELD_SURFACES, POPOVER_LAYER } from './lib/field-surfaces';
 import { cn } from './lib/cn';
 
@@ -60,12 +61,19 @@ export function GlassDateField({
 
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <LabelPrimitive.Root
-        htmlFor={field.fieldId}
-        className={cn('text-label-md uppercase', styles.label, hideLabel && 'sr-only')}
-      >
-        {label}
-      </LabelPrimitive.Root>
+      {/* ⚠️ A ajuda fica ao lado do RÓTULO, como no `GlassInput` e no
+          `GlassSelect`. Este campo era o único que tinha ficado para trás na
+          mudança de 18/09/2026, e por isso seis explicações continuavam
+          ocupando uma linha cada dentro do cadastro de motorista. */}
+      <div className={cn('flex items-center gap-1.5', hideLabel && 'sr-only')}>
+        <LabelPrimitive.Root
+          htmlFor={field.fieldId}
+          className={cn('text-label-md uppercase', styles.label)}
+        >
+          {label}
+        </LabelPrimitive.Root>
+        {hint && !error ? <FieldHint id={`${field.fieldId}-hint`} text={hint} /> : null}
+      </div>
 
       <div
         className={cn(
@@ -115,7 +123,13 @@ export function GlassDateField({
               align="end"
               sideOffset={8}
               className={cn(
-                'bg-surface-low ring-outline-variant rounded-lg p-3 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)] ring-1',
+                /* ⚠️ **SEM SOMBRA** (decisão do usuário, valendo para o sistema
+                   inteiro): o calendário se separa do fundo pelo `ring-1`, e a
+                   sombra acrescentava um borrão em volta da caixa que o usuário
+                   lê como brilho, não como elevação. Mesma regra já aplicada na
+                   lista do `GlassSelect` e no balão de ajuda em 18/09/2026.
+                   Aqui eram 90% de preto espalhados por 60px. */
+                'bg-surface-low ring-outline-variant rounded-lg p-3 ring-1',
                 POPOVER_LAYER,
               )}
             >
@@ -281,10 +295,6 @@ export function GlassDateField({
           className={cn('text-label-md normal-case', styles.error)}
         >
           {error}
-        </p>
-      ) : hint ? (
-        <p id={`${field.fieldId}-hint`} className={cn('text-label-md normal-case', styles.muted)}>
-          {hint}
         </p>
       ) : null}
     </div>

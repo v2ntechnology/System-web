@@ -1,4 +1,5 @@
 import * as TabsPrimitive from '@radix-ui/react-tabs';
+import { useSlidingPill } from '@/hooks/use-sliding-pill';
 import { cn } from '@/management/ui';
 import type { ReactNode } from 'react';
 
@@ -32,9 +33,16 @@ export function PageTabs<T extends string>({
   label,
   children,
 }: PageTabsProps<T>) {
+  /* A chave carrega os ids porque aba nova ou aba a menos move as vizinhas, e
+     a contagem porque ela muda a largura do item sem mudar a escolha. */
+  const { trackRef, pillStyle, pillActive } = useSlidingPill<HTMLDivElement>(
+    `${value}|${tabs.map((tab) => `${tab.id}:${tab.count ?? ''}`).join()}`,
+  );
+
   return (
     <TabsPrimitive.Root value={value} onValueChange={(next) => onValueChange(next as T)}>
       <TabsPrimitive.List
+        ref={trackRef}
         aria-label={label}
         /*
          * ⚠️ Saiu o `-mt-14 mx-auto`. A lista mordia o degrau do banner e ficava
@@ -45,12 +53,39 @@ export function PageTabs<T extends string>({
          * abas centrada abaixo de um título à esquerda quebra a coluna de
          * leitura logo no primeiro elemento.
          */
-        className="bg-surface-lowest rounded-pill mb-7 flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
+        className="bg-surface-lowest rounded-pill relative mb-7 flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
       >
+        {/*
+         * ⚠️ A pastilha do escolhido é UMA SÓ, e DESLIZA (pedido do usuário em
+         * 18/09/2026, no espírito do seletor de tema).
+         *
+         * Antes o fundo claro e a sombra eram do próprio botão, então a troca
+         * era um corte: a pastilha apagava aqui e acendia ali. Com uma peça só,
+         * que muda de posição e de largura, o olho acompanha para onde foi a
+         * escolha, que é a informação que a troca de aba carrega.
+         *
+         * Ela fica ATRÁS dos botões (sem z-index, apenas por vir antes no DOM,
+         * e os botões sobem com `relative`), senão cobriria o rótulo.
+         */}
+        <span
+          aria-hidden="true"
+          style={pillStyle}
+          className={cn(
+            'bg-surface-low rounded-pill pointer-events-none absolute left-0 top-0',
+            'shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]',
+            /* `transform` e `width` juntos: a aba de destino quase nunca tem a
+               largura da aba de origem, e animar só a posição faria a pastilha
+               chegar e depois crescer, em dois tempos. */
+            'transition-[transform,width,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+            'motion-reduce:transition-none',
+          )}
+        />
+
         {tabs.map((tab) => (
           <TabsPrimitive.Trigger
             key={tab.id}
             value={tab.id}
+            {...(tab.id === value ? pillActive : {})}
             /*
              * ⚠️ A aba escolhida é uma pastilha CLARA que sobe do poço, com a
              * escrita na secundária. Ela era a pastilha preta (08/09/2026).
@@ -68,12 +103,13 @@ export function PageTabs<T extends string>({
              */
             className={cn(
               /* `group` para a contagem lá dentro enxergar o `data-state`. */
-              'group text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
+              'group text-body-md rounded-pill focus-visible:ring-primary relative shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
               'text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]',
-              'data-[state=active]:bg-surface-low data-[state=active]:text-accent data-[state=active]:font-medium',
-              'data-[state=active]:shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]',
+              /* Fundo e sombra do escolhido agora são da pastilha que desliza,
+                 acima: aqui fica só o que é do texto. */
+              'data-[state=active]:text-accent data-[state=active]:font-medium',
               /* O hover não pinta a aba já escolhida: ela não tem para onde ir. */
-              'data-[state=active]:hover:bg-surface-low data-[state=active]:hover:text-accent',
+              'data-[state=active]:hover:bg-transparent data-[state=active]:hover:text-accent',
             )}
           >
             {tab.label}

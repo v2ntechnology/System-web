@@ -131,7 +131,25 @@
   --glass-border-from: rgba(255, 255, 255, 0.16);
   --glass-border-to: rgba(255, 255, 255, 0.05);
 
-  background-color: var(--color-surface);
+  /*
+   * ⚠️ **Sem `background-color` aqui** (19/09/2026).
+   *
+   * A classe tem dois papéis que pareciam um só: ela troca os TOKENS do painel
+   * e, até aqui, também pintava o papel. Quem é casca (`ManagementLayout`,
+   * `login-page`) não precisava disso, porque já declara `bg-surface` junto da
+   * classe; quem é PORTAL precisava do contrário. O `GlassModal` e o drawer do
+   * assistente montam no `body`, fora do escopo, e repetem a classe só para
+   * alcançar os tokens: com o fundo embutido, os dois recebiam o papel
+   * (#f4f2ef) por cima do `bg-surface-low` (#ffffff) que pediram.
+   *
+   * O modal saía creme com o rodapé de ações branco, duas cores no mesmo
+   * cartão, e nenhuma escolhida (relatado pelo usuário). E não era questão de
+   * ordem: esta regra vive FORA de `@layer`, então vencia qualquer utilitário,
+   * inclusive um `bg-white` escrito à mão.
+   *
+   * `color` e a tipografia ficam: são herdadas, e é justamente o que um portal
+   * quer levar consigo.
+   */
   color: var(--color-on-surface);
   font-size: var(--text-body-md);
   line-height: var(--text-body-md--line-height);

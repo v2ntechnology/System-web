@@ -2,6 +2,7 @@ import { CheckIcon, MinusIcon } from '@/components/icons';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as LabelPrimitive from '@radix-ui/react-label';
 import { useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { FieldHint } from './field-hint';
 import { cn } from './lib/cn';
 
 export interface CheckboxProps extends Omit<
@@ -17,6 +18,15 @@ export interface CheckboxProps extends Omit<
    * não sabe disso, e quem descobre depois já mexeu.
    */
   description?: ReactNode | undefined;
+  /**
+   * A explicação do efeito, em balão ao lado do rótulo.
+   *
+   * ⚠️ Prefira isto a `description` dentro de DIÁLOGO (pedido do usuário em
+   * 19/09/2026): ali a explicação abaixo do rótulo empurra o rodapé de ações
+   * para fora da altura visível. Fora do diálogo, onde há espaço, a descrição
+   * continua melhor, porque é lida sem exigir gesto nenhum.
+   */
+  hint?: string | undefined;
   /** Mensagem de erro. Dispara `aria-invalid` e o estilo de erro. */
   error?: string | undefined;
   /** `light` dentro de um `LightCard`; `dark` sobre o grafite. */
@@ -64,6 +74,7 @@ const SURFACES = {
 export function Checkbox({
   label,
   description,
+  hint,
   error,
   surface = 'dark',
   className,
@@ -124,7 +135,20 @@ export function Checkbox({
         </CheckboxPrimitive.Root>
 
         <span className="min-w-0">
-          <span className={cn('text-body-md block', styles.label)}>{label}</span>
+          <span className={cn('text-body-md flex items-center gap-1.5', styles.label)}>
+            {label}
+            {/*
+             * ⚠️ O balão fica FORA do `<label>` em termos de clique: ele é um
+             * botão, e um botão dentro de label dispara a marcação ao ser
+             * clicado. O `stopPropagation` no gatilho é o que separa "quero
+             * entender" de "quero marcar".
+             */}
+            {hint ? (
+              <span onClick={(evento) => evento.preventDefault()}>
+                <FieldHint id={`${checkboxId}-hint`} text={hint} />
+              </span>
+            ) : null}
+          </span>
           {description ? (
             <span
               id={`${checkboxId}-description`}

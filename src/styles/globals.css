@@ -465,6 +465,27 @@
     color: var(--color-on-surface-variant);
   }
 
+  /*
+   * O traço entre dois ícones de ação.
+   *
+   * ⚠️ Pedido do usuário em 18/09/2026, para o rodapé do cartão do pátio e do
+   * cartão de pessoa. Editar, inativar e excluir são três decisões diferentes
+   * encostadas, e o traço é o que diz onde uma termina e a outra começa: sem
+   * ele, três ícones colados leem como um grupo só e o clique erra de vizinho.
+   *
+   * ⚠️ Pela BORDA do irmão, e não por um elemento separador no JSX: quais botões
+   * aparecem depende de papel, de estar ativo e de ser motorista, e um separador
+   * declarado à mão precisaria repetir cada uma dessas condições, e sobraria
+   * pendurado no dia em que uma delas mudasse. Aqui o traço nasce de quem de
+   * fato foi renderizado, e nunca abre nem fecha a fila.
+   *
+   * Não é anunciado a quem ouve a tela, porque é borda e não conteúdo.
+   */
+  .acoes-divididas > :not(:first-child) {
+    border-left: 1px solid var(--color-light-outline);
+    padding-left: 7px;
+  }
+
   .acao-neutra:hover:not(:disabled),
   .acao-neutra:focus-visible:not(:disabled) {
     color: var(--color-on-surface);

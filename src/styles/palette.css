@@ -144,7 +144,16 @@
   --color-on-light-variant: #b4b4bc;
   --color-on-light-muted: #9a9aa4;
   --color-light-outline: #3a3a3e;
-  --color-light-edge: transparent; /* traço externo (só o tema claro precisa) */
+  /*
+   * Traço externo do cartão.
+   *
+   * ⚠️ **Era `transparent`, e virou o próprio contorno em 18/09/2026.** Enquanto
+   * o cartão tinha sombra, o `ring-light-edge` não precisava desenhar nada: quem
+   * separava o cartão do fundo era a sombra. Com ela removida a pedido do
+   * usuário, um traço transparente deixava os cartões de indicador sem limite
+   * nenhum, boiando no branco.
+   */
+  --color-light-edge: var(--color-light-outline);
   --color-primary-on-light: #d5623a;
   --color-error-on-light: #fb7185;
   --color-warning-on-light: #fbbf24;
@@ -250,7 +259,8 @@ html.light {
   --color-on-light-variant: #4a4741;
   --color-on-light-muted: #6b665e;
   --color-light-outline: #e5e1db;
-  --color-light-edge: transparent;
+  /* Ver a nota no tema de cima: o traço substituiu a sombra do cartão. */
+  --color-light-edge: var(--color-light-outline);
   --color-primary-on-light: #d5623a;
   --color-error-on-light: #9f1239;
   --color-warning-on-light: #6b3f0a;

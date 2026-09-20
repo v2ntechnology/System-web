@@ -68,6 +68,44 @@ const buttonVariants = cva(
           'border border-accent/60 bg-transparent text-accent',
           'hover:border-accent hover:bg-accent/[0.06]',
         ],
+        /**
+         * Ação de apoio, em contorno NEUTRO.
+         *
+         * ⚠️ Nasceu em 18/09/2026 para o "Voltar" dos diálogos em etapas. Ali a
+         * `ghost` marinho virou uma terceira cor na mesma barra, depois que as
+         * abas passaram a seguir a cor da empresa: sobravam laranja no
+         * "Próximo", laranja nas abas, vermelho no "Fechar" e azul no "Voltar",
+         * e o azul era o único que não significava nada.
+         *
+         * O cinza resolve porque **voltar não é uma escolha, é um caminho de
+         * volta**: ele não deve disputar o olho com a ação que leva adiante, e
+         * qualquer matiz aqui disputaria.
+         *
+         * ⚠️ Não usar para "cancelar" nem "fechar": aquilo descarta o que foi
+         * digitado e tem a `danger`.
+         */
+        neutral: [
+          'border border-outline-variant bg-transparent text-on-surface-variant',
+          'hover:border-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]',
+        ],
+        /**
+         * A saída: mesmo desenho da `ghost`, na família do erro.
+         *
+         * ⚠️ Desenho pedido pelo usuário em 18/09/2026, para **fechar e cancelar**
+         * no rodapé dos diálogos. O vermelho aqui não anuncia destruição, e sim
+         * abandono: o que se perde é o que foi digitado.
+         *
+         * ⚠️ **Não usar em "Voltar".** Dois diálogos do sistema trocam o rótulo
+         * deste mesmo botão conforme a etapa, e voltar uma etapa não descarta
+         * nada. Nesses casos a variante acompanha o rótulo, e não o botão.
+         *
+         * O traço a 60% segue a `ghost` pelo mesmo motivo de contraste: a 40%
+         * sobre o papel a linha fica abaixo dos 3:1 que contorno pede.
+         */
+        danger: [
+          'border border-error-on-light/60 bg-transparent text-error-on-light',
+          'hover:border-error-on-light hover:bg-error-on-light/[0.06]',
+        ],
         /** Link textual. */
         link: 'text-secondary underline-offset-4 hover:underline',
       },

@@ -66,9 +66,19 @@ export function GlassModal({
             /*
              * Superfície própria, e não `.glass`: a camada de vidro a 9% deixava o
              * conteúdo da página atravessar o texto do diálogo. Um modal precisa de
-             * base opaca — o blur fica para a borda e para o overlay.
+             * base opaca.
+             *
+             * ⚠️ **Opaco de verdade desde 19/09/2026** (pedido do usuário). Os 95%
+             * que havia aqui deixavam o véu preto do fundo atravessar: o diálogo
+             * saía em #f4f2ef, um creme, enquanto o rodapé de ações, que é opaco,
+             * saía em #ffffff. Duas cores no mesmo cartão, e nenhuma delas
+             * escolhida. Sem a transparência os dois são a mesma folha branca, e
+             * quem separa o rodapé é a borda de cima.
+             *
+             * O `backdrop-blur` saiu junto: sobre base opaca ele não desfoca nada
+             * e ainda cobra uma camada de composição do navegador.
              */
-            'bg-surface-low/95 border-on-surface/12 rounded-lg border backdrop-blur-2xl',
+            'bg-surface-low border-on-surface/12 rounded-lg border',
             'shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)] focus:outline-none',
             className,
           )}

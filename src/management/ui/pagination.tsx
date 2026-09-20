@@ -14,6 +14,20 @@ export interface PaginationProps {
   /** Substantivo no plural, para a contagem: "motoristas", "veículos". */
   label?: string | undefined;
   pageSize?: number | undefined;
+  /**
+   * Quantas páginas existem, quando elas NÃO têm todas o mesmo tamanho.
+   *
+   * ⚠️ Existe para o Pátio, que pagina por filial: cada página leva filiais
+   * inteiras, então ela tem quantos veículos aquelas filiais tiverem, e
+   * `total / pageSize` daria um número de páginas que não corresponde ao que a
+   * tela mostra. Com isto, quem sabe quebrar a lista é quem a agrupou.
+   *
+   * Vem acompanhado de `rangeStart` e `rangeEnd`, senão a contagem do canto
+   * esquerdo continuaria calculando o intervalo por tamanho fixo.
+   */
+  pageCount?: number | undefined;
+  rangeStart?: number | undefined;
+  rangeEnd?: number | undefined;
   className?: string | undefined;
 }
 
@@ -46,16 +60,19 @@ export function Pagination({
   onPageChange,
   label = 'registros',
   pageSize = PAGE_SIZE,
+  pageCount,
+  rangeStart,
+  rangeEnd,
   className,
 }: PaginationProps) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const totalPages = Math.max(1, pageCount ?? Math.ceil(total / pageSize));
 
   /* Uma página só não é paginação: a barra some em vez de mostrar um botão
      desabilitado de cada lado, que ocupa altura sem oferecer nada. */
   if (totalPages <= 1) return null;
 
-  const first = (page - 1) * pageSize + 1;
-  const last = Math.min(page * pageSize, total);
+  const first = rangeStart ?? (page - 1) * pageSize + 1;
+  const last = rangeEnd ?? Math.min(page * pageSize, total);
 
   return (
     <nav

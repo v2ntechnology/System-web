@@ -124,7 +124,7 @@ export function LightCard({
   return (
     <section
       className={cn(
-        'bg-light ring-light-edge flex min-w-0 flex-col rounded-xl p-6 shadow-[0_1px_2px_rgba(28,26,24,0.04),0_8px_24px_-12px_rgba(28,26,24,0.14)] ring-1 sm:p-7',
+        'bg-light ring-light-edge flex min-w-0 flex-col rounded-xl p-6 ring-1 sm:p-7',
         className,
       )}
     >
@@ -210,7 +210,6 @@ export function HeroStats({
             key={item.key}
             className={cn(
               'bg-light min-w-0 rounded-xl p-5 ring-1',
-              'shadow-[0_1px_2px_rgba(28,26,24,0.04),0_8px_24px_-12px_rgba(28,26,24,0.14)]',
               tone === 'alert' ? 'ring-error-on-light/30' : 'ring-light-edge',
             )}
           >

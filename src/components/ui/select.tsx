@@ -105,7 +105,10 @@ const SelectContent = React.forwardRef<
         ref={ref}
         {...pointerProps}
         className={cn(
-          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          /* ⚠️ Sem `shadow-md` desde 18/09/2026, a pedido do usuário: nenhuma
+             lista de select do sistema leva sombra. Quem separa do fundo é a
+             borda, que já está aqui. */
+          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
           className,
@@ -113,7 +116,9 @@ const SelectContent = React.forwardRef<
         position={position}
         {...props}
       >
-        <SelectScrollUpButton />
+        {/* ⚠️ Sem os botões de rolagem desde 18/09/2026, a pedido do usuário, e
+            igual ao `GlassSelect` do painel de gestão. Os componentes continuam
+            exportados para quem os quiser montar à mão. */}
         <SelectPrimitive.Viewport
           className={cn(
             'p-1',
@@ -123,7 +128,6 @@ const SelectContent = React.forwardRef<
         >
           {children}
         </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   );

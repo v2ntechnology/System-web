@@ -7,6 +7,7 @@ export { BlindsBackdrop, type BlindsBackdropProps } from './blinds-backdrop';
 export { DataTable, type DataTableProps, type Column } from './data-table';
 export { GlassCard, type GlassCardProps } from './glass-card';
 export { GlassDateField, type GlassDateFieldProps } from './glass-date-field';
+export { FieldHint, type FieldHintProps } from './field-hint';
 export {
   GlassInput,
   GlassSelect,
