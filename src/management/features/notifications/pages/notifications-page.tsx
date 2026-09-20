@@ -6,7 +6,7 @@ import {
   WarningIcon,
 } from '@/components/icons';
 import type { NotificationSeverity, NotificationSource } from '@/management/types';
-import { GlassSelect, SpectrumButton, StatusChip, cn } from '@/management/ui';
+import { GlassSelect, Pagination, SpectrumButton, StatusChip, cn } from '@/management/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -16,6 +16,7 @@ import { HeroStats, type HeroStat } from '@/management/components/layout/hero-st
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { QueryState } from '@/management/components/layout/query-state';
+import { SegmentedFilter } from '@/management/components/layout/segmented-filter';
 import { fetchFleetMaintenanceDue, fetchMechanicalAlerts } from '@/management/lib/fleet-api';
 
 import { aggregateMechanicalAlerts } from '@/management/features/maintenance/alerts';
@@ -36,6 +37,16 @@ const FILTERS: { id: NotificationSeverity | 'TODAS'; label: string }[] = [
 ];
 
 const TODAS_ORIGENS = 'TODAS';
+
+/**
+ * Quantos por página.
+ *
+ * ⚠️ **Dez, e não os trinta das listas grandes** (ajustado em 19/09/2026). Aqui a
+ * lista é uma FILA, lida de cima para baixo e tratada item a item: com trinta, o
+ * volume real (dezessete impedimentos, vinte e seis avisos) cabia numa página só
+ * e a paginação simplesmente não aparecia, porque uma página só não é paginação.
+ */
+const POR_PAGINA = 10;
 const ABAS = [
   { id: 'TODOS', label: 'Todos os alertas' },
   { id: 'SEGURANCA', label: 'Segurança' },
@@ -56,6 +67,7 @@ export function NotificationsPage() {
 
   const [filter, setFilter] = useState<NotificationSeverity | 'TODAS'>('TODAS');
   const [source, setSource] = useState<NotificationSource | typeof TODAS_ORIGENS>(TODAS_ORIGENS);
+  const [pagina, setPagina] = useState(1);
 
   const notifications = useMemo(() => data ?? [], [data]);
   const notificationsDaAba = useMemo(
@@ -89,6 +101,18 @@ export function NotificationsPage() {
       ),
     [notificationsDaAba, filter, source],
   );
+
+  /**
+   * A lista pagina (pedido do usuário em 19/09/2026).
+   *
+   * ⚠️ **A página é FIXADA dentro do total**, e não guardada como está. Quem
+   * estava na página 4 e aplica um filtro que devolve doze avisos ficaria numa
+   * página que não existe, olhando uma tela vazia e concluindo que o filtro não
+   * achou nada. É a mesma regra das outras listas do painel.
+   */
+  const totalPaginas = Math.max(1, Math.ceil(visible.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const daPagina = visible.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA);
 
   const unread = notifications.filter((item) => !item.read).length;
   const unreadDaAba = notificationsDaAba.filter((item) => !item.read).length;
@@ -178,16 +202,6 @@ export function NotificationsPage() {
         <HeroPill icon={BellIcon}>{unread > 0 ? `${unread} não lidas` : 'tudo lido'}</HeroPill>
       </HeroBand>
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
-        <h2 className="sr-only">Resumo dos avisos</h2>
-
-        <QueryState isPending={isPending} isError={isError} label="as notificações">
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
-              ela jogaria o carregando e o erro por cima da faixa colorida. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
-        </QueryState>
-      </section>
-
       {/*
        * ⚠️ Painel branco, como nas demais rotas (08/09/2026). A tela era um
        * `LightCard` solto no papel, e dentro dele cada aviso vinha num bloco
@@ -195,8 +209,19 @@ export function NotificationsPage() {
        * um cartão claro. Agora a lista mora no painel e usa `on-light`, que é
        * para o que ela foi desenhada.
        */}
-      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
+        <h2 className="sr-only">Resumo dos avisos</h2>
+
+        {/* ⚠️ Os indicadores entram DENTRO da mesma coluna de 1440px do resto.
+            Fora dela eles iam de margem a margem enquanto as abas logo abaixo
+            paravam 200px adiante, e as duas peças do mesmo painel não se
+            alinhavam. Antes isso não aparecia, porque os cartões flutuavam
+            sobre a faixa laranja, longe do conteúdo. */}
         <div className="mx-auto max-w-[1440px]">
+          <QueryState isPending={isPending} isError={isError} label="as notificações">
+            <HeroStats items={stats} className="mb-6" />
+          </QueryState>
+
           <PageTabs
             tabs={ABAS.map((item) => ({
               ...item,
@@ -266,39 +291,12 @@ export function NotificationsPage() {
                        * olha", que é outra pergunta, e ainda flutuavam sobre o painel
                        * sem poço que as agrupasse.
                        */}
-                      <div
-                        role="group"
-                        aria-label="Filtrar por severidade"
-                        className="bg-light-container rounded-pill flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
-                      >
-                        {FILTERS.map((option) => {
-                          const active = filter === option.id;
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              aria-pressed={active}
-                              onClick={() => setFilter(option.id)}
-                              className={cn(
-                                /* `group` para a contagem enxergar o estado do botão. */
-                                'group text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
-                                active
-                                  ? 'bg-light text-accent font-medium shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]'
-                                  : 'text-on-light-variant hover:bg-on-light/[0.06] hover:text-on-light',
-                              )}
-                            >
-                              {option.label}
-                              {/* Na aba escolhida a contagem vira dado, e não sombra do
-                          rótulo: opacidade cheia em vez de meia. */}
-                              <span
-                                className={cn('tabular ml-2 opacity-70', active && 'opacity-100')}
-                              >
-                                {counts[option.id]}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <SegmentedFilter
+                        label="Filtrar por severidade"
+                        options={FILTERS.map((option) => ({ ...option, count: counts[option.id] }))}
+                        value={filter}
+                        onValueChange={setFilter}
+                      />
 
                       {/* Some quando tudo vem da mesma origem: um seletor de uma opção
                   só é chrome que não decide nada. */}
@@ -332,7 +330,7 @@ export function NotificationsPage() {
                       </p>
                     ) : (
                       <ul className="flex flex-col gap-3">
-                        {visible.map((item) => {
+                        {daPagina.map((item) => {
                           const severity = SEVERITY[item.severity];
                           const SeverityIcon = severity.icon;
                           const source = SOURCE[item.source];
@@ -409,6 +407,15 @@ export function NotificationsPage() {
                         })}
                       </ul>
                     )}
+
+                    <Pagination
+                      className="mt-6"
+                      page={paginaAtual}
+                      total={visible.length}
+                      pageSize={POR_PAGINA}
+                      onPageChange={setPagina}
+                      label="avisos"
+                    />
                   </>
                 </QueryState>
               </div>

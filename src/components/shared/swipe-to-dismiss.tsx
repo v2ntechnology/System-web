@@ -43,6 +43,8 @@ const COLLAPSE_MS = 240;
 interface SwipeToDismissProps {
   onDismiss: () => void;
   children: ReactNode;
+  /** Raio e contorno pertencem ao wrapper, que recorta o conteúdo deslizante. */
+  className?: string;
   /** Rótulo do botão revelado, para leitor de tela. */
   label?: string;
   /**
@@ -59,6 +61,7 @@ interface SwipeToDismissProps {
 export function SwipeToDismiss({
   onDismiss,
   children,
+  className,
   label = 'Dispensar',
   surfaceClassName = 'bg-surface-low',
 }: SwipeToDismissProps) {
@@ -145,7 +148,7 @@ export function SwipeToDismiss({
   return (
     <div
       ref={wrapRef}
-      className="rounded-md relative overflow-hidden"
+      className={cn('rounded-md relative overflow-hidden', className)}
       style={{
         maxHeight: height,
         opacity: height === 0 ? 0 : 1,

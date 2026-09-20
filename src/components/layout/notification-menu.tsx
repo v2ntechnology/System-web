@@ -10,7 +10,7 @@ import { formatRelative } from '@/lib/format';
  * alerta da operação para o formato que a caixa entende.
  */
 export function NotificationMenu() {
-  const { data: alerts } = useAlerts();
+  const { data: alerts, isPending } = useAlerts();
   const dispensar = useDismissAlert();
 
   /* Resolvido e ignorado não são pendência: o sino mostra o que ainda espera alguém. */
@@ -34,6 +34,7 @@ export function NotificationMenu() {
       emptyMessage="Nenhuma notificação ativa."
       viewAllTo="/app/alertas"
       onDismiss={(id) => dispensar.mutate(id)}
+      isPending={isPending}
     />
   );
 }

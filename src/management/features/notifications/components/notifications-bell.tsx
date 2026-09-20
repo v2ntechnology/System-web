@@ -64,7 +64,9 @@ export function NotificationsBell() {
   const items: NotificationBellItem[] = notifications.map((item) => ({
     id: item.id,
     title: item.title,
+    description: item.description,
     severity: SEVERITY_COMUM[item.severity],
+    isUnread: !item.read,
     meta: `${SOURCE[item.source].label} · ${relativeTime(item.at)}`,
     to: item.actionTo ?? '/gestao/notificacoes',
   }));
