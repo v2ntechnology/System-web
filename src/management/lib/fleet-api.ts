@@ -137,6 +137,12 @@ interface VehicleDetailDto {
   journeys30d: number;
   dailyDistance: { day: string; value: number | null }[];
   recentEvents: SafetyEventDto[];
+  /* Documentação vinda do DETRAN pela Smartec (V35). */
+  registrationUf: string | null;
+  licensingStatus: string | null;
+  licensingExercise: number | null;
+  restrictions: string | null;
+  documentCheckedAt: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -339,6 +345,16 @@ export async function fetchVehicleDetail(vehicleId: string, days = 30): Promise<
     })),
     distanceKm: dto.distanceKm30d ?? undefined,
     journeys: dto.journeys30d,
+    /*
+     * ⚠️ Cai para `undefined`, e nunca para string vazia: a tela precisa
+     * distinguir "nunca consultado" de "nada consta", e o vazio apagaria a
+     * diferença. São 3 veículos da frota que a Smartec nunca pesquisou.
+     */
+    registrationUf: dto.registrationUf ?? undefined,
+    licensingStatus: dto.licensingStatus ?? undefined,
+    licensingExercise: dto.licensingExercise ?? undefined,
+    restrictions: dto.restrictions ?? undefined,
+    documentCheckedAt: dto.documentCheckedAt ?? undefined,
     recentEvents: dto.recentEvents.map((event) => ({
       id: event.id,
       label: event.description,
@@ -1462,6 +1478,8 @@ export interface NewDriverInput {
   rg: string | null;
   rgIssuer: string | null;
   birthDate: string | null;
+  /** FEMININO, MASCULINO ou OUTRO. Nulo quando ninguém informou. */
+  gender: string | null;
   cnhNumber: string | null;
   cnhFirstLicensedAt: string | null;
   cnhEar: boolean;
@@ -1509,6 +1527,8 @@ export interface DriverRegistry {
   rg: string | null;
   rgIssuer: string | null;
   birthDate: string | null;
+  /** FEMININO, MASCULINO ou OUTRO. Nulo quando ninguém informou, que não é OUTRO. */
+  gender: string | null;
 
   /* Habilitação */
   /**

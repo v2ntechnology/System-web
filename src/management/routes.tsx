@@ -269,31 +269,27 @@ export const managementRoutes: RouteObject = {
     },
     {
       /* Endereço anterior do pátio, mantido para não quebrar link salvo, item
-         de assistente e botão de outras telas. ⚠️ Casa só o caminho exato: o
-         `caminhoes/cadastro` abaixo é outra rota e continua valendo. */
+         de assistente e botão de outras telas. */
       path: 'caminhoes',
       element: <Navigate to="/gestao/patio" replace />,
     },
     {
       /*
-       * Cadastro de veículo, e não de pessoa. Irmã de `motoristas/cadastro`, e
-       * na mesma alçada: quem responde pela frota é o gestor, e o backend
-       * aceita o proprietário para não trancar o dono fora do próprio cadastro.
+       * ⚠️ O cadastro de frota passou a abrir DENTRO do Pátio em 18/09/2026, a
+       * pedido do usuário, pelo mesmo desenho que levou o cadastro de motorista
+       * para dentro de Equipe: quem vê a frota e acha um dado errado corrige
+       * ali, sem trocar de tela e sem perder o filtro e a rolagem.
        *
-       * ⚠️ Rota separada de `caminhoes` de propósito. Aquela tela é o painel
-       * da operação: filtra, agrega e esconde o que não interessa a quem está
-       * despachando. Esta mostra a frota inteira sem filtro, porque cadastro
-       * errado só aparece quando nada é escondido.
+       * O endereço continua respondendo porque estava em favorito salvo, no
+       * menu e em link mandado por mensagem.
+       *
+       * ⚠️ A `vehicle-registry-page` NÃO foi apagada, e ainda é a única visão
+       * que mostra a frota inteira em tabela, com paginação e filtro de
+       * conferência. Devolvê-la é trocar esta linha pelo `page(...)` de antes.
+       * Mesmo tratamento que a `trucks-page` e a `owner-home-page` receberam.
        */
       path: 'caminhoes/cadastro',
-      element: (
-        <RoleRoute allow={OWNER_AND_MANAGER}>
-          {page(
-            () => import('@/management/features/trucks/pages/vehicle-registry-page'),
-            'VehicleRegistryPage',
-          )}
-        </RoleRoute>
-      ),
+      element: <Navigate to="/gestao/patio" replace />,
     },
     {
       path: 'manutencao',
@@ -331,6 +327,30 @@ export const managementRoutes: RouteObject = {
     {
       path: 'custos',
       element: page(() => import('@/management/features/costs/pages/costs-page'), 'CostsPage'),
+    },
+    {
+      /*
+       * Multas e notificações, vindas da Smartec pela API.
+       *
+       * ⚠️ Fica ao lado de Custos, e não dentro dele, porque a decisão que a
+       * tela suporta é de prazo antes de ser de dinheiro: a notificação vale
+       * enquanto ainda dá para indicar o condutor, e isso vence.
+       */
+      path: 'multas',
+      element: page(() => import('@/management/features/fines/pages/fines-page'), 'FinesPage'),
+    },
+    {
+      /*
+       * Guias de licenciamento, IPVA e cronotacografo.
+       *
+       * Fica em Frota, e nao em Analise: quem abre esta tela quer saber se o
+       * caminhao pode rodar, nao quanto ele custou.
+       */
+      path: 'documentos',
+      element: page(
+        () => import('@/management/features/documents/pages/documents-page'),
+        'DocumentsPage',
+      ),
     },
     {
       path: 'relatorios',

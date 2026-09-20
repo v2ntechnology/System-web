@@ -75,6 +75,15 @@ const OPERATIONAL_NAV: NavEntry[] = [
     ],
   },
   { to: '/gestao/custos', label: 'Custos', hint: 'Custo por km em camadas', module: 'COSTS' },
+  {
+    /* ⚠️ Módulo `COSTS`, e não um `FINES` novo: multa é custo da frota, e os
+       módulos do plano são sete e fechados (`management/types.ts`). Criar um
+       oitavo mudaria o que cada plano vende, que não é decisão de tela. */
+    to: '/gestao/multas',
+    label: 'Multas',
+    hint: 'Notificações e multas do DETRAN, com prazo de indicação',
+    module: 'COSTS',
+  },
   { to: '/gestao/relatorios', label: 'Relatórios', hint: 'Exportações e agendamentos' },
 ];
 
@@ -150,22 +159,21 @@ const MANAGER_NAV: NavEntry[] = [
     label: 'Frota',
     items: [
       {
-        /* ⚠️ `end` aqui, e não só no filho. `isItemActive` casa por prefixo
-           quando `end` é falso, então sem isto "Caminhões" acenderia junto com
-           "Cadastro": dois itens ativos ao mesmo tempo no menu. Mesma armadilha
-           que já apareceu em Motoristas. */
+        /* ⚠️ O Cadastro saiu daqui em 18/09/2026: ele agora abre DENTRO do Pátio,
+           no rodapé do cartão, como o cadastro de motorista abre dentro de
+           Equipe. O endereço antigo continua respondendo e redireciona para cá. */
         to: '/gestao/patio',
         label: 'Pátio',
-        hint: 'Quem está em cada filial, e o que pode sair hoje',
+        hint: 'A frota em cada filial, com cadastro, edição e situação',
         module: 'FLEET',
-        end: true,
       },
       {
-        to: '/gestao/caminhoes/cadastro',
-        label: 'Cadastro',
-        hint: 'A frota que a telemetria entrega, e o que já foi conferido por uma pessoa',
+        /* Documento fica em Frota, e não em Análise: quem abre quer saber se o
+           caminhão pode rodar, não quanto ele custou. */
+        to: '/gestao/documentos',
+        label: 'Documentos',
+        hint: 'Licenciamento, IPVA e cronotacógrafo, com guia e linha digitável',
         module: 'FLEET',
-        end: true,
       },
       {
         to: '/gestao/notificacoes',
@@ -195,6 +203,12 @@ const MANAGER_NAV: NavEntry[] = [
     items: [
       { to: '/gestao/pareceres', label: 'Pareceres', hint: 'Explicar anomalias antes de subirem' },
       { to: '/gestao/custos', label: 'Custos', hint: 'Custo por km em camadas', module: 'COSTS' },
+      {
+        to: '/gestao/multas',
+        label: 'Multas',
+        hint: 'Notificações e multas do DETRAN, com prazo de indicação',
+        module: 'COSTS',
+      },
       { to: '/gestao/relatorios', label: 'Relatórios', hint: 'Exportações e agendamentos' },
     ],
   },

@@ -236,6 +236,37 @@ export interface VehicleDetail {
     at: string;
     severity: 'CRITICO' | 'ATENCAO' | 'INFO';
   }[];
+
+  /* --------------------------------------------------------------------- *
+   * Documentação, vinda do DETRAN pela Smartec.                            *
+   * --------------------------------------------------------------------- */
+
+  /**
+   * UF de emplacamento.
+   *
+   * ⚠️ **Não é a base de operação.** A frota tem caminhão de base no Rio
+   * emplacado em SC, PR, MG e BA, e é esta UF que decide qual DETRAN responde
+   * pelas multas dele.
+   */
+  registrationUf?: string | undefined;
+  /** Texto do órgão, como "LICENCIAMENTO EM DIA". Fica como veio. */
+  licensingStatus?: string | undefined;
+  /**
+   * Último exercício licenciado.
+   *
+   * ⚠️ **É ele quem responde se está em dia, e não o texto acima.** Na frota
+   * real o status diz "EM DIA" em todos, e três estão no exercício de 2025.
+   */
+  licensingExercise?: number | undefined;
+  /** Restrições do DETRAN e do RENAJUD. Nome de credor chega mascarado pela origem. */
+  restrictions?: string | undefined;
+  /**
+   * Quando a Smartec consultou o órgão.
+   *
+   * ⚠️ Ausente significa **nunca consultado**, que é diferente de "nada
+   * consta". São 3 veículos na frota real.
+   */
+  documentCheckedAt?: string | undefined;
 }
 
 /** Posição de um veículo no mapa ao vivo. */

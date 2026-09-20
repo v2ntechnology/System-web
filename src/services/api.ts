@@ -28,6 +28,7 @@ import type {
 import { env } from '@/app/environment';
 
 import { ApiError, mockResponse, paginate, sortBy } from './http';
+import { fineApiService } from './fine-api';
 import { vehicleApiService } from './vehicle-api';
 
 /* -------------------------------------------------------------------------- */
@@ -229,11 +230,23 @@ export const maintenanceService: MaintenanceService = {
   },
 };
 
-export const fineService: FineService = {
+const fineMockService: FineService = {
   async list() {
     return mockResponse(FINES);
   },
 };
+
+/**
+ * Multas do `/app`, ligadas à API em 19/09/2026.
+ *
+ * Segundo domínio a atravessar, depois de veículos, e pelo mesmo desenho: a
+ * tradução mora em `fine-api`, e a tela não sabe de onde o dado vem.
+ *
+ * ⚠️ **Não é fallback.** Backend fora mostra erro, e não multa de demonstração
+ * disfarçada de real. Num domínio que é dinheiro e prazo, um número inventado
+ * ao lado de um verdadeiro é pior que tela vazia.
+ */
+export const fineService: FineService = env.enableMocks ? fineMockService : fineApiService;
 
 export const checklistService: ChecklistService = {
   async list() {
