@@ -121,17 +121,13 @@ export function SettingsPage() {
         description="Quem tem acesso, o que o plano inclui e a saúde das integrações com os fornecedores."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Resumo da conta</h2>
 
         <QueryState isPending={isPending} isError={isError} label="as configurações">
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
-              ela jogaria o carregando e o erro por cima da faixa colorida. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+          <HeroStats items={stats} className="mb-6" />
         </QueryState>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs tabs={TABS} value={tab} onValueChange={setTab} label="Seções de configuração">
           <QueryState isPending={isPending} isError={isError} label="as configurações">
             {data ? (

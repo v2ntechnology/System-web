@@ -227,7 +227,7 @@ export function RolesPage() {
           </Alert>
 
           <div className="flex flex-wrap justify-end gap-3">
-            <SpectrumButton type="button" variant="ghost" onClick={() => setApagando(null)}>
+            <SpectrumButton type="button" variant="danger" onClick={() => setApagando(null)}>
               Cancelar
             </SpectrumButton>
             <SpectrumButton

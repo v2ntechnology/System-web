@@ -66,7 +66,7 @@ function ResultadoSemFonte() {
           description="Receita, custo e margem são os números que decidem compra de caminhão e preço de frete. Nenhum dos três sai do rastreador: ele mede o que o veículo fez, não o que a empresa recebeu nem o que pagou."
           requirements={[
             'Frete faturado por viagem, que é de onde vem a receita',
-            'Abastecimento com litros e valor pago, para fechar o custo de combustível',
+            'Abastecimento com valor pago, para fechar o custo de combustível',
             'Ordem de serviço de manutenção, com peça e mão de obra',
             'Folha, pedágio, seguro, financiamento e depreciação',
           ]}

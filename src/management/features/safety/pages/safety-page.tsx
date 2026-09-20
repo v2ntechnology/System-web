@@ -257,17 +257,13 @@ export function SafetyPage() {
         description="Eventos na estrada, contestações dos motoristas e as câmeras que merecem atenção agora."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Resumo de segurança</h2>
 
         <QueryState isPending={isPending} isError={isError} label="os dados de segurança">
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState` ela
-              jogaria o carregamento e o erro por cima da faixa colorida. */}
-          {data ? <HeroStats items={stats} className="-mt-16 sm:-mt-20" /> : null}
+          {data ? <HeroStats items={stats} className="mb-6" /> : null}
         </QueryState>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={TABS.map((option) => ({
             ...option,

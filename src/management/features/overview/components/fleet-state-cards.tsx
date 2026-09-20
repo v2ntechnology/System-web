@@ -44,7 +44,6 @@ function StateCard({ label, value, icon: Icon, accent, outOf, tone = 'neutral' }
     <div
       className={cn(
         'bg-light min-w-0 rounded-xl p-5 ring-1',
-        'shadow-[0_1px_2px_rgba(28,26,24,0.04),0_8px_24px_-12px_rgba(28,26,24,0.14)]',
         tone === 'alert' ? 'ring-warning-on-light/35' : 'ring-light-edge',
       )}
     >
@@ -170,7 +169,6 @@ export function FleetStateCards({
       <div
         className={cn(
           'bg-light ring-light-edge mt-4 flex flex-col gap-4 rounded-xl p-5 ring-1',
-          'shadow-[0_1px_2px_rgba(28,26,24,0.04),0_8px_24px_-12px_rgba(28,26,24,0.14)]',
           'sm:flex-row sm:items-center sm:gap-6',
         )}
       >

@@ -179,10 +179,10 @@ export function OwnerApprovalsPage() {
         description="Pareceres do gestor e liberações que exigem a sua decisão formal, com as evidências e o plano de ação anexados."
       />
 
-      <section className="-mt-16 px-4 pb-8 sm:-mt-20 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Situação da fila</h2>
 
-        <HeroStats items={stats} />
+        <HeroStats items={stats} className="mb-6" />
 
         {/*
          * O alerta é a primeira frase da tela depois dos números, e muda de cor
@@ -192,7 +192,7 @@ export function OwnerApprovalsPage() {
          * sobre a aba aberta.
          */}
         {counts.PENDENTES === 0 ? (
-          <Alert severity="success" className="mt-5 flex items-start gap-3">
+          <Alert severity="success" className="mb-6 flex items-start gap-3">
             <BadgeCheckIcon size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
             <span className="min-w-0 flex-1">
               Nenhuma decisão pendente. Toda decisão registrada aqui vai para o log de auditoria com
@@ -202,7 +202,7 @@ export function OwnerApprovalsPage() {
         ) : (
           <Alert
             severity={graves > 0 ? 'error' : 'warning'}
-            className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3"
+            className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3"
           >
             {graves > 0 ? (
               <WarningIcon size={22} className="shrink-0" aria-hidden="true" />
@@ -233,9 +233,7 @@ export function OwnerApprovalsPage() {
             </SpectrumButton>
           </Alert>
         )}
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={TABS.map((entry) => ({ ...entry, count: counts[entry.id] }))}
           value={tab}

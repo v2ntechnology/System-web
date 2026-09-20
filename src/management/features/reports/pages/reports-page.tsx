@@ -25,6 +25,7 @@ import { getReportIndicators, getReports } from '../api';
 import { PeriodIndicators } from '../components/period-indicators';
 import { PERIOD_LABELS } from '@/management/components/layout/period-labels';
 import { PeriodPicker } from '@/management/components/layout/period-picker';
+import { SegmentedFilter } from '@/management/components/layout/segmented-filter';
 import { ReportDetailPanel } from '../components/report-detail-panel';
 import { ReportHistory } from '../components/report-history';
 import { ReportSchedules } from '../components/report-schedules';
@@ -158,7 +159,10 @@ export function ReportsPage() {
       {/* -------------------------------------------------------------------
        * Números do período mordendo a faixa, seletor e disponibilidade
        * ----------------------------------------------------------------- */}
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      {/* -------------------------------------------------------------------
+       * Painel claro: abas flutuantes
+       * ----------------------------------------------------------------- */}
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Indicadores do período</h2>
 
         <QueryState
@@ -166,9 +170,7 @@ export function ReportsPage() {
           isError={indicadores.isError}
           label="os indicadores do período"
         >
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
-              ela jogaria o carregando e o erro por cima da faixa colorida. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+          <HeroStats items={stats} className="mb-6" />
         </QueryState>
 
         {/* ⚠️ O seletor vem ANTES do gráfico e depois dos números: ele governa
@@ -178,49 +180,26 @@ export function ReportsPage() {
           <PeriodPicker value={period} onChange={setPeriod} />
         </div>
 
-        <div className="mt-5">
+        {/* ⚠️ O respiro de baixo é MAIOR que o de cima (pedido do usuário em
+            19/09/2026): em cima o gráfico continua o seletor de período, que é o
+            controle dele; embaixo começa outra seção, o catálogo, e as abas
+            coladas na moldura do cartão liam como parte dele. */}
+        <div className="mt-5 mb-9">
           <PeriodIndicators period={period} />
         </div>
-      </section>
 
-      {/* -------------------------------------------------------------------
-       * Painel claro: abas flutuantes
-       * ----------------------------------------------------------------- */}
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs tabs={TABS} value={tab} onValueChange={setTab} label="Seções de relatórios">
           {tab === 'CATALOGO' ? (
             <QueryState isPending={isPending} isError={isError} label="os relatórios">
               <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 {/* ⚠️ Mesmo segmentado das viagens e das notificações: poço em
                     pílula com a pastilha clara subindo quando escolhida. */}
-                <div
-                  role="group"
-                  aria-label="Filtrar por categoria"
-                  className="bg-light-container rounded-pill flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
-                >
-                  {CATEGORIES.map((option) => {
-                    const active = category === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        aria-pressed={active}
-                        onClick={() => setCategory(option.id)}
-                        className={cn(
-                          'group text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
-                          active
-                            ? 'bg-light text-accent font-medium shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]'
-                            : 'text-on-light-variant hover:bg-on-light/[0.06] hover:text-on-light',
-                        )}
-                      >
-                        {option.label}
-                        <span className={cn('tabular ml-2 opacity-70', active && 'opacity-100')}>
-                          {counts[option.id]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <SegmentedFilter
+                  label="Filtrar por categoria"
+                  options={CATEGORIES.map((option) => ({ ...option, count: counts[option.id] }))}
+                  value={category}
+                  onValueChange={setCategory}
+                />
 
                 {/* ⚠️ `GlassInput` com `surface="light"`, e não um `<input>`
                     montado à mão: é o campo do sistema, e só ele traz o foco, o

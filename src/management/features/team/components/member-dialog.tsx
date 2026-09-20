@@ -200,6 +200,7 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
         value={name}
         onChange={(evento) => setName(evento.target.value)}
         autoComplete="name"
+        placeholder="Marina Duarte"
         required
         disabled={salvando}
       />
@@ -210,6 +211,7 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
         value={email}
         onChange={(evento) => setEmail(evento.target.value)}
         autoComplete="email"
+        placeholder="marina.duarte@empresa.com.br"
         required
         disabled={salvando}
       />
@@ -219,6 +221,9 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
         options={opcoesDeCargo}
         value={cargoEscolhido}
         onValueChange={setRoleId}
+        /* Só aparece sem lista de cargos, que é enquanto ela não chegou da API:
+           ali `cargoEscolhido` é string vazia e o campo ficaria em branco. */
+        placeholder="Selecione um cargo"
         hint={
           editando
             ? 'Trocar o cargo encerra a sessão da pessoa na hora.'
@@ -228,7 +233,7 @@ export function MemberDialog({ member, roles, onClose, onSaved }: MemberDialogPr
       />
 
       <div className="mt-2 flex flex-wrap justify-end gap-3">
-        <SpectrumButton type="button" variant="ghost" onClick={onClose} disabled={salvando}>
+        <SpectrumButton type="button" variant="danger" onClick={onClose} disabled={salvando}>
           Cancelar
         </SpectrumButton>
 

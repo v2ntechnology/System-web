@@ -150,11 +150,10 @@ export function OwnerHomePage() {
 
             <PendingSource
               title="O resultado financeiro ainda não pode ser calculado"
-              description="Receita, margem e custo por quilômetro dependem de lançamentos que o rastreador não conhece. A telemetria entrega quilometragem, consumo em litros e tempo de motor; o preço do frete e o custo de operar vêm de fora."
+              description="Receita, margem e custo por quilômetro dependem de lançamentos que o rastreador não conhece. A telemetria entrega quilometragem, consumo em litros e tempo de motor, e a manutenção já entra pelo registro de troca de cada veículo. O preço do frete e o resto do custo de operar vêm de fora."
               requirements={[
                 'Receita: valor do frete por viagem ou por contrato',
-                'Combustível: litros, preço por litro e data do abastecimento',
-                'Manutenção: ordem de serviço, peças, oficina e valor',
+                'Abastecimento: preço por litro e data, já que o litro a telemetria mede',
                 'Custo fixo: parcela, seguro, licenciamento e depreciação',
               ]}
               meanwhile={[

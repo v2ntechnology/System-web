@@ -108,12 +108,10 @@ export function ReleasesPage() {
         description="Autorização de saída de caminhão e motorista, com a pendência, a severidade e a regra de quem decide."
       />
 
-      <section className="-mt-16 px-4 pb-8 sm:-mt-20 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Situação da fila</h2>
-        <HeroStats items={stats} />
-      </section>
+        <HeroStats items={stats} className="mb-6" />
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={TABS.map((entry) => ({ ...entry, count: counts[entry.id] }))}
           value={tab}
@@ -143,7 +141,24 @@ export function ReleasesPage() {
                             aria-current={active ? 'true' : undefined}
                             className={cn(
                               'focus-visible:ring-primary-on-light flex w-full gap-3 rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
-                              active ? 'bg-primary-strong' : 'hover:bg-light-container',
+                              /*
+                               * ⚠️ **O escolhido é POÇO CLARO COM ANEL**, e não mais
+                               * terracota cheio (pedido do usuário em 19/09/2026).
+                               *
+                               * A faixa de severidade vive em cima deste fundo, e sobre
+                               * o terracota ela sumia: o vermelho de "grave" (#E11D48)
+                               * contra o #D5623A dava **1,26:1**, onde elemento gráfico
+                               * pede 3:1. Fora da seleção, a mesma faixa mede 5,02:1.
+                               * Eram matizes vizinhas disputando o mesmo lugar.
+                               *
+                               * O anel resolve sem gastar cor: ele diz "é este" sem
+                               * pintar nada por baixo da faixa, e é a mesma decisão já
+                               * tomada nos indicadores e nas abas, onde o preenchimento
+                               * apagava o conteúdo que o cartão existe para mostrar.
+                               */
+                              active
+                                ? 'bg-light-container ring-primary-strong ring-2'
+                                : 'hover:bg-light-container',
                             )}
                           >
                             {/* A cor repete o rótulo de severidade, nunca o substitui. */}
@@ -164,14 +179,11 @@ export function ReleasesPage() {
                                     /* `mt-0.5` é o ajuste óptico que já estava
                                        calibrado para este ícone de 18px. */
                                     'mt-0.5 shrink-0 self-start',
-                                    active ? 'text-on-primary' : 'text-primary-on-light',
+                                    'text-primary-on-light',
                                   )}
                                 />
                                 <span
-                                  className={cn(
-                                    'min-w-0 flex-1 font-semibold',
-                                    active ? 'text-on-primary' : 'text-on-light',
-                                  )}
+                                  className={cn('min-w-0 flex-1 font-semibold', 'text-on-light')}
                                 >
                                   {item.subject}
                                 </span>
@@ -185,11 +197,9 @@ export function ReleasesPage() {
                                 <span
                                   className={cn(
                                     'tabular shrink-0 font-semibold',
-                                    active
-                                      ? 'text-on-primary'
-                                      : item.waitingHours >= LONG_WAIT_HOURS
-                                        ? 'text-error-on-light'
-                                        : 'text-on-light-variant',
+                                    item.waitingHours >= LONG_WAIT_HOURS
+                                      ? 'text-error-on-light'
+                                      : 'text-on-light-variant',
                                   )}
                                 >
                                   {item.waitingHours}h
@@ -206,15 +216,10 @@ export function ReleasesPage() {
                               <span
                                 className={cn(
                                   'text-label-md mt-1 block normal-case',
-                                  active ? 'text-on-primary' : 'text-on-light-muted',
+                                  'text-on-light-muted',
                                 )}
                               >
-                                <span
-                                  className={cn(
-                                    'font-medium',
-                                    active ? 'text-on-primary' : 'text-on-light-variant',
-                                  )}
-                                >
+                                <span className={cn('font-medium', 'text-on-light-variant')}>
                                   {SEVERITY_LABEL[item.severity]}
                                 </span>{' '}
                                 ·{' '}
@@ -230,7 +235,7 @@ export function ReleasesPage() {
                                 <span
                                   className={cn(
                                     'text-label-md mt-0.5 block truncate normal-case',
-                                    active ? 'text-on-primary' : 'text-on-light-muted',
+                                    'text-on-light-muted',
                                   )}
                                 >
                                   <span className="tabular">{item.tripCode}</span>

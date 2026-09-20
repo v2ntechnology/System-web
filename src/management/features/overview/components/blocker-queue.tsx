@@ -1,10 +1,20 @@
 import { CheckCircleIcon } from '@/components/icons';
-import { LightCard } from '@/management/ui';
-import { useMemo, type ReactNode } from 'react';
+import { LightCard, Pagination } from '@/management/ui';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import { sortBySeverity } from '../blockers';
 import type { Blocker } from '../types';
 import { BlockerRow } from './blocker-row';
+
+/**
+ * Quantos por página.
+ *
+ * ⚠️ **Dez, e não os trinta das listas grandes** (ajustado em 19/09/2026). Aqui a
+ * lista é uma FILA, lida de cima para baixo e tratada item a item: com trinta, o
+ * volume real (dezessete impedimentos, vinte e seis avisos) cabia numa página só
+ * e a paginação simplesmente não aparecia, porque uma página só não é paginação.
+ */
+const POR_PAGINA = 10;
 
 /**
  * A fila de impedimentos.
@@ -29,6 +39,25 @@ export function BlockerQueue({
 }) {
   const ordered = useMemo(() => sortBySeverity(blockers), [blockers]);
 
+  const [pagina, setPagina] = useState(1);
+
+  /**
+   * A fila pagina (pedido do usuário em 19/09/2026).
+   *
+   * ⚠️ **A página é fixada dentro do total**, como nas outras listas do painel:
+   * quem está na página 3 e escolhe um card de severidade que devolve cinco
+   * linhas cairia numa página inexistente, veria a fila vazia e concluiria que o
+   * filtro não achou nada.
+   *
+   * ⚠️ **A ordem por severidade continua sendo a da fila INTEIRA**, e a paginação
+   * corta depois dela. Ordenar por página faria a página 2 abrir com um crítico
+   * embaixo de um leve da página 1, e o topo da fila deixaria de responder "o que
+   * eu conserto primeiro".
+   */
+  const totalPaginas = Math.max(1, Math.ceil(ordered.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const daPagina = ordered.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA);
+
   return (
     <LightCard title="Fila de impedimentos" action={action}>
       {note ? (
@@ -41,11 +70,22 @@ export function BlockerQueue({
           {emptyMessage}
         </p>
       ) : (
-        <ol className="flex flex-col">
-          {ordered.map((blocker) => (
-            <BlockerRow key={blocker.id} blocker={blocker} />
-          ))}
-        </ol>
+        <>
+          <ol className="flex flex-col">
+            {daPagina.map((blocker) => (
+              <BlockerRow key={blocker.id} blocker={blocker} />
+            ))}
+          </ol>
+
+          <Pagination
+            className="mt-5"
+            page={paginaAtual}
+            total={ordered.length}
+            pageSize={POR_PAGINA}
+            onPageChange={setPagina}
+            label="impedimentos"
+          />
+        </>
       )}
     </LightCard>
   );

@@ -5,7 +5,6 @@ import {
   LockIcon,
   SearchIcon,
   SteeringWheelIcon,
-  UserIcon,
   UsersIcon,
 } from '@/components/icons';
 import type { TeamPerson } from '@/management/types';
@@ -72,10 +71,12 @@ export function TeamPage() {
  * Equipe com o que a telemetria e o nosso banco sabem.
  *
  * ⚠️ A tela de origem mostrava "disponíveis agora", "CNH a vencer" e "acesso sem
- * MFA". **Nenhum dos três tem origem.** Disponibilidade de motorista depende de
- * escala, CNH e admissão são do RH, e segundo fator ainda não foi implementado.
- * Uma CNH vencendo que ninguém cadastrou é pior que uma coluna vazia, porque lê
- * como "está tudo em dia".
+ * MFA". Disponibilidade de motorista depende de escala, que ninguém cadastra
+ * aqui, e segundo fator ainda não foi implementado. **A CNH deixou de ser o
+ * terceiro caso em 18/09/2026**, quando a ficha passou a guardar categoria e
+ * vencimento, mas a coluna só volta quando a frota estiver cadastrada: uma CNH
+ * vencendo que ninguém preencheu é pior que uma coluna vazia, porque lê como
+ * "está tudo em dia".
  *
  * O que entra no lugar é o que existe: quem rodou no período, quem não rodou e
  * quem tem acesso ao painel.
@@ -197,47 +198,9 @@ function EquipeReal() {
     },
   });
 
-  const statsDaOperacao: HeroStat[] = data
-    ? [
-        {
-          key: 'quadro',
-          label: 'Pessoas no quadro',
-          value: data.headcount,
-          hint: `${data.drivers} motoristas · ${data.staff} com acesso ao painel`,
-          icon: UsersIcon,
-        },
-        {
-          key: 'rodaram',
-          label: 'Rodaram no período',
-          value: data.driversActive,
-          hint: 'com trecho registrado',
-          icon: SteeringWheelIcon,
-        },
-        {
-          /* Ver a nota do componente: isto NÃO é indisponibilidade. */
-          key: 'sem-registro',
-          label: 'Sem registro',
-          value: data.driversWithoutRecord,
-          hint: 'folga, sem tag ou sem coleta',
-          icon: InfoIcon,
-        },
-        {
-          key: 'acessos',
-          label: 'Acessos ao painel',
-          value: data.staff,
-          hint: 'quem entra no sistema',
-          icon: UserIcon,
-        },
-        {
-          key: 'desativados',
-          label: 'Acessos desativados',
-          value: data.staffInactive,
-          hint: 'tratado em Configurações',
-          icon: LockIcon,
-          tone: data.staffInactive > 0 ? 'warn' : 'neutral',
-        },
-      ]
-    : [];
+  /* Os indicadores do quadro saíram daqui em 18/09/2026: eles viraram os
+     recortes da aba, clicáveis, e moram no `TeamRoster`. Ver a nota no
+     `PageContent`, logo abaixo. */
 
   const pessoas = data?.people ?? [];
   const motoristas = pessoas.filter((pessoa) => pessoa.kind === 'MOTORISTA');
@@ -266,26 +229,19 @@ function EquipeReal() {
         ) : null}
       </HeroBand>
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
-        <h2 className="sr-only">Resumo do quadro</h2>
-
-        <QueryState isPending={isPending} isError={isError} label="a equipe">
-          {data ? (
-            <>
-              {/* A subida fica nos cards, e não na seção: em volta do
-                  `QueryState` ela jogaria o carregamento e o erro por cima da
-                  faixa colorida. */}
-              <HeroStats items={statsDaOperacao} className="-mt-16 sm:-mt-20" />
-              {/* RN-121: o número vem com a procedência colada nele. */}
-              <p className="text-on-surface-muted text-label-sm mt-3 normal-case">
-                Duas origens: cadastro da telemetria e cadastro do sistema.
-              </p>
-            </>
-          ) : null}
-        </QueryState>
-      </section>
-
-      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+      {/*
+       * ⚠️ **A folha branca é que morde a faixa laranja**, e não os cartões: eles
+       * subiam sozinhos até 18/09/2026 e metade de cada um ficava sobre o
+       * laranja. O Pátio já fazia assim, e as duas telas seguem a mesma
+       * estrutura a pedido do usuário.
+       *
+       * ⚠️ **Os indicadores desceram para dentro do `TeamRoster`** no mesmo dia.
+       * Eles deixaram de ser cinco números fixos do quadro inteiro e passaram a
+       * ser os recortes DA ABA, clicáveis como os do Pátio: para isso precisam
+       * viver onde o estado do filtro vive, que é o roster. Aqui em cima eles
+       * contariam uma coisa e a lista mostraria outra.
+       */}
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <QueryState isPending={isPending} isError={isError} label="a equipe">
           <PageTabs
             tabs={[
@@ -325,26 +281,37 @@ function EquipeReal() {
             />
           </PageTabs>
 
-          {/* ⚠️ Escala, CNH e toxicológico são sobre MOTORISTA: na tela do dono,
-              que só lista contas de painel, o bloco prometeria resolver uma
-              ausência que ele nem está vendo. */}
-          <div className="mt-6">
-            <PendingSource
-              title="Escala e documentação ainda não estão aqui"
-              description="Saber quem pode assumir viagem hoje exige escala e documento em dia. A telemetria diz quem dirigiu, e não quem está apto a dirigir."
-              requirements={[
-                'CNH com categoria e vencimento, que vem do RH e não do rastreador',
-                'Escala de trabalho, folga e afastamento',
-                'Exame toxicológico e curso obrigatório, quando a operação exigir',
-                'Segundo fator no acesso ao painel, que ainda não foi implementado',
-              ]}
-              meanwhile={[
-                { label: 'Motoristas da equipe', to: '/gestao/equipe' },
-                { label: 'Ranking de condução', to: '/gestao/desempenho' },
-                { label: 'Papéis e acesso', to: '/gestao/configuracoes' },
-              ]}
-            />
-          </div>
+          {/* ⚠️ A escala é sobre MOTORISTA: na tela do dono, que só lista contas
+              de painel, o bloco prometeria resolver uma ausência que ele nem
+              está vendo.
+
+              ⚠️ **CNH e toxicológico saíram da lista em 18/09/2026**, porque
+              passaram a existir: a migration V22 do backend criou
+              `cnh_category`, `cnh_expires_at`, `toxicology_expires_at`,
+              `aso_expires_at` e `mopp_expires_at`, o cadastro preenche os cinco
+              e a ficha do motorista os exibe. Aviso de ausência que lista o que
+              já está pronto ensina a ignorar o aviso inteiro.
+
+              ⚠️ **Só na aba de MOTORISTAS** (pedido do usuário em 19/09/2026).
+              Escala, CNH e toxicológico não dizem respeito a conta de painel:
+              na aba de apoio o bloco falava de uma ausência que aquela lista
+              nem tem, e ainda empurrava as contas para fora da tela. */}
+          {tab === 'MOTORISTAS' ? (
+            <div className="mt-6">
+              <PendingSource
+                title="A escala de trabalho ainda não está aqui"
+                description="Documento em dia já está no cadastro: CNH, toxicológico, ASO e MOPP entram na ficha de cada motorista com data de vencimento. O que ainda falta para dizer quem assume viagem hoje é a escala, e a telemetria não tem como saber dela."
+                requirements={[
+                  'Escala de trabalho, folga e afastamento',
+                  'Segundo fator no acesso ao painel, que ainda não foi implementado',
+                ]}
+                meanwhile={[
+                  { label: 'Ranking de condução', to: '/gestao/desempenho' },
+                  { label: 'Papéis e acesso', to: '/gestao/configuracoes' },
+                ]}
+              />
+            </div>
+          ) : null}
         </QueryState>
       </PageContent>
 
@@ -430,7 +397,7 @@ function ConfirmarStatusMotorista({
             : ' O histórico é preservado; apenas deixa de aparecer nas listas de motorista ativo.'}
         </p>
         <div className="flex justify-end gap-2">
-          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          <SpectrumButton type="button" variant="danger" onClick={onCancel} disabled={pending}>
             Cancelar
           </SpectrumButton>
           <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>
@@ -469,7 +436,7 @@ function ConfirmarExclusaoMotorista({
           veículo associado, use inativar e preserve o histórico.
         </Alert>
         <div className="flex justify-end gap-2">
-          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          <SpectrumButton type="button" variant="danger" onClick={onCancel} disabled={pending}>
             Cancelar
           </SpectrumButton>
           <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>
@@ -583,26 +550,25 @@ function EquipeSimulada() {
         description="Quem trabalha na operação, o que cada um faz e quem pode assumir viagem hoje."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
-        <h2 className="sr-only">Resumo do quadro</h2>
+      {/* Mesma estrutura da versão real: os indicadores dentro da folha branca,
+          e a folha mordendo a faixa. Ver a nota lá em cima. */}
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
+        <section className="pb-8">
+          <h2 className="sr-only">Resumo do quadro</h2>
 
-        <QueryState isPending={isPending} isError={isError} label="a equipe">
-          {data ? (
-            <>
-              {/* A subida fica nos cards, e não na seção: em volta do
-                  `QueryState` ela jogaria o carregamento e o erro por cima da
-                  faixa colorida. */}
-              <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
-              {/* RN-121: o número vem com a procedência colada nele. */}
-              <p className="text-on-surface-muted text-label-sm mt-3 normal-case">
-                Cadastro de motoristas e usuários do painel.
-              </p>
-            </>
-          ) : null}
-        </QueryState>
-      </section>
+          <QueryState isPending={isPending} isError={isError} label="a equipe">
+            {data ? (
+              <>
+                <HeroStats items={stats} />
+                {/* RN-121: o número vem com a procedência colada nele. */}
+                <p className="text-on-light-muted text-label-sm mt-3 normal-case">
+                  Cadastro de motoristas e usuários do painel.
+                </p>
+              </>
+            ) : null}
+          </QueryState>
+        </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={TABS.map((entry) => ({ ...entry, count: counts[entry.id] }))}
           value={tab}

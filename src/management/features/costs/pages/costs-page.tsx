@@ -517,7 +517,7 @@ function CustosReais() {
        * placa branca com o conteúdo. Antes eram um `GlassCard` solto no papel e
        * o aviso de origem embaixo, sem painel nenhum.
        */}
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">O que a telemetria já mede</h2>
 
         <QueryState
@@ -525,13 +525,9 @@ function CustosReais() {
           isError={desempenho.isError || operacao.isError}
           label="o consumo da frota"
         >
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
-              ela jogaria o carregando e o erro por cima da faixa colorida. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+          <HeroStats items={stats} className="mb-6" />
         </QueryState>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
         <QueryState
           isPending={desempenho.isPending || operacao.isPending}
           isError={desempenho.isError || operacao.isError}
@@ -653,10 +649,9 @@ function CustosReais() {
         <div className="mt-8">
           <PendingSource
             title="O custo em reais ainda não tem origem"
-            description="O custo por quilômetro é o número que o dono olha, e ele depende de lançamentos que o rastreador não conhece. O consumo acima é medido; o preço do diesel, a nota da oficina e o valor da multa vêm de fora."
+            description="O custo por quilômetro é o número que o dono olha, e ele depende de lançamentos que o rastreador não conhece. O consumo acima é medido, e a manutenção já entra pelo registro de troca de cada veículo, com oficina e valor. O preço do diesel e o valor da multa continuam vindo de fora."
             requirements={[
               'Abastecimento: preço por litro, posto e data',
-              'Manutenção: ordem de serviço, peças, oficina e valor',
               'Multas: infração, valor, órgão e prazo de recurso',
               'Custo fixo: parcela, seguro, licenciamento e depreciação',
             ]}

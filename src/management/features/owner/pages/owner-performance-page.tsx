@@ -226,7 +226,7 @@ function DesempenhoReal() {
                     description="Saber qual ativo se paga exige receita e custo por veículo. A telemetria entrega o que o caminhão fez, e não o que ele faturou nem o que consumiu de dinheiro."
                     requirements={[
                       'Frete por viagem, para haver receita atribuível ao veículo',
-                      'Abastecimento lançado, com litros e valor pago',
+                      'Abastecimento lançado, com o valor pago',
                       'Ordem de serviço de manutenção, com peça e mão de obra',
                       'Parcela de financiamento e depreciação, quando houver',
                     ]}

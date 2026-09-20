@@ -3,7 +3,14 @@ import { useMemo, useState } from 'react';
 import { PERMISSION_GROUP_ORDER, permissionEntry } from '@/app/permission-catalog';
 import { PLAN_LABELS, planoQueInclui } from '@/app/plans';
 import type { TeamRole } from '@/management/lib/fleet-api';
-import { Alert, Checkbox, GlassInput, GlassSelect, SpectrumButton } from '@/management/ui';
+import {
+  Alert,
+  Checkbox,
+  FieldHint,
+  GlassInput,
+  GlassSelect,
+  SpectrumButton,
+} from '@/management/ui';
 import { ApiError } from '@/services/http';
 
 import { createRole, updateRole, type PermissionItem, type RoleInput } from '../api';
@@ -133,6 +140,7 @@ export function RoleDialog({ role, catalogo, onClose, onSaved }: RoleDialogProps
         label="Nome do cargo"
         value={name}
         onChange={(evento) => setName(evento.target.value)}
+        placeholder="Diretor financeiro"
         required
         disabled={salvando}
         hint={
@@ -157,6 +165,7 @@ export function RoleDialog({ role, catalogo, onClose, onSaved }: RoleDialogProps
         label="Descrição (opcional)"
         value={description}
         onChange={(evento) => setDescription(evento.target.value)}
+        placeholder="Acompanha custos e aprova manutenção"
         disabled={salvando}
       />
 
@@ -198,11 +207,19 @@ export function RoleDialog({ role, catalogo, onClose, onSaved }: RoleDialogProps
 
         {foraDoPlano.length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="text-on-light-muted text-label-sm normal-case">Fora do plano atual</p>
-            <p className="text-on-light-muted text-body-sm normal-case">
-              Já estão gravadas neste cargo e continuam aí. Elas não valem enquanto o plano não
-              cobrir o módulo, e voltam a valer sozinhas num upgrade.
-            </p>
+            {/* ⚠️ A explicação virou balão em 19/09/2026 (pedido do usuário): o
+                rótulo já diz o que é a lista, e as duas linhas abaixo dele eram
+                a terceira parede de texto de um diálogo que já tem trinta
+                campos. Quem precisa do porquê está a um gesto dele. */}
+            <div className="flex items-center gap-1.5">
+              <p id="fora-do-plano" className="text-on-light-muted text-label-sm normal-case">
+                Fora do plano atual
+              </p>
+              <FieldHint
+                id="fora-do-plano-ajuda"
+                text="Já estão gravadas neste cargo e continuam aí. Elas não valem enquanto o plano não cobrir o módulo, e voltam a valer sozinhas num upgrade."
+              />
+            </div>
             {foraDoPlano.map((chave) => (
               <Checkbox
                 key={chave}
@@ -218,7 +235,7 @@ export function RoleDialog({ role, catalogo, onClose, onSaved }: RoleDialogProps
       </fieldset>
 
       <div className="flex flex-wrap justify-end gap-3">
-        <SpectrumButton type="button" variant="ghost" onClick={onClose} disabled={salvando}>
+        <SpectrumButton type="button" variant="danger" onClick={onClose} disabled={salvando}>
           Cancelar
         </SpectrumButton>
         <SpectrumButton type="submit" disabled={salvando}>

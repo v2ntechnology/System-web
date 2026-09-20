@@ -136,10 +136,10 @@ export function DiagnosesPage() {
 
       {/* A margem negativa é o que faz os cards subirem por cima da borda da
           faixa. O `pb` grande do `HeroBand` existe para isto. */}
-      <section className="-mt-16 px-4 pb-8 sm:-mt-20 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Situação dos pareceres</h2>
 
-        <HeroStats items={stats} />
+        <HeroStats items={stats} className="mb-6" />
 
         {/*
          * ⚠️ O resumo MUDA DE COR com a situação, como na fila de aprovações do
@@ -153,7 +153,10 @@ export function DiagnosesPage() {
          */}
         <Alert
           severity={graves > 0 ? 'error' : counts.ABERTAS > 0 ? 'warning' : 'success'}
-          className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3"
+          /* ⚠️ Respiro nos DOIS lados: sem o de baixo o resumo encostava nas
+             abas, e a faixa colorida parecia parte do trilho delas (relatado
+             pelo usuário em 19/09/2026). */
+          className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3"
         >
           {graves > 0 ? (
             <WarningIcon size={22} className="shrink-0" aria-hidden="true" />
@@ -186,9 +189,7 @@ export function DiagnosesPage() {
             </SpectrumButton>
           ) : null}
         </Alert>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={TABS.map((entry) => ({ ...entry, count: counts[entry.id] }))}
           value={tab}
@@ -221,7 +222,24 @@ export function DiagnosesPage() {
                             aria-current={active ? 'true' : undefined}
                             className={cn(
                               'focus-visible:ring-primary-on-light flex w-full gap-3 rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2',
-                              active ? 'bg-primary-strong' : 'hover:bg-light-container',
+                              /*
+                               * ⚠️ **O escolhido é POÇO CLARO COM ANEL**, e não mais
+                               * terracota cheio (pedido do usuário em 19/09/2026).
+                               *
+                               * A faixa de severidade vive em cima deste fundo, e sobre
+                               * o terracota ela sumia: o vermelho de "grave" (#E11D48)
+                               * contra o #D5623A dava **1,26:1**, onde elemento gráfico
+                               * pede 3:1. Fora da seleção, a mesma faixa mede 5,02:1.
+                               * Eram matizes vizinhas disputando o mesmo lugar.
+                               *
+                               * O anel resolve sem gastar cor: ele diz "é este" sem
+                               * pintar nada por baixo da faixa, e é a mesma decisão já
+                               * tomada nos indicadores e nas abas, onde o preenchimento
+                               * apagava o conteúdo que o cartão existe para mostrar.
+                               */
+                              active
+                                ? 'bg-light-container ring-primary-strong ring-2'
+                                : 'hover:bg-light-container',
                             )}
                           >
                             {/* Mesma faixa das outras filas do painel. A cor
@@ -237,10 +255,7 @@ export function DiagnosesPage() {
                             <span className="min-w-0 flex-1">
                               <span className="flex items-baseline gap-2">
                                 <span
-                                  className={cn(
-                                    'min-w-0 flex-1 font-semibold',
-                                    active ? 'text-on-primary' : 'text-on-light',
-                                  )}
+                                  className={cn('min-w-0 flex-1 font-semibold', 'text-on-light')}
                                 >
                                   {item.title}
                                 </span>
@@ -250,7 +265,7 @@ export function DiagnosesPage() {
                                 <span
                                   className={cn(
                                     'tabular text-label-md shrink-0 normal-case',
-                                    active ? 'text-on-primary' : 'text-on-light-muted',
+                                    'text-on-light-muted',
                                   )}
                                 >
                                   {dateOnly.format(new Date(item.detectedAt))}
@@ -260,15 +275,10 @@ export function DiagnosesPage() {
                               <span
                                 className={cn(
                                   'text-label-md mt-1 block normal-case',
-                                  active ? 'text-on-primary' : 'text-on-light-muted',
+                                  'text-on-light-muted',
                                 )}
                               >
-                                <span
-                                  className={cn(
-                                    'font-medium',
-                                    active ? 'text-on-primary' : SEVERITY_TEXT[item.severity],
-                                  )}
-                                >
+                                <span className={cn('font-medium', SEVERITY_TEXT[item.severity])}>
                                   {SEVERITY_LABEL[item.severity]}
                                 </span>{' '}
                                 · {CATEGORY_LABEL[item.category]}

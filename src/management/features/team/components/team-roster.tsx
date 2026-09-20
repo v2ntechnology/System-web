@@ -1,13 +1,17 @@
 import {
-  ArrowRightIcon,
   DeleteIcon,
   EditIcon,
+  IdCardIcon,
   InfoIcon,
+  LockIcon,
   MailIcon,
+  SteeringWheelIcon,
+  UsersIcon,
   PowerIcon,
   SearchIcon,
   TruckIcon,
 } from '@/components/icons';
+import { HeroStats, type HeroStat } from '@/management/components/layout/hero-stats';
 import type { TeamMember } from '@/management/lib/fleet-api';
 import {
   GlassInput,
@@ -52,26 +56,44 @@ const dia = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' })
 const TODOS = 'TODOS';
 
 /**
- * Cem por página, como na lista de percursos.
+ * Trinta por página, o mesmo `PAGE_SIZE` do resto do painel.
  *
- * A linha é baixa e a leitura é de varredura: rolar cem custa menos que trocar
- * de página quatro vezes para achar uma pessoa.
+ * ⚠️ Eram cem, escolhidos quando o quadro era uma LISTA de linhas baixas, onde
+ * rolar custava menos que trocar de página. Em cartão a conta virou: cem
+ * cartões são vinte e cinco fileiras, e a pessoa perde a noção de tamanho que a
+ * paginação existe para dar (decisão do usuário em 18/09/2026).
  */
-const POR_PAGINA = 100;
+const POR_PAGINA = 30;
 
-/** As duas que valem para conta de painel. Ver `somentePainel`. */
-const SITUACOES_DE_ACESSO = [
-  { value: TODOS, label: 'Qualquer situação' },
-  { value: 'ATIVO', label: 'Acesso ativo' },
-  { value: 'DESATIVADO', label: 'Acesso desativado' },
-];
-
+/**
+ * A situação é sobre ATIVIDADE, e vale só para motorista.
+ *
+ * ⚠️ "Rodou no período" sai da telemetria, e conta de painel não roda: oferecer
+ * isto num quadro só de acesso devolveria lista vazia sempre, e filtro que nunca
+ * acha nada lê como defeito.
+ */
 const SITUACOES = [
   { value: TODOS, label: 'Qualquer situação' },
   { value: 'RODOU', label: 'Rodou no período' },
   { value: 'SEM_REGISTRO', label: 'Sem registro' },
-  { value: 'ATIVO', label: 'Acesso ativo' },
-  { value: 'DESATIVADO', label: 'Acesso desativado' },
+];
+
+/**
+ * O recorte por CADASTRO, que é outro eixo e por isso é outro seletor.
+ *
+ * ⚠️ **O padrão é `ATIVOS`** (decisão do usuário em 18/09/2026, a mesma do
+ * Pátio): quem abre a tela quer o time que trabalha hoje, e não o histórico de
+ * quem já passou pela empresa. Inativo continua alcançável escolhendo aqui,
+ * porque some da tela não pode virar some do sistema.
+ *
+ * ⚠️ Não se mistura com a Situação acima: um motorista inativo continua tendo um
+ * histórico de percursos, então juntar os dois obrigaria a escolher entre ver
+ * "inativos" e ver "rodou no período".
+ */
+const CADASTROS = [
+  { value: 'ATIVOS', label: 'Somente ativos' },
+  { value: 'INATIVOS', label: 'Somente inativos' },
+  { value: TODOS, label: 'Ativos e inativos' },
 ];
 
 export interface TeamRosterProps {
@@ -118,6 +140,8 @@ export function TeamRoster({
   const [busca, setBusca] = useState('');
   const [filial, setFilial] = useState(TODOS);
   const [situacao, setSituacao] = useState(TODOS);
+  /* Ver a nota em `CADASTROS`: a tela abre mostrando só quem está ativo. */
+  const [cadastro, setCadastro] = useState('ATIVOS');
   const [pagina, setPagina] = useState(1);
 
   /* As opções saem do próprio quadro: oferecer uma filial sem ninguém é
@@ -148,19 +172,20 @@ export function TeamRoster({
 
       if (filial !== TODOS && pessoa.unit !== filial) return false;
 
-      /* ⚠️ As quatro situações não são o mesmo eixo: "rodou" é do motorista e
-         "acesso ativo" é de quem entra no painel. Um filtro que misturasse os
-         dois devolveria sempre a lista inteira. */
+      /* O recorte por cadastro vale para as duas naturezas: motorista desligado
+         e conta desativada somem juntos do padrão da tela. */
+      if (cadastro === 'ATIVOS' && !pessoa.active) return false;
+      if (cadastro === 'INATIVOS' && pessoa.active) return false;
+
+      /* ⚠️ Estas duas são da telemetria e só existem em motorista. */
       if (situacao === 'RODOU') return pessoa.kind === 'MOTORISTA' && (pessoa.journeys ?? 0) > 0;
       if (situacao === 'SEM_REGISTRO') {
         return pessoa.kind === 'MOTORISTA' && (pessoa.journeys ?? 0) === 0;
       }
-      if (situacao === 'ATIVO') return pessoa.kind === 'PAINEL' && pessoa.active;
-      if (situacao === 'DESATIVADO') return pessoa.kind === 'PAINEL' && !pessoa.active;
 
       return true;
     });
-  }, [people, busca, filial, situacao]);
+  }, [people, busca, filial, situacao, cadastro]);
 
   /* A página é presa ao total durante o render: filtrar na página 2 de uma
      lista que passou a ter 30 deixaria a tela vazia. */
@@ -168,14 +193,121 @@ export function TeamRoster({
   const paginaAtual = Math.min(pagina, totalPaginas);
   const daPagina = visiveis.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA);
 
-  const filtrando = busca !== '' || filial !== TODOS || situacao !== TODOS;
+  /* `cadastro` é comparado com o PADRÃO, e não com "todos": abrir a tela já é um
+     recorte, e contá-lo sempre deixaria o "Limpar filtros" aceso desde o
+     primeiro segundo, sem nada para limpar. */
+  const filtrando = busca !== '' || filial !== TODOS || situacao !== TODOS || cadastro !== 'ATIVOS';
 
   const limparFiltros = () => {
     setBusca('');
     setFilial(TODOS);
     setSituacao(TODOS);
+    setCadastro('ATIVOS');
     setPagina(1);
   };
+
+  /**
+   * Os indicadores da aba, que também são filtro.
+   *
+   * ⚠️ **A contagem sai do MESMO conjunto que a lista usa** (pedido do usuário
+   * em 18/09/2026, espelhando o Pátio). Contar sobre `people` cru daria um
+   * cartão dizendo 113 e uma lista mostrando 71, e ao clicar nele a tela
+   * mudaria para um terceiro número. O escopo aqui é `people` já recortado por
+   * FILIAL, que é o único filtro que não tem cartão próprio; busca, situação e
+   * cadastro são justamente o que os cartões trocam.
+   *
+   * ⚠️ Eles mudam com a aba, e não por enfeite: "rodou no período" sai da
+   * telemetria e não existe em conta de painel, e "acesso desativado" não existe
+   * em motorista. Um cartão que nunca sai do zero ensina a ignorar a fileira.
+   */
+  const escopo = useMemo(
+    () => people.filter((pessoa) => filial === TODOS || pessoa.unit === filial),
+    [people, filial],
+  );
+
+  const indicadores: HeroStat[] = useMemo(() => {
+    const ativos = escopo.filter((p) => p.active);
+    const trocar = (proximaSituacao: string, proximoCadastro: string) => () => {
+      setSituacao(proximaSituacao);
+      setCadastro(proximoCadastro);
+      setBusca('');
+      setPagina(1);
+    };
+
+    if (soPainel) {
+      return [
+        {
+          key: 'contas',
+          label: 'Contas no painel',
+          value: ativos.length,
+          hint: 'quem entra no sistema',
+          icon: UsersIcon,
+          onSelect: trocar(TODOS, 'ATIVOS'),
+          selected: cadastro === 'ATIVOS',
+        },
+        {
+          key: 'desativadas',
+          label: 'Acessos desativados',
+          value: escopo.length - ativos.length,
+          hint: 'sem entrar no painel',
+          icon: LockIcon,
+          tone: escopo.length - ativos.length > 0 ? 'warn' : 'neutral',
+          onSelect: trocar(TODOS, 'INATIVOS'),
+          selected: cadastro === 'INATIVOS',
+        },
+        {
+          key: 'todas',
+          label: 'Todas as contas',
+          value: escopo.length,
+          hint: 'ativas e desativadas',
+          icon: IdCardIcon,
+          onSelect: trocar(TODOS, TODOS),
+          selected: cadastro === TODOS,
+        },
+      ];
+    }
+
+    const rodaram = ativos.filter((p) => (p.journeys ?? 0) > 0).length;
+    return [
+      {
+        key: 'motoristas',
+        label: 'Motoristas ativos',
+        value: ativos.length,
+        hint: 'no quadro hoje',
+        icon: UsersIcon,
+        onSelect: trocar(TODOS, 'ATIVOS'),
+        selected: cadastro === 'ATIVOS' && situacao === TODOS,
+      },
+      {
+        key: 'rodaram',
+        label: 'Rodaram no período',
+        value: rodaram,
+        hint: 'com trecho registrado',
+        icon: SteeringWheelIcon,
+        onSelect: trocar('RODOU', 'ATIVOS'),
+        selected: situacao === 'RODOU',
+      },
+      {
+        /* Ver a nota do componente: isto NÃO é indisponibilidade. */
+        key: 'sem-registro',
+        label: 'Sem registro',
+        value: ativos.length - rodaram,
+        hint: 'folga, sem tag ou sem coleta',
+        icon: InfoIcon,
+        onSelect: trocar('SEM_REGISTRO', 'ATIVOS'),
+        selected: situacao === 'SEM_REGISTRO',
+      },
+      {
+        key: 'inativos',
+        label: 'Desligados',
+        value: escopo.length - ativos.length,
+        hint: 'fora do quadro',
+        icon: LockIcon,
+        onSelect: trocar(TODOS, 'INATIVOS'),
+        selected: cadastro === 'INATIVOS',
+      },
+    ];
+  }, [escopo, soPainel, cadastro, situacao]);
 
   return (
     /*
@@ -191,9 +323,23 @@ export function TeamRoster({
      * logo abaixo. Era o segundo rótulo para a mesma lista.
      */
     <div className={className}>
+      {/* Os indicadores da aba vêm antes dos filtros, como no Pátio: primeiro o
+          número que resume, depois o que recorta. Eles também SÃO filtro. */}
+      <HeroStats items={indicadores} className="mb-5" />
+
       {/* ⚠️ `surface="light"`: os campos moram dentro do painel branco, e a
           versão escura deles inverte a hierarquia da tela. */}
-      <div className="mb-4 grid items-end gap-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(2,minmax(0,1fr))]">
+      {/* A busca fica com o dobro da largura dos seletores, e o número de
+          colunas acompanha quantos campos a aba tem: motorista leva filial e
+          situação, conta de painel não leva nenhum dos dois. */}
+      <div
+        className={cn(
+          'mb-4 grid items-end gap-3',
+          soPainel
+            ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'
+            : 'lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]',
+        )}
+      >
         <GlassInput
           surface="light"
           label="Buscar"
@@ -219,14 +365,22 @@ export function TeamRoster({
           />
         )}
 
+        {soPainel ? null : (
+          <GlassSelect
+            surface="light"
+            label="Situação"
+            options={SITUACOES}
+            value={situacao}
+            onValueChange={setSituacao}
+          />
+        )}
+
         <GlassSelect
           surface="light"
-          label="Situação"
-          options={
-            soPainel ? SITUACOES_DE_ACESSO : soMotoristas ? SITUACOES.slice(0, 3) : SITUACOES
-          }
-          value={situacao}
-          onValueChange={setSituacao}
+          label="Cadastro"
+          options={CADASTROS}
+          value={cadastro}
+          onValueChange={setCadastro}
         />
       </div>
 
@@ -250,7 +404,10 @@ export function TeamRoster({
           Ninguém encontrado com esses filtros.
         </p>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        /* ⚠️ Até 4 por fileira desde 18/09/2026, a pedido do usuário, contra as
+           3 de antes: o cartão encolheu e a tela cabe mais gente sem rolar. A
+           grade segue a do Pátio, que é a referência das duas telas. */
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {daPagina.map((pessoa) => (
             <TeamCard
               key={`${pessoa.kind}-${pessoa.id}`}
@@ -275,11 +432,9 @@ export function TeamRoster({
         label="pessoas"
       />
 
-      <p className="text-on-light-muted text-label-md mt-4 flex items-start gap-1.5 normal-case">
-        <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-        Motorista vem do cadastro da telemetria; acesso ao painel vem do cadastro do sistema. São
-        listas diferentes e quase não se cruzam.
-      </p>
+      {/* A nota sobre as duas origens saiu em 18/09/2026, a pedido do usuário:
+          as abas já separam motorista de conta de painel, e o rótulo embaixo do
+          nome de cada pessoa repete a natureza em cada cartão. */}
     </div>
   );
 }
@@ -307,11 +462,24 @@ function TeamCard({
   const abrirFicha = () => navigate(`/gestao/equipe/motoristas/${pessoa.id}`);
 
   return (
+    /*
+     * ⚠️ **O cartão do motorista leva à ficha MESMO com as ações no rodapé**
+     * (pedido do usuário em 18/09/2026), como o cartão do Pátio faz. Antes o
+     * clique só valia quando não havia ações, então o gestor, que é justamente
+     * quem administra, era o único que não conseguia abrir a ficha clicando.
+     * Quem separa os dois gestos é o `stopPropagation` de cada botão.
+     */
     <li
-      {...(motorista && !comAcoes
+      {...(motorista
         ? {
             role: 'button',
             tabIndex: 0,
+            /* ⚠️ O rótulo existe porque a LINHA "Abrir ficha do motorista" saiu
+               do corpo em 19/09/2026, a pedido do usuário. Era ela que dizia o
+               que o cartão faz; sem rótulo, o leitor de tela anunciaria só o
+               nome e os números e ninguém saberia que o cartão abre alguma
+               coisa. */
+            'aria-label': `Abrir ficha de ${pessoa.name}`,
             onClick: abrirFicha,
             onKeyDown: (event: KeyboardEvent) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -322,13 +490,15 @@ function TeamCard({
           }
         : {})}
       className={cn(
-        'bg-light-container border-light-outline hover:border-primary-on-light/30 min-w-0 rounded-xl border p-4 transition-colors',
+        /* ⚠️ `bg-light`, e não o poço: o cartão passou a ser papel branco sobre
+           a folha, igual ao do Pátio, e o contorno é que o separa do fundo. */
+        'bg-light border-light-outline hover:border-primary-on-light/30 min-w-0 rounded-xl border p-3 transition-colors',
         motorista &&
           'focus-visible:ring-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2',
       )}
     >
       <div className="flex items-start gap-3">
-        <Avatar name={pessoa.name} className="size-11 shrink-0" />
+        <Avatar name={pessoa.name} className="size-9 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="text-on-light truncate font-semibold">{pessoa.name}</p>
           <p className="text-on-light-muted text-label-md truncate normal-case">
@@ -348,7 +518,7 @@ function TeamCard({
 
       {motorista ? (
         <>
-          <dl className="border-light-outline mt-4 grid grid-cols-2 gap-3 border-y py-3">
+          <dl className="border-light-outline mt-3 grid grid-cols-2 gap-3 border-y py-2.5">
             <div>
               <dt className="text-on-light-muted text-label-sm normal-case">No período</dt>
               <dd className="text-on-light text-body-sm tabular">{numero(pessoa.distanceKm)} km</dd>
@@ -358,7 +528,7 @@ function TeamCard({
               <dd className="text-on-light text-body-sm tabular">{pessoa.journeys ?? 0}</dd>
             </div>
           </dl>
-          <p className="text-on-light-variant text-label-md mt-3 flex items-center gap-1.5 normal-case">
+          <p className="text-on-light-variant text-label-md mt-2.5 flex items-center gap-1.5 normal-case">
             <TruckIcon size={14} className="text-on-light-muted" aria-hidden="true" />
             {pessoa.currentVehiclePlate ?? pessoa.unit ?? 'Sem veículo identificado'}
           </p>
@@ -368,11 +538,10 @@ function TeamCard({
               {pessoa.criticalEvents === 1 ? 'evento crítico' : 'eventos críticos'}
             </p>
           ) : null}
-          <p className="text-accent text-label-md mt-4 normal-case">Abrir ficha do motorista</p>
         </>
       ) : (
         <>
-          <p className="text-on-light-variant text-body-sm mt-4 truncate">
+          <p className="text-on-light-variant text-body-sm mt-3 truncate">
             {pessoa.email ?? 'E-mail não informado'}
           </p>
           <p className="text-on-light-muted text-label-md mt-1.5 normal-case">
@@ -384,18 +553,11 @@ function TeamCard({
       )}
 
       {comAcoes ? (
-        <div className="border-light-outline mt-4 flex items-center justify-end gap-1 border-t pt-3">
-          {motorista ? (
-            <button
-              type="button"
-              className="acao-neutra mr-auto"
-              onClick={abrirFicha}
-              aria-label={`Abrir ficha de ${pessoa.name}`}
-              title="Abrir ficha"
-            >
-              <ArrowRightIcon size={16} />
-            </button>
-          ) : null}
+        /* ⚠️ A seta de "abrir ficha" saiu daqui em 18/09/2026: o cartão inteiro
+           passou a levar à ficha, e um botão que repete o que o corpo já faz só
+           gasta a barra de ações. Quem anuncia o destino hoje é o `aria-label`
+           do cartão, porque o texto que fazia isso saiu em 19/09/2026. */
+        <div className="border-light-outline acoes-divididas mt-3 flex items-center justify-end gap-1.5 border-t pt-2.5">
           {onEditar ? (
             <button
               type="button"
@@ -406,7 +568,7 @@ function TeamCard({
               }}
               aria-label={`Editar cadastro de ${pessoa.name}`}
             >
-              <EditIcon size={16} />
+              <EditIcon size={17} />
             </button>
           ) : null}
           {motorista && onAlternar ? (
@@ -420,7 +582,7 @@ function TeamCard({
               aria-label={`${pessoa.active ? 'Inativar' : 'Ativar'} motorista ${pessoa.name}`}
               title={pessoa.active ? 'Inativar motorista' : 'Ativar motorista'}
             >
-              <PowerIcon size={16} />
+              <PowerIcon size={17} />
             </button>
           ) : null}
           {motorista && onExcluir ? (
@@ -434,7 +596,7 @@ function TeamCard({
               aria-label={`Excluir cadastro de ${pessoa.name}`}
               title="Excluir cadastro"
             >
-              <DeleteIcon size={16} />
+              <DeleteIcon size={17} />
             </button>
           ) : null}
           {!motorista && !pessoa.active && onReenviar ? (
@@ -447,7 +609,7 @@ function TeamCard({
               }}
               aria-label={`Reenviar o convite de ${pessoa.name}`}
             >
-              <MailIcon size={16} />
+              <MailIcon size={17} />
             </button>
           ) : null}
           {!motorista && pessoa.active && onDesativar ? (
@@ -460,7 +622,7 @@ function TeamCard({
               }}
               aria-label={`Desativar o acesso de ${pessoa.name}`}
             >
-              <PowerIcon size={16} />
+              <PowerIcon size={17} />
             </button>
           ) : null}
         </div>

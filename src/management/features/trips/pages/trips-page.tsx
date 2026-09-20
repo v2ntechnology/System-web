@@ -26,6 +26,7 @@ import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
 import { PendingSource } from '@/management/components/layout/pending-source';
 import { QueryState } from '@/management/components/layout/query-state';
+import { SegmentedFilter } from '@/management/components/layout/segmented-filter';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
 import { env } from '@/app/environment';
@@ -281,7 +282,7 @@ function ViagensReais() {
         description="Cada percurso que a frota fez, e os lugares onde ela mais fica parada."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Resumo do período</h2>
 
         <QueryState
@@ -289,9 +290,7 @@ function ViagensReais() {
           isError={percursos.isError}
           label="os percursos"
         >
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState` ela
-              jogaria o carregamento e o erro por cima da faixa colorida. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+          <HeroStats items={stats} className="mb-6" />
 
           {resumo.semMotorista > 0 ? (
             /* Percurso sem condutor identificado não entra em nota, jornada nem
@@ -306,9 +305,7 @@ function ViagensReais() {
             </div>
           ) : null}
         </QueryState>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={ABAS_REAIS.map((opcao) => ({
             ...opcao,
@@ -335,28 +332,13 @@ function ViagensReais() {
                * painel branco: os dois são o mesmo objeto, um segmentado que
                * recorta uma lista.
                */}
-              <div
-                role="group"
-                aria-label="Período"
-                className="bg-light-container rounded-pill mb-4 flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
-              >
-                {JANELAS.map((janela) => (
-                  <button
-                    key={janela.dias}
-                    type="button"
-                    onClick={() => setDias(janela.dias)}
-                    aria-pressed={dias === janela.dias}
-                    className={cn(
-                      'text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
-                      dias === janela.dias
-                        ? 'bg-light text-accent font-medium shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]'
-                        : 'text-on-light-variant hover:text-on-light hover:bg-on-light/[0.06]',
-                    )}
-                  >
-                    {janela.label}
-                  </button>
-                ))}
-              </div>
+              <SegmentedFilter
+                className="mb-4"
+                label="Período"
+                options={JANELAS.map((janela) => ({ id: janela.dias, label: janela.label }))}
+                value={dias}
+                onValueChange={setDias}
+              />
 
               {/* ⚠️ `surface="light"`: os campos moram dentro do painel branco,
                   e a versão escura deles inverte a hierarquia da tela. */}
@@ -676,13 +658,11 @@ function ViagensSimuladas() {
         description="O que está rodando agora, o que passou do prazo e o histórico do que já foi entregue."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Resumo das viagens</h2>
 
         <QueryState isPending={isPending} isError={isError} label="as viagens">
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState` ela
-              jogaria o carregamento e o erro por cima da faixa colorida. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+          <HeroStats items={stats} className="mb-6" />
 
           {lateCount > 0 ? (
             <div className="bg-error/10 border-error/30 text-error mt-5 flex items-start gap-2.5 rounded-lg border px-4 py-3">
@@ -695,9 +675,7 @@ function ViagensSimuladas() {
             </div>
           ) : null}
         </QueryState>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={TABS.map((option) => ({ ...option, count: counts[option.id] }))}
           value={tab}

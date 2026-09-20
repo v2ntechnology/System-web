@@ -57,7 +57,6 @@ export function SeverityCards({
             onClick={() => onSelect(active ? null : severity)}
             className={cn(
               'bg-light min-w-0 rounded-xl p-5 text-left ring-1',
-              'shadow-[0_1px_2px_rgba(28,26,24,0.04),0_8px_24px_-12px_rgba(28,26,24,0.14)]',
               'focus-visible:ring-primary transition-shadow focus-visible:outline-none focus-visible:ring-2',
               active ? 'ring-on-light ring-2' : 'ring-light-edge hover:ring-on-light/25',
             )}

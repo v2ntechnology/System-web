@@ -1,3 +1,4 @@
+import { maskCnpj } from '@/lib/input-masks';
 import { CheckIcon, CompanyIcon, PaletteIcon, PlanIcon, SatelliteIcon } from '@/components/icons';
 import type { IconType } from '@/components/icons';
 import { useMemo, useState } from 'react';
@@ -405,7 +406,12 @@ function StepIdentity(props: {
           <Input value={props.name} onChange={(e) => props.setName(e.target.value)} />
         </Field>
         <Field label="CNPJ">
-          <Input value={props.document} onChange={(e) => props.setDocument(e.target.value)} />
+          <Input
+            value={props.document}
+            inputMode="numeric"
+            placeholder="00.000.000/0000-00"
+            onChange={(e) => props.setDocument(maskCnpj(e.target.value))}
+          />
         </Field>
       </div>
 
