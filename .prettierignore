@@ -5,3 +5,5 @@ package-lock.json
 .claude/settings.local.json
 rookhub_frontend_kit
 CLAUDE_FRONTEND_IMPLEMENTATION_PROMPT.md
+src/components/originkit
+src/pages/login/ember-husk-scene.tsx

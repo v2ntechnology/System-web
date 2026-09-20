@@ -1,7 +1,7 @@
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon, LockIcon, MailIcon } from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
-import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
+import { forwardRef, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
@@ -33,8 +33,20 @@ import {
 import { ApiError } from '@/services/http';
 import { modoDeAcesso } from '@/app/tenant-host';
 import { cn } from '@/lib/utils';
-import { BRAND_DEV_ON_DARK } from '@/components/shared/brand-assets';
-import { SOFFIT_BG, SoffitGradient } from '@/components/shared/soffit-gradient';
+/*
+ * ⚠️ **A cena entra por `lazy`, e o motivo é o login do CLIENTE.** Este arquivo
+ * serve as duas portas, então um import estático faria toda transportadora baixar
+ * o `three` (143 kB comprimidos, medidos no build) para desenhar um painel que só
+ * existe do lado da equipe. Assim o pedaço só é buscado em `dev.*`, e o
+ * `Suspense` devolve nada enquanto ele vem, porque o `EMBER_BG` já pinta o painel.
+ *
+ * ⚠️ **É o `ember-husk-scene` daqui, e NÃO o de `components/originkit`.** O
+ * segundo é a cópia intocada do fornecedor, guardada para comparar com uma versão
+ * nova dele; quem tem a palavra RookHub no rodapé é este fork. Trocar o import
+ * apaga a palavra sem nenhum erro aparecer.
+ */
+const EmberHusk = lazy(() => import('./ember-husk-scene'));
+import { useIsMobile } from '@/hooks/use-media-query';
 import { useSessionStore } from '@/stores/session-store';
 
 /*
@@ -83,63 +95,196 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
 );
 
 /**
- * A entrada da EQUIPE: uma coluna só, centrada no viewport, sobre o papel limpo.
+ * A entrada da EQUIPE: as mesmas duas colunas do cliente, com a cena 3D no lugar
+ * do painel de marca.
  *
- * ⚠️ Layout separado do `AuthLayout`, e não uma variante dele (pedido do usuário
- * em 14/09/2026). Os dois não têm nada em comum além do conteúdo: aqui não há
- * painel de marca, não há grade de duas colunas e o bloco é centrado no
- * VIEWPORT, e não dentro da própria coluna.
+ * ⚠️ **A grade é a MESMA do `AuthLayout` (`lg:grid-cols-[1fr_34rem]`), e isso é o
+ * pedido** (usuário em 18/09/2026): a porta da equipe passou a espelhar a do
+ * cliente, com o painel ocupando cerca de 70% da largura e o formulário os 30%
+ * da direita, sobre o papel. Antes ela era uma coluna centrada no viewport com o
+ * gradiente cobrindo a tela inteira. **Ao mexer na proporção de um dos dois,
+ * mexa no outro**, senão as duas portas voltam a divergir.
  *
- * ⚠️ **O fundo é o `SoffitGradient`, trazido pelo usuário em 15/09/2026**, e ele
- * substituiu três tentativas minhas que foram recusadas no mesmo dia: uma torre
- * de xadrez girando em Three.js, uma fileira tombando em dominó, e duas torres
- * de contorno com o traço se desenhando. Não propor uma quarta por conta
- * própria.
+ * ⚠️ Continua um layout SEPARADO, e não uma variante do `AuthLayout`, porque o
+ * painel da esquerda é outro objeto: lá é o `Grainient` sobre uma cor de marca,
+ * aqui é uma cena que traz a própria cor.
  *
- * ⚠️ **O bloco do formulário é uma ILHA ESCURA de vidro** (`.vidro-da-plataforma`
- * em `globals.css`), e as tintas dentro dele vêm da rampa escura da paleta. Sem
- * isso o conteúdo, escrito com a tinta do tema claro, ficaria preto sobre
- * azul-petróleo.
+ * ⚠️ **A cena é o `EmberHusk`, escolhido pelo usuário em 18/09/2026**, e ele
+ * substituiu o `SoffitGradient`, que por sua vez já tinha substituído três
+ * tentativas minhas recusadas em 15/09: uma torre de xadrez girando, uma fileira
+ * tombando em dominó, e duas torres de contorno se desenhando. **A cena desta
+ * tela é escolha do usuário: não propor outra por conta própria.**
+ *
+ * ⚠️ **O formulário voltou para o papel, então a ilha escura de vidro saiu.** A
+ * `.vidro-da-plataforma` existia porque o bloco ficava POR CIMA do gradiente, e
+ * a tinta do tema claro ficaria preta sobre azul-petróleo. Com a coluna branca a
+ * regra se inverte: sobre o papel vale a tinta do tema claro, e quem devolve o
+ * marinho aos campos é a `.saas-theme`, como era antes da placa.
  *
  * ⚠️ Vale só para o login. As outras telas públicas da porta da equipe (esqueci
  * minha senha, convite, sessão expirada) seguem no `AuthLayout` de duas colunas.
  */
-function PlatformAuthLayout({ children }: { children: ReactNode }) {
-  return (
-    <main
-      className="tela-proporcional [--altura-de-referencia:900px] management-theme relative overflow-hidden p-4 sm:p-6"
-      style={{ background: SOFFIT_BG }}
-    >
-      {/* O gradiente cobre a tela inteira, atrás de tudo. Ele é opaco, então a
-          cor do `main` não aparece enquanto ele estiver de pé. */}
-      <SoffitGradient className="absolute inset-0 h-full w-full" />
+/**
+ * A paleta da cena da equipe, em MARINHO (decisão do usuário em 18/09/2026). Ela
+ * chegou vermelha do fornecedor, que é a cor de fábrica do Ember Husk.
+ *
+ * ⚠️ **O marinho aqui não é enfeite, é a mesma regra que pinta o backoffice**: a
+ * porta da equipe é marinho e a do cliente é terracota, para ninguém confundir
+ * administração de plataforma com painel de transportadora. Os valores saem dos
+ * tokens que já existem: `#2A2F9E` é o `--color-secondary-container` da
+ * `.saas-theme`, `#4348D9` é o `--ring` dela e `#A0A6FF` é a secundária da rampa
+ * escura de `palette.css`.
+ *
+ * ⚠️ **Hex literal, e não token de CSS**, porque quem recebe isto é um shader:
+ * ele precisa do valor, e não de uma variável que só o navegador resolve. É o
+ * mesmo caminho que o `Grainient` do painel do cliente já usa logo abaixo.
+ */
+const EMBER_SCENE = {
+  /** O quase preto do fundo, e o halo que ele acende no meio. */
+  background: { color: '#05061F', glowColor: '#2A2F9E' },
+  /** A brasa nas rachaduras, do azul médio ao claro no ponto mais quente. */
+  core: { color: '#4348D9', hotColor: '#A0A6FF' },
+  /** O carvão da pedra, puxado do marrom para o grafite frio. */
+  rock: { color: '#14151C' },
+  /**
+   * Quantas peças flutuam em volta do rei (pedido do usuário em 18/09/2026).
+   *
+   * ⚠️ O nome da prop é herança do componente, onde isto contava as cruzes
+   * brancas. O número é REPARTIDO entre os seis tipos de peça, e não multiplicado
+   * por seis: são 72 peças no total, cerca de 12 de cada.
+   *
+   * ⚠️ **96 foi demais, e isso se mede olhando.** Peça de xadrez é opaca e alta,
+   * ao contrário da cruz fina que havia antes: naquela quantidade elas fecham a
+   * frente do rei e a cena vira enxame.
+   */
+  crosses: { count: 72 },
+} as const;
 
-      {/* `min-h-full` no filho: em janela baixa o bloco rola por dentro em vez
-          de sair pelo topo, que é a mesma salvaguarda da coluna do outro
-          layout. */}
-      <section className="relative h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex min-h-full items-center justify-center py-2">
-          {/*
-           * A placa de vidro que carrega o formulário.
-           *
-           * ⚠️ NÃO é a classe `.glass` do painel de gestão: no tema claro aquela
-           * classe tem `--glass-blur: 0px` e as paradas do traço transparentes,
-           * ou seja, ela é uma placa branca sólida. O vidro de verdade só existe
-           * na rampa escura dela, e esta tela é travada no claro.
-           *
-           * ⚠️ **O caminho do vidro CLARO foi tentado e medido, e não fecha.** A
-           * 60% de papel o texto de apoio, que é o rótulo, o rodapé e o "Esqueci
-           * minha senha", caía para 2,93:1 e reprovava; para passar era preciso
-           * 80%, e a essa altura já não era vidro. A saída é a ilha escura, onde
-           * a tinta clara vale sobre qualquer trecho do gradiente.
-           */}
-          <div className="vidro-da-plataforma w-full max-w-110 rounded-[28px] p-7 shadow-[0_32px_80px_-32px_rgba(3,16,24,0.8)] sm:p-8">
-            {children}
+/**
+ * O fundo do painel, igual ao `background.color` da cena.
+ *
+ * ⚠️ É o que se vê sem WebGL, em `:root.no-blur`, e no instante antes do primeiro
+ * quadro. Sai do mesmo objeto de propósito: quando os dois eram valores separados,
+ * trocar a cor da cena deixava uma borda de outra cor em volta dela.
+ */
+const EMBER_BG = EMBER_SCENE.background.color;
+
+function PlatformAuthLayout({ children }: { children: ReactNode }) {
+  const noBlur = useNoBlur();
+
+  return (
+    <main className="tela-proporcional [--altura-de-referencia:900px] management-theme bg-surface p-4 sm:p-6">
+      <div className="grid h-full gap-4 sm:gap-6 lg:grid-cols-[1fr_34rem] lg:gap-12">
+        {/*
+         * O painel. Abaixo de `lg` ele some, pela mesma razão do painel de marca
+         * do cliente: no celular empurraria o formulário para baixo da dobra.
+         *
+         * ⚠️ **Nada de marca nem de copy aqui** (pedido do usuário em
+         * 18/09/2026): saíram a torre do canto, o "Área interna", o título e o
+         * scrim que existia só para segurar o contraste daquele texto. O painel é
+         * a cena e nada mais, e a marca continua na coluna do formulário.
+         *
+         * ⚠️ **A cena é o `EmberHusk`, de terceiros** (Originkit), num fork com a
+         * linha "Devs RookHub". O `SoffitGradient` saiu daqui e continua no
+         * repositório, servindo as outras telas.
+         *
+         * ⚠️ A cor de fundo fica no elemento, e não só no canvas: sem WebGL, e em
+         * `:root.no-blur`, nada monta e o que aparece é este azul-noite, que é o
+         * mesmo `background.color` que a cena usa. Sem ele o painel piscaria
+         * branco antes do primeiro quadro.
+         */}
+        <aside
+          className="relative hidden min-w-0 flex-col overflow-hidden rounded-lg lg:flex"
+          style={{ background: EMBER_BG }}
+        >
+          {/* Modo de alto desempenho não monta canvas, que é a mesma regra do
+              `Grainient` no painel do cliente e do `SoffitGradient`. */}
+          {noBlur ? null : (
+            <Suspense fallback={null}>
+              {/* A palavra fica de fora daqui: ela usa a cor das cruzes, que
+                  segue branca de propósito, para ser a tinta de maior contraste
+                  contra o fundo escuro. */}
+              <EmberHusk
+                background={EMBER_SCENE.background}
+                core={EMBER_SCENE.core}
+                rock={EMBER_SCENE.rock}
+                crosses={EMBER_SCENE.crosses}
+              />
+            </Suspense>
+          )}
+        </aside>
+
+        {/*
+         * Coluna do formulário.
+         *
+         * ⚠️ **A `.saas-theme` é daqui, e não do `main`.** Dentro dela a primária
+         * é o marinho `#010066`, que é o contorno e o anel dos campos na área
+         * interna (ver `FIELD_SURFACES` em `management/ui/lib`); no `main` ela
+         * alcançaria também o painel da esquerda, onde não há o que pintar.
+         *
+         * `min-h-full` no filho permite centralizar e ainda rolar por dentro numa
+         * janela baixa: com `items-center` puro, o excesso sairia pelo topo e o
+         * botão de entrar ficaria inalcançável.
+         */}
+        <section className="saas-theme min-w-0 overflow-y-auto [scrollbar-width:none] lg:pr-10 [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-h-full items-center justify-center py-2">
+            <div className="w-full max-w-110">{children}</div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
+}
+
+/**
+ * As frases do painel do CLIENTE, que se revezam sob o chapéu fixo "Você pode
+ * facilmente" (pedido do usuário em 19/09/2026).
+ *
+ * ⚠️ **A primeira é a copy original, e ela fica em primeiro de propósito**: é o
+ * que a tela mostra no instante em que abre, antes de qualquer troca. As outras
+ * três são proposta minha, aprovadas como ponto de partida. Trocar o texto é
+ * mexer só neste array.
+ *
+ * ⚠️ **Nível de módulo, e isso não é estilo**: o `marca` é montado a cada
+ * render, então um array escrito lá dentro nasceria com identidade nova toda
+ * vez, o efeito do revezamento reiniciaria sem parar e o intervalo nunca
+ * chegaria a disparar. Aqui a identidade é estável.
+ */
+const FRASES_DO_CLIENTE = [
+  'Acompanhar sua frota inteira com clareza e controle',
+  'Saber onde cada caminhão está, agora',
+  'Antecipar a manutenção antes da parada',
+  'Enxergar o custo de cada viagem sem planilha',
+] as const;
+
+/** A porta da plataforma não reveza: uma frase só, e o intervalo nem é armado. */
+const FRASES_DA_PLATAFORMA = ['Administrar as transportadoras que confiam na RookHub'] as const;
+
+/** De quanto em quanto tempo a frase troca. */
+const REVEZAMENTO_MS = 6000;
+
+/**
+ * O índice da frase da vez.
+ *
+ * ⚠️ **Respeita `prefers-reduced-motion` parando de vez**, e não só encurtando a
+ * transição: texto que se troca sozinho é conteúdo em movimento, e para quem
+ * pediu menos movimento a resposta certa é uma frase fixa, não uma troca mais
+ * rápida. Mesmo padrão do `soffit-gradient` e do `time-vortex`.
+ */
+function useFraseDaVez(frases: readonly string[]) {
+  const [indice, setIndice] = useState(0);
+
+  useEffect(() => {
+    if (frases.length < 2) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const id = setInterval(() => {
+      setIndice((n) => (n + 1) % frases.length);
+    }, REVEZAMENTO_MS);
+    return () => clearInterval(id);
+  }, [frases]);
+
+  return indice;
 }
 
 /**
@@ -149,6 +294,19 @@ function PlatformAuthLayout({ children }: { children: ReactNode }) {
  */
 function AuthLayout({ children }: { children: ReactNode }) {
   const noBlur = useNoBlur();
+
+  /*
+   * ⚠️ **O painel é `hidden lg:flex`, e isso NÃO impede a mídia de baixar.**
+   * Medido em 19/09/2026 numa janela de 390px: o `<aside>` em `display: none` e o
+   * navegador mesmo assim puxou 3,48 MB e bufferizou os 8 segundos inteiros
+   * (`readyState` 4). `display: none` esconde o elemento, não cancela o download
+   * de um `<video>`, e o mesmo vale para o canvas WebGL do `Grainient`.
+   *
+   * Por isso a decoração é montada por CONDIÇÃO, e não por classe: abaixo de
+   * `lg` nenhum dos dois chega ao DOM, e o celular não paga por um painel que
+   * ninguém vê. O `useIsMobile` é `(max-width: 1023px)`, o espelho exato do `lg`.
+   */
+  const painelNaTela = !useIsMobile();
 
   /*
    * ⚠️ A entrada da plataforma é MARINHO, a do cliente é terracota, e isso não é
@@ -167,14 +325,16 @@ function AuthLayout({ children }: { children: ReactNode }) {
         fundo: 'bg-secondary',
         cores: ['#1a1a8c', '#010066', '#010066'] as const,
         chapeu: 'Área interna',
-        titulo: 'Administrar as transportadoras que confiam na RookHub',
+        titulos: FRASES_DA_PLATAFORMA,
       }
     : {
         fundo: 'bg-primary-strong',
         cores: ['#DE733E', '#d5623a', '#d5623a'] as const,
         chapeu: 'Você pode facilmente',
-        titulo: 'Acompanhar sua frota inteira com clareza e controle',
+        titulos: FRASES_DO_CLIENTE,
       };
+
+  const fraseDaVez = useFraseDaVez(marca.titulos);
 
   return (
     /*
@@ -206,8 +366,37 @@ function AuthLayout({ children }: { children: ReactNode }) {
            * O gradiente é decoração: fica atrás do conteúdo e o `primary-strong`
            * continua embaixo como cor de base — é ele que aparece em
            * `:root.no-blur`, onde o canvas nem chega a montar.
+           *
+           * ⚠️ **A porta do CLIENTE troca o gradiente por um vídeo** (pedido do
+           * usuário em 19/09/2026). Os dois não convivem: o vídeo é opaco e cobre
+           * `inset-0`, então deixar o `Grainient` embaixo seria um shader WebGL
+           * rodando para ninguém ver. A porta da plataforma segue no gradiente, e
+           * é por isso que `marca.cores` continua existindo nos dois ramos.
+           *
+           * ⚠️ `muted` não é preferência de som, é o que PERMITE o autoplay:
+           * navegador nenhum inicia vídeo com áudio sem gesto do usuário, e sem
+           * ele o painel ficaria parado na cor de base. `playsInline` impede o
+           * iOS de abrir em tela cheia por conta própria.
+           *
+           * ⚠️ **O arquivo é codificado, e trocá-lo por um MP4 cru desfaz o
+           * trabalho.** O original tinha 4,05 MB a 4,08 Mbps, bitrate de filme para
+           * um fundo de tela, mais uma trilha AAC que nunca toca. O que está no
+           * repositório hoje tem 890 KB, 79% menos, e sai desta receita:
+           *
+           *   ffmpeg -i fonte.mp4 -an -c:v libx264 -crf 32 -preset veryslow \
+           *          -profile:v high -pix_fmt yuv420p -movflags +faststart saida.mp4
+           *
+           * `-an` derruba o áudio, `+faststart` põe o índice na frente para o vídeo
+           * começar antes de terminar de baixar, e o CRF 32 saiu de medição, não de
+           * gosto: SSIM 0,987 contra o original.
+           *
+           * ⚠️ **AV1 e VP9 foram testados e PERDERAM.** Neste material o libsvtav1
+           * ficou maior E mediu pior em toda a faixa de CRF (1,12 MB a SSIM 0,978,
+           * contra 890 KB a 0,987 do x264), e o VP9 gastou 2,08 MB pelo mesmo 0,978.
+           * Não vale um `<source>` de alternativa aqui, nem a complexidade dele. Se
+           * o vídeo mudar, meça de novo antes de repetir esta conclusão.
            */}
-          {noBlur ? null : (
+          {noBlur || !painelNaTela ? null : naPlataforma ? (
             <Grainient
               className="absolute inset-0"
               color1={marca.cores[0]}
@@ -241,6 +430,37 @@ function AuthLayout({ children }: { children: ReactNode }) {
               centerY={0}
               zoom={0.9}
             />
+          ) : (
+            <>
+              <video
+                className="absolute inset-0 size-full object-cover"
+                src="/video/truck-highway.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                aria-hidden="true"
+              />
+
+              {/*
+               * ⚠️ **Scrim do TOPO, e ele existe por medição, não por gosto.** O
+               * gradiente terracota era escuro em cima, então a marca branca
+               * apoiava nele. O vídeo tem céu claro nesse pedaço: medido quadro a
+               * quadro ao longo dos 8s, a luminância sob o logo chega a 0,768, o
+               * que dá **1,28:1** com o branco. Elemento gráfico pede 3:1.
+               *
+               * Os valores saem da conta, não de tentativa: o logo fica a 40px do
+               * topo num painel de ~1030px, ou seja a 21% deste scrim de 2/5. A
+               * rampa 0,82 -> 0,42 entrega 0,65 de alfa ali, que devolve 3,3:1.
+               * **Mexeu na altura do scrim, no `p-10` do painel ou no tamanho do
+               * logo? Meça de novo**, porque as três coisas movem esse 21%.
+               */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-[rgba(10,10,16,0.82)] via-[rgba(10,10,16,0.42)] to-transparent"
+              />
+            </>
           )}
 
           {/*
@@ -263,8 +483,31 @@ function AuthLayout({ children }: { children: ReactNode }) {
              * container em 16px ele mediria a linha do corpo, e o título quebrava
              * em cinco linhas dentro de um painel de 600px.
              */}
-            <p className="font-sora text-on-primary mt-3 max-w-[18ch] text-balance text-[34px] font-bold leading-11">
-              {marca.titulo}
+            {/*
+             * ⚠️ **As frases ficam TODAS no DOM, empilhadas na mesma célula de
+             * grade, e só a da vez tem opacidade.** A alternativa óbvia, trocar o
+             * texto do nó, faz o bloco mudar de altura a cada troca: as frases
+             * quebram em 2, 3 ou 4 linhas dentro dos `18ch`, e como o painel é
+             * `justify-between` o conteúdo é ancorado embaixo, então a copy
+             * saltaria para cima e para baixo. Empilhadas, o `<p>` fica com a
+             * altura da MAIS ALTA e nada se mexe.
+             *
+             * ⚠️ `aria-hidden` nas escondidas: sem isso o leitor de tela lê as
+             * quatro em sequência, como se fossem um parágrafo só.
+             */}
+            <p className="font-sora text-on-primary mt-3 grid max-w-[18ch] text-balance text-[34px] font-bold leading-11">
+              {marca.titulos.map((frase, n) => (
+                <span
+                  key={frase}
+                  aria-hidden={n === fraseDaVez ? undefined : 'true'}
+                  className={cn(
+                    'col-start-1 row-start-1 transition-opacity duration-700 motion-reduce:transition-none',
+                    n === fraseDaVez ? 'opacity-100' : 'opacity-0',
+                  )}
+                >
+                  {frase}
+                </span>
+              ))}
             </p>
           </div>
         </aside>
@@ -366,38 +609,28 @@ export default function LoginPage() {
     if (formError) errorRef.current?.focus();
   }, [formError]);
 
-  /* Cada porta tem a própria casca: a da equipe é uma coluna centrada sobre o
-     gradiente, a do cliente continua nas duas colunas com o painel de marca. */
+  /* Cada porta tem a própria casca, e desde 18/09/2026 as duas têm a mesma
+     forma: painel à esquerda e formulário à direita, trocando só o que preenche
+     o painel. */
   const Casca = naPlataforma ? PlatformAuthLayout : AuthLayout;
 
   return (
     <Casca>
-      {/* Centrado na porta da equipe, porque ali o bloco inteiro é o centro da
-          tela: um cabeçalho alinhado à esquerda dentro de uma coluna centrada
-          leria como desalinho. */}
-      <header className={naPlataforma ? 'text-center' : undefined}>
+      {/*
+       * ⚠️ O cabeçalho é alinhado à esquerda nas DUAS portas. Ele já foi
+       * centrado na porta da equipe, e isso valia enquanto o bloco era uma ilha
+       * de vidro centrada no viewport; numa coluna encostada na direita, o
+       * centro passa a brigar com os campos e o rodapé, que são alinhados à
+       * esquerda.
+       */}
+      <header>
         {/*
-         * Wordmark trocado por tema (`BrandLogo`, não `RookhubLogo`): aqui a
-         * marca fica sobre a superfície, não sobre foto, então no claro entra a
-         * arte colorida e no escuro a branca.
-         *
-         * ⚠️ Na porta da equipe a marca é a ARTE CLARA, escolhida à mão e não
-         * pelo gancho. O gancho decide pelo TEMA, e o tema aqui é o claro; quem
-         * é escuro é a placa de vidro, que é uma ilha. Sem esta exceção entraria
-         * a arte de papel, com a rampa marinho e o "Rook" em azul-noite, que
-         * desaparece sobre o vidro. O `BrandLogo` não serve porque ele também
-         * resolve o logo do cliente, e do lado da plataforma não existe cliente.
+         * Wordmark trocado por tema e por área (`BrandLogo`, não `RookhubLogo`):
+         * aqui a marca fica sobre a superfície, não sobre o gradiente, então o
+         * gancho resolve sozinho. Na porta da equipe ele já devolve a arte da
+         * área interna, que é a `BRAND_DEV`, com a rampa marinho sobre o papel.
          */}
-        {naPlataforma ? (
-          <img
-            src={BRAND_DEV_ON_DARK.wordmark}
-            alt="RookHub"
-            draggable={false}
-            className="mx-auto h-13 w-auto select-none object-contain"
-          />
-        ) : (
-          <BrandLogo className="h-13" />
-        )}
+        <BrandLogo className="h-13" />
 
         <h1 className="font-sora text-on-surface mt-6 text-balance text-[24px] font-bold leading-8 sm:text-[26px] sm:leading-9">
           {naPlataforma ? 'Acesso da plataforma' : 'Bem-vindo de volta'}
@@ -405,16 +638,15 @@ export default function LoginPage() {
       </header>
 
       {/*
-       * ⚠️ **Sem `saas-theme` aqui.** Ele esteve neste lugar enquanto a porta da
-       * equipe era um formulário sobre papel claro: servia para o contorno e o
-       * anel dos campos, que são `primary` (ver `FIELD_SURFACES` em
-       * `management/ui/lib`), acenderem azul em vez de terracota.
+       * ⚠️ **A `saas-theme` que veste estes campos mora na COLUNA**, no
+       * `PlatformAuthLayout`, e não aqui: este bloco é o mesmo nas duas portas, e
+       * na do cliente a primária tem de continuar terracota.
        *
-       * Com a placa de vidro ele passou a ATRAPALHAR: a `.saas-theme` fica dentro
-       * da `.vidro-da-plataforma`, então vence por proximidade e devolve a
-       * primária ao marinho `#010066`, que sobre o vidro escuro some. O sintoma
-       * era o quadradinho do "Manter conectado" marcado, marinho cheio sobre azul
-       * escuro. Quem define a cor dentro da placa agora é a própria placa.
+       * ⚠️ Ela já esteve neste lugar, saiu quando o formulário virou uma ilha de
+       * vidro escuro (ali o marinho `#010066` sumia, e o sintoma era o
+       * quadradinho do "Manter conectado" marcado, azul cheio sobre azul
+       * escuro), e voltou com o formulário para o papel. **Se o bloco um dia
+       * voltar a ficar sobre o gradiente, ela sai junto.**
        */}
       <div className="mt-8">
         <form

@@ -80,3 +80,4 @@ docs/pdf/relatorio_frota_servioeste.pdf
 # são a fonte de conversão e o navegador nunca os pede. Cada dev baixa e
 # converte os seus.
 /original-models/
+.originkit/
