@@ -1,6 +1,6 @@
 import { CloseIcon, PlusIcon } from '@/components/icons';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 
 import { cn } from '@/management/ui';
@@ -62,10 +62,54 @@ export function FavoritesDock() {
   const [favorites, setFavorites] = useState<string[]>(() => readFavorites());
   const [aberto, setAberto] = useState(false);
   const { pathname } = useLocation();
+  const [caixa, setCaixa] = useState<HTMLDivElement | null>(null);
+  const listaRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     writeFavorites(favorites);
   }, [favorites]);
+
+  /**
+   * Com a lista de telas aberta, a roda do mouse sobre ela move só a lista,
+   * nunca a página atrás (pedido do usuário em 19/09/2026).
+   *
+   * O `overscroll-contain` da lista já segura a página enquanto o cursor está
+   * sobre ela, inclusive ao chegar ao fim do rolo. O que vazava era a roda
+   * sobre o título "Escolha a tela" e sobre as bordas do cartão, que não rolam
+   * e por isso entregavam o gesto para a página.
+   *
+   * ⚠️ **O listener é nativo e não passivo de propósito.** O `onWheel` do React
+   * é registrado na raiz como passivo, e `preventDefault()` ali é no-op: a
+   * página rolaria do mesmo jeito.
+   *
+   * ⚠️ **A caixa vem por ESTADO, não por `useRef`.** O Radix monta o conteúdo
+   * num segundo passe, disparado por um efeito de layout dele: um `useEffect`
+   * que dependesse de `aberto` rodaria antes disso e leria a ref ainda vazia, e
+   * o listener nunca existiria. É a mesma armadilha que a caixa de notificações
+   * documenta, e lá custou uma investigação inteira.
+   *
+   * Nada de travar o `body`: fora do cartão a página tem de rolar normal, isto
+   * é um popover e não um modal.
+   */
+  useEffect(() => {
+    if (!caixa) return;
+
+    function segurarRolagem(event: WheelEvent) {
+      const lista = listaRef.current;
+      if (!lista) return;
+      const alvo = event.target;
+      /* Dentro da lista o navegador rola melhor do que nós, com inércia. */
+      if (alvo instanceof Node && lista.contains(alvo)) return;
+
+      event.preventDefault();
+      /* deltaMode vem em linhas no Firefox e em páginas em alguns drivers. */
+      const unidade = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? lista.clientHeight : 1;
+      lista.scrollTop += event.deltaY * unidade;
+    }
+
+    caixa.addEventListener('wheel', segurarRolagem, { passive: false });
+    return () => caixa.removeEventListener('wheel', segurarRolagem);
+  }, [caixa]);
 
   const rotas = favorites.map(findFavorite).filter((rota) => rota != null);
   const cheio = rotas.length >= MAX_FAVORITES;
@@ -98,8 +142,13 @@ export function FavoritesDock() {
            * O traço é branco a 20% e não um token de contorno: em vidro, a borda
            * é o brilho da quina, e ela precisa aparecer sobre o claro e sobre o
            * escuro do mesmo jeito.
+           *
+           * ⚠️ **Sem sombra projetada** (pedido do usuário em 19/09/2026). Era
+           * um borrão de 40px em volta da barra inteira; quem a separa do fundo
+           * agora é o traço de 1px e o próprio desfoque, como já vale para a
+           * lista de select, o calendário e o cartão do hub.
            */
-          'bg-surface-low/55 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.35)] ring-1 ring-white/20',
+          'bg-surface-low/55 ring-1 ring-white/20',
           'backdrop-blur-2xl backdrop-saturate-150',
         )}
       >
@@ -184,19 +233,41 @@ export function FavoritesDock() {
 
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Content
+              ref={setCaixa}
               side="top"
               align="end"
               sideOffset={10}
-              /* Mesmo material da barra que o abriu: os dois são o mesmo
-                 objeto flutuante, e um opaco ao lado de um translúcido pareceria
-                 componente de outra tela. */
-              className="bg-surface-low/80 z-[1200] w-72 rounded-3xl p-2 shadow-[0_16px_48px_-16px_rgba(0,0,0,0.45)] ring-1 ring-white/20 backdrop-blur-2xl backdrop-saturate-150"
+              /*
+               * ⚠️ **Fundo OPACO, e não mais vidro** (pedido do usuário em
+               * 19/09/2026). Era `surface-low/80` com `backdrop-saturate-150`:
+               * a 80% o que estava atrás atravessava, e a saturação puxada para
+               * cima tingia o cartão. Aberto sobre a faixa laranja da página,
+               * ele ganhava um degradê rosado que parecia enfeite e era só o
+               * fundo vazando.
+               *
+               * `surface-low` sozinho já é branco puro no tema claro e grafite
+               * no escuro, então o cartão fica branco sem `bg-white`, que seria
+               * um branco fixo errado no escuro.
+               *
+               * ⚠️ **O `backdrop-blur` e o `backdrop-saturate` saíram junto, e
+               * não por descuido**: com fundo opaco nada atravessa, e os dois
+               * viravam custo de composição sem efeito nenhum na tela.
+               *
+               * ⚠️ **O contorno é `outline`**, o traço de componente da paleta
+               * comum, com 3,2:1, que aparece nos dois temas. Tem de ser token
+               * da paleta COMUM: isto vive num portal, fora de
+               * `.management-theme`, onde os tokens escopados viram outra cor.
+               */
+              className="bg-surface-low ring-outline z-[1200] w-72 rounded-3xl p-2 ring-1"
             >
               <p className="text-on-surface-muted text-label-md px-2 pb-2 pt-1 normal-case">
                 Escolha a tela ({rotas.length} de {MAX_FAVORITES})
               </p>
 
-              <ul className="max-h-72 overflow-y-auto">
+              {/* ⚠️ `overscroll-contain` é o que impede a rolagem de passar para
+                  a página ao chegar ao fim do rolo, com o cursor sobre a lista.
+                  O listener de roda lá em cima cobre o resto do cartão. */}
+              <ul ref={listaRef} className="max-h-72 overflow-y-auto overscroll-contain">
                 {FAVORITE_ROUTES.filter((rota) => !favorites.includes(rota.to)).map((rota) => {
                   const Icone = rota.icon;
 

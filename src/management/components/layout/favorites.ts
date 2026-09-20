@@ -78,16 +78,13 @@ export const FAVORITE_ROUTES: FavoriteRoute[] = [
     tone: 'secundaria',
   },
   {
+    /* ⚠️ O "Cadastro de frota" saiu daqui em 18/09/2026, quando ele passou a
+       abrir dentro do Pátio: dois atalhos para o mesmo endereço ocupariam a
+       barra dizendo a mesma coisa. Quem já tinha o antigo salvo continua
+       chegando, porque o endereço redireciona. */
     to: '/gestao/patio',
     label: 'Pátio',
-    hint: 'Quem está em cada filial, e o que pode sair hoje',
-    icon: TruckIcon,
-    tone: 'marca',
-  },
-  {
-    to: '/gestao/caminhoes/cadastro',
-    label: 'Cadastro de frota',
-    hint: 'A ficha de cada caminhão',
+    hint: 'A frota em cada filial, com cadastro e edição',
     icon: TruckIcon,
     tone: 'marca',
   },
@@ -150,11 +147,11 @@ const STORAGE_KEY = 'rookhub:gestao:favoritos';
 /**
  * O que a barra mostra antes de alguém escolher qualquer coisa.
  *
- * Os dois cadastros, porque é onde o trabalho de arrumar a base acontece, e é a
- * tela mais funda da navegação: `Frota › Cadastro` custa dois cliques e um menu
- * suspenso, todo dia.
+ * As duas telas onde o trabalho de arrumar a base acontece. Desde 18/09/2026 o
+ * cadastro de cada uma abre dentro delas, então o atalho leva direto ao lugar
+ * onde se corrige caminhão e pessoa.
  */
-export const DEFAULT_FAVORITES = ['/gestao/caminhoes/cadastro', '/gestao/equipe'];
+export const DEFAULT_FAVORITES = ['/gestao/patio', '/gestao/equipe'];
 
 export function findFavorite(to: string): FavoriteRoute | undefined {
   return FAVORITE_ROUTES.find((route) => route.to === to);
