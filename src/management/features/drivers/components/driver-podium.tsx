@@ -2,6 +2,8 @@ import { MedalIcon } from '@/components/icons';
 import type { DriverRankEntry, RankingPeriod } from '@/management/types';
 import { Avatar, Spinner, StatusChip, cn } from '@/management/ui';
 
+import { SegmentedFilter } from '@/management/components/layout/segmented-filter';
+
 import { MEDAL_COLOR, MEDAL_LABEL, MEDAL_RING } from '../medals';
 
 const km = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
@@ -76,31 +78,12 @@ export function DriverPodium({
             poço, e não a pastilha laranja cheia: com a navegação em terracota,
             uma pastilha terracota diria com a mesma cor "onde você está no
             sistema" e "que recorte desta tela você olha". */}
-        <div
-          role="group"
-          aria-label="Período do ranking"
-          className="bg-light-container rounded-pill flex w-fit max-w-full gap-1 overflow-x-auto p-1.5"
-        >
-          {PERIODS.map((option) => {
-            const active = period === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onPeriodChange(option.id)}
-                className={cn(
-                  'text-body-md rounded-pill focus-visible:ring-primary shrink-0 px-5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2',
-                  active
-                    ? 'bg-light text-accent font-medium shadow-[0_1px_2px_rgba(28,26,24,0.06),0_2px_8px_-4px_rgba(28,26,24,0.18)]'
-                    : 'text-on-light-variant hover:bg-on-light/[0.06] hover:text-on-light',
-                )}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedFilter
+          label="Período do ranking"
+          options={PERIODS}
+          value={period}
+          onValueChange={onPeriodChange}
+        />
       </div>
 
       {isPending ? (

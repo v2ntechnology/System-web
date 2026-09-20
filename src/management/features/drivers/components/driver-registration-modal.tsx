@@ -1,14 +1,5 @@
-import {
-  CameraIcon,
-  EraserIcon,
-  IdCardIcon,
-  InfoIcon,
-  MapPinIcon,
-  MinusCircleIcon,
-  ShieldCheckIcon,
-  TruckIcon,
-  UserIcon,
-} from '@/components/icons';
+import { CameraIcon, CloseIcon, EraserIcon, InfoIcon } from '@/components/icons';
+import { onlyDigits } from '@/lib/input-masks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -30,10 +21,12 @@ import {
   GlassModal,
   GlassSelect,
   SpectrumButton,
+  Spinner,
   WizardSteps,
   cn,
 } from '@/management/ui';
 
+import { DriverAvatar } from './driver-avatar';
 import { ACCEPTED_TYPES, prepareDriverPhoto } from '../photo';
 import {
   allowsTruck,
@@ -43,6 +36,7 @@ import {
   digitsOnly,
   driverRegistrationSchema,
   EMPLOYMENT_TYPES,
+  GENDERS,
   UF_LIST,
   formatCep,
   formatCpf,
@@ -96,7 +90,7 @@ const ETAPAS = [
   {
     id: 'identificacao',
     label: 'Identificação',
-    campos: ['name', 'document', 'phone', 'email', 'rg', 'rgIssuer', 'birthDate'],
+    campos: ['name', 'gender', 'document', 'phone', 'email', 'rg', 'rgIssuer', 'birthDate'],
   },
   {
     id: 'habilitacao',
@@ -177,6 +171,14 @@ export function DriverRegistrationModal({
   const corpo = useRef<HTMLDivElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  /**
+   * O preparo da imagem está em curso.
+   *
+   * ⚠️ O corte e a redução rodam **no navegador** e demoram o suficiente para
+   * uma foto de celular de 8 MB: sem este estado, a moldura fica igual entre o
+   * clique e a imagem aparecer, e quem escolheu clica de novo achando que falhou.
+   */
+  const [photoPending, setPhotoPending] = useState(false);
 
   const editing = driverId != null;
 
@@ -215,6 +217,7 @@ export function DriverRegistrationModal({
       hiredAt: ficha.hiredAt ?? '',
 
       rg: ficha.rg ?? '',
+      gender: ficha.gender ?? '',
       rgIssuer: ficha.rgIssuer ?? '',
       birthDate: ficha.birthDate ?? '',
 
@@ -256,7 +259,7 @@ export function DriverRegistrationModal({
     watch,
     setFocus,
     trigger,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<DriverRegistrationValues>({
     resolver: zodResolver(driverRegistrationSchema),
     defaultValues: DEFAULT_DRIVER_FORM,
@@ -270,6 +273,12 @@ export function DriverRegistrationModal({
      *
      * `keepDirtyValues` protege quem já está digitando: sem ele, uma revalidação
      * da consulta no meio da edição jogaria fora o que a pessoa escreveu.
+     *
+     * ⚠️ **Mas ele NÃO fica restrito ao reset que o `values` dispara.** O
+     * react-hook-form mescla este `resetOptions` em toda chamada de `reset`,
+     * então quem quiser limpar de verdade precisa passar
+     * `{ keepDirtyValues: false }` na chamada. É o que `limpar` faz, e foi o
+     * defeito que deixou "Limpar formulário" sem efeito nenhum até 19/09/2026.
      *
      * ⚠️ Espalhado, e não `values: loaded`. O `exactOptionalPropertyTypes` está
      * ligado, e passar `undefined` explicitamente em campo opcional é erro de
@@ -328,9 +337,22 @@ export function DriverRegistrationModal({
     return alvo ? alvo.campos.some((campo) => errors[campo] != null) : false;
   };
 
+  /**
+   * Devolve o formulário ao estado de cadastro novo.
+   *
+   * ⚠️ **`keepDirtyValues: false` explícito, e não é redundância.** O
+   * `resetOptions` lá do `useForm` não vale só para o reset que o `values`
+   * dispara: o react-hook-form mescla essas opções em TODA chamada de `reset`
+   * (`reset(v, o) => _reset(v, { ...options.resetOptions, ...o })`). Sem este
+   * `false`, limpar preservava exatamente os campos que a pessoa tinha
+   * digitado, porque são os dirty, e ainda por cima só os da etapa ABERTA, que
+   * são os únicos montados: as outras etapas limpavam e a da frente não, o que
+   * fazia o botão parecer quebrado. Valia para os três usos daqui: o botão, o
+   * limpar de depois de gravar e o de fechar o diálogo.
+   */
   const limpar = () => {
     irPara('identificacao');
-    reset(DEFAULT_DRIVER_FORM);
+    reset(DEFAULT_DRIVER_FORM, { keepDirtyValues: false });
     setPhoto(null);
     setPhotoError(null);
   };
@@ -347,6 +369,7 @@ export function DriverRegistrationModal({
         cnhExpiresAt: form.cnhExpiresAt,
         hiredAt: emptyToNull(form.hiredAt),
 
+        gender: emptyToNull(form.gender),
         rg: emptyToNull(form.rg),
         rgIssuer: emptyToNull(form.rgIssuer),
         birthDate: emptyToNull(form.birthDate),
@@ -414,11 +437,16 @@ export function DriverRegistrationModal({
   const escolherFoto = async (file: File | undefined) => {
     if (!file) return;
     setPhotoError(null);
+    setPhotoPending(true);
     try {
       setPhoto(await prepareDriverPhoto(file));
     } catch (erro) {
       setPhoto(null);
       setPhotoError(erro instanceof Error ? erro.message : 'Não foi possível usar esta imagem.');
+    } finally {
+      /* No `finally` porque o erro também encerra a espera: preso no `try`, uma
+         imagem recusada deixaria a moldura girando para sempre. */
+      setPhotoPending(false);
     }
   };
 
@@ -513,51 +541,180 @@ export function DriverRegistrationModal({
             </Alert>
           ) : null}
 
-          {/*
-           * Limpar mora no corpo, e não no rodapé (decisão do usuário em
-           * 30/08/2026).
-           *
-           * O rodapé é a barra de decisão do diálogo: sair sem gravar, ou
-           * gravar. Limpar não é nenhuma das duas, é uma ação sobre o formulário,
-           * e ficava lado a lado com elas competindo por um clique que custa
-           * caro. Aqui ela está junto do que de fato apaga, ancorada à direita
-           * do primeiro campo.
-           *
-           * Só em cadastro: na edição não existe "estado limpo" para voltar, o
-           * formulário nasce preenchido com a ficha gravada, e um botão que
-           * zerasse tudo seria uma armadilha.
-           */}
-          {!editing ? (
-            <div className="-mb-4 flex justify-end">
-              <button
-                type="button"
-                onClick={limpar}
-                disabled={isSubmitting || save.isPending}
-                className="text-on-surface-muted hover:text-on-surface hover:bg-on-surface/[0.06] rounded-pill focus-visible:ring-primary text-label-md flex items-center gap-1.5 px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <EraserIcon size={14} aria-hidden="true" />
-                Limpar formulário
-              </button>
-            </div>
-          ) : null}
-
           {etapa === 'identificacao' ? (
-            <Section
-              step={1}
-              title="Identificação"
-              description="O CPF é o que vai casar este cadastro com o motorista da telemetria mais adiante."
-              icon={<UserIcon size={16} aria-hidden="true" />}
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <GlassInput
-                  label="Nome completo"
-                  autoComplete="off"
-                  placeholder="Antônio Ferreira da Silva"
-                  error={errors.name?.message}
-                  {...register('name')}
-                  className="sm:col-span-2"
-                />
+            <Section step={1} title="Identificação">
+              {/*
+               * ⚠️ **O nome divide a linha com a moldura da foto** (pedido do
+               * usuário em 18/09/2026), e o resto dos campos desce para a grade
+               * de duas colunas. Antes a foto era um botão solto no pé da etapa,
+               * depois da data de nascimento: o retrato é a primeira coisa que
+               * identifica alguém, e ele estava no último lugar que o olho visita.
+               */}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:gap-5">
+                {/*
+                 * ⚠️ **Nome, sexo e nascimento na mesma coluna** (pedido do
+                 * usuário em 19/09/2026). São os três traços que o retrato ao
+                 * lado confirma, e juntos alcançam a altura da moldura: antes o
+                 * nome ocupava uma linha só e sobrava um vão embaixo dele, com a
+                 * foto flutuando ao lado de espaço vazio.
+                 */}
+                <div className="flex min-w-0 flex-1 flex-col gap-4">
+                  <GlassInput
+                    label="Nome completo"
+                    autoComplete="off"
+                    placeholder="Antônio Ferreira da Silva"
+                    error={errors.name?.message}
+                    {...register('name')}
+                  />
 
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {/* Opcional de propósito: ninguém que já está no banco tem o
+                        dado, e a telemetria não envia. O vazio é "Não
+                        informado", que não é o mesmo que "Outro". */}
+                    <Controller
+                      control={control}
+                      name="gender"
+                      render={({ field }) => (
+                        <GlassSelect
+                          label="Sexo"
+                          options={[...GENDERS]}
+                          placeholder="Não informado"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          error={errors.gender?.message}
+                        />
+                      )}
+                    />
+
+                    <Controller
+                      control={control}
+                      name="birthDate"
+                      render={({ field }) => (
+                        <GlassDateField
+                          label="Data de nascimento"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          error={errors.birthDate?.message}
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 flex-col gap-1.5">
+                  <span className="text-label-md text-on-surface-variant uppercase">Foto</span>
+
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    accept={ACCEPTED_TYPES}
+                    className="sr-only"
+                    onChange={(event) => {
+                      void escolherFoto(event.target.files?.[0]);
+                      /* Zerar permite reescolher o MESMO arquivo depois de um
+                         erro: sem isto o `change` não dispara na segunda vez. */
+                      event.target.value = '';
+                    }}
+                  />
+
+                  {/*
+                   * A moldura é o botão inteiro, e não um botão ao lado dela.
+                   *
+                   * ⚠️ `glass-well` é o MESMO poço dos campos de texto, e é o que
+                   * faz a moldura pertencer ao formulário em vez de parecer um
+                   * cartão colado nele. Vazia ela fica tracejada, que é o convite
+                   * a clicar; cheia, o traço vira contínuo, porque aí ela já não
+                   * pede nada.
+                   */}
+                  <div className="relative sm:flex-1">
+                    <button
+                      type="button"
+                      onClick={() => fileInput.current?.click()}
+                      disabled={photoPending}
+                      aria-label={
+                        photo || editing
+                          ? 'Trocar a foto do motorista'
+                          : 'Enviar a foto do motorista'
+                      }
+                      className={cn(
+                        'glass-well group focus-visible:ring-primary relative grid size-32 place-items-center overflow-hidden transition-colors focus-visible:outline-none focus-visible:ring-2 sm:h-full sm:w-32',
+                        /*
+                         * ⚠️ O traço tracejado é de 2px e usa `outline`, não
+                         * `outline-variant`. O `variant` é a divisória sutil da
+                         * paleta, feita para separar linha de tabela: a 1px ele
+                         * some, e a moldura deixa de convidar ao clique, que é a
+                         * única função dela enquanto está vazia.
+                         */
+                        /* Tracejado só quando NÃO há o que mostrar. Na edição a
+                         moldura já traz a foto gravada, ou as iniciais de quem
+                         não tem: tracejar ali seria pedir o que já está lá. */
+                        photo || editing
+                          ? 'border-solid'
+                          : 'border-outline hover:border-primary hover:bg-on-surface/[0.05] border-2 border-dashed',
+                        photoPending && 'cursor-progress',
+                      )}
+                    >
+                      {photoPending ? (
+                        <Spinner label="Preparando a foto" />
+                      ) : photo ? (
+                        <img
+                          src={photo}
+                          alt=""
+                          draggable={false}
+                          className="size-full object-cover"
+                        />
+                      ) : editing && driverId ? (
+                        /*
+                         * ⚠️ Na edição a moldura mostra a foto GRAVADA, buscada pela
+                         * rota autenticada. Sem isso ela abriria vazia para quem já
+                         * tem retrato, e a leitura seria "não há foto", quando a
+                         * verdade é que o formulário não carrega os bytes dela.
+                         */
+                        <DriverAvatar
+                          driverId={driverId}
+                          name={values.name || 'Motorista'}
+                          hasPhoto
+                          className="text-body-lg size-full rounded-none"
+                        />
+                      ) : (
+                        <span className="text-on-surface-muted text-label-sm flex flex-col items-center gap-1.5 normal-case">
+                          <CameraIcon size={20} aria-hidden="true" />
+                          Enviar foto
+                        </span>
+                      )}
+
+                      {/* O véu só existe onde já há imagem: na moldura vazia o
+                        convite já está escrito embaixo do ícone. */}
+                      {!photoPending && (photo || editing) ? (
+                        <span className="bg-on-surface/55 text-on-media text-label-sm absolute inset-0 flex flex-col items-center justify-center gap-1 normal-case opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                          <CameraIcon size={18} aria-hidden="true" />
+                          Trocar
+                        </span>
+                      ) : null}
+                    </button>
+
+                    {/*
+                     * ⚠️ **No canto da moldura, e não numa linha embaixo dela.**
+                     * Embaixo, ele só nascia depois de escolher a foto e empurrava
+                     * o bloco para baixo no exato instante em que a imagem
+                     * aparecia: o formulário inteiro dava um pulo. No canto, a
+                     * altura do bloco é a mesma com foto e sem foto.
+                     */}
+                    {photo ? (
+                      <button
+                        type="button"
+                        onClick={() => setPhoto(null)}
+                        aria-label="Remover a foto escolhida"
+                        className="bg-surface-low border-outline-variant text-on-surface-muted hover:border-outline hover:text-on-surface focus-visible:ring-primary absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2"
+                      >
+                        <CloseIcon size={12} aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Controller
                   control={control}
                   name="document"
@@ -593,15 +750,16 @@ export function DriverRegistrationModal({
                   )}
                 />
 
-                <GlassInput
-                  label="E-mail"
-                  type="email"
-                  autoComplete="off"
-                  placeholder="nome@empresa.com.br"
-                  error={errors.email?.message}
-                  {...register('email')}
-                  className="sm:col-span-2"
-                />
+                <div className="sm:col-span-2">
+                  <GlassInput
+                    label="E-mail"
+                    type="email"
+                    autoComplete="off"
+                    placeholder="nome@empresa.com.br"
+                    error={errors.email?.message}
+                    {...register('email')}
+                  />
+                </div>
 
                 <GlassInput
                   label="RG"
@@ -618,83 +776,24 @@ export function DriverRegistrationModal({
                   error={errors.rgIssuer?.message}
                   {...register('rgIssuer')}
                 />
-
-                <Controller
-                  control={control}
-                  name="birthDate"
-                  render={({ field }) => (
-                    <GlassDateField
-                      label="Data de nascimento"
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      error={errors.birthDate?.message}
-                    />
-                  )}
-                />
               </div>
 
-              {/* ------------------------------------------------------------ */}
-              {/* Foto                                                          */}
-              {/* ------------------------------------------------------------ */}
-              <div className="flex flex-wrap items-center gap-3">
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept={ACCEPTED_TYPES}
-                  className="sr-only"
-                  onChange={(event) => {
-                    void escolherFoto(event.target.files?.[0]);
-                    /* Zerar permite reescolher o MESMO arquivo depois de um erro:
-                       sem isto o `change` não dispara na segunda vez. */
-                    event.target.value = '';
-                  }}
-                />
-
-                {/*
-                 * ⚠️ `ghost`, e não `secondary`. O `secondary` é o marinho cheio e
-                 * existe para telas com **duas escolhas equivalentes** (ver a nota
-                 * no `SpectrumButton`); a foto é opcional. Preenchido, este
-                 * botão era o elemento mais forte do diálogo, mais forte que
-                 * "Cadastrar motorista", que é o motivo do diálogo existir.
-                 */}
-                <SpectrumButton
-                  type="button"
-                  variant="ghost"
-                  onClick={() => fileInput.current?.click()}
-                >
-                  <CameraIcon size={15} aria-hidden="true" />
-                  {photo ? 'Trocar foto' : 'Adicionar foto'}
-                </SpectrumButton>
-
-                {photo ? (
-                  <SpectrumButton type="button" variant="ghost" onClick={() => setPhoto(null)}>
-                    <MinusCircleIcon size={15} aria-hidden="true" />
-                    Remover
-                  </SpectrumButton>
-                ) : null}
-
-                <p className="text-on-surface-muted text-label-md normal-case">
-                  {/* Na edição, não escolher foto significa "não mexi". A foto que
-                      já está gravada continua onde está: o formulário abre sem
-                      carregar os bytes dela, e tratar a ausência como remoção
-                      apagaria a foto de quem só corrigiu um telefone. */}
-                  {editing
-                    ? 'Escolha uma imagem só para substituir a atual'
-                    : 'Cortada em quadrado e reduzida aqui no navegador'}
-                </p>
-              </div>
-
+              {/*
+               * ⚠️ A frase "Cortada em quadrado e reduzida aqui no navegador"
+               * saiu a pedido do usuário em 18/09/2026. O comportamento continua:
+               * quem corta e reduz é o `prepareDriverPhoto`, no navegador.
+               *
+               * ⚠️ E a regra da edição segue valendo, agora dita pela moldura em
+               * vez de por uma legenda: não escolher foto significa "não mexi", e
+               * a que está gravada continua onde está. Tratar a ausência como
+               * remoção apagaria a foto de quem só corrigiu um telefone.
+               */}
               {photoError ? <Alert severity="error">{photoError}</Alert> : null}
             </Section>
           ) : null}
 
           {etapa === 'habilitacao' ? (
-            <Section
-              step={2}
-              title="Habilitação"
-              description="Responde a pergunta operacional: esta pessoa pode assumir um caminhão hoje?"
-              icon={<IdCardIcon size={16} aria-hidden="true" />}
-            >
+            <Section step={2} title="Habilitação">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Controller
                   control={control}
@@ -723,14 +822,25 @@ export function DriverRegistrationModal({
                   )}
                 />
 
-                <GlassInput
-                  label="Registro da CNH"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="12345678901"
-                  hint="11 dígitos, do documento"
-                  error={errors.cnhNumber?.message}
-                  {...register('cnhNumber')}
+                {/* Mesmo motivo do PIS: o `inputMode` é dica de teclado, não
+                    regra. O envio já limpava com `digitsOnly`, então a letra
+                    digitada sumia ao salvar sem nunca ter sido recusada. */}
+                <Controller
+                  control={control}
+                  name="cnhNumber"
+                  render={({ field }) => (
+                    <GlassInput
+                      label="Registro da CNH"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="12345678901"
+                      hint="11 dígitos, do documento"
+                      error={errors.cnhNumber?.message}
+                      value={field.value}
+                      onChange={(event) => field.onChange(onlyDigits(event.target.value, 11))}
+                      onBlur={field.onBlur}
+                    />
+                  )}
                 />
 
                 <Controller
@@ -781,7 +891,7 @@ export function DriverRegistrationModal({
                   render={({ field }) => (
                     <Checkbox
                       label="Tem EAR na CNH"
-                      description="Exerce Atividade Remunerada. Sem a observação, dirigir profissionalmente é infração grave, mesmo com a categoria certa."
+                      hint="Exerce Atividade Remunerada. Sem a observação, dirigir profissionalmente é infração grave, mesmo com a categoria certa."
                       checked={field.value}
                       onCheckedChange={(marcado) => field.onChange(marcado === true)}
                       className="sm:col-span-2"
@@ -814,12 +924,7 @@ export function DriverRegistrationModal({
           ) : null}
 
           {etapa === 'aptidao' ? (
-            <Section
-              step={3}
-              title="Aptidão"
-              description="As duas datas que tiram o caminhão da rua. Vencido não dirige, e a empresa responde junto."
-              icon={<ShieldCheckIcon size={16} aria-hidden="true" />}
-            >
+            <Section step={3} title="Aptidão">
               <div className="grid gap-4 sm:grid-cols-2">
                 {/* ⚠️ Obrigatório por lei para C, D e E, com validade de dois anos
                     e meio. É a data que mais tira caminhão da rua depois da CNH. */}
@@ -869,12 +974,7 @@ export function DriverRegistrationModal({
           ) : null}
 
           {etapa === 'contato' ? (
-            <Section
-              step={4}
-              title="Contato e endereço"
-              description="Quem avisar se acontecer alguma coisa na estrada, e onde a pessoa mora."
-              icon={<MapPinIcon size={16} aria-hidden="true" />}
-            >
+            <Section step={4} title="Contato e endereço">
               <div className="grid gap-4 sm:grid-cols-2">
                 <GlassInput
                   label="Contato de emergência"
@@ -968,6 +1068,7 @@ export function DriverRegistrationModal({
                         { value: '', label: 'Não informado' },
                         ...UF_LIST.map((uf) => ({ value: uf, label: uf })),
                       ]}
+                      placeholder="Não informado"
                       value={field.value}
                       onValueChange={field.onChange}
                     />
@@ -978,12 +1079,7 @@ export function DriverRegistrationModal({
           ) : null}
 
           {etapa === 'vinculo' ? (
-            <Section
-              step={5}
-              title="Vínculo com a operação"
-              description="Em que empresa a pessoa trabalha e desde quando. Tudo opcional."
-              icon={<TruckIcon size={16} aria-hidden="true" />}
-            >
+            <Section step={5} title="Vínculo com a operação">
               <div className="grid gap-4 sm:grid-cols-2">
                 {companyOptions.length > 1 ? (
                   <Controller
@@ -1010,6 +1106,7 @@ export function DriverRegistrationModal({
                     <GlassSelect
                       label="Vínculo"
                       options={[...EMPLOYMENT_TYPES]}
+                      placeholder="Não informado"
                       value={field.value}
                       onValueChange={field.onChange}
                     />
@@ -1025,14 +1122,26 @@ export function DriverRegistrationModal({
                   {...register('employeeNumber')}
                 />
 
-                <GlassInput
-                  label="PIS/PASEP"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="12345678901"
-                  hint="11 dígitos"
-                  error={errors.pis?.message}
-                  {...register('pis')}
+                {/* ⚠️ `Controller`, e não `register`: o `inputMode` só muda o
+                    TECLADO do celular, e no computador o campo continuava
+                    aceitando letra. Quem digita PIS está copiando de um
+                    documento, e letra ali é sempre erro. */}
+                <Controller
+                  control={control}
+                  name="pis"
+                  render={({ field }) => (
+                    <GlassInput
+                      label="PIS/PASEP"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="12345678901"
+                      hint="11 dígitos"
+                      error={errors.pis?.message}
+                      value={field.value}
+                      onChange={(event) => field.onChange(onlyDigits(event.target.value, 11))}
+                      onBlur={field.onBlur}
+                    />
+                  )}
                 />
 
                 {/* Preenchida junto da inativação: é o que responde "desde
@@ -1080,7 +1189,7 @@ export function DriverRegistrationModal({
                 render={({ field }) => (
                   <Checkbox
                     label="Disponível para escala"
-                    description="Desmarque para quem ainda não começou ou está afastado."
+                    hint="Desmarque para quem ainda não começou ou está afastado."
                     checked={field.value}
                     onCheckedChange={(marcado) => field.onChange(marcado === true)}
                     onBlur={field.onBlur}
@@ -1118,14 +1227,53 @@ export function DriverRegistrationModal({
         <div className="border-outline-variant bg-surface-low flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t px-5 py-4 sm:px-6">
           {/* Escondido no estreito: em 390px de largura o texto ocupa três
               linhas e rouba a altura que o formulário não tem de sobra. */}
-          <p className="text-on-surface-muted text-label-md hidden min-w-0 items-start gap-1.5 normal-case sm:flex">
-            <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-            {avancando
-              ? `Etapa ${indiceDaEtapa + 1} de ${ETAPAS.length}`
-              : editing
-                ? 'Salvar congela este cadastro para a sincronização'
-                : 'Ao gravar, o formulário limpa e o diálogo continua aberto para a próxima pessoa'}
-          </p>
+          {/*
+           * ⚠️ O "Ao gravar, o formulário limpa e o diálogo continua aberto"
+           * saiu em 18/09/2026, a pedido do usuário. **O comportamento
+           * continua**: gravar um cadastro novo limpa os campos e mantém o
+           * diálogo, para quem está cadastrando uma fila de pessoas. O que saiu
+           * foi o anúncio, e por isso o rodapé pode ficar sem texto.
+           */}
+          {/* ⚠️ Só a etapa. O "Salvar congela este cadastro para a sincronização"
+              saiu em 19/09/2026, a pedido do usuário, e não volta: o mesmo aviso
+              já é a descrição do diálogo, logo abaixo do título, e repeti-lo no
+              rodapé dizia duas vezes a mesma coisa na mesma tela. */}
+          {avancando ? (
+            <p className="text-on-surface-muted text-label-md hidden min-w-0 items-start gap-1.5 normal-case sm:flex">
+              <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {`Etapa ${indiceDaEtapa + 1} de ${ETAPAS.length}`}
+            </p>
+          ) : null}
+
+          {/*
+           * ⚠️ **Limpar vive no rodapé, à ESQUERDA, e só depois que alguém
+           * digitou** (pedido do usuário em 19/09/2026).
+           *
+           * Ele nasceu aqui, foi para o corpo em 30/08/2026 para não competir
+           * com Fechar e Gravar, e volta agora sem o problema que o tirou: no
+           * corpo ele consumia uma linha inteira acima do primeiro campo, em
+           * TODA abertura do diálogo, inclusive no formulário em branco, onde
+           * não há nada para limpar. Aqui ele fica do lado oposto às ações de
+           * decisão, sobre espaço que já existia, e some quando não tem função.
+           *
+           * `isDirty` do react-hook-form compara com os valores iniciais:
+           * digitar e apagar devolve o botão ao estado escondido.
+           *
+           * Só em cadastro: na edição não existe "estado limpo" para voltar, o
+           * formulário nasce com a ficha gravada, e um botão que zerasse tudo
+           * seria uma armadilha.
+           */}
+          {!editing && isDirty ? (
+            <button
+              type="button"
+              onClick={limpar}
+              disabled={isSubmitting || save.isPending}
+              className="text-on-surface-muted hover:text-on-surface hover:bg-on-surface/[0.06] rounded-pill focus-visible:ring-primary text-label-md flex shrink-0 items-center gap-1.5 px-3 py-1.5 normal-case transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <EraserIcon size={14} aria-hidden="true" />
+              Limpar formulário
+            </button>
+          ) : null}
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {/*
@@ -1138,7 +1286,10 @@ export function DriverRegistrationModal({
              */}
             <SpectrumButton
               type="button"
-              variant="ghost"
+              /* ⚠️ A variante acompanha o RÓTULO: vermelho só quando o botão
+                 fecha e descarta o que foi digitado. Voltar uma etapa não perde
+                 nada, e pintá-lo de vermelho assustaria à toa. */
+              variant={indiceDaEtapa > 0 ? 'neutral' : 'danger'}
               onClick={indiceDaEtapa > 0 ? anterior : () => onOpenChange(false)}
               disabled={isSubmitting || save.isPending}
             >
@@ -1191,47 +1342,31 @@ const emptyToNull = (input: string): string | null => {
  * identificar a pessoa, conferir se ela pode dirigir e ligar à operação. Quem
  * chega na seção 2 sabe quanto falta.
  */
+/**
+ * Uma etapa do formulário.
+ *
+ * ⚠️ **Sem cabeçalho visível desde 18/09/2026**, a pedido do usuário. Cada etapa
+ * abria com um ícone e uma frase explicando por que ela existe, e as cinco
+ * frases juntas custavam a altura do diálogo: quem já sabe o que é "Aptidão"
+ * pagava a explicação toda vez que voltava para corrigir um campo.
+ *
+ * O `legend` continua, e é `sr-only`: quem ouve a tela precisa saber em que
+ * grupo está, e a barra de etapas acima não chega a ele como contexto do campo.
+ */
 function Section({
   step,
   title,
-  description,
-  icon,
   children,
   className,
 }: {
   step: number;
   title: string;
-  description: string;
-  icon: ReactNode;
   children: ReactNode;
   className?: string | undefined;
 }) {
   return (
     <fieldset className={cn('flex min-w-0 flex-col gap-4 border-0 p-0', className)}>
       <legend className="sr-only">{`Etapa ${step}: ${title}`}</legend>
-
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden="true"
-          className="bg-primary-strong/10 text-primary-strong ring-primary-strong/20 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ring-1"
-        >
-          {icon}
-        </span>
-
-        {/*
-         * ⚠️ Só a descrição, sem repetir o título.
-         *
-         * O nome da etapa está na barra logo acima, e dizer "Aptidão" duas
-         * vezes em quatro centímetros gasta a altura que este redesenho existe
-         * para poupar. A descrição fica porque ela não está em lugar nenhum:
-         * é ela que explica por que a etapa importa.
-         *
-         * O `step` continua no componente para o `legend`, que é o que dá nome
-         * ao grupo para leitor de tela.
-         */}
-        <p className="text-on-surface-variant text-body-md min-w-0">{description}</p>
-      </div>
-
       {children}
     </fieldset>
   );

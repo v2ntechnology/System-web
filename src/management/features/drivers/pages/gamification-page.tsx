@@ -23,8 +23,16 @@ import { MEDAL_COLOR, MEDAL_LABEL } from '../medals';
 
 const km = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 
-/** Cinquenta por página, como nas outras listas longas do painel. */
-const POR_PAGINA = 50;
+/**
+ * Quinze por página.
+ *
+ * ⚠️ **Eram cinquenta, e com isso a paginação nunca aparecia** (ajustado em
+ * 19/09/2026, a pedido do usuário): a classificação tem 32 motoristas com nota,
+ * cabia numa página só, e o componente se esconde quando há uma página apenas.
+ * Quinze também melhora a leitura, porque a primeira página passa a ser o topo
+ * da classificação, que é a pergunta que a tela responde.
+ */
+const POR_PAGINA = 15;
 
 /** Só entra na classificação quem tem nota: sem nota não há posição. */
 const comNota = (driver: Driver): driver is Driver & { score: number } => driver.score != null;
@@ -136,17 +144,13 @@ export function GamificationPage() {
         description="Quem está dirigindo melhor no mês e no ano, pelo score de condução da telemetria."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Resumo da disputa</h2>
 
-        {/* A subida fica nos cards, e não na seção: em volta do `QueryState` ela
-            jogaria o carregamento e o erro por cima da faixa colorida. */}
         <QueryState isPending={isPending} isError={isError} label="a classificação">
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+          <HeroStats items={stats} className="mb-6" />
         </QueryState>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
         {/* ⚠️ O pódio mora DENTRO do painel, e não num cartão de vidro sobre o
             papel: ele é o assunto da tela, e o painel é onde o assunto mora nas
             outras rotas. A ficha continua na tela de motoristas, então o cartão

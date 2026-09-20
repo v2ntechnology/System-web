@@ -366,16 +366,6 @@ export function DriverRegistryPage() {
         </button>
       </HeroBand>
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
-        <h2 className="sr-only">O tamanho do cadastro</h2>
-
-        <QueryState isPending={isPending} isError={isError} label="os motoristas">
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
-              ela jogaria o carregamento e o erro por cima da faixa colorida. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
-        </QueryState>
-      </section>
-
       {/*
        * ⚠️ Painel branco, como na irmã `/gestao/caminhoes/cadastro` e nas demais
        * rotas do painel (08/09/2026). A tela abria três `GlassCard` empilhados
@@ -386,7 +376,13 @@ export function DriverRegistryPage() {
        * aqui dentro, separados por espaço e por uma divisória, que é como o
        * painel separa sem empilhar caixa.
        */}
-      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
+        <h2 className="sr-only">O tamanho do cadastro</h2>
+
+        <QueryState isPending={isPending} isError={isError} label="os motoristas">
+          <HeroStats items={stats} className="mb-6" />
+        </QueryState>
+
         <QueryState isPending={isPending} isError={isError} label="os motoristas">
           <>
             {/* ---------------------------------------------------------- */}
@@ -872,7 +868,7 @@ function ConfirmToggle({
         ) : null}
 
         <div className="flex items-center justify-end gap-2">
-          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          <SpectrumButton type="button" variant="danger" onClick={onCancel} disabled={pending}>
             Cancelar
           </SpectrumButton>
           <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>
@@ -935,7 +931,7 @@ function ConfirmDelete({
         </Alert>
 
         <div className="flex items-center justify-end gap-2">
-          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          <SpectrumButton type="button" variant="danger" onClick={onCancel} disabled={pending}>
             Cancelar
           </SpectrumButton>
           <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>

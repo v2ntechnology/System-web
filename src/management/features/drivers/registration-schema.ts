@@ -125,6 +125,21 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * mensal, agregado e terceiro são pagamento por viagem. Sem o campo, custo por
  * km soma coisas que não se somam.
  */
+/**
+ * Sexo, para o cadastro.
+ *
+ * ⚠️ **Opcional, e o vazio é "Não informado", não "Outro".** Ninguém que já
+ * está no banco tem o dado, e a telemetria não envia: exigir aqui travaria a
+ * edição de toda ficha antiga, porque o formulário grava a ficha inteira de uma
+ * vez. Os três valores são os que o banco aceita no CHECK de `drivers.gender`.
+ */
+export const GENDERS = [
+  { value: '', label: 'Não informado' },
+  { value: 'FEMININO', label: 'Feminino' },
+  { value: 'MASCULINO', label: 'Masculino' },
+  { value: 'OUTRO', label: 'Outro' },
+];
+
 export const EMPLOYMENT_TYPES = [
   { value: '', label: 'Não informado' },
   { value: 'CLT', label: 'CLT' },
@@ -201,6 +216,7 @@ export const driverRegistrationSchema = z.object({
   /* Identificação                                                     */
   /* ---------------------------------------------------------------- */
 
+  gender: z.string(),
   rg: z.string().max(20, 'RG muito longo.'),
   rgIssuer: z.string().max(20, 'Órgão emissor muito longo.'),
   birthDate: z.string().refine((v) => v === '' || ISO_DATE.test(v), 'Data inválida.'),
@@ -277,6 +293,7 @@ export const DEFAULT_DRIVER_FORM: DriverRegistrationValues = {
   cnhCategory: 'E',
   cnhExpiresAt: '',
   hiredAt: '',
+  gender: '',
   rg: '',
   rgIssuer: '',
   birthDate: '',

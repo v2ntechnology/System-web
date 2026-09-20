@@ -206,12 +206,13 @@ export function DriversPage() {
       {/* -------------------------------------------------------------------
        * Resumo da equipe, pódio e jornada
        * ----------------------------------------------------------------- */}
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      {/* -------------------------------------------------------------------
+       * Painel claro: abas flutuantes + lista e ficha
+       * ----------------------------------------------------------------- */}
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Ranking e resumo da equipe</h2>
 
-        {/* A subida fica nos cards, e não na seção: em volta do conteúdo ela
-            jogaria carregamento e erro por cima da faixa colorida. */}
-        <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
+        <HeroStats items={stats} className="mb-6" />
 
         {/*
          * A jornada é a informação com PRAZO desta tela: score e ranking podem
@@ -246,12 +247,7 @@ export function DriversPage() {
             </p>
           </div>
         ) : null}
-      </section>
 
-      {/* -------------------------------------------------------------------
-       * Painel claro: abas flutuantes + lista e ficha
-       * ----------------------------------------------------------------- */}
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={tabsWithCounts}
           value={tab}
