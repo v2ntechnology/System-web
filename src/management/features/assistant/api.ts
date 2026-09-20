@@ -151,9 +151,18 @@ export interface VoiceTurn {
 
 /** Uma linha do fluxo da conversa falada. */
 interface VoiceEventDto {
-  type: 'consulting' | 'answer' | 'voice';
+  type: 'consulting' | 'answer' | 'voice' | 'farewell';
   /** Só no evento 'voice': o gênero que a tela deve passar a usar. */
   gender?: 'FEMININA' | 'MASCULINA';
+  /**
+   * Só no evento 'voice': a voz exata que deve assumir.
+   *
+   * ⚠️ Quem escolhe é o SERVIDOR, desde 19/09/2026, e a tela obedece. O nome que
+   * ela fala na confirmação ("agora eu sou o Diego") é o desta voz, e é escrito
+   * antes de a tela aplicar nada: se a tela sorteasse outra, o nome dito e o
+   * timbre ouvido seriam de vozes diferentes.
+   */
+  voiceId?: string;
   answer?: string;
   sources?: string[];
   millis?: number;
@@ -194,21 +203,37 @@ export async function converse(
    * ⚠️ Chega ANTES da resposta, de propósito: a tela troca a voz e só então
    * sintetiza a confirmação, que por isso já sai na voz nova.
    */
-  onVoiceChange?: (genero: 'FEMININA' | 'MASCULINA') => void,
+  onVoiceChange?: (genero: 'FEMININA' | 'MASCULINA', voiceId?: string) => void,
   /**
    * O timbre no ar agora, que é o nome pelo qual ela se apresenta: Lia na voz
    * feminina, Dexter na masculina. Ver `voiceGender` em `AskOptions`.
    */
   voiceGender?: VoiceGender,
+  /** A voz que está falando agora, para o servidor saber o nome dela. */
+  voiceId?: string,
 ): Promise<{
   text: string;
   sources: string[];
   chart?: AssistantAnswer['chart'];
   table?: AssistantTable;
+  /**
+   * A pessoa se despediu, e este é o último turno.
+   *
+   * ⚠️ Vem no RESULTADO, e não num callback como a troca de voz, porque as duas
+   * coisas acontecem em momentos opostos: a voz precisa mudar ANTES da síntese,
+   * e o encerramento só pode valer DEPOIS que a despedida terminar de tocar. Um
+   * callback aqui chegaria com a frase ainda por falar, e quem o atendesse na
+   * hora cortaria o "até amanhã" no meio.
+   */
+  farewell: boolean;
 }> {
   if (env.enableMocks) {
     const { answer } = await mockAssistant.ask(question, undefined, false);
-    return { text: answer.text, sources: answer.source ? [answer.source] : [] };
+    return {
+      text: answer.text,
+      sources: answer.source ? [answer.source] : [],
+      farewell: false,
+    };
   }
 
   const response = await httpStream('/v1/assistant/voice', {
@@ -218,6 +243,7 @@ export async function converse(
       history,
       ...(conversationId ? { conversationId } : {}),
       ...(voiceGender ? { voiceGender } : {}),
+      ...(voiceId ? { voiceId } : {}),
     }),
   });
 
@@ -234,7 +260,11 @@ export async function converse(
     sources: string[];
     chart?: AssistantAnswer['chart'];
     table?: AssistantTable;
+    farewell: boolean;
   } | null = null;
+  /* A despedida chega antes da resposta, então precisa esperar por ela aqui
+     fora: quando o evento passa, o resultado ainda não existe. */
+  let despediu = false;
 
   for (;;) {
     const { done, value } = await reader.read();
@@ -248,13 +278,15 @@ export async function converse(
       if (!linha.trim()) continue;
       const evento = JSON.parse(linha) as VoiceEventDto;
       if (evento.type === 'consulting') onConsulting?.();
-      if (evento.type === 'voice' && evento.gender) onVoiceChange?.(evento.gender);
+      if (evento.type === 'voice' && evento.gender) onVoiceChange?.(evento.gender, evento.voiceId);
+      if (evento.type === 'farewell') despediu = true;
       if (evento.type === 'answer') {
         resultado = {
           text: evento.answer ?? '',
           sources: evento.sources ?? [],
           ...(evento.chart ? { chart: evento.chart } : {}),
           ...(evento.table ? { table: evento.table } : {}),
+          farewell: despediu,
         };
       }
     }

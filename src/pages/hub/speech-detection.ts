@@ -19,29 +19,41 @@
  * 2. **Persistência.** Um estalo, uma porta ou uma buzina passam de qualquer
  *    limiar por um instante. Só conta como fala o que fica acima do limiar por
  *    {@link MINIMO_DE_FALA_MS} seguidos.
- * 3. **Teto pelo reconhecimento.** É a rede de segurança, e a que garante que a
- *    conversa nunca trava: se já existe pergunta e o reconhecedor de fala não
- *    entrega texto novo há {@link TETO_SEM_TRANSCRICAO_MS}, a pergunta é
- *    processada mesmo que o microfone continue ouvindo barulho. O navegador é
- *    quem sabe distinguir voz de ruído de verdade; quando ele fica calado, não
- *    havia voz.
+ * 3. **Teto de gravação.** É a rede de segurança, e a que garante que a conversa
+ *    nunca trava: por mais que a sala continue barulhenta, a gravação fecha em
+ *    {@link MAXIMO_DE_GRAVACAO_MS} e o que foi capturado segue para transcrição.
  *
- * ⚠️ As duas fontes que a tela já usava continuam valendo, e pelo mesmo motivo
- * de antes: só o volume confundiria ar condicionado com voz, e só a transcrição
- * perderia a pausa curta entre duas frases, porque ela chega em blocos.
+ * <h2>⚠️ Só o VOLUME decide, desde 19/09/2026</h2>
+ *
+ * <p>Até aqui a decisão somava duas fontes: o volume e o texto que a Web Speech
+ * ia entregando enquanto a pessoa falava. A segunda sumiu quando a transcrição
+ * passou para o servidor, e ela tinha de sumir: era justamente a Web Speech que
+ * não funcionava no celular, porque disputava o microfone com o `getUserMedia`
+ * que alimenta este detector.
+ *
+ * <p>O que se perdeu com isso é a rede de segurança de sala barulhenta. Antes,
+ * quando o ruído mantinha o volume acima do limiar, quem encerrava era o
+ * reconhecedor ficando calado, porque ele sabia distinguir voz de barulho. Agora
+ * não há esse juiz, e é por isso que o teto de gravação passou a existir: sem
+ * ele, num pátio barulhento o microfone ficaria aberto para sempre.
  */
 
 /** Quanto tempo de silêncio encerra a fala, quando o ambiente é normal. */
 export const SILENCIO_PARA_ENCERRAR_MS = 2400;
 
 /**
- * Teto de espera pelo reconhecedor, quando já existe pergunta.
+ * O máximo que uma gravação pode durar, tendo alguém falado ou não.
  *
- * Maior que o silêncio comum porque ele só entra em cena quando o volume está
- * mentindo: em sala barulhenta é ele quem encerra, e encerrar cedo demais
- * cortaria a pessoa no meio de uma pausa.
+ * ⚠️ Trinta segundos, e o número tem três donos. O primeiro é a sala barulhenta,
+ * em que o volume nunca desce e nada mais encerraria. O segundo é o provedor: a
+ * rota de transcrição do Google recusa áudio acima de um minuto, e estourar lá
+ * devolveria erro no lugar da pergunta. O terceiro é a conta, porque transcrição
+ * se paga por duração.
+ *
+ * Trinta segundos é muito mais do que uma pergunta falada leva: as perguntas
+ * reais desta tela vivem abaixo de dez.
  */
-export const TETO_SEM_TRANSCRICAO_MS = 4000;
+export const MAXIMO_DE_GRAVACAO_MS = 30000;
 
 /** Sem nenhuma fala por este tempo, a escuta se encerra em vez de ficar aberta. */
 export const ESPERA_SEM_FALA_MS = 15000;
@@ -73,10 +85,6 @@ export interface EntradaDaAmostra {
   /** Nível na faixa da fala, de 0 a 1. */
   nivel: number;
   agora: number;
-  /** Já há texto reconhecido esperando resposta. */
-  temPergunta: boolean;
-  /** Instante em que o reconhecedor entregou texto pela última vez. */
-  ultimaTranscricaoEm: number;
 }
 
 export type DecisaoDaEscuta =
@@ -107,8 +115,17 @@ export function criarDetectorDeFala(abertaEm: number) {
   let calibrando = true;
   let acimaDesde: number | null = null;
   let ultimaFalaEm = abertaEm;
+  /**
+   * Alguém chegou a falar nesta abertura?
+   *
+   * ⚠️ Substitui o `temPergunta` que vinha de fora, da transcrição ao vivo. A
+   * diferença que importa: aquele dizia "o reconhecedor ENTENDEU alguma coisa", e
+   * este diz "houve som com cara de voz". O segundo é mais frouxo, e é o que
+   * sobra quando a transcrição acontece depois, no servidor.
+   */
+  let houveFala = false;
 
-  function amostrar({ nivel, agora, temPergunta, ultimaTranscricaoEm }: EntradaDaAmostra): Leitura {
+  function amostrar({ nivel, agora }: EntradaDaAmostra): Leitura {
     /*
      * Calibragem: os primeiros instantes definem o ambiente.
      *
@@ -132,28 +149,38 @@ export function criarDetectorDeFala(abertaEm: number) {
 
     if (nivel > limiar) {
       acimaDesde ??= agora;
-      if (agora - acimaDesde >= MINIMO_DE_FALA_MS) ultimaFalaEm = agora;
+      if (agora - acimaDesde >= MINIMO_DE_FALA_MS) {
+        ultimaFalaEm = agora;
+        houveFala = true;
+      }
     } else {
       acimaDesde = null;
     }
 
     const falando = acimaDesde !== null && agora - acimaDesde >= MINIMO_DE_FALA_MS;
     const calado = agora - ultimaFalaEm;
-    const semTranscricao = agora - ultimaTranscricaoEm;
 
-    if (
-      temPergunta &&
-      (calado > SILENCIO_PARA_ENCERRAR_MS || semTranscricao > TETO_SEM_TRANSCRICAO_MS)
-    ) {
+    /*
+     * ⚠️ O teto vem PRIMEIRO, e vale mesmo enquanto o volume diz que há alguém
+     * falando. É a única condição que fecha uma sala barulhenta, em que o ruído
+     * mantém o nível acima do limiar e o relógio do silêncio nunca anda.
+     */
+    if (agora - abertaEm > MAXIMO_DE_GRAVACAO_MS) {
+      return { decisao: houveFala ? 'encerrar' : 'desistir', falando, pisoDeRuido, limiar };
+    }
+
+    if (houveFala && calado > SILENCIO_PARA_ENCERRAR_MS) {
       return { decisao: 'encerrar', falando, pisoDeRuido, limiar };
     }
 
     /*
-     * ⚠️ O teto da abertura conta mesmo quando HOUVE som, e não só quando não
-     * houve. Medido em 30/08/2026: com ruído de sala e nenhuma palavra
-     * reconhecida, a tela ficava em "Estou ouvindo" para sempre.
+     * Ninguém falou desde a abertura: fecha sem gastar transcrição.
+     *
+     * ⚠️ Isto é o que impede a tela de ficar em "Estou ouvindo" para sempre
+     * quando a pessoa abriu o microfone e saiu, e agora também evita mandar ao
+     * provedor quinze segundos de silêncio, que seriam pagos para voltar vazios.
      */
-    if (!temPergunta && agora - abertaEm > ESPERA_SEM_FALA_MS) {
+    if (!houveFala && agora - abertaEm > ESPERA_SEM_FALA_MS) {
       return { decisao: 'desistir', falando, pisoDeRuido, limiar };
     }
 

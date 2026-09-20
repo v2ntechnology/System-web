@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   criarDetectorDeFala,
   nivelDaFaixaDeFala,
+  MAXIMO_DE_GRAVACAO_MS,
   SILENCIO_PARA_ENCERRAR_MS,
-  TETO_SEM_TRANSCRICAO_MS,
 } from './speech-detection';
 
 /**
@@ -13,29 +13,24 @@ import {
  * Estes testes existem porque o defeito que eles cobrem NÃO aparece no teste
  * manual: quem testa está sentado numa sala silenciosa, e ali o limiar fixo
  * antigo funcionava. O relato veio de quem usa em pátio e em oficina.
+ *
+ * ⚠️ Reescritos em 19/09/2026, quando a transcrição passou para o servidor. Os
+ * cenários continuam os mesmos, porque são os da vida real; o que sumiu foi a
+ * segunda fonte de decisão. Antes o detector recebia de fora "o reconhecedor já
+ * entendeu alguma coisa", e era isso que encerrava a fala em sala barulhenta.
+ * Agora só existe o volume, e quem fecha o caso barulhento é o teto de gravação.
  */
 
 /** Roda o detector por um trecho de tempo, a 60 amostras por segundo. */
 function rodar(
   detector: ReturnType<typeof criarDetectorDeFala>,
-  opcoes: {
-    de: number;
-    ate: number;
-    nivel: (agora: number) => number;
-    temPergunta?: boolean;
-    ultimaTranscricaoEm?: number;
-  },
+  opcoes: { de: number; ate: number; nivel: (agora: number) => number },
 ) {
   const passo = 16;
   let ultima = null as ReturnType<typeof detector.amostrar> | null;
 
   for (let agora = opcoes.de; agora <= opcoes.ate; agora += passo) {
-    ultima = detector.amostrar({
-      nivel: opcoes.nivel(agora),
-      agora,
-      temPergunta: opcoes.temPergunta ?? false,
-      ultimaTranscricaoEm: opcoes.ultimaTranscricaoEm ?? opcoes.de,
-    });
+    ultima = detector.amostrar({ nivel: opcoes.nivel(agora), agora });
     if (ultima.decisao !== 'continuar') return { ...ultima, em: agora };
   }
   return { ...ultima!, em: opcoes.ate };
@@ -45,17 +40,13 @@ describe('detecção de fala', () => {
   it('encerra a fala depois do silêncio, em sala silenciosa', () => {
     const detector = criarDetectorDeFala(0);
 
-    // Fala até 2000ms, com a transcrição chegando junto.
-    rodar(detector, { de: 0, ate: 2000, nivel: () => 0.4 });
-    detector.marcarFala(2000);
-
-    const fim = rodar(detector, {
-      de: 2016,
-      ate: 8000,
-      nivel: () => 0.01,
-      temPergunta: true,
-      ultimaTranscricaoEm: 2000,
-    });
+    /* ⚠️ O silêncio inicial não é enfeite: os primeiros 350ms CALIBRAM a sala, e
+       o que separa fala de ruído é o quanto o nível sobe acima do que foi medido
+       ali. Começar o teste já com a pessoa falando ensina ao detector que aquele
+       volume é o ambiente, e aí nada mais passa por fala. */
+    rodar(detector, { de: 0, ate: 400, nivel: () => 0.01 });
+    rodar(detector, { de: 416, ate: 2000, nivel: () => 0.4 });
+    const fim = rodar(detector, { de: 2016, ate: 8000, nivel: () => 0.01 });
 
     expect(fim.decisao).toBe('encerrar');
     expect(fim.em - 2000).toBeGreaterThanOrEqual(SILENCIO_PARA_ENCERRAR_MS);
@@ -66,71 +57,49 @@ describe('detecção de fala', () => {
     const detector = criarDetectorDeFala(0);
 
     /* Pátio: ruído de fundo em 0,30, MUITO acima do limiar fixo antigo (0,055).
-       Com ele, o relógio do silêncio nunca andava e a pergunta não era
-       processada. */
-    const ruido = () => 0.3 + Math.sin(Date.now()) * 0;
+       A pessoa fala por cima dele e depois se cala; o ruído continua. */
+    rodar(detector, { de: 0, ate: 400, nivel: () => 0.3 });
+    rodar(detector, { de: 416, ate: 1500, nivel: () => 0.85 });
+    const fim = rodar(detector, { de: 1516, ate: 20000, nivel: () => 0.3 });
 
-    rodar(detector, { de: 0, ate: 1500, nivel: ruido });
-    detector.marcarFala(1500);
-
-    const fim = rodar(detector, {
-      de: 1516,
-      ate: 20000,
-      nivel: ruido,
-      temPergunta: true,
-      ultimaTranscricaoEm: 1500,
-    });
-
+    /* O piso adaptativo é o que resolve: ele aprendeu que 0,30 é a sala, então
+       o ruído que sobrou não segura a conversa e o silêncio corre normalmente. */
     expect(fim.decisao).toBe('encerrar');
-    expect(fim.em - 1500).toBeLessThanOrEqual(TETO_SEM_TRANSCRICAO_MS + 200);
+    expect(fim.em - 1500).toBeLessThanOrEqual(SILENCIO_PARA_ENCERRAR_MS + 500);
   });
 
   it('não confunde estalo com fala', () => {
     const detector = criarDetectorDeFala(0);
 
-    // Sala quieta com uma batida de 60ms, curta demais para ser fala.
+    /* Sala quieta com uma batida de 60ms, curta demais para ser fala: ela não
+       pode fazer o detector achar que houve pergunta. */
     const fim = rodar(detector, {
       de: 0,
-      ate: 6000,
+      ate: 20000,
       nivel: (agora) => (agora >= 3000 && agora < 3060 ? 0.9 : 0.02),
-      temPergunta: true,
-      ultimaTranscricaoEm: 0,
     });
 
-    /* O estalo não pode ter adiado o encerramento: a decisão sai pelo silêncio,
-       e não pelo teto da transcrição. */
-    expect(fim.decisao).toBe('encerrar');
-    expect(fim.em).toBeLessThan(3000);
+    expect(fim.decisao).toBe('desistir');
   });
 
   it('não corta a pessoa na pausa entre duas frases', () => {
     const detector = criarDetectorDeFala(0);
 
     rodar(detector, { de: 0, ate: 1200, nivel: () => 0.5 });
-    detector.marcarFala(1200);
 
-    /* Pausa de 1,2 segundo, menor que o limite, e a fala volta. A transcrição
-       da segunda frase chega em 2600. */
-    const durante = rodar(detector, {
-      de: 1216,
-      ate: 2400,
-      nivel: () => 0.02,
-      temPergunta: true,
-      ultimaTranscricaoEm: 1200,
-    });
+    /* Pausa de 1,2 segundo, menor que o limite: a gravação continua. */
+    const durante = rodar(detector, { de: 1216, ate: 2400, nivel: () => 0.02 });
     expect(durante.decisao).toBe('continuar');
   });
 
   it('desiste quando ninguém falou desde a abertura', () => {
     const detector = criarDetectorDeFala(0);
 
-    const fim = rodar(detector, {
-      de: 0,
-      ate: 20000,
-      nivel: () => 0.02,
-      temPergunta: false,
-    });
+    const fim = rodar(detector, { de: 0, ate: 20000, nivel: () => 0.02 });
 
+    /* ⚠️ `desistir` e não `encerrar`: sem fala, não há o que transcrever, e
+       mandar quinze segundos de silêncio ao provedor seria pago para voltar
+       vazio. */
     expect(fim.decisao).toBe('desistir');
   });
 
@@ -139,16 +108,30 @@ describe('detecção de fala', () => {
 
     // Começa quieto, e a partir de 3s um caminhão liga ao lado.
     rodar(detector, { de: 0, ate: 3000, nivel: () => 0.02 });
-    const leitura = rodar(detector, {
-      de: 3016,
-      ate: 12000,
-      nivel: () => 0.25,
-      temPergunta: true,
-      ultimaTranscricaoEm: 3000,
+    const leitura = rodar(detector, { de: 3016, ate: 12000, nivel: () => 0.25 });
+
+    /* O piso sobe com o ambiente, então o ruído novo deixa de passar por fala e
+       o silêncio volta a correr. */
+    expect(leitura.decisao).toBe('encerrar');
+  });
+
+  it('fecha a gravação no teto, por mais que a pessoa fale', () => {
+    const detector = criarDetectorDeFala(0);
+
+    /* ⚠️ O teto protege três coisas de uma vez: a sala que nunca cala, o limite
+       de um minuto da rota de transcrição, e a conta, porque transcrição se paga
+       por duração. */
+    /* Vozes em volta, indo e vindo: os vales deixam o piso descer e os picos
+       passam do limiar de novo, então o relógio do silêncio reinicia para
+       sempre. É o único caso que nada mais fecharia. */
+    const fim = rodar(detector, {
+      de: 0,
+      ate: MAXIMO_DE_GRAVACAO_MS + 5000,
+      nivel: (agora) => (Math.floor(agora / 300) % 2 === 0 ? 0.9 : 0.05),
     });
 
-    // O piso subiu com o ambiente, então o ruído novo não segura a conversa.
-    expect(leitura.decisao).toBe('encerrar');
+    expect(fim.decisao).toBe('encerrar');
+    expect(fim.em).toBeLessThanOrEqual(MAXIMO_DE_GRAVACAO_MS + 200);
   });
 });
 

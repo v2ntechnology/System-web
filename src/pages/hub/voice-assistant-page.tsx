@@ -17,14 +17,19 @@ import type { VoiceTurn } from '@/management/features/assistant/api';
 import { converse, loadMessages, openVoiceSession } from '@/management/features/assistant/api';
 import { AnswerChart } from '@/management/features/assistant/components/answer-chart';
 import type { AssistantAnswer, AssistantTable } from '@/management/types';
-import { useSpeechRecognition } from '@/management/features/assistant/use-speech-recognition';
 import {
   proximaEspera,
   proximaFalha,
   proximaSaudacao,
   proximoNaoOuvi,
 } from '@/management/features/assistant/voice-phrases';
-import { fetchAssistantVoices, synthesizeAssistantSpeech } from '@/services';
+import {
+  fetchAssistantVoices,
+  fetchMicrophoneConsent,
+  saveMicrophoneConsent,
+  synthesizeAssistantSpeech,
+  transcribeAssistantAudio,
+} from '@/services';
 import type { AssistantVoice, VoiceGender } from '@/services';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -37,6 +42,36 @@ import {
   escolherVoz,
   proximoPassoDoRodizio,
 } from './voice-preference';
+
+/**
+ * Quanto esperar pelo `onstop` do gravador antes de seguir sem ele.
+ *
+ * Mesmo espírito do teto que o reconhecimento tinha: navegador de celular às
+ * vezes engole o evento, e conversa travada é pior que pergunta cortada.
+ */
+const TETO_DA_GRAVACAO_MS = 1200;
+
+/**
+ * O formato que este navegador grava.
+ *
+ * ⚠️ Não existe um que sirva a todos, e é por isso que a escolha é feita aqui em
+ * vez de fixada: o Chrome e o Firefox gravam WebM com Opus, e o Safari grava
+ * MP4. Passar um `mimeType` que o navegador não suporta faz o `MediaRecorder`
+ * lançar na construção, e a conversa morreria antes da primeira palavra.
+ *
+ * ⚠️ A string vai junto com o áudio para o servidor, no `Content-Type`, e é ela
+ * que diz ao provedor como decodificar. Mandar o formato errado devolve texto
+ * VAZIO sem erro nenhum, que se lê como "a pessoa não falou".
+ */
+function formatoDeGravacao(): string {
+  const candidatos = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  for (const tipo of candidatos) {
+    if (MediaRecorder.isTypeSupported(tipo)) return tipo;
+  }
+  /* Vazio deixa o navegador escolher, e o `mimeType` real é lido do gravador
+     depois. É melhor que insistir num formato que ele recusou. */
+  return '';
+}
 
 type VoiceStatus = 'idle' | 'listening' | 'processing' | 'consulting' | 'speaking' | 'error';
 
@@ -214,6 +249,24 @@ export default function VoiceAssistantPage() {
    */
   const [genero, setGenero] = useState<VoiceGender>(() => lerGeneroPreferido() ?? 'FEMININA');
   const [trocasFeitas, setTrocasFeitas] = useState(0);
+
+  /**
+   * A resposta desta pessoa ao card de microfone, vinda do servidor.
+   *
+   * ⚠️ São TRÊS estados, e o terceiro é o que justifica o card: `PERMITIDO`,
+   * `NEGADO` e `null`, que é "nunca foi perguntada". Tratar o nulo como recusa
+   * esconderia o card de quem nunca o viu, e a conversa morreria sem explicação.
+   *
+   * ⚠️ E nada disso abre o microfone. Quem abre é o NAVEGADOR, pelo pedido de
+   * permissão dele, que continua acontecendo depois deste card. O que a resposta
+   * guardada evita é repetir a explicação em cada aparelho novo.
+   */
+  const consentimento = useQuery({
+    queryKey: ['microphone-consent'],
+    queryFn: fetchMicrophoneConsent,
+    staleTime: Infinity,
+  });
+  const [cardDoMicrofone, setCardDoMicrofone] = useState(false);
   /* Ref além do estado: quem pede a voz são funções assíncronas, que rodam fora
      do render e não podem esperar o próximo. */
   const vozAtivaRef = useRef<AssistantVoice | null>(null);
@@ -342,10 +395,23 @@ export default function VoiceAssistantPage() {
      cabeçalho mostra qual voz está no ar. */
   const generoEfetivo = generos.includes(genero) ? genero : (generos[0] ?? genero);
 
-  const vozAtiva = useMemo(
-    () => escolherVoz(catalogo ?? [], generoEfetivo, vozesQuery.data?.passo ?? 0),
-    [catalogo, generoEfetivo, vozesQuery.data?.passo],
-  );
+  /**
+   * A voz que o SERVIDOR mandou usar, quando a troca veio por comando falado.
+   *
+   * ⚠️ Ela vence o rodízio local, e é isso que faz o nome bater com o timbre. O
+   * servidor escolhe a voz nova, entrega o nome ao modelo para ele dizer "agora
+   * eu sou o Diego", e manda o id junto: se a tela sorteasse outra aqui, ela
+   * diria um nome e falaria com outra voz, que é o defeito que o usuário apontou
+   * em 19/09/2026. Volta a ser nulo quando a troca vem do botão do cabeçalho,
+   * onde o rodízio continua valendo.
+   */
+  const [vozImposta, setVozImposta] = useState<string | null>(null);
+
+  const vozAtiva = useMemo(() => {
+    const doServidor = (catalogo ?? []).find((v) => v.id === vozImposta);
+    if (doServidor && doServidor.gender === generoEfetivo) return doServidor;
+    return escolherVoz(catalogo ?? [], generoEfetivo, vozesQuery.data?.passo ?? 0);
+  }, [catalogo, generoEfetivo, vozesQuery.data?.passo, vozImposta]);
 
   /*
    * ⚠️ Limpar o cache das frases quando a voz muda é obrigatório. Ele guarda o
@@ -382,9 +448,6 @@ export default function VoiceAssistantPage() {
     lastAnswerRef.current = lastAnswer;
   }, [lastAnswer]);
 
-  /* A transcrição chega por callback e é lida ao encerrar a escuta. Estado aqui
-     provocaria render a cada palavra reconhecida, sem nada mudar na tela. */
-  const transcriptRef = useRef('');
   /**
    * O detector da escuta em andamento, criado a cada abertura do microfone.
    *
@@ -394,17 +457,17 @@ export default function VoiceAssistantPage() {
    */
   const detectorRef = useRef<ReturnType<typeof criarDetectorDeFala> | null>(null);
 
-  /**
-   * Instante em que o RECONHECEDOR entregou texto pela última vez.
-   *
-   * ⚠️ É o sinal mais confiável que existe aqui, e o que salva a conversa em
-   * lugar barulhento: o navegador sabe distinguir voz de ruído, e quando ele
-   * fica calado é porque não havia voz, por mais alto que o microfone esteja
-   * ouvindo.
-   */
-  const ultimaTranscricaoRef = useRef(0);
   /** A conversa está aberta? É o que faz a escuta voltar depois da resposta. */
   const conversationActiveRef = useRef(false);
+  /**
+   * A pessoa se despediu, e o microfone não deve reabrir depois desta fala.
+   *
+   * ⚠️ É um `ref` porque quem precisa dele são os DOIS fins de fala: o da voz
+   * da assistente, em `speakResponse`, e o do dispositivo, em `finishSpeaking`,
+   * que é o caminho de quando a síntese falha. Sem ele, despedir-se com a
+   * ElevenLabs fora do ar deixaria o microfone aberto depois do "até amanhã".
+   */
+  const despedidaRef = useRef(false);
   /** Os turnos desta sessão. Some ao sair da tela, de propósito. */
   const historyRef = useRef<VoiceTurn[]>([]);
   /** Áudio das frases da tela, para não sintetizar a mesma frase duas vezes. */
@@ -422,25 +485,25 @@ export default function VoiceAssistantPage() {
    */
   const ultimaFalaRef = useRef<string | null>(null);
 
-  const speech = useSpeechRecognition({
-    onResult: (texto: string) => {
-      /* ⚠️ ACUMULA, não substitui. Com a sessão contínua o reconhecimento
-         entrega a fala em vários trechos finais, e sobrescrever deixaria só o
-         último pedaço: "e o RTI9F65?" no lugar da pergunta inteira. */
-      transcriptRef.current = `${transcriptRef.current} ${texto}`.trim();
-      ultimaTranscricaoRef.current = Date.now();
-      detectorRef.current?.marcarFala(Date.now());
-    },
-    /*
-     * ⚠️ `onSpeech` marca fala, mas NÃO marca transcrição, e a diferença é o
-     * ponto da correção. O evento do navegador dispara com atividade de áudio,
-     * inclusive barulho; só `onResult` significa que houve palavra reconhecida.
-     * Misturar os dois foi o que deixava a conversa presa em sala barulhenta.
-     */
-    onSpeech: () => {
-      detectorRef.current?.marcarFala(Date.now());
-    },
-  });
+  /**
+   * A gravação da pergunta, que substituiu o reconhecimento do navegador.
+   *
+   * <h2>⚠️ O defeito que isto conserta (19/09/2026)</h2>
+   *
+   * <p>No celular a conversa nunca respondia: a pessoa falava, ouvia "não
+   * entendi" e o microfone reabria, sem fim. A causa era a tela abrir o
+   * microfone DUAS vezes ao mesmo tempo, uma com `getUserMedia` para medir o
+   * volume e outra com a Web Speech API para transcrever. O desktop tolera; o
+   * Android e o iPhone não, porque lá o reconhecedor é serviço do sistema e
+   * precisa do microfone que o `getUserMedia` já segurava. A transcrição vinha
+   * sempre vazia, e o erro que denunciaria isso (`no-speech`) era ignorado de
+   * propósito, porque no desktop ele é ruído normal.
+   *
+   * <p>Agora o `MediaRecorder` grava o MESMO stream que o analisador já usa,
+   * então existe um consumidor só do microfone, e quem transcreve é o servidor.
+   */
+  const gravadorRef = useRef<MediaRecorder | null>(null);
+  const pedacosRef = useRef<Blob[]>([]);
   const waveformRef = useRef<HTMLDivElement>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
   /** Nível de áudio entregue à esfera sem passar por estado do React. */
@@ -603,6 +666,14 @@ export default function VoiceAssistantPage() {
        O sintoma só aparece quando a síntese falha, então passou despercebido
        enquanto a ElevenLabs tinha crédito. `resumeConversation` já confere se
        a conversa continua aberta, então chamar aqui é seguro. */
+    /* ⚠️ A não ser que a fala que acabou tenha sido a DESPEDIDA. Este é o
+       caminho da voz do dispositivo, e sem esta guarda quem se despedisse com a
+       síntese fora do ar ouviria o "até amanhã" e veria o microfone reabrir. */
+    if (despedidaRef.current) {
+      despedidaRef.current = false;
+      endConversation();
+      return;
+    }
     resumeConversation();
   }
 
@@ -760,9 +831,13 @@ export default function VoiceAssistantPage() {
    * pé: a pílula desliza porque segue o gênero no ar, e o contador faz o anel
    * piscar de novo a cada troca.
    */
-  function trocarGenero(novo: VoiceGender) {
+  function trocarGenero(novo: VoiceGender, vozDoServidor?: string) {
     setGenero(novo);
     gravarGeneroPreferido(novo);
+    /* ⚠️ Vindo por comando falado, o servidor manda QUAL voz, e ela vence o
+       rodízio: o nome que ela acabou de dizer é o dessa voz. Pelo botão do
+       cabeçalho não vem id nenhum, e o rodízio segue escolhendo. */
+    setVozImposta(vozDoServidor ?? null);
     setTrocasFeitas((feitas) => feitas + 1);
   }
 
@@ -855,6 +930,7 @@ export default function VoiceAssistantPage() {
         text: resposta,
         chart,
         table,
+        farewell,
       } = await converse(
         pergunta,
         historyRef.current,
@@ -868,7 +944,7 @@ export default function VoiceAssistantPage() {
           setStatus('consulting');
           fillerPlayingRef.current = sayPhrase(proximaEspera(), 'consulting');
         },
-        (novoGenero) => {
+        (novoGenero, vozDoServidor) => {
           /*
            * A troca de timbre pedida por voz.
            *
@@ -876,7 +952,7 @@ export default function VoiceAssistantPage() {
            * cache das frases e sorteia a voz nova. O evento chega antes da
            * resposta, então a confirmação já é falada na voz pedida.
            */
-          trocarGenero(novoGenero);
+          trocarGenero(novoGenero, vozDoServidor);
         },
         /*
          * O timbre no ar, que é o nome pelo qual ela se apresenta: Lia na voz
@@ -887,6 +963,7 @@ export default function VoiceAssistantPage() {
          * `vozAtivaRef` na síntese logo abaixo.
          */
         vozAtivaRef.current?.gender,
+        vozAtivaRef.current?.id,
       );
       if (controller.signal.aborted) return;
 
@@ -899,6 +976,7 @@ export default function VoiceAssistantPage() {
       if (controller.signal.aborted) return;
 
       respostaTexto = resposta;
+      despedidaRef.current = farewell;
       ultimaFalaRef.current = resposta;
       setLastAnswer(resposta);
       /* Dez turnos, e o corte é aqui e não no servidor: a conversa falada não
@@ -936,6 +1014,19 @@ export default function VoiceAssistantPage() {
 
       stopSpeakingAnimation();
       setStatus('idle');
+      /*
+       * A pessoa se despediu: a conversa fecha aqui, e não reabre o microfone.
+       *
+       * ⚠️ DEPOIS do `playBuffer`, nunca antes. O encerramento chega junto com a
+       * resposta, mas aplicá-lo na chegada cortaria o "até amanhã" no meio da
+       * palavra, que é a mesma sensação de queda que a função existe para
+       * evitar. Aqui o áudio já terminou de tocar.
+       */
+      if (despedidaRef.current) {
+        despedidaRef.current = false;
+        endConversation();
+        return;
+      }
       resumeConversation();
     } catch {
       if (!controller.signal.aborted) {
@@ -974,33 +1065,78 @@ export default function VoiceAssistantPage() {
   }
 
   async function finishListening() {
-    stopAudioCapture();
     setStatus('processing');
-    /* O texto vem do reconhecimento, que corre em paralelo à captura de áudio:
-       a captura alimenta a animação da esfera, a transcrição alimenta a
-       pergunta. São duas leituras do mesmo microfone, e nenhuma substitui a
-       outra. */
-    const pergunta = semEco(transcriptRef.current, ultimaFalaRef.current);
-    transcriptRef.current = '';
+
     /*
-     * ⚠️ A resposta só começa depois de o microfone voltar para o sistema.
-     *
-     * `stopAudioCapture` solta o nosso stream, mas o reconhecedor segura o
-     * microfone por conta própria até encerrar de verdade, e no celular isso
-     * demora. Falar por cima disso é o defeito relatado em 06/09/2026: no
-     * iPhone o áudio sai pelo alto-falante da orelha e parece que ela emudeceu,
-     * e nos dois aparelhos a voz dela volta para a captação e vira a próxima
-     * pergunta, com o microfone reabrindo sozinho.
+     * ⚠️ O áudio é colhido ANTES de soltar o stream. `stopAudioCapture` derruba
+     * as trilhas do microfone, e um `MediaRecorder` cuja trilha morreu não
+     * entrega mais o `onstop`: a gravação ficaria pendurada para sempre e a
+     * pergunta nunca sairia, que é o mesmo sintoma que esta mudança veio
+     * consertar.
      */
-    await speech.stop();
+    const audio = await pararGravacao();
+    stopAudioCapture();
+
+    if (!audio || audio.size === 0) {
+      void speakResponse('');
+      return;
+    }
+
+    let pergunta: string;
+    try {
+      const { text } = await transcribeAssistantAudio(audio);
+      /* O corte do eco continua valendo, e agora importa mais: sem fone, o
+         microfone grava a própria assistente, e o que ela disse voltaria como
+         pergunta. Ver `semEco`. */
+      pergunta = semEco(text, ultimaFalaRef.current);
+    } catch {
+      /* Falha de transcrição não pode emudecer a conversa: a frase de "não
+         entendi" já existe e reabre o microfone, que é o desfecho certo para
+         quem está esperando resposta. */
+      pergunta = '';
+    }
+
     void speakResponse(pergunta);
+  }
+
+  /**
+   * Fecha a gravação e devolve o áudio inteiro.
+   *
+   * ⚠️ A promessa resolve no `onstop`, e não no `stop()`: o `MediaRecorder`
+   * ainda entrega o último pedaço depois do pedido, e ler os pedaços antes disso
+   * perde o fim da frase. O teto existe porque navegador de celular às vezes
+   * engole o evento, e uma conversa travada é pior que uma pergunta cortada.
+   */
+  function pararGravacao(): Promise<Blob | null> {
+    const gravador = gravadorRef.current;
+    gravadorRef.current = null;
+    if (!gravador || gravador.state === 'inactive') return Promise.resolve(null);
+
+    return new Promise<Blob | null>((resolve) => {
+      let encerrado = false;
+      const entregar = () => {
+        if (encerrado) return;
+        encerrado = true;
+        const pedacos = pedacosRef.current;
+        pedacosRef.current = [];
+        resolve(pedacos.length === 0 ? null : new Blob(pedacos, { type: gravador.mimeType }));
+      };
+
+      gravador.onstop = entregar;
+      try {
+        gravador.stop();
+      } catch {
+        entregar();
+      }
+      window.setTimeout(entregar, TETO_DA_GRAVACAO_MS);
+    });
   }
 
   async function startListening({ saudar }: { saudar: boolean } = { saudar: true }) {
     setErrorMessage(null);
     setLastAnswer(null);
     setVisualDaVez(null);
-    transcriptRef.current = '';
+    pedacosRef.current = [];
     window.speechSynthesis?.cancel();
 
     if (saudar) {
@@ -1055,23 +1191,48 @@ export default function VoiceAssistantPage() {
       inputAudioContextRef.current = audioContext;
 
       /*
-       * Duas leituras do mesmo microfone, e nenhuma substitui a outra: a captura
-       * de áudio alimenta a animação da esfera, e o reconhecimento alimenta a
-       * pergunta. Sem o reconhecimento a esfera reagiria lindamente a uma
-       * pergunta que ninguém leu.
+       * ⚠️ UMA leitura do microfone, e o gravador divide o mesmo stream com o
+       * analisador. É essa partilha que faz a conversa funcionar no celular:
+       * dois `getUserMedia`, ou um `getUserMedia` mais a Web Speech, brigam pelo
+       * aparelho e um dos dois fica sem áudio.
        */
-      if (speech.supported) {
-        speech.start();
-      } else {
-        setErrorMessage(
-          'Este navegador não transcreve fala. A esfera responde à sua voz, mas a pergunta não chega ao assistente.',
-        );
-      }
+      /*
+       * ⚠️ A gravação é MONO, e isso não é economia: é o que faz a transcrição
+       * funcionar.
+       *
+       * O Chrome entrega o microfone em DOIS canais, e o Google Speech-to-Text
+       * assume um. Para WEBM_OPUS ele compara o que foi declarado com o header
+       * do arquivo e recusa a divergência, com `audio_channel_count 1 must
+       * either be unspecified or match the value in the WEBM OPUS header 2`.
+       * Medido em 19/09/2026: toda pergunta falada no navegador voltava 400 do
+       * Google, virava 503 na nossa rota e a tela dizia "não entendi", como se
+       * o problema fosse a fala da pessoa.
+       *
+       * ⚠️ O caminho é o AudioContext, e não `channelCount: 1` no
+       * `getUserMedia`: aquela restrição é um PEDIDO, que o navegador atende
+       * quando quer, e o aparelho que a ignorasse voltaria ao mesmo erro. Aqui o
+       * downmix é feito por nós, e o que sai do destino tem um canal sempre.
+       *
+       * O mesmo `source` alimenta o analisador e este destino: continua sendo um
+       * microfone só, que é a razão de tudo isto ter mudado.
+       */
+      const destinoMono = audioContext.createMediaStreamDestination();
+      destinoMono.channelCount = 1;
+      destinoMono.channelCountMode = 'explicit';
+      destinoMono.channelInterpretation = 'speakers';
+      source.connect(destinoMono);
+
+      pedacosRef.current = [];
+      const gravador = new MediaRecorder(destinoMono.stream, { mimeType: formatoDeGravacao() });
+      gravador.ondataavailable = (evento) => {
+        if (evento.data.size > 0) pedacosRef.current.push(evento.data);
+      };
+      gravadorRef.current = gravador;
+      gravador.start();
 
       setStatus('listening');
 
       const abertaEm = Date.now();
-      ultimaTranscricaoRef.current = abertaEm;
       /* Um detector por escuta: o piso de ruído é daquela sala, e entre uma
          pergunta e a seguinte a pessoa pode ter saído para o pátio. */
       detectorRef.current = criarDetectorDeFala(abertaEm);
@@ -1106,8 +1267,6 @@ export default function VoiceAssistantPage() {
         const leitura = detectorRef.current?.amostrar({
           nivel: nivelDaFaixaDeFala(frequencyData, audioContext.sampleRate),
           agora,
-          temPergunta: transcriptRef.current.trim().length > 0,
-          ultimaTranscricaoEm: ultimaTranscricaoRef.current,
         });
 
         if (leitura?.decisao === 'encerrar') {
@@ -1181,6 +1340,9 @@ export default function VoiceAssistantPage() {
   function endConversation() {
     closeConversation();
     historyRef.current = [];
+    /* A marca da despedida morre com a conversa: deixá-la de pé faria a próxima
+       encerrar sozinha na primeira resposta. */
+    despedidaRef.current = false;
     /* ⚠️ A conversa encerrada não recebe mais nada (decisão do usuário em
        15/09/2026). Sem soltar o identificador, o próximo "iniciar conversa"
        gravaria os turnos novos dentro da conversa que a pessoa acabou de
@@ -1188,8 +1350,8 @@ export default function VoiceAssistantPage() {
     sessaoIdRef.current = null;
     stopAudioCapture();
     /* Aqui ninguém espera o fim: a conversa acabou, e não há resposta para
-       tocar depois dele. */
-    void speech.stop();
+       tocar depois dele. O áudio gravado até aqui é descartado junto. */
+    void pararGravacao();
     stopSpeaking();
   }
 
@@ -1204,8 +1366,46 @@ export default function VoiceAssistantPage() {
       endConversation();
       return;
     }
+
+    /*
+     * Quem nunca respondeu ao card vê o card primeiro.
+     *
+     * ⚠️ Só quando a resposta é NULA. Quem já disse não continua podendo tentar
+     * de novo pelo botão, porque a recusa de ontem não é uma porta trancada; o
+     * que ela evita é a tela pedir o microfone sem nunca ter explicado por quê.
+     */
+    if (consentimento.data === null && !consentimento.isPending) {
+      setCardDoMicrofone(true);
+      return;
+    }
+
     /* ⚠️ Aqui, e de forma síncrona: é o único instante da conversa em que existe
        um toque da pessoa para o iPhone aceitar. Ver `garantirContextoDeReproducao`. */
+    garantirContextoDeReproducao();
+    void startListening();
+  }
+
+  /**
+   * A pessoa respondeu ao card.
+   *
+   * ⚠️ O "permitir" daqui NÃO abre o microfone: ele grava a decisão e segue para
+   * o pedido do NAVEGADOR, que é quem de fato concede. Por isso o
+   * `garantirContextoDeReproducao` continua neste caminho, e continua síncrono:
+   * este clique é o toque que o iPhone exige para liberar áudio.
+   */
+  function responderAoCard(permite: boolean) {
+    setCardDoMicrofone(false);
+    void saveMicrophoneConsent(permite ? 'PERMITIDO' : 'NEGADO').then(() =>
+      queryClient.invalidateQueries({ queryKey: ['microphone-consent'] }),
+    );
+
+    if (!permite) {
+      setErrorMessage(
+        'Sem o microfone eu não consigo ouvir você. Quando quiser, toque em iniciar conversa de novo.',
+      );
+      return;
+    }
+
     garantirContextoDeReproducao();
     void startListening();
   }
@@ -1569,6 +1769,46 @@ export default function VoiceAssistantPage() {
           </div>
         </section>
       </div>
+
+      {/*
+        O card do microfone, antes do pedido do navegador.
+        ⚠️ Ele EXPLICA e registra a decisão; quem concede o microfone é o
+        navegador, logo depois do "permitir". Por isso o texto não promete
+        acesso: promete o pedido que vem a seguir.
+      */}
+      {cardDoMicrofone ? (
+        <div
+          className="bg-on-surface/40 fixed inset-0 z-[1200] flex items-center justify-center p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titulo-do-microfone"
+        >
+          <div className="bg-light text-on-light w-full max-w-md rounded-3xl p-6 shadow-xl">
+            <div className="bg-primary-strong/10 text-primary-on-light flex size-12 items-center justify-center rounded-2xl">
+              <MicIcon className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h2 id="titulo-do-microfone" className="text-title-md mt-4 font-semibold">
+              Posso usar seu microfone?
+            </h2>
+            <p className="text-on-light-variant text-body-md mt-2 normal-case">
+              É assim que eu ouço suas perguntas. O áudio vai para o RookHub só para virar texto, e
+              não fica guardado depois disso.
+            </p>
+            <p className="text-on-light-muted text-label-md mt-2 normal-case">
+              Ao permitir, seu navegador ainda vai pedir a autorização dele. Sem as duas, eu não
+              consigo ouvir.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => responderAoCard(false)}>
+                Agora não
+              </Button>
+              <Button type="button" variant="brand" onClick={() => responderAoCard(true)}>
+                Permitir microfone
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

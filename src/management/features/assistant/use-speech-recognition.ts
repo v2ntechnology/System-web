@@ -90,6 +90,26 @@ export interface UseSpeechRecognitionOptions {
 /**
  * Ditado por voz sobre a Web Speech API.
  *
+ * <h2>⚠️ SEM USO desde 19/09/2026, e o motivo importa</h2>
+ *
+ * <p>A tela de voz parou de usar este hook porque ele não funcionava no celular,
+ * e o defeito não era dele: a página abria o microfone duas vezes ao mesmo
+ * tempo, uma com {@code getUserMedia} para medir o volume e outra aqui para
+ * transcrever. O desktop tolera; o Android e o iPhone não, porque lá o
+ * reconhecedor é um serviço do sistema e precisa do microfone que o
+ * {@code getUserMedia} já segurava. A transcrição vinha sempre vazia, a tela
+ * dizia "não entendi" e reabria o microfone, sem fim.
+ *
+ * <p>Quem transcreve agora é o servidor, por {@code POST /v1/voice/transcribe},
+ * a partir do áudio que o {@code MediaRecorder} grava do MESMO stream do
+ * analisador. Um consumidor só do microfone, e o mesmo comportamento em qualquer
+ * navegador.
+ *
+ * <p>O arquivo fica porque a Web Speech continua sendo o caminho gratuito e
+ * instantâneo onde ela funciona, e porque um ditado de campo de texto (que não
+ * disputa microfone com ninguém) é o uso natural dele. Quem for reaproveitá-lo
+ * precisa garantir que nada mais esteja com o microfone aberto ao mesmo tempo.
+ *
  * ⚠️ `supported` é falso em boa parte dos navegadores: a API é de rascunho e o
  * Firefox não a implementa. Quem consome **precisa** oferecer o caminho por
  * texto, porque um microfone que não faz nada é pior que microfone nenhum.

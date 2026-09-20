@@ -97,3 +97,91 @@ export async function synthesizeAssistantSpeech(
 
   return audio;
 }
+
+/**
+ * Transcreve no SERVIDOR o áudio gravado pelo navegador.
+ *
+ * <h2>⚠️ Por que a transcrição saiu do navegador</h2>
+ *
+ * Porque no celular ela não acontecia. A tela abria o microfone duas vezes ao
+ * mesmo tempo: uma com `getUserMedia`, para medir o volume e animar a esfera, e
+ * outra com a Web Speech API, para transcrever. O desktop tolera as duas; o
+ * Android e o iPhone não, porque lá o reconhecedor é um serviço do sistema e
+ * precisa do microfone que o `getUserMedia` já estava segurando.
+ *
+ * O efeito era o relatado em 19/09/2026: a pessoa falava, a transcrição vinha
+ * vazia, a tela concluía que não tinha ouvido nada, dizia "não entendi" e
+ * reabria o microfone, para sempre, sem nunca responder. E o erro que
+ * denunciaria isso (`no-speech`) é justamente o que a Web Speech emite o tempo
+ * todo numa sessão contínua, então ele era ignorado de propósito.
+ *
+ * Com a transcrição aqui, sobra um consumidor só do microfone no aparelho, e o
+ * comportamento é o mesmo em qualquer navegador, inclusive no Safari do iPhone,
+ * onde a Web Speech depende do reconhecimento da Apple.
+ *
+ * ⚠️ O corpo é o áudio CRU, e o `Content-Type` é o que o `MediaRecorder`
+ * declarou ter gravado: é assim que o servidor sabe o formato. Não montar
+ * `FormData` aqui é deliberado, porque não há campo nenhum para acompanhar o
+ * arquivo.
+ */
+export async function transcribeAssistantAudio(
+  audio: Blob,
+  options: { signal?: AbortSignal | undefined } = {},
+): Promise<{ text: string; confidence: number | null }> {
+  const token = getAccessToken();
+
+  const response = await fetch(`${env.apiBaseUrl}/v1/voice/transcribe`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': audio.type || 'application/octet-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: audio,
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+
+  if (!response.ok) {
+    throw new ApiError('Não foi possível entender o áudio.', response.status);
+  }
+
+  const payload = (await response.json()) as { text?: string; confidence?: number | null };
+  return { text: payload.text ?? '', confidence: payload.confidence ?? null };
+}
+
+/**
+ * A resposta desta pessoa ao card de microfone.
+ *
+ * ⚠️ `null` significa "ainda não foi perguntada", e é diferente de `NEGADO`. São
+ * três estados, e tratar o primeiro como recusa esconderia o card de quem nunca
+ * o viu.
+ */
+export type MicrophoneConsent = 'PERMITIDO' | 'NEGADO' | null;
+
+export async function fetchMicrophoneConsent(): Promise<MicrophoneConsent> {
+  const token = getAccessToken();
+  const response = await fetch(`${env.apiBaseUrl}/v1/voice/microphone-consent`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!response.ok) return null;
+  const payload = (await response.json()) as { decision?: MicrophoneConsent };
+  return payload.decision ?? null;
+}
+
+/**
+ * Guarda a resposta ao card.
+ *
+ * ⚠️ Gravar `PERMITIDO` NÃO abre o microfone: quem abre é o navegador, e a tela
+ * ainda precisa pedir a ele em seguida. O que fica no banco é a decisão sobre a
+ * aplicação, e é ela que evita repetir o card no próximo aparelho.
+ */
+export async function saveMicrophoneConsent(decision: 'PERMITIDO' | 'NEGADO'): Promise<void> {
+  const token = getAccessToken();
+  await fetch(`${env.apiBaseUrl}/v1/voice/microphone-consent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ decision }),
+  });
+}

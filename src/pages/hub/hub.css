@@ -241,20 +241,38 @@
   padding: 30px 32px 22px;
   text-align: center;
   border: 1px solid #2b262216;
-  border-radius: 210px 210px 34px 34px;
+  /*
+   * ⚠️ **Canto igual nos quatro** (pedido do usuário em 19/09/2026).
+   *
+   * Era `210px 210px 34px 34px`: um arco quase semicircular no topo e cantos
+   * suaves embaixo, e a diferença entre as duas pontas do mesmo cartão saltava
+   * à vista. O raio de baixo, que já estava calibrado, passou a valer para
+   * cima. A linha interna (`::after`) acompanha com os mesmos 6px de folga que
+   * tinha antes.
+   */
+  border-radius: 34px;
   background: linear-gradient(150deg, #ffffffcc, #fffffff0 40%, #fffffffa 85%);
   backdrop-filter: blur(24px);
+  /*
+   * ⚠️ **Sem sombra projetada** (pedido do usuário em 19/09/2026). Eram
+   * `0 30px 80px`, um borrão de 80px em volta do cartão inteiro; o que separa
+   * ele do papel é a borda de 1px, como já vale para a lista de select, o
+   * calendário e o balão de ajuda no painel de gestão.
+   *
+   * As duas `inset` ficam: elas não estão em volta, são o fio de luz que
+   * desenha a borda de cima e da esquerda por dentro, e é o que dá ao cartão o
+   * acabamento de vidro.
+   */
   box-shadow:
     inset 0 1px 0 #ffffff,
-    inset 1px 0 0 #ffffff80,
-    0 30px 80px #2b262117;
+    inset 1px 0 0 #ffffff80;
 }
 .hub-portal::after {
   content: '';
   position: absolute;
   inset: 8px;
   border: 1px solid #2b26220d;
-  border-radius: 205px 205px 28px 28px;
+  border-radius: 28px;
   pointer-events: none;
 }
 .hub-portal-shine {
@@ -508,16 +526,16 @@
   box-shadow:
     inset 0 1px 0 #ffffff59,
     0 4px 15px color-mix(in srgb, var(--hub-primary) 30%, transparent);
-  transition:
-    box-shadow 0.25s,
-    transform 0.25s;
+  transition: box-shadow 0.25s;
 }
-/* Sem o halo laranja no hover (decisão do usuário em 09/09/2026). Ficou só o
-   leve levantar: a sombra de repouso continua valendo, e o botão responde ao
-   mouse sem acender. */
-.hub-cta:hover {
-  transform: translateY(-2px);
-}
+/*
+ * ⚠️ **O botão não se mexe no hover** (pedido do usuário em 19/09/2026).
+ *
+ * Ele subia 2px, e antes disso acendia um halo laranja, que saiu em 09/09/2026.
+ * Quem responde ao mouse aqui é a seta, que gira 45° e já diz "isto leva a algum
+ * lugar": o levantar era um segundo sinal para a mesma coisa, num botão que é o
+ * único elemento clicável do cartão e não precisa se anunciar.
+ */
 .hub-cta-arrow {
   display: grid;
   place-items: center;
