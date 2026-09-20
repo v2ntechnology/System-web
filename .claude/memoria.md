@@ -153,9 +153,255 @@ E o **hub** (`/painel`), a porta protegida sem casca onde dono e gestor escolhem
 - ⚠️ **O ícone da aba é trocado em tempo de execução** (`app/favicon.ts`), porque o `index.html` é o
   mesmo para as duas portas. Os dois `<link rel="icon">` são um par de `prefers-color-scheme`,
   escolhido pelo SISTEMA de quem olha: trocar só um deixa metade das máquinas com o ícone errado.
-- ⚠️ **A porta da equipe tem casca própria** (`PlatformAuthLayout`), uma coluna centrada sobre o
-  fundo `SoffitGradient`, **sem Google e sem o separador "ou"**. Vale **só para o login**: esqueci
-  minha senha, convite e sessão expirada seguem nas duas colunas.
+- ⚠️ **A porta da equipe tem casca própria** (`PlatformAuthLayout`), **sem Google e sem o separador
+  "ou"**. Vale **só para o login**: esqueci minha senha, convite e sessão expirada seguem no
+  `AuthLayout`.
+- ⚠️ **Desde 18/09/2026 ela espelha a forma da porta do cliente** (pedido do usuário): a MESMA grade
+  `lg:grid-cols-[1fr_34rem]`, com a cena no painel da esquerda, em cartão com margem e raio, e o
+  formulário sobre o papel na coluna da direita. **Mexeu na proporção de uma, mexa na outra.** O que
+  ficou para trás foi a coluna centrada no viewport com o gradiente cobrindo a tela.
+- ⚠️ **A cena do painel é o `EmberHusk`, e o painel não tem MAIS NADA de HTML**: sem marca, sem
+  chapéu, sem título e sem scrim, tudo retirado a pedido do usuário no mesmo dia. **A escolha da cena
+  é dele**, e já passou por três propostas minhas recusadas em 15/09 e pelo `SoffitGradient`, que
+  continua no repositório servindo as outras telas. Não propor a próxima por conta própria.
+- ⚠️ **O centro da cena é um REI DE XADREZ, e não a pedra do fornecedor** (decisão do usuário em
+  18/09/2026). Ele nasce por revolução de um perfil (`KING_PROFILE`), é **fatiado em faixas
+  horizontais** e cada faixa é um `Piece`: por isso ele se abre em camadas no cursor, em vez de
+  estourar como caco. A cruz do topo é a MESMA geometria que já flutuava na cena. As peças em volta
+  são peão, cavalo, bispo, torre, dama e rei. ⚠️ **O cavalo é a exceção**: não sai de torno, e é
+  resolvido como num jogo recortado, extrudando o contorno da cabeça numa chapa com espessura. De
+  lado é um cavalo, de frente é uma placa, e nesse tamanho passa; a alternativa era um `.glb` num
+  repositório público.
+- ⚠️ **O rei é inclinado por um GRUPO, nunca pela geometria** (pedido do usuário). Girar a geometria
+  viraria a peça sem virar o eixo em que as fatias fogem, e ele se abriria na vertical com o corpo
+  torto, como pilha de pratos. Por viver dentro do `rig`, a diagonal balança junto com o giro lento
+  da cena. ⚠️ As fatias passaram a ser projetadas e empurradas na matriz DESSE grupo, senão o cursor
+  acerta a peça onde ela estaria sem a inclinação.
+- ⚠️ **O perfil do rei foi desenhado a partir de uma REFERÊNCIA que o usuário trouxe**, e o que
+  importa é a anatomia: o pé tem prato e **bojo arredondado** (base que só afina lê como cone, por
+  mais degraus que tenha, porque o olho procura a barriga), a coluna é côncava, há um colar antes da
+  coroa, e a coroa é uma tulipa que fecha numa boca **com espessura**, com a linha voltando para
+  dentro, senão a parede fica de faca e some de perfil.
+- ⚠️ **O pé são DOIS ANÉIS empilhados** (pedido do usuário), e cada um precisa de **parede reta mais
+  chanfro** para ler como anel: degrau sem parede vira dobra e some a dois metros da tela. O de cima
+  é mais estreito que o de baixo, como pedestal; ao contrário, o pé vira cogumelo.
+- ⚠️ **Colar de contas e gomos da coroa NÃO saem do torno**: são repetição em volta do eixo, não
+  revolução. Vivem no `kingDetails`, cada um declarando o `y` em que mora, e são soldados **na fatia
+  daquela altura, antes de escalar**. Sem isso o detalhe fica numa fatia e a coroa noutra, e eles se
+  separam no ar quando a peça se abre. ⚠️ **O raio deles acompanha o PERFIL naquela altura**: afinar
+  a peça sem trazer as contas junto as deixa boiando em volta da coroa, como anel solto.
+- ⚠️ **A cruz do topo parecia não existir, e era só tamanho.** A 0,15 da altura ela some contra a
+  coroa; hoje está em 0,22. Antes de procurar defeito de montagem numa peça que "sumiu", aumente-a e
+  confira.
+- ⚠️ **A órbita das peças é achatada no eixo da câmera.** Numa distribuição de esfera, um terço delas
+  cai entre a câmera e o centro e projeta em cima do rei, e afastá-las não resolve: elas continuam na
+  frente. Encolher a componente que aponta para o observador é o que transforma o enxame no anel que
+  se vê em volta. ⚠️ E elas são bem menores que as cruzes que substituíram: sólido alto perto da
+  câmera vira estátua em primeiro plano. **96 peças foi demais, 72 é o que a cena comporta.**
+- ⚠️ **`buildHusk` ficou sem uso e continua no arquivo**, porque é contra ele que se compara a versão
+  nova do fornecedor. Junto com ele, `structure.shards`, `irregularity` e `thickness` deixaram de
+  fazer efeito: quem corta agora é o `KING_BANDS`.
+- ⚠️ **Cada peça de xadrez é um `InstancedMesh` próprio**, porque instância desenha uma geometria só.
+  A lista da física (`crossPieces`) continua única e as malhas guardam subconjuntos **por
+  referência**: misturar as listas escreveria a matriz de um peão no índice de uma torre.
+- ⚠️ **`KING_HEIGHT` é a única escala da peça**: perfil, contas, gomos e cruz nascem normalizados e
+  são multiplicados por ele, então mexer ali cresce tudo junto e em proporção. Esticar só a altura
+  exigiria separar o eixo Y, e aí a peça deforma.
+- ⚠️ **Quem limita o tamanho do rei é a PALAVRA, não o enquadramento.** O painel mostra cerca de 1,97
+  para cada lado do centro, mas o "Devs RookHub" ocupa a faixa a partir de -1,12: crescer a peça sem
+  o `KING_LIFT` enfia o pé dela dentro da escrita. ⚠️ O levantamento é do GRUPO, nunca da geometria:
+  as fatias fogem a partir da casa delas, e mover a geometria deslocaria o eixo de fuga, abrindo a
+  peça fora de si mesma.
+- ⚠️ E o `inner` do calor teve de **baixar** junto com o redesenho: o talo é a parte mais fina da
+  peça, e com o valor da esfera a brasa atravessava a pedra e o meio virava névoa, com o sintoma
+  parecendo peça faltando na montagem.
+- ⚠️ **Fatia de torno precisa de TAMPA nos dois cortes.** O `LatheGeometry` devolve casca aberta e o
+  material só desenha a face frontal: sem os pontos de raio zero, olhar a fatia por baixo mostra o
+  vazio da peça, e o corte lê como buraco.
+- ⚠️ **A tela importa o FORK, em `pages/login/ember-husk-scene.tsx`**, e não a cópia do fornecedor em
+  `components/originkit`. A diferença entre os dois é a linha **"Devs RookHub" no rodapé da cena**,
+  amostrada em cubos, um `Piece` por cubo, desencaixando no cursor pela mesma física das lascas.
+  Trocar o import apaga a linha **sem erro nenhum aparecer**.
+- ⚠️ **"Devs" é TEXTO desenhado na hora, e "RookHub" é a ARTE da marca**, os dois no mesmo canvas
+  antes de virarem cubo. Escrever a marca com fonte seria trocar o logotipo por uma imitação: o
+  desenho tem ajuste de letra que fonte nenhuma reproduz. O prefixo usa Sora 700, e o corpo dele sai
+  de **medição** (`actualBoundingBoxAscent` do "D" contra a altura da arte), nunca de uma fração
+  chutada, senão ele desalinha quando a fonte de display mudar. ⚠️ **Esperar `document.fonts.load`
+  antes de medir**: com a Sora ainda vindo, a medida sai da fonte de sistema e o "Devs" nasce torto,
+  sem erro nenhum.
+- ⚠️ **`WORD_WIDTH` é a largura da LINHA INTEIRA**, prefixo incluído, e a célula sai de `cols`, não
+  de `WORD_COLUMNS`. Dividir pelo número errado joga a linha para fora do painel pela direita.
+- ⚠️ **A palavra vive fora do `rig`**, no grupo `word`, porque o `rig` é quem gira e balança com o
+  drift: lá dentro ela sairia de prumo e viraria de costas. Por isso o `proximity` e o `stepPieces`
+  passaram a receber a MATRIZ do grupo: com a do `rig` fixa, o cursor empurraria os cubos a partir de
+  onde eles não estão.
+- ⚠️ **A cena é MARINHO, e não o vermelho de fábrica do componente** (decisão do usuário em
+  18/09/2026). As cores vão por prop, no `EMBER_SCENE` do `login-page.tsx`, e saem de tokens que já
+  existem: `#2A2F9E` é o `--color-secondary-container` da `.saas-theme`, `#4348D9` é o `--ring` dela e
+  `#A0A6FF` é a secundária da rampa escura. É a mesma regra que pinta o backoffice: **porta da equipe
+  é marinho, porta do cliente é terracota.** ⚠️ Hex literal aqui é proposital, porque quem recebe é um
+  shader, que precisa do valor e não da variável de CSS; o `Grainient` do painel do cliente faz igual.
+- ⚠️ **`EMBER_BG` sai do mesmo objeto da cena.** Quando eram dois valores soltos, trocar a cor da cena
+  deixava uma borda de outra cor em volta dela, visível no `no-blur` e no instante antes do primeiro
+  quadro.
+- ⚠️ **A palavra usa o material das CRUZES**, então as duas têm sempre a mesma cor. Dar tinta própria
+  à palavra exige um material separado, com os mesmos uniformes: hoje ela é branca justamente por ser
+  a tinta de maior contraste contra o fundo escuro.
+- ⚠️ **A palavra reage ao cursor MUITO menos que o resto**, a pedido do usuário: metade da força e
+  alcance menor no `stepPieces` dela, mais o `tilt` cortado a 45%. São três coisas diferentes, e
+  confundi-las custa tempo: a força diz o quão LONGE o cubo vai, o alcance diz QUANTOS cubos saem
+  (o tamanho do buraco na palavra), e o `tilt` diz o quanto cada um capota. Com o tombo cheio, a
+  palavra ficava felpuda mesmo com o empurrão curto, porque o que se vê de longe é a face girada.
+  **Ela é o único elemento da cena que precisa continuar legível enquanto se mexe.**
+- ⚠️ **A palavra passa na FRENTE de toda a cena** (pedido do usuário), e são duas linhas juntas:
+  `renderOrder` alto no mesh dela e `clearDepth()` no `onBeforeRender`. Só a ordem não resolve, porque
+  a pedra e o cascalho já gravaram profundidade mais perto da câmera. É a mesma receita que o
+  caminhão 3D do mapa precisou. ⚠️ **Zerar a profundidade é melhor que `depthTest: false`**: sem o
+  teste, os cubos parariam de se cobrir entre si e, no meio da explosão, o que está longe apareceria
+  por cima do que está perto.
+- ⚠️ **`WORD_STRIDE` e `MAX_WORD_PIECES` existem por custo, e o teto baixo já custou legibilidade.**
+  O passo abre sozinho quando a arte rende peça demais, e a 760 ele pulava para 3 assim que o "Devs"
+  entrou: as letras de caixa baixa ficavam com seis células de altura e viravam borrão, que foi
+  exatamente o que o usuário apontou. Hoje o teto é 1600 e o passo fica em 2. ⚠️ **O que torna o teto
+  alto barato está numa linha do `stepPieces`: a projeção na tela, que é a parte cara, só roda
+  enquanto o cursor está sobre o painel.** Parada, cada peça custa quatro contas.
+- ⚠️ **O prefixo é desenhado LETRA POR LETRA, com espaço extra.** A fonte entrega "e", "v" e "s"
+  quase encostados, contando com a suavização da borda para separá-los, e na grade de cubos, que não
+  tem meio-tom, os três viravam um bloco só. O `fillText` da palavra inteira aplica kerning e ignora
+  pedido de espaço, daí o laço por caractere. ⚠️ Pelo mesmo motivo o limiar de alfa é **baixo** (96):
+  cortar na metade comia o contorno onde o "e" e o "s" se fecham. **O "RookHub" nunca sofreu disso**,
+  porque a arte da marca já nasce com espaçamento aberto.
+- ⚠️ **Caixa baixa é quem manda na resolução.** O "RookHub" sozinho se lia com 150 colunas, mas o "e",
+  o "v" e o "s" do prefixo têm metade da altura de uma maiúscula: é essa altura, depois do passo, que
+  decide se a letra fecha. Por isso `WORD_COLUMNS` subiu para 230.
+- ⚠️ **A amostragem da arte é por ALFA, nunca por brilho.** O wordmark é branco sobre transparente:
+  num teste de luminância o fundo passa no limiar e a palavra sai como um retângulo cheio.
+- **A cena entra por `lazy`**, e o motivo é o login do CLIENTE: o arquivo serve as duas portas, e o
+  import estático fazia toda transportadora baixar o `three` (143 kB comprimidos) por um painel que
+  só existe do lado da equipe.
+- ⚠️ **`EMBER_BG` no `login-page.tsx` é CÓPIA do `background.color` do componente**, porque ele não
+  exporta os próprios padrões. É o que pinta o painel antes do primeiro quadro e no `no-blur`, onde a
+  cena não monta. Trocar a cor da cena pede trocar essa linha junto.
+- ⚠️ **A `.vidro-da-plataforma` ficou SEM USO nessa troca, e continua no `globals.css`.** Ela era a
+  ilha escura que segurava o formulário por cima do gradiente; sobre o papel a tinta do tema claro
+  vale de novo, e quem devolve o marinho ao contorno e ao anel dos campos é a `.saas-theme`, agora na
+  coluna do formulário. Quem devolver o bloco para cima do gradiente precisa das duas de volta, e
+  quem o mantiver no papel pode apagar a classe.
+
+### A caixa de notificações
+
+- **É UMA implementação para os quatro painéis** (`components/shared/notification-bell.tsx`): o que
+  muda por painel é o dado, não o desenho. Quem chama normaliza para `NotificationBellItem`.
+- ⚠️ **Duas tentativas foram recusadas aqui, e as duas valem como aviso.** A primeira pôs faixa de
+  severidade de 4px à esquerda: aquela é a gramática das FILAS de decisão, onde a linha é larga, e
+  numa caixa de 344px vira talho colorido a cada duas linhas. A segunda deu fundo a cada aviso, e
+  doze avisos viraram doze caixas empilhadas.
+- ⚠️ **A gramática preservada**: aviso **transparente**, com a severidade no CONTORNO, a palavra do nível
+  na mesma família de cor, e **sem ícone** antes do título, que com o contorno era o
+  terceiro sinal da mesma coisa. Véu só no hover. ⚠️ A palavra fica porque cor sozinha não basta
+  (RNF-028).
+- A segunda revisão de 19/09/2026 responde ao print em que a caixa ainda parecia antiga: largura
+  `min(28rem, 100vw - 1rem)`, canto de 24px, sem sombra, filtros Todas/Prioritárias (crítico e
+  alto) e rodapé fixo só com texto.
+  Severidade fica acima do título; “Não lida” só aparece se a origem informa leitura. Os filtros
+  atuam ANTES do limite de 12; a contagem informa o corte. Não chamar de “Mais recentes”: a API
+  ordena por severidade primeiro. Fechar a caixa restaura Todas.
+- ⚠️ **Raio e borda do aviso ficam no wrapper de `SwipeToDismiss`**, via `className`, nunca no
+  link interno: o deslize remove o raio dos filhos para encaixar a lixeira. Borda no filho era a
+  causa dos cantos quadrados e cortados do print. Espaçamento fica fora da superfície deslizante.
+- A altura usa a área disponível calculada pelo Radix; a lista tem `min-h-0` e `overscroll-contain`.
+  Verificado no navegador com roda sintética do CDP: sobre o cabeçalho, lista 240 e página 0; sobre
+  a lista, lista 480 e página 0; forçando além do fim, lista trava em 1590 e página segue em 0; fora
+  da caixa, página 300 e lista parada. Loading e vazio distintos.
+- ⚠️ **`rounded-full`, e não `rounded-pill`, em qualquer arredondamento daqui**: o raio de
+  pastilha é do `@theme` do painel de GESTÃO, e esta caixa também roda no `/app`, onde o token
+  não existe.
+- **Os filtros Todas/Prioritárias são abas de texto** desde 19/09/2026, a pedido do usuário: sem
+  pastilha e sem fundo, só o traço de 2px da aba ativa encostando na régua do cabeçalho (por isso o
+  `header` fica com `pb-0` e os botões com `-mb-px`). O contador fica ao lado do rótulo, em
+  `opacity-60`. ⚠️ **O `aria-label` continua sendo "Todas 27" / "Prioritárias 25"**, que é como os
+  testes acham os botões.
+- ⚠️ **O cabeçalho é só o título e o X** (19/09/2026): saíram a sobrancelha “Central de avisos”,
+  que repetia o título, e a linha “27 não lidas · 25 prioritárias”, que repetia os contadores das
+  abas. `countLabel` continua na prop porque é o `aria-label` do sino, não texto de tela. Com isso
+  o carregamento perdeu a frase “Buscando os avisos...”, e quem anuncia agora é o esqueleto da
+  lista, que já tem `role="status"`.
+- ⚠️ **O link do rodapé é `text-primary-on-light`**, o terracota da marca (pedido do usuário em
+  19/09/2026, que antes era `text-accent`, marinho). Token, e não laranja literal: no `.saas-theme`
+  esse mesmo token já vale marinho, e o link acompanha a inversão da área interna sem `if` nenhum.
+  ⚠️ **Contraste medido: 3,7:1** do #d5623a sobre o branco do popover, abaixo dos 4,5:1 de texto
+  normal. Fica registrado como decisão do usuário, não como descuido; se um dia precisar passar,
+  o caminho é um terracota mais escuro em token novo, não mudar a cor no componente.
+- **O rodapé não avisa mais sobre o transbordo** ("Mais avisos disponíveis na central", removido em
+  19/09/2026): a linha "12 de 27 avisos" acima da lista já diz o mesmo, e o link do rodapé já leva à
+  central.
+- ⚠️ **Com a caixa aberta, a roda do mouse sobre ela nunca move a página atrás** (pedido de
+  19/09/2026). O `overscroll-contain` da lista só resolve enquanto o cursor está SOBRE a lista; o
+  que vazava era a roda sobre o cabeçalho e o rodapé, que não rolam e entregavam o gesto à página.
+  O listener é `wheel` nativo com `{ passive: false }`, porque o `onWheel` do React é registrado
+  na raiz como passivo e `preventDefault()` ali é no-op. Nada de travar o `body`: fora da caixa a
+  página tem de rolar normal, isto é um popover, não um modal.
+- ⚠️ **Para pegar o nó do `PopoverContent` do Radix, use ESTADO (`ref={setBox}`), nunca
+  `useRef` + `useEffect`.** O Radix monta o conteúdo num segundo passe, disparado por um efeito de
+  layout do `Presence` dele: um `useEffect` com dependência `[open]` roda ANTES disso e lê a ref
+  ainda vazia, então o listener simplesmente não existe e o bug parece "preventDefault não
+  funciona". Diagnosticado com `DOMDebugger.getEventListeners` no nó `[role="dialog"]`, que é o
+  jeito honesto de saber se o listener chegou lá.
+
+### A barra de atalhos favoritos
+
+- ⚠️ **Sem sombra projetada, nem na barra nem no cartão** (pedido do usuário em 19/09/2026). Eram
+  dois borrões, de 40px e de 48px. Quem separa os dois do fundo agora é o traço de 1px, que é a
+  mesma decisão da lista de select, do calendário e do cartão do hub.
+- ⚠️ **A barra e o cartão DEIXARAM de ser o mesmo material, e isso foi pedido.** A barra continua
+  vidro (`surface-low/55`, desfoque e saturação); o cartão virou **opaco**. Quem mexer num não
+  replica no outro sem pensar, ao contrário do que valia antes.
+- ⚠️ **O cartão é opaco porque translúcido o tingia.** Era `surface-low/80` com
+  `backdrop-saturate-150`: aberto sobre a faixa laranja da página, ganhava um degradê rosado que
+  parecia enfeite e era só o fundo vazando. Hoje é `surface-low` sozinho, que já é **branco puro no
+  tema claro e grafite no escuro**, sem precisar de `bg-white`, que seria branco fixo errado no
+  escuro. ⚠️ **O `backdrop-blur` e o `backdrop-saturate` saíram junto**, e não por descuido: com
+  fundo opaco nada atravessa, e os dois eram custo de composição sem efeito na tela.
+- ⚠️ **Tirar a sombra deixou o cartão sem borda visível, e o conserto foi trocar o TOKEN do traço**
+  (no mesmo dia). O branco a 20% era o brilho da quina do vidro, e só funcionava porque a sombra
+  desenhava o limite: sobre o papel claro o cartão virou branco no branco. Hoje o anel é `outline`,
+  o traço de componente da paleta comum, com 3,2:1, que aparece nos dois temas. ⚠️ **Tem de ser
+  token da paleta COMUM**, porque isto vive em portal, fora de `.management-theme`.
+- ⚠️ **Com o cartão aberto, a roda sobre ele nunca move a página atrás** (mesmo pedido). É a receita
+  da caixa de notificações, aplicada de novo: `overscroll-contain` na lista, mais um listener
+  `wheel` **nativo e não passivo** no conteúdo do Radix, porque o `onWheel` do React é registrado na
+  raiz como passivo e `preventDefault()` ali é no-op. ⚠️ **O nó vem por ESTADO (`ref={setCaixa}`),
+  nunca `useRef` + `useEffect`**: o Radix monta o conteúdo num segundo passe e a ref estaria vazia.
+  Nada de travar o `body`, que isto é popover e não modal.
+- **Medido no navegador com roda de verdade** (`page.mouse.wheel`, que passa pelo CDP): com o cursor
+  sobre o cartão a página ficou em 300 e a lista foi de 0 a 312, o fim dela; com o cursor fora, a
+  página andou de 300 para 700. Evento sintético por `dispatchEvent` não serve para conferir isto,
+  porque não aciona a rolagem nativa.
+
+### O aviso de sincronização não viaja de tela
+
+- ⚠️ **O `Toaster` vive no layout, acima das rotas, então o toast SOBREVIVE à navegação.** Quem
+  trocasse de tela antes dos segundos acabarem levava para a tela nova um aviso sobre a frota do
+  Pátio ou sobre as posições do mapa, sem nada ali que o explicasse. Desde 19/09/2026 as duas telas
+  dispensam o próprio aviso ao serem desmontadas, pelo `id` fixo que elas já usavam.
+- ⚠️ **O efeito que dispensa é SEPARADO, com lista de dependências vazia.** Pôr o `dismiss` no
+  `return` do efeito que cria o aviso faria ele piscar a cada mudança de contagem, porque aquele
+  efeito roda de novo a cada `staleCount`.
+- ⚠️ **`toast.dismiss` DEVOLVE o id**, então a seta concisa (`() => () => toast.dismiss(x)`) faz o
+  cleanup devolver `string` e o TypeScript recusa. O corpo vai entre chaves.
+- ⚠️ **Quem mocka `sonner` num teste precisa incluir `dismiss`.** O mock do `yard-page.test.tsx`
+  tinha só `warning`, `success`, `error` e `info`, e a falta derrubou **nove testes de uma vez**, com
+  a pilha apontando para o `commitPassiveUnmountEffects` do React em vez de para o mock.
+- **Conferido no navegador com navegação SPA de verdade**, e não com `page.goto`: recarregar a
+  página desmonta tudo e o aviso sumiria de qualquer jeito, então o teste passaria sem provar nada.
+  Com clique no menu: aparece na tela (1), some ao sair (0) e volta ao reentrar (1).
+
+- ⚠️ **Relatórios tinha um cartão que sumia, e a causa eram DUAS coisas somadas** (corrigido em
+  19/09/2026): o gráfico de disponibilidade usava `GlassCard` dentro do `PageContent bg-light`, ou
+  seja, vidro branco sobre branco com traço transparente, e o container do gráfico tinha `h-56` E
+  `flex-1`. ⚠️ **`flex-1` vence altura declarada**, porque traz `flex-basis: 0%`: o bloco media 0px e
+  o Recharts, sem altura, não desenha nem o `svg`. O sintoma era um cartão de 94px com o título e
+  nada embaixo. **Antes de culpar o gráfico, meça o container.**
 
 ### Convite e senha
 
@@ -262,19 +508,49 @@ escuro serve link, detalhe e contorno.
   `--color-primary` num escopo não muda nada, e o sintoma engana: a variável lia branco enquanto a
   borda renderizada era terracota. **Escopo novo repõe os dois.**
 - ⚠️ **Em atributo de SVG e estilo inline, `var(--color-secondary)` não existe**: use `var(--secondary)`.
+- ⚠️ **`.management-theme` NÃO pinta fundo** (desde 19/09/2026), e não deve voltar a pintar. A
+  classe tem dois usos: casca da aplicação (`ManagementLayout`, `login-page`, que declaram
+  `bg-surface` junto) e ESCOPO DE TOKENS repetido dentro de um portal (`GlassModal`,
+  `assistant-drawer`). Com `background-color` embutido, os portais recebiam o papel `#f4f2ef` por
+  cima do `bg-surface-low` que pediam: o modal saía creme com o rodapé branco, duas cores no mesmo
+  cartão. ⚠️ **E não era questão de ordem**: a regra vive FORA de `@layer`, então vencia qualquer
+  utilitário, inclusive um `bg-white` escrito à mão. Sintoma para reconhecer: a classe sozinha pinta
+  e nenhuma regra de `background` aparece casando com o elemento ao varrer o CSSOM.
 - ⚠️ **Conteúdo em portal do Radix sai de `.management-theme`.** Lá dentro `secondary` volta a ser o
   cinza de controle do operacional. Em portal, usar só tokens da paleta comum.
 
 ## Molde de tela
 
-**O molde do painel tem TRÊS camadas, nesta ordem**, e quem sair dele destoa:
+**O molde do painel tem DUAS camadas, nesta ordem**, e quem sair dele destoa:
 
 ```
-HeroBand  →  <section> com HeroStats mordendo a borda (-mt-16 sm:-mt-20)  →  PageContent rounded-t-4xl bg-light
+HeroBand  →  PageContent rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20, com os HeroStats dentro (mb-6)
 ```
 
-- ⚠️ **São dois `QueryState`, um por camada**: a subida fica dentro da seção e não em volta dela,
-  senão carregando e erro aparecem por cima da faixa colorida.
+- ⚠️ **Quem morde a faixa laranja é a FOLHA BRANCA, e não os cartões** (18/09 e 19/09/2026, pedido
+  do usuário; estreou na Equipe e no Pátio e alcançou as demais telas). A `<section>` intermediária
+  que segurava os `HeroStats` sobre o laranja **não existe mais**: eles são conteúdo do painel, como
+  os filtros e a lista. A visão inicial (`overview-hero`, `owner-hero`) é a **única exceção** e
+  mantém os cartões subindo, a pedido do usuário.
+- ⚠️ **Dentro do painel, indicador é placa clara sobre papel branco.** Sobre a faixa ele precisava
+  de sombra para se descolar de dois fundos ao mesmo tempo; ali dentro, o `ring-light-edge` basta.
+- ⚠️ **Tela com coluna de largura máxima (`mx-auto max-w-[1440px]`) põe os `HeroStats` DENTRO
+  dela.** Fora, eles vão de margem a margem enquanto as abas logo abaixo param 200px adiante. Não
+  aparecia antes porque os cartões flutuavam longe do conteúdo (visto em Notificações).
+- ⚠️ **Um `QueryState` por camada deixou de fazer sentido**: com tudo dentro do painel, o de cima
+  virou irmão do de baixo. Onde o rótulo for o mesmo, juntar os dois é o certo (feito no mapa).
+- ⚠️ **O cartão de indicador é UM só, o `HeroStats`, e ele serve vinte telas.** Em 19/09/2026 ele
+  encolheu a pedido do usuário, com a régua sendo o indicador do Pátio: 16px de respiro, 16px de raio
+  e folga de 12px, contra 20px e raio grande. **A tipografia não mudou de propósito**: o número em
+  Sora 700 de 30px é o que faz o bloco ser reconhecido de tela em tela. Mexer ali muda todas, então a
+  mudança é de proporção, nunca de conteúdo.
+- ⚠️ **A grade larga acompanha a QUANTIDADE de cards.** Era fixa em quatro colunas, e numa tela de
+  três isso deixava uma coluna vazia à direita, com a fileira parecendo interrompida.
+- ⚠️ **Impedimentos passou a ter os cards DENTRO do painel branco** (pedido do usuário), com o painel
+  subindo para morder a faixa, que é o molde de liberações, pareceres e viagens. Antes eles ficavam
+  entre a faixa e o painel. ⚠️ O `SeverityCards` saiu de cena e o arquivo ficou sem uso: ele era o
+  mesmo cartão escrito duas vezes, e manter os dois significa encolher um e esquecer o outro, que foi
+  exatamente o que aconteceu.
 - ⚠️ **`HeroBand` inclui a topbar**: quem o usa não usa `PageBanner`, senão o título aparece duas
   vezes. E trocar um pelo outro sem pôr o `HeroStats` deixa um vazio de ~100px.
 - ⚠️ **Ao mover algo para dentro do painel branco, TROQUE A FAMÍLIA DE TOKEN junto.** `surface` é do
@@ -285,6 +561,13 @@ HeroBand  →  <section> com HeroStats mordendo a borda (-mt-16 sm:-mt-20)  → 
   pergunta.
 - ⚠️ **A ABA escolhida é pastilha clara com escrita marinha** (`page-tabs.tsx`), e não preta nem
   terracota: hierarquia por superfície, não por preenchimento.
+- ⚠️ **A pastilha do escolhido é UMA SÓ, absoluta no trilho, e DESLIZA** (18/09/2026). Não repor
+  `bg-light`/`bg-surface-low` nem a sombra no botão ativo: com o fundo no próprio botão a troca vira
+  um corte, que é o que o usuário pediu para tirar. Segmentado novo usa `SegmentedFilter`
+  (família `light`, botões com `aria-pressed`) ou `PageTabs` (família `surface`, Radix Tabs, troca a
+  seção da página); os dois medem pelo `useSlidingPill`. **Medir com `offsetLeft`/`offsetWidth`, e
+  não com `getBoundingClientRect`**: o primeiro ignora `transform` de ancestral, e a origem dele
+  coincide com a de um filho `absolute left-0`.
 - **Estado ativo de NAVEGAÇÃO é terracota** (`primary-strong`), no menu superior da gestão e na
   lateral do operacional. **Os dois andam juntos: mexeu num, mexa no outro.** Segue preto
   (`bg-bright`) a paginação, o `period-picker` e a variante `bright`.
@@ -325,7 +608,12 @@ HeroBand  →  <section> com HeroStats mordendo a borda (-mt-16 sm:-mt-20)  → 
   instrução dentro do próprio nome, e a reticência cortava a explicação. `overscroll-x-contain`
   impede a rolagem de vazar para a página.
 - ⚠️ **Item de flex não encolhe sozinho: `truncate` sem `min-w-0` não corta nada.**
-- **Usar `Pagination` de `management/ui`**, 30 por página. O `total` que entra é o de **depois dos
+- ⚠️ **A medida da página depende do VOLUME REAL da tela, e isso já falhou.** O componente se esconde
+  quando há uma página só, então uma lista de 26 itens com 30 por página nunca mostra paginação: foi
+  o que aconteceu em Alertas, Impedimentos e Gamificação quando o usuário pediu paginação nas três em
+  19/09/2026. Hoje as filas usam **10** (fila se lê de cima para baixo e se trata item a item) e a
+  classificação usa **15**, que também faz a primeira página ser o topo do ranking.
+- **Usar `Pagination` de `management/ui`**, 30 por página nas listas grandes. O `total` que entra é o de **depois dos
   filtros**, e a página atual é fixada dentro do total, senão filtrar estando na página 5 deixa a
   tela vazia.
 
@@ -356,6 +644,54 @@ Gramática fechada, vale para `/gestao/liberacoes`, `/pareceres`, `/aprovacoes` 
 
 ### Formulários
 
+- ⚠️ **`resetOptions` do `useForm` vale para TODA chamada de `reset`, não só para a que o `values`
+  dispara.** O react-hook-form faz `reset(v, o) => _reset(v, { ...options.resetOptions, ...o })`.
+  No cadastro de motorista isso deixou o botão **“Limpar formulário” sem efeito nenhum** desde que o
+  `keepDirtyValues: true` entrou: os campos digitados são justamente os dirty, e eram os únicos
+  preservados, em todas as etapas. Conferido no navegador em 19/09/2026, antes e depois. A correção
+  é passar `{ keepDirtyValues: false }` na chamada de `limpar`, não tirar o `resetOptions`, que
+  ainda protege quem digita durante uma revalidação da consulta. ⚠️ **O mesmo `limpar` roda depois
+  de gravar e ao fechar o diálogo**, então o defeito também fazia a ficha anterior sobrar para o
+  próximo cadastro.
+- ⚠️ **Para saber se um limpar funcionou de verdade, olhe o BOTÃO, não só os campos.** Ele só
+  aparece com `isDirty`, então continuar visível depois do clique é a prova de que o reset não
+  pegou, mesmo que a etapa aberta pareça em branco.
+
+- ⚠️ **A etapa 1 abre com NOME, SEXO e NASCIMENTO na mesma coluna, e a foto ao lado das três**
+  (pedido do usuário em 19/09/2026). O sexo entrou aqui e é opcional (`GENDERS`, vazio = "Não
+  informado"), com coluna `gender` na V33 do `Backend-web`. O arranjo não é estética solta: com o
+  nome sozinho, a moldura flutuava ao lado de um vão vazio, e a grade de baixo ficava com uma célula
+  órfã. Hoje a moldura usa `sm:h-full` dentro de um invólucro `sm:flex-1`, com a linha em
+  `sm:items-stretch`, e termina exatamente na base do campo de nascimento. ⚠️ O `h-full` é só a
+  partir de `sm`: empilhado, a coluna não tem altura para dividir e a moldura zeraria.
+- ⚠️ **O `className` do `GlassInput` vai para o INPUT, não para o item da grade.** `sm:col-span-2`
+  nele nunca fez nada, e o e-mail só passou a ocupar a linha inteira dentro de um `<div>` próprio.
+- ⚠️ **`GlassSelect` com opção de valor vazio precisa de `placeholder` com o rótulo dela**, senão o
+  gatilho fica em branco: para o Radix, `value=""` é "nada escolhido". Já documentado no componente,
+  e o campo de sexo caiu nisso na primeira tentativa.
+- ⚠️ **A foto do motorista é uma MOLDURA no canto superior direito da etapa 1**, dividindo a linha
+  com o nome (pedido do usuário em 18/09/2026). Antes era um botão solto no pé da etapa, depois da
+  data de nascimento: o retrato é a primeira coisa que identifica alguém e estava no último lugar que
+  o olho visita. O mesmo diálogo faz cadastro e edição, então vale nos dois.
+- ⚠️ **Vazia ela é tracejada, cheia é contínua**, e o traço é de 2px em `outline`, nunca
+  `outline-variant`: o `variant` é a divisória sutil, some a 1px, e a moldura deixa de convidar ao
+  clique, que é a única função dela enquanto está vazia. O fundo é `glass-well`, o mesmo poço dos
+  campos, para ela pertencer ao formulário em vez de parecer um cartão colado.
+- ⚠️ **Na edição a moldura mostra a foto GRAVADA**, pelo `DriverAvatar`, que busca na rota
+  autenticada. Sem isso ela abriria vazia para quem já tem retrato e a leitura seria "não há foto",
+  quando a verdade é que o formulário não carrega os bytes dela. Quem não tem foto cai nas iniciais.
+  ⚠️ A regra antiga continua: **não escolher foto significa "não mexi"**, e tratar a ausência como
+  remoção apagaria a foto de quem só corrigiu um telefone.
+- ⚠️ **O "remover" da foto vive no CANTO da moldura**, e não numa linha embaixo dela: embaixo, ele
+  só nascia depois de escolher a imagem e empurrava o bloco para baixo no exato instante em que a
+  foto aparecia, com o formulário dando um pulo.
+- ⚠️ **`photoPending` existe porque o corte e a redução rodam no NAVEGADOR** e demoram numa foto de
+  celular de 8 MB. Sem ele a moldura fica igual entre o clique e a imagem aparecer, e quem escolheu
+  clica de novo achando que falhou. O `finally` é obrigatório: preso ao `try`, imagem recusada deixa
+  a moldura girando para sempre.
+- A frase "Cortada em quadrado e reduzida aqui no navegador" saiu a pedido do usuário. O
+  comportamento continua, no `prepareDriverPhoto`.
+
 - **Os diálogos de cadastro são ETAPAS** (`WizardSteps` em `management/ui`), porque trinta campos
   numa coluna obrigam a rolar três telas antes de saber o que falta.
 - ⚠️ **As etapas são navegáveis, e não um trilho**: aqui a ordem é arrumação, não regra de negócio.
@@ -368,6 +704,22 @@ Gramática fechada, vale para `/gestao/liberacoes`, `/pareceres`, `/aprovacoes` 
 - ⚠️ **`values` do react-hook-form, e não `useEffect` + `reset`.** Sincronizar dado externo com
   efeito é o padrão que o React Compiler recusa aqui. ⚠️ `values: loaded` não compila com
   `exactOptionalPropertyTypes`: espalhar com `...(loaded ? { values: loaded } : {})`.
+- ⚠️ **Campo de número usa MÁSCARA, e a máscara vem de `lib/input-masks.ts`** (pedido do usuário em
+  19/09/2026). Peso, litro e quilômetro mostram o milhar (`36.000`), metro cúbico e km/l usam
+  vírgula, dinheiro tem duas casas, e documento tem a pontuação dele. Quem confere cadastro compara
+  com um papel na mão: o que está na tela precisa se parecer com o que está no papel.
+- ⚠️ **Formatar e converter andam SEMPRE em par.** `Number('8.500')` é **8,5**: com a máscara de
+  milhar e um `Number()` solto no envio, o caminhão de oito toneladas e meia vira um de oito quilos e
+  meio, sem nada falhar e sem ninguém perceber até alguém somar. Quem exibe com `maskInteger`
+  converte com `parseInteger`. ⚠️ E a ficha gravada precisa entrar **já mascarada**, senão o
+  formulário abre com `36000` num campo que mostra `36.000` e a comparação acusa mudança em quem só
+  abriu e fechou.
+- ⚠️ **`inputMode` é dica de TECLADO, não regra.** No celular ele troca o teclado; no computador o
+  campo continua aceitando letra. Onde a letra é sempre erro (PIS, registro da CNH, Renavam, RNTRC,
+  ano), quem barra é o `onChange` com `onlyDigits`.
+- ⚠️ **`type="number"` não serve para campo formatado.** Ele bloqueia letra, mas aceita `e`, `+` e
+  `-`, mostra setinha de incremento e **recusa qualquer valor com ponto**, então quilometragem nunca
+  mostraria o milhar. O caminho é texto com máscara e `inputMode`, guardando número no estado.
 - **Placeholder é EXEMPLO, e não repetição do rótulo.** "Volvo" mostra o formato num relance; "Digite
   a marca" não ensina nada.
 - **Campo de data é o `DatePicker` de `components/ui`, nunca `<input type="date">`**, e `GlassSelect`
@@ -648,6 +1000,37 @@ Podado a **Visão geral, Equipe e Cargos**, temporariamente, a pedido do usuári
 - ⚠️ **A tela de equipe NÃO depende dessa rota** para saber o nome de cada cargo: quem responde é
   `GET /v1/roles`, e o gestor continua alcançando a API. O que saiu foi a tela, não a leitura.
 
+### Multas (`/gestao/multas` e `/app/multas`)
+
+Ligadas à API real em 19/09/2026, vindas da Smartec pelo `Backend-web`. **São duas telas sobre o
+mesmo endpoint**, e a diferença entre elas é o que cada painel consegue dizer.
+
+- ⚠️ **A lista traz placas que NÃO são da transportadora, e isso é pedido do usuário.** O token da
+  Smartec alcança a frota do grupo: 138 veículos lá contra 40 no cadastro, e as outras 100 são de
+  SERVIREST, SERVIRIO, HOTEL e MATRIZ. Em `/gestao` elas aparecem com a marca **"Sem cadastro no
+  sistema"**, e ficam **fora de toda soma**: o cartão "Em aberto" conta só a frota cadastrada, e o
+  cartão "Sem cadastro" existe para dizer quanto ficou de fora. Sem esse segundo número, o topo não
+  fecharia com a lista e ninguém saberia por quê.
+- ⚠️ **No `/app` entra SÓ a frota cadastrada** (`?registered=true`), e não é filtro por gosto: o
+  tipo `Fine` do painel operacional modela placa, condutor e valor, e **não tem onde dizer que a
+  placa é de outra empresa**. Mostrar sem poder marcar seria pior que não mostrar.
+- ⚠️ **A base do veículo não entra na linha da infração.** O `unit` nasce do subgrupo da MiX, que
+  não é estrutura de operação: a primeira versão escreveu **"Base DESLIGADOS/INATIVOS"** ao lado de
+  uma multa. O campo continua no contrato, sem uso na tela. O que a linha mostra é a **UF da
+  infração**, que é dado do próprio auto.
+- **O prazo de indicação é o que dá valor à notificação**, e por isso aparece em destaque e só
+  enquanto vale: passada a data, perde-se a chance de dizer quem dirigia e a pontuação fica com a
+  empresa.
+- **Dez por página**, como as outras filas. `driverName` é sempre "Não identificado" porque a
+  Smartec devolve `MOTORISTA_NOME` nulo em toda a frota real.
+- ⚠️ **Sem coleta, a tela DIZ que nunca coletou.** Escrever "atualizado agora" com a tabela vazia
+  faria alguém concluir que a frota não tem multa nenhuma.
+- **Menu e plano usam o módulo `COSTS`**, e não um `FINES` novo: os módulos do painel de gestão são
+  sete e fechados (`management/types.ts`), e criar o oitavo mudaria o que cada plano vende.
+- ⚠️ **Não dá para conferir `/app/multas` com a conta de gestor**: o `RoleAreaRoute` manda `MANAGER`
+  de volta ao `/painel`, e o seed de desenvolvimento só tem essa conta. Verificar aquela tela exige
+  conta de operador, manutenção ou motorista.
+
 ## Mapas
 
 São três (`operation-map`, mapa ao vivo da gestão e `stops-map`), com a base comum em
@@ -680,6 +1063,23 @@ São três (`operation-map`, mapa ao vivo da gestão e `stops-map`), com a base 
   `backdrop-blur`, 11px). ⚠️ **Quem garante a leitura é a camada de papel, não o desfoque.** Os dois
   mapas são as únicas superfícies do sistema que ainda usam `backdrop-filter`.
 - ⚠️ **Os cartões sobrepostos empilham à ESQUERDA**: o canto superior direito é do controle de zoom.
+
+### O mapa da visão geral
+
+- ⚠️ **Desde 18/09/2026 ele é o MESMO `FleetMap` do ao vivo**, com os caminhões em 3D e a legenda
+  flutuante (pedido do usuário). Não é mais um mini mapa: `fleet-mini-map.tsx` continua no
+  repositório, sem uso, e voltar atrás é trocar o bloco de volta. É a mesma decisão da ficha do
+  veículo, de 16/09: **não recriar mapa por tela.**
+- ⚠️ **A legenda passou a mostrar os CINCO estados**, derivada de `CORES_DA_GESTAO` e
+  `VEHICLE_STATUS_LABELS`. A versão antiga era uma lista fixa de quatro, que omitia manutenção por
+  decisão de 06/09/2026, quando aqui só havia pontinhos: com o mapa de verdade, omitir passou a ser
+  mentir por omissão, porque o caminhão amarelo aparece na tela sem nada que o explique.
+- ⚠️ **A receita do painel flutuante saiu da página para `live-map/overlay.ts`.** Dois mapas do mesmo
+  produto não podem ter dois desenhos, e copiar a string é como nasceram as três tabelas de cor que o
+  `status-color.ts` existe para evitar.
+- ⚠️ **A moldura da legenda é `pointer-events-none`**, e o conteúdo dela `auto`: sem isso o retângulo
+  invisível come o arrasto do mapa na faixa de cima.
+- **Preço aceito**: a visão geral passou a carregar o `three` e o modelo do caminhão.
 
 ### Mapa ao vivo (`/gestao/mapa`)
 
@@ -936,6 +1336,12 @@ médias daria 5,90 contra 4,13. **É na categoria heterogênea que a média das 
 - ⚠️ **Os GLB originais moram em `original-models/`, na raiz, e o Git ignora a pasta.** São ~123 MB
   convertidos do 3D Warehouse, e este repositório é **público**: quem clonar não recebe nenhum.
   Nenhum é usado por código ainda; o mapa continua no `truck.glb` do Quaternius (CC0, 319 KB).
+- ⚠️ **`public/video/truck-highway.mp4` É versionado** (decisão do usuário em 19/09/2026), e não
+  segue a regra dos GLB acima. O critério é uso, não formato: ele são 890 KB que o navegador pede em
+  toda visita à porta do cliente, enquanto os modelos são fonte de conversão que ninguém baixa. Sem
+  ele no repositório, o painel publicado abriria com o painel do login vazio. **O peso foi medido,
+  não escolhido**: o x264 a 890 KB venceu o VP9, que gastou 2,08 MB pela mesma qualidade, e por isso
+  não há `<source>` de alternativa. Vídeo novo aqui se mede de novo antes de repetir a conclusão.
 - **Pendências principais**: ligar `services/api` do `/app` na API real; tela de Viagens como frete;
   origem de custo; integrações de multas e câmeras; paginação server-side; smoke E2E; code splitting;
   decidir o destino da cópia em `System-mobile`.
@@ -977,6 +1383,17 @@ médias daria 5,90 contra 4,13. **É na categoria heterogênea que a média das 
   uma opção com o mouse**.
 - ⚠️ **Não pôr anel de foco em item de `listbox`**: quem indica a posição do teclado é o realce
   (`data-[highlighted]`).
+- ⚠️ **Conteúdo flutuante dentro de diálogo precisa de `z-[1200]`, e o número vai no CONTEÚDO.** O
+  Popper lê o z-index computado do conteúdo na montagem e o copia para o invólucro posicionado, que
+  é quem de fato empilha; o conteúdo em si é `position: static`, onde z-index não tem efeito nenhum.
+  O `TooltipContent` nasceu com o `z-50` do shadcn e a ajuda dos campos abria **atrás** do modal, que
+  é `z-[1101]` (18/09/2026). Mesma armadilha da lista do `GlassSelect` em 27/08/2026, e a escala do
+  painel está em `ui/lib/field-surfaces.ts`.
+- ⚠️ **`Select.Value` sem `placeholder` deixa o gatilho em BRANCO quando o valor é `''`.** O Radix
+  trata string vazia como "nada escolhido", então a opção `{ value: '' }` que várias listas daqui
+  usam para "Não informado" nunca consegue se desenhar no gatilho: quem escolhia via o campo esvaziar
+  e lia como falha. Em lista que tem opção vazia, o `placeholder` repete o **rótulo dela**, e não um
+  convite como "Selecione…", senão o campo contradiz a escolha recém-feita.
 - `PermissionGuard fallback={null}` **não** oculta conteúdo, porque `null ?? <NoAccessState />` usa o
   fallback padrão. Para esconder seção, teste `hasPermission(...)` direto.
 - ⚠️ **Comentário JSX não pode ficar entre o `return (` e o elemento raiz**: vira um segundo filho e
@@ -1047,6 +1464,26 @@ médias daria 5,90 contra 4,13. **É na categoria heterogênea que a média das 
   entre instâncias, e a contagem por malha acusou perda de 25% que não existia.
 - ⚠️ **O 3D Warehouse exporta COLLADA que o COLLADA2GLTF não converte, e o erro é silencioso**: ele
   termina com sucesso e o GLB sai com 768 bytes. O jeito de perceber é o tamanho do arquivo.
+
+**Componente de terceiros (Originkit)**
+
+- **`src/components/originkit/` é código VENDORIZADO**, escrito pelo `npx originkit@latest add <nome>`
+  e mantido como veio. Hoje mora ali só o `ui/ember-husk.tsx`. ⚠️ **Ele não é mais o que a tela usa**:
+  a porta da equipe importa o fork em `pages/login/ember-husk-scene.tsx`. A cópia fica guardada para
+  comparar com uma versão nova do fornecedor, porque `originkit add` reescreve o arquivo inteiro e o
+  fork deixou de ser atualizável pelo CLI.
+- ⚠️ **Ele não passa no TypeScript nem no ESLint deste projeto**, porque indexa array sem guarda em
+  dezenas de lugares e o `noUncheckedIndexedAccess` está ligado. Por isso o arquivo abre com
+  `@ts-nocheck` e `eslint-disable`, e a pasta entrou no `.prettierignore`. **Corrigir isso à mão é
+  trabalho perdido**: a próxima atualização pelo CLI reescreve o arquivo inteiro.
+- ⚠️ **O `"use client"` do topo é do Next e não faz nada no Vite.** Fica porque o brief do CLI manda
+  preservá-lo, e tirá-lo só cria diferença com a origem.
+- **Instalar exige login** (`originkit login`, OAuth pelo navegador, sessão em `~/.originkit/auth.json`),
+  e o `--no-deps` evita mexer no `package.json`: o `three` já é dependência do projeto por causa do
+  mapa 3D. O `.originkit/` que o CLI cria é gitignored e não é documentação do produto.
+- ⚠️ **Medir o container com `clientWidth`, e não com `getBoundingClientRect`**, é o que faz a cena
+  caber dentro da `.tela-proporcional`. O componente já faz certo, e é a mesma armadilha que o
+  `Grainient` documenta: o rect vem com o `zoom` aplicado e o canvas encolheria de novo lá dentro.
 
 **Coisas que não se desfazem**
 
