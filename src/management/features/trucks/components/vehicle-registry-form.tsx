@@ -1,5 +1,14 @@
 import { CheckIcon, InfoIcon, WarningIcon } from '@/components/icons';
 import {
+  decimalToMask,
+  integerToMask,
+  maskDecimal,
+  maskInteger,
+  onlyDigits,
+  parseDecimal,
+  parseInteger,
+} from '@/lib/input-masks';
+import {
   createVehicle,
   fetchVehicleRegistry,
   saveMaintenancePlan,
@@ -227,11 +236,14 @@ const paraFormulario = (r: VehicleRegistry): Formulario => ({
   bodyType: r.bodyType ?? '',
   axles: r.axles == null ? '' : String(r.axles),
   fuelType: r.fuelType ?? '',
-  tareWeightKg: r.tareWeightKg == null ? '' : String(r.tareWeightKg),
-  payloadKg: r.payloadKg == null ? '' : String(r.payloadKg),
-  cargoVolumeM3: r.cargoVolumeM3 == null ? '' : String(r.cargoVolumeM3).replace('.', ','),
-  tankCapacityL: r.tankCapacityL == null ? '' : String(r.tankCapacityL),
-  referenceKmpl: r.referenceKmpl == null ? '' : String(r.referenceKmpl).replace('.', ','),
+  /* ⚠️ A ficha gravada entra JÁ MASCARADA. Sem isto o formulário abre com
+     `36000` num campo que passou a mostrar `36.000`, e a comparação com o
+     original acusa mudança em quem só abriu e fechou o cadastro. */
+  tareWeightKg: integerToMask(r.tareWeightKg),
+  payloadKg: integerToMask(r.payloadKg),
+  cargoVolumeM3: decimalToMask(r.cargoVolumeM3, 1),
+  tankCapacityL: integerToMask(r.tankCapacityL),
+  referenceKmpl: decimalToMask(r.referenceKmpl, 2),
   licensingDueDate: r.licensingDueDate ?? '',
   rntrc: r.rntrc ?? '',
   tachographDueDate: r.tachographDueDate ?? '',
@@ -242,7 +254,7 @@ const paraFormulario = (r: VehicleRegistry): Formulario => ({
   acquisitionKind: r.acquisitionKind ?? '',
   internalCode: r.internalCode ?? '',
   manualNotes: r.manualNotes ?? '',
-  nextMaintenanceKm: r.nextMaintenanceKm == null ? '' : String(r.nextMaintenanceKm),
+  nextMaintenanceKm: integerToMask(r.nextMaintenanceKm),
   nextMaintenanceDate: r.nextMaintenanceDate ?? '',
   outOfService: r.outOfService,
   outOfServiceReason: r.outOfServiceReason ?? '',
@@ -251,16 +263,17 @@ const paraFormulario = (r: VehicleRegistry): Formulario => ({
 /** Campo de texto em branco vira nulo: apagar na tela precisa apagar no banco. */
 const texto = (valor: string): string | null => (valor.trim() === '' ? null : valor.trim());
 
-const inteiro = (valor: string): number | null => {
-  const cru = valor.trim();
-  return cru === '' ? null : Number(cru);
-};
+/**
+ * ⚠️ **Desfaz a MÁSCARA, e é por isso que não é um `Number()` direto.** Desde
+ * 19/09/2026 os campos de peso, litro e quilômetro mostram o milhar separado, e
+ * `Number('8.500')` é **8,5**: o caminhão de oito toneladas e meia viraria um de
+ * oito quilos e meio, sem nada falhar. Exibir com `maskInteger` e converter com
+ * outra coisa é o defeito silencioso que este par existe para impedir.
+ */
+const inteiro = (valor: string): number | null => parseInteger(valor);
 
-/** Vírgula é o separador decimal do teclado brasileiro, e o backend aceita as duas. */
-const decimal = (valor: string): number | null => {
-  const cru = valor.trim().replace(',', '.');
-  return cru === '' ? null : Number(cru);
-};
+/** Vírgula é o separador decimal do teclado brasileiro, e o backend recebe ponto. */
+const decimal = (valor: string): number | null => parseDecimal(valor);
 
 /**
  * A diferença contra o que foi carregado.
@@ -346,11 +359,20 @@ function paraEnvio(plano: PlanoEmEdicao) {
     item,
     /* ⚠️ Vazio vira `null`, e não zero: o backend apaga o plano do item quando
        os dois chegam nulos, e zero venceria o item no instante da gravação. */
-    intervalKm: plano[item].km.trim() ? Number(plano[item].km) : null,
+    intervalKm: parseInteger(plano[item].km),
     intervalMonths: plano[item].meses.trim() ? Number(plano[item].meses) : null,
   }));
 }
 
+/**
+ * As etapas.
+ *
+ * ⚠️ **Sem frase de apoio** (decisão do usuário em 19/09/2026). Cada etapa teve
+ * uma por algumas horas, primeiro como parágrafo e depois em balão: "O que ele é
+ * e o que consegue levar", "O que a telemetria não entrega: quem preenche é quem
+ * opera". O rótulo já responde o que a etapa pede, e a frase ocupava espaço
+ * permanente para algo que se lê uma vez na vida.
+ */
 const ETAPAS = [
   { id: 'identificacao', label: 'Identificação' },
   { id: 'tecnica', label: 'Ficha técnica' },
@@ -448,12 +470,10 @@ export function VehicleRegistryForm({
 
 function Secao({
   titulo,
-  hint,
   semTitulo,
   children,
 }: {
   titulo: string;
-  hint?: string | undefined;
   /**
    * O título já está na barra de etapas.
    *
@@ -471,7 +491,6 @@ function Secao({
       className={cn(!semTitulo && 'border-outline-variant border-t pt-5 first:border-0 first:pt-0')}
     >
       {semTitulo ? null : <h3 className="text-on-surface text-body-md font-semibold">{titulo}</h3>}
-      {hint ? <p className="text-on-surface-muted text-label-md mt-1 normal-case">{hint}</p> : null}
       <div className={cn('grid gap-4 sm:grid-cols-2', !semTitulo && 'mt-4')}>{children}</div>
     </section>
   );
@@ -770,14 +789,11 @@ function Campos({
 
         {etapa === 'tecnica' ? (
           <>
-            <Secao
-              semTitulo={dentroDoDialogo}
-              titulo="Ficha técnica"
-              hint="O que ele é e o que consegue levar."
-            >
+            <Secao semTitulo={dentroDoDialogo} titulo="Ficha técnica">
               <GlassSelect
                 label="Classificação"
                 options={CLASSES}
+                placeholder="Não informado"
                 value={form.bodyClass}
                 onValueChange={(v) => alterar('bodyClass', v)}
               />
@@ -785,6 +801,7 @@ function Campos({
               <GlassSelect
                 label="Carroceria"
                 options={CARROCERIAS}
+                placeholder="Não informado"
                 value={form.bodyType}
                 onValueChange={(v) => alterar('bodyType', v)}
               />
@@ -811,7 +828,7 @@ function Campos({
                 placeholder="8500"
                 hint="Peso do veículo vazio"
                 value={form.tareWeightKg}
-                onChange={(e) => alterar('tareWeightKg', digitos(e.target.value, 6))}
+                onChange={(e) => alterar('tareWeightKg', maskInteger(e.target.value, 6))}
                 inputMode="numeric"
               />
 
@@ -819,7 +836,7 @@ function Campos({
                 label="Capacidade de carga (kg)"
                 placeholder="36000"
                 value={form.payloadKg}
-                onChange={(e) => alterar('payloadKg', digitos(e.target.value, 6))}
+                onChange={(e) => alterar('payloadKg', maskInteger(e.target.value, 6))}
                 inputMode="numeric"
               />
 
@@ -829,7 +846,7 @@ function Campos({
                 label="Volume de carga (m³)"
                 placeholder="92,5"
                 value={form.cargoVolumeM3}
-                onChange={(e) => alterar('cargoVolumeM3', e.target.value.replace(/[^\d,.]/g, ''))}
+                onChange={(e) => alterar('cargoVolumeM3', maskDecimal(e.target.value, 1, 5))}
                 inputMode="decimal"
               />
 
@@ -837,7 +854,7 @@ function Campos({
                 label="Tanque (litros)"
                 placeholder="600"
                 value={form.tankCapacityL}
-                onChange={(e) => alterar('tankCapacityL', digitos(e.target.value, 5))}
+                onChange={(e) => alterar('tankCapacityL', maskInteger(e.target.value, 5))}
                 inputMode="numeric"
               />
 
@@ -846,7 +863,7 @@ function Campos({
                 placeholder="2,4"
                 hint="Para comparar com o que a telemetria mede"
                 value={form.referenceKmpl}
-                onChange={(e) => alterar('referenceKmpl', e.target.value.replace(/[^\d,.]/g, ''))}
+                onChange={(e) => alterar('referenceKmpl', maskDecimal(e.target.value, 2, 2))}
                 inputMode="decimal"
               />
             </Secao>
@@ -855,11 +872,7 @@ function Campos({
 
         {etapa === 'documentacao' ? (
           <>
-            <Secao
-              semTitulo={dentroDoDialogo}
-              titulo="Documentação"
-              hint="Caminhão com documento vencido não sai, e descobrir isso no posto fiscal custa a viagem."
-            >
+            <Secao semTitulo={dentroDoDialogo} titulo="Documentação">
               <GlassDateField
                 label="Licenciamento vence em"
                 value={form.licensingDueDate}
@@ -877,8 +890,9 @@ function Campos({
                 placeholder="12345678"
                 hint="Registro da ANTT"
                 value={form.rntrc}
-                onChange={(e) => alterar('rntrc', e.target.value)}
-                maxLength={20}
+                /* Registro da ANTT: oito dígitos, sem letra. */
+                onChange={(e) => alterar('rntrc', onlyDigits(e.target.value, 9))}
+                inputMode="numeric"
               />
             </Secao>
           </>
@@ -886,14 +900,11 @@ function Campos({
 
         {etapa === 'propriedade' ? (
           <>
-            <Secao
-              semTitulo={dentroDoDialogo}
-              titulo="Propriedade"
-              hint="Próprio deprecia e tem manutenção na conta da empresa; agregado e terceiro são pagamento por viagem."
-            >
+            <Secao semTitulo={dentroDoDialogo} titulo="Propriedade">
               <GlassSelect
                 label="Vínculo"
                 options={VINCULOS}
+                placeholder="Não informado"
                 value={form.ownership}
                 onValueChange={(v) => alterar('ownership', v)}
               />
@@ -917,6 +928,7 @@ function Campos({
               <GlassSelect
                 label="Forma de aquisição"
                 options={AQUISICOES}
+                placeholder="Não informado"
                 value={form.acquisitionKind}
                 onValueChange={(v) => alterar('acquisitionKind', v)}
               />
@@ -932,11 +944,7 @@ function Campos({
 
         {etapa === 'operacao' ? (
           <>
-            <Secao
-              semTitulo={dentroDoDialogo}
-              titulo="Operação"
-              hint="O que a telemetria não entrega: quem preenche é quem opera."
-            >
+            <Secao semTitulo={dentroDoDialogo} titulo="Operação">
               <GlassInput
                 label="Código interno"
                 placeholder="221"
@@ -956,7 +964,7 @@ function Campos({
                       : `faltam ${numero(registro.kmToMaintenance)} km`
                 }
                 value={form.nextMaintenanceKm}
-                onChange={(e) => alterar('nextMaintenanceKm', digitos(e.target.value, 7))}
+                onChange={(e) => alterar('nextMaintenanceKm', maskInteger(e.target.value, 7))}
                 inputMode="numeric"
               />
 
@@ -983,7 +991,7 @@ function Campos({
               no botão da lista. */}
               <Checkbox
                 label="Fora de operação"
-                description="Tira o caminhão da conta de frota disponível até alguém devolver. Diferente de inativar, que é sair da frota."
+                hint="Tira o caminhão da conta de frota disponível até alguém devolver. Diferente de inativar, que é sair da frota."
                 checked={form.outOfService}
                 onCheckedChange={(marcado) => alterar('outOfService', marcado === true)}
               />
@@ -1011,11 +1019,7 @@ function Campos({
 
         {/* ------------------------------------------------------------------ */}
         {etapa === 'plano' ? (
-          <Secao
-            semTitulo={dentroDoDialogo}
-            titulo="Plano de manutenção"
-            hint="De quanto em quanto tempo cada item é trocado. O vencimento aparece na ficha do veículo."
-          >
+          <Secao semTitulo={dentroDoDialogo} titulo="Plano de manutenção">
             <div className="sm:col-span-2">
               {planoQuery.isPending ? (
                 <p className="text-on-surface-muted text-body-md">Carregando o plano…</p>
@@ -1050,22 +1054,30 @@ function Campos({
             dentroDoDialogo ? 'hidden sm:flex' : 'flex',
           )}
         >
+          {/* O aviso "não tem rastreador e não reporta posição" saiu em
+              18/09/2026, a pedido do usuário: no cadastro novo o rodapé fica
+              sem recado, e o que sobra são os casos em que ele diz algo que a
+              pessoa não tem como saber sozinha. */}
           {salvo ? (
             <span className="text-success flex items-center gap-1.5">
               <CheckIcon size={14} aria-hidden="true" />
               Salvo
             </span>
-          ) : criando ? (
-            <>
-              <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-              Caminhão cadastrado aqui não tem rastreador e não reporta posição
-            </>
-          ) : registro?.updatedAt ? (
-            <>
-              <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-              Editado em {dataLonga.format(new Date(registro.updatedAt))}
-              {registro.updatedByName ? ` por ${registro.updatedByName}` : ''}
-            </>
+          ) : criando ? null : registro?.updatedAt ? (
+            /*
+             * ⚠️ **O carimbo de edição NÃO entra no diálogo** (pedido do
+             * usuário em 19/09/2026): quem abriu o modal veio corrigir um
+             * campo, e "Editado em 12 de set por Fulano" gasta a linha do
+             * rodapé com auditoria que ninguém foi ali buscar. Na ficha do
+             * veículo, que é onde se vai para conferir o cadastro, ele fica.
+             */
+            dentroDoDialogo ? null : (
+              <>
+                <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                Editado em {dataLonga.format(new Date(registro.updatedAt))}
+                {registro.updatedByName ? ` por ${registro.updatedByName}` : ''}
+              </>
+            )
           ) : (
             <>
               <InfoIcon size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
@@ -1078,7 +1090,10 @@ function Campos({
           {dentroDoDialogo ? (
             <SpectrumButton
               type="button"
-              variant="ghost"
+              /* ⚠️ A variante acompanha o RÓTULO: vermelho só quando o botão
+                 fecha e descarta o que foi digitado. Voltar uma etapa não perde
+                 nada, e pintá-lo de vermelho assustaria à toa. */
+              variant={indiceDaEtapa > 0 ? 'neutral' : 'danger'}
               onClick={indiceDaEtapa > 0 ? anterior : onClose}
               disabled={salvar.isPending}
             >

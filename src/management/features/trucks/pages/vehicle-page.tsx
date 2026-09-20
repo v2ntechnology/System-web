@@ -41,6 +41,8 @@ import { getVehicleDetail, getVehicleRegistry, getVehicles, getVehicleTrack } fr
 import { YARD_STATUS } from '../yard-status';
 import { VehicleDriverCard } from '../components/vehicle-driver-card';
 import { VehicleMaintenance } from '../components/vehicle-maintenance';
+import { VehicleDocumentsCard } from '../components/vehicle-documents-card';
+import { VehicleGuidesCard } from '../components/vehicle-guides-card';
 import { VehicleManualDialog } from '../components/vehicle-manual-dialog';
 import {
   FuelEfficiencyCard,
@@ -403,6 +405,27 @@ export function VehiclePage() {
                         </div>
                       </dl>
                     </VehicleCard>
+
+                    {/*
+                     * ⚠️ **Este bloco é o único da Visão geral que NÃO depende
+                     * da telemetria.** Ele vem do DETRAN pela Smartec, e por
+                     * isso responde mesmo para caminhão parado ou sem sinal,
+                     * que é justamente quando alguém abre a ficha para saber
+                     * se o veículo pode sair.
+                     */}
+                    <VehicleDocumentsCard detail={detail} />
+
+                    {/*
+                     * ⚠️ **Ocupa a LARGURA TODA, e é o último bloco da seção.**
+                     * Cada guia é uma linha com valor, vencimento, PDF e linha
+                     * digitável: espremida numa das três colunas ela quebra em
+                     * quatro alturas diferentes e vira a parte mais confusa da
+                     * ficha.
+                     */}
+                    <VehicleGuidesCard
+                      vehicleId={demonstracao ? undefined : vehicle?.id}
+                      className="xl:col-span-3"
+                    />
                   </div>
                 ) : null}
 

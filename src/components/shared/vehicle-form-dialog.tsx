@@ -1,7 +1,8 @@
+import { integerToMask, onlyDigits, parseInteger } from '@/lib/input-masks';
 import { SpinnerIcon } from '@/components/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import { FormSection } from '@/components/shared/form-section';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
@@ -146,11 +147,34 @@ export function VehicleFormDialog({ open, onOpenChange }: VehicleFormDialogProps
               </div>
               <div className="space-y-2">
                 <Label htmlFor="year">Ano</Label>
-                <Input
-                  id="year"
-                  type="number"
-                  aria-invalid={Boolean(errors.year)}
-                  {...register('year', { valueAsNumber: true })}
+                {/*
+                 * ⚠️ **`type="number"` saiu daqui em 19/09/2026.** Ele bloqueia
+                 * a letra, mas aceita `e`, `+` e `-`, mostra as setinhas de
+                 * incremento num ano de fabricação e, o que mais pesa, **não
+                 * deixa formatar**: o navegador recusa qualquer valor com ponto,
+                 * então quilometragem nunca poderia mostrar o milhar.
+                 *
+                 * No lugar dele, campo de texto com máscara e teclado numérico.
+                 * O estado do formulário continua NÚMERO, convertido no
+                 * `onChange`, então o schema de validação não muda.
+                 */}
+                <Controller
+                  control={control}
+                  name="year"
+                  render={({ field }) => (
+                    <Input
+                      id="year"
+                      inputMode="numeric"
+                      placeholder="2023"
+                      aria-invalid={Boolean(errors.year)}
+                      value={field.value == null || Number.isNaN(field.value) ? '' : field.value}
+                      onChange={(e) => {
+                        const digits = onlyDigits(e.target.value, 4);
+                        field.onChange(digits === '' ? undefined : Number(digits));
+                      }}
+                      onBlur={field.onBlur}
+                    />
+                  )}
                 />
                 {errors.year && <p className="text-xs text-destructive">{errors.year.message}</p>}
               </div>
@@ -197,11 +221,22 @@ export function VehicleFormDialog({ open, onOpenChange }: VehicleFormDialogProps
               </div>
               <div className="space-y-2">
                 <Label htmlFor="mileageKm">Quilometragem (km)</Label>
-                <Input
-                  id="mileageKm"
-                  type="number"
-                  aria-invalid={Boolean(errors.mileageKm)}
-                  {...register('mileageKm', { valueAsNumber: true })}
+                {/* Quilometragem com separador de milhar: o painel do caminhão
+                    mostra 312.450, e o campo tem de parecer com ele. */}
+                <Controller
+                  control={control}
+                  name="mileageKm"
+                  render={({ field }) => (
+                    <Input
+                      id="mileageKm"
+                      inputMode="numeric"
+                      placeholder="312.450"
+                      aria-invalid={Boolean(errors.mileageKm)}
+                      value={Number.isNaN(field.value) ? '' : integerToMask(field.value)}
+                      onChange={(e) => field.onChange(parseInteger(e.target.value) ?? undefined)}
+                      onBlur={field.onBlur}
+                    />
+                  )}
                 />
                 {errors.mileageKm && (
                   <p className="text-xs text-destructive">{errors.mileageKm.message}</p>

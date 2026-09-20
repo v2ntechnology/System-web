@@ -265,7 +265,7 @@ export function VehicleManualDialog({
           <div className="border-outline-variant flex shrink-0 justify-end gap-3 border-t px-5 py-4 print:hidden sm:px-6">
             <SpectrumButton
               type="button"
-              variant="ghost"
+              variant="danger"
               size="sm"
               onClick={() => onOpenChange(false)}
             >

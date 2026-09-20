@@ -1,4 +1,11 @@
 import { MaintenanceIcon } from '@/components/icons';
+import {
+  integerToMask,
+  maskCurrency,
+  maskInteger,
+  parseDecimal,
+  parseInteger,
+} from '@/lib/input-masks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -40,9 +47,7 @@ export function MaintenanceEventDialog({
   oficinaSugerida?: string | undefined;
 }) {
   const [data, setData] = useState(hoje);
-  const [odometro, setOdometro] = useState(
-    odometroAtual == null ? '' : String(Math.round(odometroAtual)),
-  );
+  const [odometro, setOdometro] = useState(integerToMask(odometroAtual));
   const [oficina, setOficina] = useState(oficinaSugerida ?? '');
   const [custo, setCusto] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -55,11 +60,11 @@ export function MaintenanceEventDialog({
       addMaintenanceEvent(vehicleId, {
         item,
         doneAt: data,
-        odometerKm: odometro.trim() ? Number(odometro) : undefined,
+        odometerKm: parseInteger(odometro) ?? undefined,
         partnerName: oficina.trim() || undefined,
         /* Vírgula é como se digita dinheiro em português, e `Number` não a
            entende: sem a troca, "890,50" viraria `NaN` e o custo sumiria. */
-        cost: custo.trim() ? Number(custo.replace('.', '').replace(',', '.')) : undefined,
+        cost: parseDecimal(custo) ?? undefined,
         notes: observacao.trim() || undefined,
       }),
     onSuccess: async () => {
@@ -100,8 +105,11 @@ export function MaintenanceEventDialog({
             id="troca-odometro"
             label="Odômetro (km)"
             inputMode="numeric"
+            /* Vem preenchido com o do veículo; só fica vazio se quem registra
+               apagar para digitar o do painel na hora do serviço. */
+            placeholder="312450"
             value={odometro}
-            onChange={(evento) => setOdometro(evento.target.value.replace(/\D/g, ''))}
+            onChange={(evento) => setOdometro(maskInteger(evento.target.value, 7))}
           />
           <GlassInput
             id="troca-oficina"
@@ -116,7 +124,7 @@ export function MaintenanceEventDialog({
             inputMode="decimal"
             placeholder="890,50"
             value={custo}
-            onChange={(evento) => setCusto(evento.target.value)}
+            onChange={(evento) => setCusto(maskCurrency(evento.target.value))}
           />
         </div>
 
@@ -133,7 +141,7 @@ export function MaintenanceEventDialog({
         <div className="border-outline-variant -mx-5 mt-2 flex justify-end gap-3 border-t px-5 pt-4 sm:-mx-6 sm:px-6">
           <SpectrumButton
             type="button"
-            variant="ghost"
+            variant="danger"
             size="sm"
             onClick={() => onOpenChange(false)}
           >

@@ -1,3 +1,4 @@
+import { maskInteger, onlyDigits } from '@/lib/input-masks';
 import type { MaintenanceItemId } from '@/management/lib/fleet-api';
 import { MAINTENANCE_ITEMS } from '@/management/mocks/maintenance-partners';
 import { GlassInput } from '@/management/ui';
@@ -13,8 +14,6 @@ export const PLANO_VAZIO: PlanoEmEdicao = {
   bateria: { km: '', meses: '' },
   revisao: { km: '', meses: '' },
 };
-
-const digitos = (valor: string, maximo: number) => valor.replace(/\D/g, '').slice(0, maximo);
 
 /**
  * O plano de manutenção, dentro do cadastro do veículo.
@@ -43,7 +42,14 @@ export function MaintenancePlanFields({
   const alterar = (item: MaintenanceItemId, campo: 'km' | 'meses', bruto: string) =>
     onChange({
       ...valor,
-      [item]: { ...valor[item], [campo]: digitos(bruto, campo === 'km' ? 7 : 3) },
+      /* ⚠️ O km leva separador de milhar e o mês não: "10.000 km" é como a
+         oficina escreve, e "6 meses" nunca passa de três dígitos. Quem lê o
+         valor precisa desfazer a máscara, e é o que o formulário faz com
+         `parseInteger`. */
+      [item]: {
+        ...valor[item],
+        [campo]: campo === 'km' ? maskInteger(bruto, 7) : onlyDigits(bruto, 3),
+      },
     });
 
   return (

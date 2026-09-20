@@ -26,9 +26,7 @@ import {
   type VehicleListEntry,
 } from '@/management/lib/fleet-api';
 import {
-  Alert,
   GlassInput,
-  GlassModal,
   GlassSelect,
   PAGE_SIZE,
   Pagination,
@@ -37,6 +35,7 @@ import {
   cn,
 } from '@/management/ui';
 
+import { ConfirmDelete, ConfirmToggle } from '../components/vehicle-confirm-dialogs';
 import { VehicleRegistryModal } from '../components/vehicle-registry-modal';
 
 /**
@@ -407,16 +406,6 @@ export function VehicleRegistryPage() {
         </button>
       </HeroBand>
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
-        <h2 className="sr-only">O tamanho do cadastro</h2>
-
-        <QueryState isPending={isPending} isError={isError} label="a frota">
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
-              ela jogaria o carregamento e o erro por cima da faixa colorida. */}
-          <HeroStats items={stats} className="-mt-16 sm:-mt-20" />
-        </QueryState>
-      </section>
-
       {/*
        * ⚠️ Painel branco, como nas demais rotas do painel (08/09/2026). A tela
        * abria dois `GlassCard` empilhados sobre o papel, filtros num e lista
@@ -426,7 +415,13 @@ export function VehicleRegistryPage() {
        * Os dois viraram um bloco só aqui dentro, separados por espaço e por uma
        * divisória, que é o que o painel já usa para separar sem empilhar caixa.
        */}
-      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
+        <h2 className="sr-only">O tamanho do cadastro</h2>
+
+        <QueryState isPending={isPending} isError={isError} label="a frota">
+          <HeroStats items={stats} className="mb-6" />
+        </QueryState>
+
         <QueryState isPending={isPending} isError={isError} label="a frota">
           <>
             <div className="flex flex-col gap-4">
@@ -811,122 +806,5 @@ function VehicleRow({
         </div>
       </td>
     </tr>
-  );
-}
-
-/**
- * A pergunta antes de tirar da frota ou devolver.
- *
- * ⚠️ Existe porque o atalho fica a um clique de distância na linha: sem a
- * confirmação, um clique torto já grava no banco, e numa lista com o cursor
- * passando por cima o clique torto acontece.
- *
- * O texto diz o que inativar NÃO é. A confusão com "fora de serviço" é o erro
- * provável aqui, e ele custa caro: quem inativa um caminhão que só está na
- * oficina tira da escala um veículo que volta na semana que vem.
- */
-function ConfirmToggle({
-  vehicle,
-  pending,
-  onCancel,
-  onConfirm,
-}: {
-  vehicle: VehicleListEntry | null;
-  pending: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const ativando = vehicle != null && !vehicle.active;
-
-  return (
-    <GlassModal
-      open={vehicle != null}
-      onOpenChange={(open) => {
-        if (!open) onCancel();
-      }}
-      title={ativando ? 'Ativar veículo' : 'Inativar veículo'}
-      className="w-[calc(100vw-2rem)] max-w-[480px]"
-    >
-      <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6">
-        <p className="text-on-light text-body-md">
-          {ativando ? 'Devolver ' : 'Tirar '}
-          <strong>{vehicle?.plate}</strong>
-          {ativando
-            ? ' para a frota? Ele volta a aparecer nas listas e nos seletores.'
-            : ' da frota? Ele deixa de aparecer nas listas e nos seletores. Nada é apagado, e o histórico continua respondendo por ele.'}
-        </p>
-
-        {!ativando ? (
-          <Alert severity="info">
-            Inativar é para o caminhão que <strong>saiu da frota</strong>: vendido, devolvido, fim
-            de contrato. Se ele só está parado agora, na oficina ou esperando peça, o certo é marcar{' '}
-            <strong>fora de operação</strong> na ficha, que pede o motivo e mantém o caminhão na
-            conta da frota.
-          </Alert>
-        ) : null}
-
-        <div className="flex items-center justify-end gap-2">
-          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
-            Cancelar
-          </SpectrumButton>
-          <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>
-            {pending ? (ativando ? 'Ativando…' : 'Inativando…') : ativando ? 'Ativar' : 'Inativar'}
-          </SpectrumButton>
-        </div>
-      </div>
-    </GlassModal>
-  );
-}
-
-/**
- * A pergunta antes de apagar.
- *
- * A confirmação não promete o resultado: veículo com viagem, evento ou posição é
- * recusado pelo backend, e a tela não tem como saber disso antes de tentar. O
- * texto diz que a exclusão só vale para quem não tem vínculo, e o erro que volta
- * explica qual vínculo apareceu.
- */
-function ConfirmDelete({
-  vehicle,
-  pending,
-  onCancel,
-  onConfirm,
-}: {
-  vehicle: VehicleListEntry | null;
-  pending: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <GlassModal
-      open={vehicle != null}
-      onOpenChange={(open) => {
-        if (!open) onCancel();
-      }}
-      title="Excluir veículo"
-      className="w-[calc(100vw-2rem)] max-w-[480px]"
-    >
-      <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6">
-        <p className="text-on-light text-body-md">
-          Excluir <strong>{vehicle?.plate}</strong>? O cadastro é apagado e não tem como voltar.
-        </p>
-
-        <Alert severity="warning">
-          Só dá para excluir o caminhão que não tem vínculo nenhum no sistema. Se este já tem
-          viagem, evento de segurança ou posição registrada, o certo é marcar como{' '}
-          <strong>fora de serviço</strong> na ficha: assim o histórico da frota continua respondendo
-          por ele.
-        </Alert>
-
-        <div className="flex items-center justify-end gap-2">
-          <SpectrumButton type="button" variant="ghost" onClick={onCancel} disabled={pending}>
-            Cancelar
-          </SpectrumButton>
-          <SpectrumButton type="button" onClick={onConfirm} disabled={pending}>
-            {pending ? 'Excluindo…' : 'Excluir'}
-          </SpectrumButton>
-        </div>
-      </div>
-    </GlassModal>
   );
 }

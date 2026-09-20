@@ -115,14 +115,12 @@ export function MaintenancePage() {
         description="Acompanhe o que pede atenção na frota. O plano e o histórico de cada caminhão ficam na ficha da placa."
       />
 
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Resumo de manutenção</h2>
 
         <QueryState isPending={isPending} isError={isError} label="a manutenção">
-          {/* A subida fica nos cards, e não na seção: em volta do `QueryState`
-              ela puxaria o carregando e o erro para dentro da faixa. */}
           <HeroStats
-            className="-mt-16 sm:-mt-20"
+            className="mb-6"
             items={[
               {
                 key: 'abertas',
@@ -168,9 +166,7 @@ export function MaintenancePage() {
             </div>
           ) : null}
         </QueryState>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs tabs={TABS} value={tab} onValueChange={setTab} label="Seções de manutenção">
           <QueryState isPending={isPending} isError={isError} label="a manutenção">
             {data ? (
@@ -464,10 +460,10 @@ function ManutencaoReal() {
         <div className="mt-8">
           <PendingSource
             title="A rede de oficinas está em configuração"
-            description="A ficha do veículo já ordena o catálogo pela última posição do caminhão. A contratação de parceiros e as ordens de serviço serão os próximos dados desta visão."
+            description="Cada troca já é registrada por veículo, com data, odômetro, oficina e valor. O que falta é a rede em si: quem são os parceiros contratados e o ciclo completo da ordem de serviço."
             requirements={[
               'Parceiros contratados, com especialidade e área de atendimento',
-              'Ordem de serviço: abertura, peças, valor e conclusão',
+              'Ordem de serviço: abertura, peças, mão de obra e conclusão',
               'Tempo parado, que é o custo invisível da manutenção',
             ]}
             className="bg-light-container p-5 shadow-none ring-0 sm:p-6"
@@ -583,7 +579,7 @@ export function MechanicalAlertsLegacy() {
        * tinham a placa. A subida fica nos cards, e não na seção, senão o
        * carregando e o erro apareceriam por cima da faixa colorida.
        */}
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Resumo dos alertas mecânicos</h2>
 
         <QueryState
@@ -592,7 +588,7 @@ export function MechanicalAlertsLegacy() {
           label="os alertas mecânicos"
         >
           <HeroStats
-            className="-mt-16 sm:-mt-20"
+            className="mb-6"
             items={[
               {
                 key: 'alertas',
@@ -626,9 +622,7 @@ export function MechanicalAlertsLegacy() {
             ]}
           />
         </QueryState>
-      </section>
 
-      <PageContent className="rounded-t-4xl bg-light mt-0 pt-8 sm:mt-0 sm:rounded-t-[40px]">
         <QueryState
           isPending={vencimentos.isPending}
           isError={vencimentos.isError}
@@ -722,10 +716,10 @@ export function MechanicalAlertsLegacy() {
         */}
         <div className="mt-8">
           <PendingSource
-            title="O custo e a ordem de serviço ainda não têm origem"
-            description="Os vencimentos acima saem do plano e do histórico por veículo. Os alertas dizem o que o sensor acusou; o que foi feito, quanto custou e quanto tempo o caminhão parou ainda dependem de ordem de serviço."
+            title="A ordem de serviço ainda não tem origem"
+            description="Os vencimentos acima saem do plano e do histórico por veículo, e cada troca registrada já traz oficina e valor. Os alertas dizem o que o sensor acusou; o que a oficina abriu, quais peças entraram e quanto tempo o caminhão ficou parado ainda dependem de ordem de serviço."
             requirements={[
-              'Ordem de serviço: abertura, oficina, peças, valor e conclusão',
+              'Ordem de serviço: abertura, peças, mão de obra e conclusão',
               'Tempo parado, que é o custo invisível da manutenção',
             ]}
             meanwhile={[

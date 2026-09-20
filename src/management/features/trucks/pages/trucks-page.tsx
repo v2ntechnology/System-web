@@ -217,10 +217,13 @@ export function TrucksPage() {
        * Situação da frota e despesas do período
        * (os filtros desceram para dentro do painel claro em 08/09/2026)
        * ----------------------------------------------------------------- */}
-      <section className="w-full px-4 pb-8 sm:px-6 xl:px-10">
+      {/* -------------------------------------------------------------------
+       * Painel claro: abas flutuantes + lista e detalhe
+       * ----------------------------------------------------------------- */}
+      <PageContent className="rounded-t-4xl bg-light -mt-16 pt-8 sm:-mt-20 sm:rounded-t-[40px]">
         <h2 className="sr-only">Situação e despesas da frota no período</h2>
 
-        <HeroStats items={stats} className="-mt-16 mb-6 sm:-mt-20" />
+        <HeroStats items={stats} className="mb-6" />
 
         <QueryState
           isPending={expensesQuery.isPending}
@@ -278,12 +281,7 @@ export function TrucksPage() {
             </p>
           </div>
         ) : null}
-      </section>
 
-      {/* -------------------------------------------------------------------
-       * Painel claro: abas flutuantes + lista e detalhe
-       * ----------------------------------------------------------------- */}
-      <PageContent className="rounded-t-4xl bg-light mt-0 sm:mt-0 sm:rounded-t-[40px]">
         <PageTabs
           tabs={tabsWithCounts}
           value={tab}
