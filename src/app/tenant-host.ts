@@ -105,15 +105,21 @@ export function temSubdominioConhecido(hostname: string = window.location.hostna
 /**
  * Para onde mandar quem caiu na porta errada, ou `null` quando está na certa.
  *
- * A regra é de mão única: **quem não é super admin não fica no `app.`**, e vai
- * para o endereço da transportadora. O contrário NÃO acontece: super admin no
- * endereço do cliente é deixado em paz, porque é assim que ele demonstra o
- * painel de gestão e o operacional, caminho que o plano de onboarding prevê.
+ * A regra é de mão única: **quem não é super admin não fica na porta da
+ * plataforma**, hoje o `dev.`, e vai para o endereço da transportadora. O
+ * contrário NÃO acontece: super admin no endereço do cliente é deixado em paz,
+ * porque é assim que ele demonstra o painel de gestão e o operacional, caminho
+ * que o plano de onboarding prevê.
  *
- * ⚠️ **É redirecionamento, nunca bloqueio.** O `app.` é o endereço que a
- * Servioeste usa desde sempre, e vai continuar chegando gente por ali por
- * meses. Quem chegar entra normalmente e é levado ao lugar certo, com a sessão
- * intacta: o cookie de refresh é do `api.`, que é same-site com os dois.
+ * ⚠️ **É redirecionamento, nunca bloqueio.** Quem chega entra normalmente e é
+ * levado ao lugar certo, com a sessão intacta: o cookie de refresh é do `api.`,
+ * que é same-site com os dois.
+ *
+ * ⚠️ **O `app.` não passa mais por aqui** (20/09/2026). Ele era o endereço da
+ * Servioeste até 12/09/2026 e continua chegando gente por ali, mas o desvio
+ * virou coisa da borda: um Worker da Cloudflare responde `302` para
+ * `servioeste.rookhub.com.br` antes de o painel carregar. Esta função só vê
+ * quem chega por um slug que a aplicação entende, e `app` não é um deles.
  *
  * ⚠️ **Endereço sem subdomínio conhecido devolve `null` sempre**, e é o que
  * impede o laço: em `localhost` puro não existe outro lugar para onde ir, e

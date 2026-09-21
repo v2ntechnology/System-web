@@ -148,6 +148,15 @@ E o **hub** (`/painel`), a porta protegida sem casca onde dono e gestor escolhem
   host por proteção contra DNS rebinding e devolve "Blocked request".
 - ⚠️ **É redirecionamento, NUNCA bloqueio.** Quem não é da plataforma entra normal e é levado ao
   endereço do cliente. A sessão sobrevive porque o cookie de refresh é do `api.rookhub.com.br`.
+- ⚠️ **O `app.rookhub.com.br` NÃO passa mais por este código** (20/09/2026). Ele foi a porta da
+  Servioeste até 12/09/2026, saiu dos domínios do projeto Pages e chegou a **não resolver**
+  (NXDOMAIN), com a documentação ainda dizendo que redirecionava. O desvio virou coisa da borda: um
+  `AAAA app -> 100::` com proxy, o Worker `rookhub-app-legado` e a rota `app.rookhub.com.br/*`
+  respondem **302** para `servioeste.rookhub.com.br`, preservando caminho e query, **antes de o
+  painel carregar**. Para o `tenant-host.ts`, `app` nunca foi slug de plataforma: só o `dev` é.
+- ⚠️ **O código desse Worker não está em repositório nenhum**, vive só na Cloudflare. Quem apagar
+  derruba o redirecionamento sem deixar fonte. Ele saiu por Worker porque o token da conta **não
+  tem** permissão para Redirect Rules, só para Workers e DNS.
 - ⚠️ **`app/tenant-host.test.ts` trava o que causaria incidente**: o laço em `localhost`, o
   `*.pages.dev` e `rookhub.com.br.invasor.example` não virar slug de plataforma.
 - ⚠️ **O ícone da aba é trocado em tempo de execução** (`app/favicon.ts`), porque o `index.html` é o
