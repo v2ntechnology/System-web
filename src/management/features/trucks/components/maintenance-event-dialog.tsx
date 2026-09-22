@@ -1,5 +1,6 @@
 import { MaintenanceIcon } from '@/components/icons';
 import {
+  decimalToMask,
   integerToMask,
   maskCurrency,
   maskInteger,
@@ -9,8 +10,19 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { addMaintenanceEvent, type MaintenanceItemId } from '@/management/lib/fleet-api';
+import {
+  addMaintenanceEvent,
+  updateMaintenanceEvent,
+  type MaintenanceEvent,
+  type MaintenanceItemId,
+} from '@/management/lib/fleet-api';
 import { GlassDateField, GlassInput, GlassModal, SpectrumButton } from '@/management/ui';
+
+import {
+  MaintenanceDetailFields,
+  detalhesParaEdicao,
+  detalhesParaGravar,
+} from './maintenance-detail-fields';
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -27,6 +39,9 @@ const hoje = () => new Date().toISOString().slice(0, 10);
  * ⚠️ **Só a data é obrigatória.** Odômetro, oficina, custo e observação faltam
  * com frequência em lançamento retroativo, e exigi-los faria a operação inventar
  * número para conseguir salvar, que é pior que o campo vazio.
+ *
+ * Com `evento`, o mesmo formulário corrige um lançamento: os campos nascem com o
+ * que foi gravado, e não com o odômetro de hoje.
  */
 export function MaintenanceEventDialog({
   open,
@@ -36,6 +51,7 @@ export function MaintenanceEventDialog({
   itemLabel,
   odometroAtual,
   oficinaSugerida,
+  evento,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,19 +61,25 @@ export function MaintenanceEventDialog({
   odometroAtual?: number | undefined;
   /** Vem preenchida quando a troca foi lançada a partir de uma loja da lista. */
   oficinaSugerida?: string | undefined;
+  /** O lançamento em correção. Ausente, o diálogo registra uma troca nova. */
+  evento?: MaintenanceEvent | undefined;
 }) {
-  const [data, setData] = useState(hoje);
-  const [odometro, setOdometro] = useState(integerToMask(odometroAtual));
-  const [oficina, setOficina] = useState(oficinaSugerida ?? '');
-  const [custo, setCusto] = useState('');
-  const [observacao, setObservacao] = useState('');
+  const editando = evento != null;
+  const [data, setData] = useState(evento?.doneAt ?? hoje());
+  const [odometro, setOdometro] = useState(
+    integerToMask(editando ? evento.odometerKm : odometroAtual),
+  );
+  const [oficina, setOficina] = useState((editando ? evento.partnerName : oficinaSugerida) ?? '');
+  const [custo, setCusto] = useState(decimalToMask(evento?.cost));
+  const [observacao, setObservacao] = useState(evento?.notes ?? '');
+  const [detalhes, setDetalhes] = useState(() => detalhesParaEdicao(item, evento?.details));
   const [erro, setErro] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
   const gravar = useMutation({
-    mutationFn: () =>
-      addMaintenanceEvent(vehicleId, {
+    mutationFn: () => {
+      const corpo = {
         item,
         doneAt: data,
         odometerKm: parseInteger(odometro) ?? undefined,
@@ -66,23 +88,41 @@ export function MaintenanceEventDialog({
            entende: sem a troca, "890,50" viraria `NaN` e o custo sumiria. */
         cost: parseDecimal(custo) ?? undefined,
         notes: observacao.trim() || undefined,
-      }),
+        details: detalhesParaGravar(item, detalhes),
+      };
+      return editando
+        ? updateMaintenanceEvent(vehicleId, evento.id, corpo)
+        : addMaintenanceEvent(vehicleId, corpo);
+    },
     onSuccess: async () => {
       /* O vencimento é calculado no servidor: invalidar é o que traz o número
          novo, e recalcular aqui criaria a segunda regra que este desenho evita. */
-      await queryClient.invalidateQueries({ queryKey: ['vehicle-maintenance', vehicleId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['vehicle-maintenance', vehicleId] }),
+        queryClient.invalidateQueries({ queryKey: ['vehicle-maintenance-events', vehicleId] }),
+      ]);
       onOpenChange(false);
     },
     onError: (falha: unknown) =>
-      setErro(falha instanceof Error ? falha.message : 'Não foi possível registrar a troca.'),
+      setErro(
+        falha instanceof Error
+          ? falha.message
+          : editando
+            ? 'Não foi possível corrigir o lançamento.'
+            : 'Não foi possível registrar a troca.',
+      ),
   });
 
   return (
     <GlassModal
       open={open}
       onOpenChange={onOpenChange}
-      title={`Registrar troca: ${itemLabel.toLowerCase()}`}
-      description="O vencimento do item passa a contar a partir desta data."
+      title={`${editando ? 'Corrigir troca' : 'Registrar troca'}: ${itemLabel.toLowerCase()}`}
+      description={
+        editando
+          ? 'Se esta for a troca mais recente do item, o vencimento é recalculado.'
+          : 'O vencimento do item passa a contar a partir desta data.'
+      }
       icon={<MaintenanceIcon size={20} aria-hidden="true" />}
       className="max-w-[560px]"
     >
@@ -128,6 +168,8 @@ export function MaintenanceEventDialog({
           />
         </div>
 
+        <MaintenanceDetailFields item={item} valor={detalhes} onChange={setDetalhes} />
+
         <GlassInput
           id="troca-observacao"
           label="Observação"
@@ -148,7 +190,13 @@ export function MaintenanceEventDialog({
             Cancelar
           </SpectrumButton>
           <SpectrumButton type="submit" size="sm" disabled={gravar.isPending || !data}>
-            {gravar.isPending ? 'Registrando…' : 'Registrar troca'}
+            {gravar.isPending
+              ? editando
+                ? 'Salvando…'
+                : 'Registrando…'
+              : editando
+                ? 'Salvar correção'
+                : 'Registrar troca'}
           </SpectrumButton>
         </div>
       </form>

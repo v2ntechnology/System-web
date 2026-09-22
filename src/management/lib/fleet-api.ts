@@ -1747,6 +1747,13 @@ export interface MaintenanceEvent {
   partnerName?: string | undefined;
   cost?: number | undefined;
   notes?: string | undefined;
+  /**
+   * Os campos próprios do item, como viscosidade no óleo e medida no pneu.
+   *
+   * ⚠️ Objeto aberto de propósito: quem define os campos é a tela
+   * (`maintenance-item-fields.ts`), e o servidor guarda em JSONB o que recebeu.
+   */
+  details?: Record<string, unknown> | undefined;
   createdByName?: string | undefined;
 }
 
@@ -1801,17 +1808,22 @@ export async function fetchFleetMaintenanceDue(): Promise<FleetMaintenanceDue[]>
 
 export async function fetchVehicleMaintenanceEvents(
   vehicleId: string,
+  item?: MaintenanceItemId,
   limit = 50,
 ): Promise<MaintenanceEvent[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (item) params.set('item', item);
+
   const rows = await httpRequest<
     (Omit<MaintenanceEvent, 'odometerKm'> & {
       odometerKm: number | null;
       cost: number | null;
       notes: string | null;
       partnerName: string | null;
+      details: Record<string, unknown> | null;
       createdByName: string | null;
     })[]
-  >(`/v1/vehicles/${vehicleId}/maintenance/events?limit=${limit}`);
+  >(`/v1/vehicles/${vehicleId}/maintenance/events?${params.toString()}`);
 
   return rows.map((row) => ({
     id: row.id,
@@ -1821,25 +1833,53 @@ export async function fetchVehicleMaintenanceEvents(
     partnerName: row.partnerName ?? undefined,
     cost: row.cost ?? undefined,
     notes: row.notes ?? undefined,
+    details: row.details ?? undefined,
     createdByName: row.createdByName ?? undefined,
   }));
+}
+
+/** O que se grava de uma troca, na criação e na correção. */
+export interface MaintenanceEventInput {
+  item: MaintenanceItemId;
+  doneAt: string;
+  odometerKm?: number | undefined;
+  partnerName?: string | undefined;
+  cost?: number | undefined;
+  notes?: string | undefined;
+  /** Os campos próprios do item. Ausente quando nenhum foi preenchido. */
+  details?: Record<string, unknown> | undefined;
 }
 
 /** Registra uma troca. O vencimento do item passa a contar a partir dela. */
 export async function addMaintenanceEvent(
   vehicleId: string,
-  evento: {
-    item: MaintenanceItemId;
-    doneAt: string;
-    odometerKm?: number | undefined;
-    partnerName?: string | undefined;
-    cost?: number | undefined;
-    notes?: string | undefined;
-  },
+  evento: MaintenanceEventInput,
 ): Promise<void> {
   await httpRequest(`/v1/vehicles/${vehicleId}/maintenance/events`, {
     method: 'POST',
     body: JSON.stringify(evento),
+  });
+}
+
+/**
+ * Corrige um lançamento. ⚠️ Manda o registro INTEIRO: campo omitido volta nulo
+ * no servidor, porque a correção sobrescreve a linha.
+ */
+export async function updateMaintenanceEvent(
+  vehicleId: string,
+  eventId: string,
+  evento: MaintenanceEventInput,
+): Promise<void> {
+  await httpRequest(`/v1/vehicles/${vehicleId}/maintenance/events/${eventId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(evento),
+  });
+}
+
+/** Apaga um lançamento. O vencimento volta a contar da troca anterior. */
+export async function deleteMaintenanceEvent(vehicleId: string, eventId: string): Promise<void> {
+  await httpRequest(`/v1/vehicles/${vehicleId}/maintenance/events/${eventId}`, {
+    method: 'DELETE',
   });
 }
 

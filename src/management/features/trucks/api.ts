@@ -4,9 +4,12 @@ import { env } from '@/app/environment';
 import {
   fetchVehicleDetail,
   fetchVehicleMaintenance,
+  fetchVehicleMaintenanceEvents,
   fetchVehicleRegistry,
   fetchVehicles,
   fetchVehicleTrack,
+  type MaintenanceEvent,
+  type MaintenanceItemId,
   type MaintenanceStatus,
   type TrackPoint,
   type VehicleRegistry,
@@ -86,4 +89,13 @@ export function getVehicleRegistry(vehicleId: string): Promise<VehicleRegistry> 
 export function getVehicleMaintenance(vehicleId: string): Promise<MaintenanceStatus[]> {
   if (vehicleId === demoVehicle.id) return Promise.resolve(demoMaintenance);
   return fetchVehicleMaintenance(vehicleId);
+}
+
+/** O histórico de trocas. A placa de demonstração não tem histórico no servidor. */
+export function getVehicleMaintenanceEvents(
+  vehicleId: string,
+  item?: MaintenanceItemId,
+): Promise<MaintenanceEvent[]> {
+  if (vehicleId === demoVehicle.id) return Promise.resolve([]);
+  return fetchVehicleMaintenanceEvents(vehicleId, item);
 }

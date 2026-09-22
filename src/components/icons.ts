@@ -125,6 +125,7 @@ export {
   LuChartLine as ChartIcon,
   LuCalendarDays as CalendarIcon,
   LuClock as ClockIcon,
+  LuHistory as HistoryIcon,
   LuTimer as ClockCountdownIcon,
   LuRepeat as RepeatIcon,
   LuMedal as MedalIcon,

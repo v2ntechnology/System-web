@@ -7,6 +7,7 @@ import {
   WarningIcon,
   GridIcon,
   MaintenanceIcon,
+  PartnerShopIcon,
   RouteIcon,
   UsersIcon,
 } from '@/components/icons';
@@ -40,7 +41,9 @@ import { JourneyList } from '@/management/features/trips/components/journey-list
 import { getVehicleDetail, getVehicleRegistry, getVehicles, getVehicleTrack } from '../api';
 import { YARD_STATUS } from '../yard-status';
 import { VehicleDriverCard } from '../components/vehicle-driver-card';
+import { MaintenanceHistory } from '../components/maintenance-history';
 import { VehicleMaintenance } from '../components/vehicle-maintenance';
+import { VehiclePartnerShops } from '../components/vehicle-partner-shops';
 import { VehicleDocumentsCard } from '../components/vehicle-documents-card';
 import { VehicleGuidesCard } from '../components/vehicle-guides-card';
 import { VehicleManualDialog } from '../components/vehicle-manual-dialog';
@@ -70,9 +73,10 @@ const SECOES = [
   /* Manutenção fica junto da operação, e não no fim: quem abre a ficha por causa
      de um barulho no freio procura aqui antes de qualquer número. */
   { id: 'manutencao', label: 'Manutenção', icon: MaintenanceIcon },
+  { id: 'historico', label: 'Histórico', icon: ClockIcon },
+  { id: 'oficinas', label: 'Oficinas parceiras', icon: PartnerShopIcon },
   { id: 'cliente', label: 'Cliente', icon: UsersIcon },
   { id: 'analise', label: 'Análise', icon: ChartIcon },
-  { id: 'historico', label: 'Histórico', icon: ClockIcon },
   { id: 'notificacoes', label: 'Notificações', icon: BellIcon },
 ] as const;
 
@@ -494,10 +498,11 @@ export function VehiclePage() {
                   <VehicleMaintenance
                     vehicleId={vehicle.id}
                     odometroAtual={vehicle.odometerKm}
-                    position={posicao}
                     demonstracao={demonstracao}
                   />
                 ) : null}
+
+                {secao === 'oficinas' ? <VehiclePartnerShops position={posicao} /> : null}
 
                 {secao === 'cliente' ? (
                   <VehicleCard title="Cliente" icon={UsersIcon} hint="A quem esta viagem atende">
@@ -583,16 +588,20 @@ export function VehiclePage() {
                 ) : null}
 
                 {secao === 'historico' ? (
+                  <MaintenanceHistory vehicleId={vehicle.id} odometroAtual={vehicle.odometerKm} />
+                ) : null}
+
+                {secao === 'notificacoes' ? (
                   <VehicleCard
-                    title="Histórico de condução"
-                    icon={ClockIcon}
+                    title="Eventos de condução"
+                    icon={BellIcon}
                     hint="Eventos que o rastreador registrou"
                   >
                     <QueryState
                       isPending={!demonstracao && detailQuery.isPending}
                       isError={!demonstracao && detailQuery.isError}
                       error={detailQuery.error}
-                      label="o histórico"
+                      label="os eventos de condução"
                     >
                       {(detail?.recentEvents ?? []).length === 0 ? (
                         <p className="text-on-light-muted text-body-md">
@@ -623,20 +632,6 @@ export function VehiclePage() {
                         </ul>
                       )}
                     </QueryState>
-                  </VehicleCard>
-                ) : null}
-
-                {secao === 'notificacoes' ? (
-                  <VehicleCard
-                    title="Notificações"
-                    icon={BellIcon}
-                    hint="Avisos do sistema sobre este veículo"
-                  >
-                    <p className="text-on-light-variant text-body-md">
-                      As notificações do painel são da frota inteira, e ainda não são filtradas por
-                      veículo. O que existe por veículo são os eventos de condução, em Histórico, e
-                      os alertas mecânicos, que hoje moram na tela de manutenção.
-                    </p>
                   </VehicleCard>
                 ) : null}
               </div>
