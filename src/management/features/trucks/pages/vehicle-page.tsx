@@ -4,6 +4,7 @@ import {
   ChartIcon,
   ClockIcon,
   FileIcon,
+  QrCodeIcon,
   WarningIcon,
   GridIcon,
   MaintenanceIcon,
@@ -47,6 +48,7 @@ import { VehiclePartnerShops } from '../components/vehicle-partner-shops';
 import { VehicleDocumentsCard } from '../components/vehicle-documents-card';
 import { VehicleGuidesCard } from '../components/vehicle-guides-card';
 import { VehicleManualDialog } from '../components/vehicle-manual-dialog';
+import { VehicleQrDialog } from '../components/vehicle-qr-dialog';
 import {
   FuelEfficiencyCard,
   FuelTankCard,
@@ -121,6 +123,7 @@ export function VehiclePage() {
   const { plate = '' } = useParams();
   const [secao, setSecao] = useState<SecaoId>('geral');
   const [manualAberto, setManualAberto] = useState(false);
+  const [qrAberto, setQrAberto] = useState(false);
 
   /*
    * ⚠️ A placa de DEMONSTRAÇÃO curto-circuita a frota, e de propósito: ela não
@@ -231,6 +234,19 @@ export function VehiclePage() {
         description={modelo || 'Veículo da frota'}
       >
         {status ? <HeroPill icon={status.icon}>{status.label}</HeroPill> : null}
+        {vehicle ? (
+          <button
+            type="button"
+            onClick={() => setQrAberto(true)}
+            className={cn(
+              HERO_PILL,
+              'text-on-primary hover:bg-on-primary hover:text-primary focus-visible:ring-on-primary transition-colors focus-visible:outline-none focus-visible:ring-2',
+            )}
+          >
+            <QrCodeIcon size={15} aria-hidden="true" />
+            QR do veículo
+          </button>
+        ) : null}
         {vehicle ? (
           <button
             type="button"
@@ -644,6 +660,14 @@ export function VehiclePage() {
         <VehicleManualDialog
           open={manualAberto}
           onOpenChange={setManualAberto}
+          vehicleId={vehicle.id}
+          plate={vehicle.plate}
+        />
+      ) : null}
+      {vehicle ? (
+        <VehicleQrDialog
+          open={qrAberto}
+          onOpenChange={setQrAberto}
           vehicleId={vehicle.id}
           plate={vehicle.plate}
         />

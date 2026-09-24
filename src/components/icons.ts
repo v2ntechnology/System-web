@@ -92,6 +92,7 @@ export {
   LuCircleParking as ParkingIcon,
   LuPackage as PackageIcon,
   LuBoxes as BoxesIcon,
+  LuQrCode as QrCodeIcon,
   /* Escolher a base cartográfica no mapa ao vivo. */
   LuLayers as LayersIcon,
   /* Inclinar o mapa e voltar à vista de cima, no mapa ao vivo. */

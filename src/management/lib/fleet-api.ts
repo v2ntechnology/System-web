@@ -973,6 +973,28 @@ export async function fetchVehicleRegistry(vehicleId: string): Promise<VehicleRe
   return toRegistry(dto);
 }
 
+/** QR operacional afixado no veículo. O token é revogável e nunca é derivado da placa. */
+export interface VehicleQr {
+  vehicleId: string;
+  plate: string;
+  qrToken: string;
+  payload: string;
+  emitidoEm: string;
+}
+
+/**
+ * Consulta o QR vigente sem criá-lo. `null` significa que o veículo ainda não
+ * recebeu um adesivo; é diferente de uma falha da API.
+ */
+export async function fetchVehicleQr(vehicleId: string): Promise<VehicleQr | null> {
+  return (await httpRequest<VehicleQr | undefined>(`/v1/vehicles/${vehicleId}/qr`)) ?? null;
+}
+
+/** Cria o primeiro QR ou rotaciona o atual, invalidando o adesivo anterior. */
+export async function generateVehicleQr(vehicleId: string): Promise<VehicleQr> {
+  return httpRequest<VehicleQr>(`/v1/vehicles/${vehicleId}/qr`, { method: 'POST' });
+}
+
 /**
  * Só os campos presentes são enviados.
  *
