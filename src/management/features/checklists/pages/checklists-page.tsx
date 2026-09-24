@@ -2,12 +2,11 @@ import {
   BlockedIcon,
   CameraIcon,
   CheckCircleIcon,
-  ChecklistIcon,
   WarningIcon,
   XCircleIcon,
 } from '@/components/icons';
 import type { ChecklistFill } from '@/management/types';
-import { GlassCard, LightCard, StatusChip, cn } from '@/management/ui';
+import { GlassCard, StatusChip, cn } from '@/management/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -20,6 +19,7 @@ import { QueryState } from '@/management/components/layout/query-state';
 import { env } from '@/app/environment';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
+import { TemplateEditor } from '../components/template-editor';
 import { getChecklistSummary } from '../api';
 
 const TABS = [
@@ -35,10 +35,6 @@ const dateTime = new Intl.DateTimeFormat('pt-BR', {
   month: 'short',
   hour: '2-digit',
   minute: '2-digit',
-  timeZone: 'America/Sao_Paulo',
-});
-const date = new Intl.DateTimeFormat('pt-BR', {
-  dateStyle: 'short',
   timeZone: 'America/Sao_Paulo',
 });
 
@@ -173,48 +169,12 @@ export function ChecklistsPage() {
             {data ? (
               <div className="pb-4">
                 {tab === 'TEMPLATES' ? (
-                  <LightCard title="Templates">
-                    <p className="text-on-light-variant text-body-md mb-5">
-                      Cada preenchimento guarda a versão do template usada — sem isso, mudar o
-                      formulário reescreveria o histórico (RN-033).
-                    </p>
-
-                    <ul className="grid gap-3 xl:grid-cols-3">
-                      {data.templates.map((template) => (
-                        <li key={template.id} className="bg-surface-lowest rounded-lg p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <h3 className="text-on-surface font-semibold">{template.name}</h3>
-                              <p className="text-on-surface-muted text-label-md mt-0.5 normal-case">
-                                {template.appliesTo}
-                              </p>
-                            </div>
-                            <ChecklistIcon
-                              size={18}
-                              className="text-on-surface-muted shrink-0"
-                              aria-hidden="true"
-                            />
-                          </div>
-
-                          <div className="border-outline-variant mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
-                            <StatusChip tone="info">{template.version}</StatusChip>
-                            <span className="tabular text-on-surface-muted text-label-md normal-case">
-                              {template.itemCount} itens
-                            </span>
-                            <span className="text-on-surface-muted text-label-md normal-case">
-                              atualizado {date.format(new Date(template.updatedAt))}
-                            </span>
-                            <StatusChip
-                              tone={template.active ? 'positive' : 'neutral'}
-                              className="ml-auto"
-                            >
-                              {template.active ? 'Ativo' : 'Inativo'}
-                            </StatusChip>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </LightCard>
+                  /*
+                    ⚠️ Editor de verdade, e não mais cartões de leitura.
+                    Cada tipo de veículo tem a sua lista, e publicar alcança toda a
+                    frota daquele tipo. Ver `components/template-editor`.
+                  */
+                  <TemplateEditor />
                 ) : (
                   <div className="grid gap-6 xl:grid-cols-[minmax(0,340px)_1fr]">
                     <div className="min-w-0">
