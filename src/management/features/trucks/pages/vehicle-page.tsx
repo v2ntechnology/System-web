@@ -1,4 +1,5 @@
 import {
+  ChecklistIcon,
   ArrowLeftIcon,
   BellIcon,
   ChartIcon,
@@ -45,6 +46,7 @@ import { VehicleDriverCard } from '../components/vehicle-driver-card';
 import { MaintenanceHistory } from '../components/maintenance-history';
 import { VehicleMaintenance } from '../components/vehicle-maintenance';
 import { VehiclePartnerShops } from '../components/vehicle-partner-shops';
+import { VehicleChecklistCard } from '../components/vehicle-checklist-card';
 import { VehicleDocumentsCard } from '../components/vehicle-documents-card';
 import { VehicleGuidesCard } from '../components/vehicle-guides-card';
 import { VehicleManualDialog } from '../components/vehicle-manual-dialog';
@@ -75,6 +77,10 @@ const SECOES = [
   /* Manutenção fica junto da operação, e não no fim: quem abre a ficha por causa
      de um barulho no freio procura aqui antes de qualquer número. */
   { id: 'manutencao', label: 'Manutenção', icon: MaintenanceIcon },
+  /* Checklist logo depois de manutenção, e antes do histórico: quem abre a ficha
+     por causa de um barulho no freio quer ver, na mesma sequência, o que o
+     motorista marcou na saída de hoje. */
+  { id: 'checklist', label: 'Checklists', icon: ChecklistIcon },
   { id: 'historico', label: 'Histórico', icon: ClockIcon },
   { id: 'oficinas', label: 'Oficinas parceiras', icon: PartnerShopIcon },
   { id: 'cliente', label: 'Cliente', icon: UsersIcon },
@@ -601,6 +607,10 @@ export function VehiclePage() {
                       )}
                     </QueryState>
                   </VehicleCard>
+                ) : null}
+
+                {secao === 'checklist' ? (
+                  <VehicleChecklistCard vehicleId={vehicle.id} plate={vehicle.plate} />
                 ) : null}
 
                 {secao === 'historico' ? (

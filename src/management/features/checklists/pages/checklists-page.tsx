@@ -14,11 +14,11 @@ import { toast } from 'sonner';
 import { PageBanner } from '@/management/components/layout/page-banner';
 import { PageContent } from '@/management/components/layout/page-content';
 import { PageTabs } from '@/management/components/layout/page-tabs';
-import { PendingSource } from '@/management/components/layout/pending-source';
 import { QueryState } from '@/management/components/layout/query-state';
 import { env } from '@/app/environment';
 import { useMasterDetail } from '@/management/hooks/use-master-detail';
 
+import { FillsList } from '../components/fills-list';
 import { TemplateEditor } from '../components/template-editor';
 import { getChecklistSummary } from '../api';
 
@@ -69,11 +69,17 @@ export function ChecklistsPage() {
   const flagged = fills.filter((f) => syncGapHours(f) > SYNC_FLAG_HOURS).length;
 
   /*
-   * Sem origem de dado, a tela explica a ausência em vez de mostrar o mock.
+   * ⚠️ A TELA ESTÁ PELA METADE, e a metade que funciona é real.
    *
-   * O caminho de demonstração continua inteiro: com `VITE_ENABLE_MOCKS=true` a
-   * tela cheia volta. O que não pode acontecer é número simulado ao lado da
-   * frota verdadeira, porque quem olha não tem como saber que é enfeite.
+   * O editor de modelo passou a falar com o backend de verdade (24/09/2026), mas
+   * preenchimento e bloqueio continuam vindo de mock. Então, sem o modo de
+   * demonstração, mostra-se o editor e explica-se o que ainda não chega.
+   *
+   * O que não pode acontecer é número simulado ao lado da frota verdadeira, porque
+   * quem olha não tem como saber que é enfeite. E o que também não pode acontecer,
+   * e acontecia até aqui, é a tela inteira sumir por causa das partes que faltam:
+   * o gestor ficava sem o editor que já existe, sem nenhuma pista de que ele
+   * existia.
    */
   if (!env.enableMocks) {
     return (
@@ -85,19 +91,10 @@ export function ChecklistsPage() {
         />
 
         <PageContent className="mt-0 sm:mt-0">
-          <PendingSource
-            title="Checklists dependem do aplicativo do motorista"
-            description="O checklist é preenchido por quem está no veículo, antes de sair. Ele não vem do rastreador: vem do aplicativo do motorista, que ainda não está ligado ao backend."
-            requirements={[
-              'Modelo de checklist: quais itens, por tipo de veículo',
-              'Aplicativo do motorista enviando o preenchimento',
-              'Regra de bloqueio: qual reprovação impede a saída (RF-016)',
-            ]}
-            meanwhile={[
-              { label: 'Quais veículos estão rodando agora', to: '/gestao/mapa' },
-              { label: 'Quem passou do limite de jornada', to: '/gestao/motoristas' },
-            ]}
-          />
+          <div className="grid gap-4">
+            <FillsList />
+            <TemplateEditor />
+          </div>
         </PageContent>
       </>
     );
